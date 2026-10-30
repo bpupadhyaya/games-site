@@ -11,14 +11,14 @@ export const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 // Safe areas and the host's floating back button, in virtual units. main.js keeps this current (browsers: all zero).
 // px = css pixels per virtual unit (type never goes below ~11 css px); dpr = device pixel ratio (sprite resolution).
-export const host = { t: 0, r: 0, b: 0, l: 0, back: 0, px: 0.6, dpr: 2 };
+export const host = { t: 0, r: 0, b: 0, l: 0, back: 0, px: 0.6, dpr: 2, c3: false };   // c3: the 3D scene is on (compact plates, the board gets the room)
 
 const FRAME = 0.55, THICK = 0.22;          // board: frame margin and slab thickness in cells
 export const boardCells = (n) => n + 2 * FRAME;
 const cache = new Map();
 export function layoutFor(w, h, flip = false, n = 8) {
   w = Math.round(w); h = Math.round(h);
-  const key = `${w}x${h}|${Math.round(host.t)},${Math.round(host.r)},${Math.round(host.b)},${Math.round(host.l)},${Math.round(host.back)}|${flip ? 1 : 0}|${n}`;
+  const key = `${w}x${h}|${Math.round(host.t)},${Math.round(host.r)},${Math.round(host.b)},${Math.round(host.l)},${Math.round(host.back)}|${flip ? 1 : 0}|${n}|${host.c3 ? 3 : 2}`;
   let L = cache.get(key);
   if (!L) { L = build(w, h, { ...host }, flip, n); L.key = key; cache.set(key, L); if (cache.size > 40) cache.delete(cache.keys().next().value); }
   return L;
@@ -51,7 +51,7 @@ function build(w, h, ins, flip, n) {
   if (!land) {
     const pad = 12, backRes = ins.back ? 62 : 0, cellW = (U.w - 2 * pad) / OUTER;
     const fixedFor = (mp, mh, rows) => BH + rows * mp + mh + (rows + 3) * G + Math.max(0, ins.b - 8) + Math.max(ins.t, 8) + (backRes && rows === 1 ? 0 : 0);
-    let minPlate = 124, msgH = 64, rows = 2, cellH = (h - fixedFor(minPlate, msgH, 2)) / (OUTER + THICK);
+    let minPlate = ins.c3 ? 102 : 124, msgH = ins.c3 ? 56 : 64, rows = 2, cellH = (h - fixedFor(minPlate, msgH, 2)) / (OUTER + THICK);
     if (cellH < cellW * 0.95) { minPlate = 86; msgH = 46; cellH = (h - fixedFor(minPlate, msgH, 2)) / (OUTER + THICK); }
     if (cellH < cellW * 0.95) { rows = 1; minPlate = 100; msgH = 46; cellH = (h - fixedFor(minPlate, msgH, 1)) / (OUTER + THICK); }   // squat screen: both plates side by side above the board
     cell = Math.min(cellW, cellH);
@@ -59,7 +59,7 @@ function build(w, h, ins, flip, n) {
     const top0 = Math.max(ins.t + 6, backRes ? ins.t + backRes : 0);
     const free = barY - G - top0 - bh - msgH - rows * minPlate - (rows + 1) * G;
     // spare height first makes the plates roomier (bigger type and tray), what is left becomes even breathing room around the board
-    const plateH = minPlate + (rows === 2 && free > 0 ? Math.min(free * 0.5, 120) : 0);
+    const plateH = minPlate + (rows === 2 && free > 0 && !ins.c3 ? Math.min(free * 0.5, 120) : 0);
     const air = Math.max(0, free - (rows === 2 ? 2 * (plateH - minPlate) : 0));
     const gA = air / 5;
     let y = top0 + gA;
@@ -149,27 +149,33 @@ function buildTitle(L, hasSave) {
   const memo = titleCache.get(L) || {}; titleCache.set(L, memo);
   if (memo[hasSave]) return memo[hasSave];
   const { w, h, U, ins } = L, T = { rows: {}, hero: null, card: null, lockup: null };
-  const names = [hasSave ? ['resume'] : null, ['play'], ['two', 'learn'], ['auto'], ['rules', 'how'], ['about', 'settings']].filter(Boolean);
-  const n = names.length;
-  const place = (x0, aw, y0, pitch, bh) => names.forEach((row, i) => {
-    const y = y0 + i * pitch;
-    if (row.length === 1) T.rows[row[0]] = R(x0, y, aw, bh);
-    else { const cw = (aw - 12) / 2; T.rows[row[0]] = R(x0, y, cw, bh); T.rows[row[1]] = R(x0 + cw + 12, y, cw, bh); }
-  });
+  // one dominant Play, then a tidy 3-column grid (Two players, Learn, Watch & Learn / Rules, How to Play, About); Settings is a small
+  // plaque in the top right corner
+  const G = 12, grid = (x0, aw, y, bh, names) => { const cw = (aw - G * (names.length - 1)) / names.length; names.forEach((nm, i) => { T.rows[nm] = R(x0 + i * (cw + G), y, cw, bh); }); };
+  const gear = clamp(Math.round(46 / (ins.px || 0.6)) + 8, 56, 84);
+  T.rows.settings = R(U.x1 - 14 - gear, Math.max(ins.t, 0) + 14, gear, gear);
   if (!L.land) {
-    const lock = 64, bottom = h - Math.max(14, ins.b + 6), bw = Math.min(U.w - 56, 560);
-    const minP = clamp(Math.round(46 / (ins.px || 0.6)) + 12, 58, 98);
-    let pitch = clamp((bottom - lock - (U.y0 + 470)) / n, minP, 98), bh = pitch - 12;
-    const y0 = bottom - lock - n * pitch + 12;
-    place(U.x0 + (U.w - bw) / 2, bw, y0, pitch, bh);
+    const lock = 64, bottom = h - Math.max(14, ins.b + 6), bw = Math.min(U.w - 56, 560), x0 = U.x0 + (U.w - bw) / 2;
+    const rowH = clamp(Math.round(46 / (ins.px || 0.6)) + 18, 78, 104), playH = 132, resH = 84;
+    let y = bottom - lock - rowH; const y3 = y; y -= G + rowH; const y2 = y; y -= G + playH; const yp = y;
+    grid(x0, bw, y3, rowH, ['rules', 'how', 'about']); grid(x0, bw, y2, rowH, ['two', 'learn', 'auto']);
+    T.rows.play = R(x0, yp, bw, playH);
+    let top = yp;
+    if (hasSave) { T.rows.resume = R(x0, yp - G - resH, bw, resH); top = yp - G - resH; }
     T.lockup = { x: w / 2, y: bottom - 14 };
-    const zoneTop = Math.max(ins.t + 8, ins.back ? ins.t + 60 : 0), zone = y0 - 12 - zoneTop;
-    T.hero = R(U.x0 + 10, zoneTop, U.w - 20, zone);
+    const zoneTop = Math.max(ins.t + 8, ins.back ? ins.t + 60 : 0);
+    T.hero = R(U.x0 + 10, zoneTop, U.w - 20, top - 14 - zoneTop);
   } else {
-    const aw = clamp(w * 0.38, 380, 560), ax = U.x1 - aw - 16, lock = 56;
-    const pitch = Math.min(92, (U.h - 40 - lock) / n), bh = pitch - 12, y0 = U.y0 + (U.h - n * pitch - lock) / 2 + 6;
-    place(ax + 24, aw - 48, y0, pitch, bh);
-    T.card = R(ax, y0 - 24, aw, n * pitch + lock + 28);
+    const aw = clamp(w * 0.38, 380, 560), ax = U.x1 - aw - 16, lock = 56, bw = aw - 48;
+    const rowH = 82, playH = 112, resH = 78;
+    const total = (hasSave ? resH + G : 0) + playH + G + rowH + G + rowH;
+    const y0 = Math.max(U.y0 + 24 + gear + 12, U.y0 + (U.h - total - lock) / 2 + 6);
+    let y = y0;
+    if (hasSave) { T.rows.resume = R(ax + 24, y, bw, resH); y += resH + G; }
+    T.rows.play = R(ax + 24, y, bw, playH); y += playH + G;
+    grid(ax + 24, bw, y, rowH, ['two', 'learn', 'auto']); y += rowH + G;
+    grid(ax + 24, bw, y, rowH, ['rules', 'how', 'about']);
+    T.card = R(ax, y0 - 20, aw, total + lock + 28);
     T.lockup = { x: ax + aw / 2, y: T.card.y + T.card.h - 14 };
     T.hero = R(U.x0 + 10, U.y0 + 10, ax - U.x0 - 30, U.h - 20);
   }

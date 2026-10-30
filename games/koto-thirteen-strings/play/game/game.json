@@ -4,7 +4,7 @@
   "tagline": "Pluck, sweep and press thirteen silk strings.",
   "genre": "music zither",
   "orientation": "any",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "monetization": {
     "model": "premium",
     "priceUsd": 2.99,

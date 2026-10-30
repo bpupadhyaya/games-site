@@ -1,6 +1,7 @@
 // Drawing primitives: everything on screen is vector-drawn here (no image files).
 import { C, W, H, font, elementColor, alpha } from './theme.js';
 import { CARDS, describe, ELEMENT_NAMES, BEATS } from '../data/cards.js';
+import { v3, flatAlpha, put3 } from '../v3.js';
 
 const TAU = Math.PI * 2;
 
@@ -257,6 +258,18 @@ export function drawMoon(ctx, mx, my, r) {
 }
 
 export function drawSky(ctx, sky, t, tint = null, moonAt = null, calm = false) {
+  if (v3.on) {
+    // the lit 3D night takes over: hand the moon and the horizon colour to the presenter; the flat sky only fades out
+    v3.tint = tint;
+    if (moonAt) put3(ctx, 'moon', 0, moonAt.x, moonAt.y, moonAt.r);
+    const fa = flatAlpha();
+    if (fa <= 0) return;
+    ctx.save(); ctx.globalAlpha = fa; drawSky2D(ctx, sky, t, tint, moonAt, calm); ctx.restore();
+    return;
+  }
+  drawSky2D(ctx, sky, t, tint, moonAt, calm);
+}
+function drawSky2D(ctx, sky, t, tint = null, moonAt = null, calm = false) {
   // The static part of the scene is painted once into an off-screen layer where the platform allows it.
   if (!sky.layerTried) {
     sky.layerTried = true;
@@ -919,7 +932,7 @@ function drawRival(ctx, enemy, x, y, r, t, flash) {
   ctx.restore();
 }
 
-export function drawConstruct(ctx, enemy, x, y, r, t, { flash = 0, targeted = false } = {}) {
+function drawConstruct2D(ctx, enemy, x, y, r, t, { flash = 0, targeted = false } = {}) {
   if (enemy.shape === 'boss_rival') {
     drawRival(ctx, enemy, x, y, r, t, flash);
     if (targeted) drawTargetMarks(ctx, x, y, r * 1.62, t);
@@ -1217,7 +1230,7 @@ export function drawRing(ctx, x, y, r, order, { from = null, against = null } = 
 }
 
 // ---------------------------------------------------------------- the archer
-export function drawArcher(ctx, x, y, t, { floating = true, pull = 0, scale = 1.2, tint = null, flip = false, aimDown = false } = {}) {
+function drawArcher2D(ctx, x, y, t, { floating = true, pull = 0, scale = 1.2, tint = null, flip = false, aimDown = false } = {}) {
   // `tint` recolours every gold detail (the Rival is steel-violet); `flip` mirrors the figure;
   // `aimDown` points the bow at the player instead of at the field.
   const rim = tint ?? C.gold;
@@ -1427,6 +1440,27 @@ export function panel(ctx, rect, { edge = null, r = 24, hot = false, ornaments =
   ctx.lineWidth = hot ? 2.6 : 1.8;
   ctx.strokeStyle = edge ?? (hot ? goldFoil(ctx, rect.x, rect.y, rect.x + rect.w, rect.y + rect.h) : C.panelEdge);
   ctx.stroke();
+  if (v3.on && rect.w >= 150 && rect.h >= 56) {
+    // plaque look over the 3D night: a brass edge, a dark engraved groove inside it and four rivets (still one flat face)
+    ctx.lineWidth = 2.4;
+    ctx.strokeStyle = edge ?? goldFoil(ctx, rect.x, rect.y, rect.x + rect.w, rect.y + rect.h);
+    roundRect(ctx, rect.x, rect.y, rect.w, rect.h, r);
+    ctx.stroke();
+    const gi = Math.min(6, rect.h / 8);
+    ctx.lineWidth = 1.6;
+    ctx.strokeStyle = 'rgba(2, 3, 14, 0.55)';
+    roundRect(ctx, rect.x + gi, rect.y + gi, rect.w - gi * 2, rect.h - gi * 2, Math.max(4, r - gi));
+    ctx.stroke();
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = alpha(C.gold, 0.22);
+    roundRect(ctx, rect.x + gi + 2, rect.y + gi + 2, rect.w - gi * 2 - 4, rect.h - gi * 2 - 4, Math.max(3, r - gi - 2));
+    ctx.stroke();
+    if (rect.h >= 80) {
+      ctx.fillStyle = goldFoil(ctx, rect.x, rect.y, rect.x + 14, rect.y + 14);
+      const ri = Math.min(r * 0.7, 16);
+      for (const [ox, oy] of [[ri, ri], [rect.w - ri, ri], [ri, rect.h - ri], [rect.w - ri, rect.h - ri]]) { ctx.beginPath(); ctx.arc(rect.x + ox, rect.y + oy, 2.8, 0, TAU); ctx.fill(); }
+    }
+  }
   // large cards (overlays, result sheets) keep the inner hairline and corner ornaments; small tappable cards are one flat shape
   if (rect.h >= 260) {
     ctx.lineWidth = 1;
@@ -1548,4 +1582,35 @@ function draw3dGem(ctx, sides, r, col, yaw) {
     ctx.stroke();
   }
   ctx.restore();
+}
+
+// ---------------------------------------------------------------- 3D hand-off (view3d/presenter.js re-draws these as lit 3D objects)
+const FLAT_SHAPES = new Set(['boss_rival']);
+export function drawConstruct(ctx, enemy, x, y, r, t, o = {}) {
+  if (!v3.on || FLAT_SHAPES.has(enemy.shape)) { drawConstruct2D(ctx, enemy, x, y, r, t, o); return; }
+  const fa = flatAlpha(), id = o.id ?? 0, flash = o.flash ?? 0;
+  if (fa > 0) { ctx.save(); ctx.globalAlpha = fa; drawConstruct2D(ctx, enemy, x, y, r, t, o); ctx.restore(); }
+  if (enemy.shape === 'boss_storm') {
+    const yy = y + Math.sin(t * 0.9) * 6, grow = 1 + Math.min(enemy.strength, 24) * 0.022;
+    put3(ctx, 'storm', id, x, yy, r * grow, { flash, strength: enemy.strength });
+    if (enemy.lasts) text(ctx, Math.max(0, enemy.lasts - enemy.idx), x, yy + r * grow * 0.09, { size: r * grow * 0.3, weight: 800, color: '#0a0c24', display: true });
+    if (o.targeted) drawTargetMarks(ctx, x, yy, r * 1.62, t);
+    return;
+  }
+  const bob = Math.sin(t * 1.1 + x * 0.013) * 7, yy = y + bob;
+  put3(ctx, 'enemy', id, x, yy, r, { shape: enemy.shape, element: enemy.decoy ? null : enemy.element, decoy: !!enemy.decoy, act: enemy.act ?? 1, boss: !!enemy.boss, elite: !!enemy.elite, flash });
+  ctx.save();
+  ctx.shadowColor = enemy.decoy ? C.gold : elementColor(enemy.element); ctx.shadowBlur = 14;
+  glyph(ctx, enemy.decoy ? null : enemy.element, x, yy, r * 0.62, { width: Math.max(2.4, r * 0.035), color: '#ffffff' });
+  ctx.restore();
+  if (o.targeted) drawTargetMarks(ctx, x, yy, r * 1.62, t);
+}
+
+export function drawArcher(ctx, x, y, t, o = {}) {
+  if (!v3.on) { drawArcher2D(ctx, x, y, t, o); return; }
+  const { floating = true, pull = 0, scale = 1.2, tint = null, flip = false, aimDown = false } = o;
+  const fa = flatAlpha();
+  if (fa > 0) { ctx.save(); ctx.globalAlpha = fa; drawArcher2D(ctx, x, y, t, o); ctx.restore(); }
+  const s3 = o.v3s ?? scale;   // the title hero is drawn larger in 3D than the flat art was
+  put3(ctx, 'bow', tint ? 1 : 0, x, y, 100 * s3, { floating, pull, tint, flip, aimDown, lift: floating ? 26 * s3 + Math.sin(t * 1.4) * 4 * s3 : 0, scale: s3 });
 }

@@ -4,7 +4,7 @@
   "tagline": "Find them, or stay hidden. The seeker remembers.",
   "genre": "hide and seek deduction",
   "orientation": "any",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "monetization": {
     "model": "premium",
     "priceUsd": 2.99,

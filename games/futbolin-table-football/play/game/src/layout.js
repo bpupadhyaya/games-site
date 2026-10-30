@@ -3,6 +3,7 @@
 // Modes: portrait (also tablets in portrait and squarish windows) and wide (landscape, aspect >= 1.25). In wide mode the table is turned
 // a quarter turn so its long side runs across the screen; the player's goal is on the left and a flick to the right kicks.
 import { FW, FL, HW, HL, TEXT_SCALES } from './consts.js';
+import { v3, fitted } from './v3.js';
 
 export let W = 720;
 export let H = 1280;
@@ -107,12 +108,18 @@ export function playLayout(idx, w = W, h = H) {
 }
 
 // table <-> screen (the table is drawn rotated a quarter turn when wide)
+// With the 3D table on, the same functions use the perspective camera (rod plane), so touches land on the rod under the finger.
 export function toScreen(lay, tx, ty) {
+  if (fitted(lay)) { const q = v3.project(tx, ty); if (q) return q; }
   return lay.wide ? { x: lay.cx - ty * lay.s, y: lay.cy + tx * lay.s } : { x: lay.cx + tx * lay.s, y: lay.cy + ty * lay.s };
 }
 export function toTable(lay, sx, sy) {
+  if (fitted(lay)) { const q = v3.unproject(sx, sy); if (q) return q; }
   return lay.wide ? { x: (sy - lay.cy) / lay.s, y: (lay.cx - sx) / lay.s } : { x: (sx - lay.cx) / lay.s, y: (sy - lay.cy) / lay.s };
 }
+
+// screen units per table unit near a table point (flick speed is measured in CSS px/s so it feels the same on every screen)
+export function scaleAt(lay, tx = 0, ty = 0) { if (fitted(lay) && v3.scale) { const k = v3.scale(tx, ty); if (k > 0) return k; } return lay.s; }
 
 // Watch & Learn controls: Pause/Resume, Think -, Think +, Exit. rects[] in that order, plus the message panel.
 export function watchLayout(idx, w = W, h = H) {

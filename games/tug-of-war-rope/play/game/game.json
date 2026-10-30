@@ -4,7 +4,7 @@
   "tagline": "Pull on the beat, dig in, outlast them",
   "genre": "timing sport",
   "orientation": "any",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "monetization": {
     "model": "premium",
     "priceUsd": 2.99,

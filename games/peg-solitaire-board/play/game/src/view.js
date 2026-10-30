@@ -6,8 +6,10 @@ import { LEVELS } from './levels-data.js';
 import { TEXT_SCALES, THINK_STEPS, inRect } from './layout.js';
 import { drawCredit, drawMoreLine, edgeStroke, drawBadgeStack } from './brand.js';
 import { countMoves, count } from './rules.js';
+import { v3 } from './v3.js';
 
 const CREAM = '#f7ecd2', MUTED = '#cdbb96', GOLD = '#e9bd62', GOLD2 = '#f6d98c', INK = '#2a1a0c';
+const tableOrNone = (ctx, w, h, f) => { if (!v3.on) drawTable(ctx, w, h, f); };
 export const docMetrics = { max: 0, view: 0 };
 let UZ = 1;                      // the player's text size (A-/A+ on the Rules pages, Settings): buttons, chips, messages and the result card follow it where they fit
 const zs = (cap = 2.2) => Math.min(UZ, cap);
@@ -32,6 +34,7 @@ export function wrap(ctx, s, maxW) {
   return out;
 }
 function panel(ctx, r, { fill = 'rgba(8,22,16,0.74)', rad = 22, brand = 0, stroke = 'rgba(240,214,150,0.22)' } = {}) {
+  if (v3.on) { fill = 'rgba(30,20,12,0.86)'; stroke = 'rgba(232,190,100,0.5)'; }   // dark walnut plaque with a brass edge over the 3D room
   rr(ctx, r, rad); ctx.fillStyle = fill; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = stroke; ctx.stroke();
   if (brand) edgeStroke(ctx, r, rad, brand);
 }
@@ -69,7 +72,9 @@ export function holeAt(sc, x, y) {
 }
 export function drawBoardScene(ctx, sc) {
   const { b, holes } = sc, P = pitchFor(b, sc.D), r = P * 0.4, set = sc.set, a = sc.anim;
-  drawBoard(ctx, b, sc.wood, sc.cx, sc.cy, P);
+  const T = v3.on;   // 3D room: the board and marbles are drawn by the presenter from what is pushed here; targets, rings, sparkles stay 2D on top
+  if (T) { v3.pose = { b, cx: sc.cx, cy: sc.cy, P, wood: sc.wood, set, calm: sc.calm, t: sc.t }; v3.wood = sc.wood; v3.set = set; } else drawBoard(ctx, b, sc.wood, sc.cx, sc.cy, P);
+  const peg = (x, y, rr_, st, o = {}) => { if (!T) return drawPeg(ctx, x, y, rr_, st, o); if (o.glow) { ctx.lineWidth = Math.max(2, P * 0.07); ctx.strokeStyle = 'rgba(255,226,130,0.9)'; ctx.beginPath(); ctx.arc(x, y + (o.lift ?? 0) * rr_ * 0.0, rr_ * 1.22, 0, 6.3); ctx.stroke(); } v3.pegs.push({ x, y, s: rr_ / (P * 0.4), lift: o.lift ?? 0, alpha: o.alpha ?? 1, sq: o.sq ?? 0 }); };
   const at = (i) => ({ x: sc.cx + b.pos[i].x * P, y: sc.cy + b.pos[i].y * P });
   // targets
   if (sc.targets) for (const t of sc.targets) { const p = at(t); drawTarget(ctx, p.x, p.y, P * 0.43, sc.t, sc.calm); }
@@ -80,18 +85,18 @@ export function drawBoardScene(ctx, sc) {
     if (!holes[i] || i === hide || (sc.drag && sc.drag.from === i)) continue;
     const p = at(i), sel = sc.sel === i;
     let sh = 0; if (sc.shake && sc.shake.i === i) sh = Math.sin(sc.shake.t * 55) * (1 - sc.shake.t / 0.35) * P * 0.1;
-    drawPeg(ctx, p.x + sh, p.y, r, set, { lift: sel ? 1 : 0, glow: sel ? 1 : 0 });
+    peg(p.x + sh, p.y, r, set, { lift: sel ? 1 : 0, glow: sel ? 1 : 0 });
   }
   if (sc.ring != null && sc.ring >= 0) { const p = at(sc.ring), pu = sc.calm ? 0.8 : 0.65 + 0.35 * Math.sin(sc.t * 4); ctx.lineWidth = Math.max(2, P * 0.07); ctx.strokeStyle = `rgba(255,226,130,${pu})`; ctx.beginPath(); ctx.arc(p.x, p.y, r * 1.3, 0, 6.3); ctx.stroke(); }
   if (a) {
     const u = clamp(a.t / a.dur, 0, 1), f = a.dir > 0 ? u : 1 - u, A = at(a.j.from), B = at(a.j.to), O = at(a.j.over);
     // the jumped peg: sits until the jumper passes over it, then pops and fades
     const cu = clamp((f - 0.42) / 0.3, 0, 1), alive = f < 0.42 ? 1 : 1 - ease(cu);
-    if (alive > 0.02) drawPeg(ctx, O.x, O.y - (f >= 0.42 ? cu * r * 0.7 : 0), r * (1 + (f >= 0.42 ? 0.18 * Math.sin(cu * 3.14) : 0)), set, { alpha: alive, lift: f >= 0.42 ? cu * 0.5 : 0 });
+    if (alive > 0.02) peg(O.x, O.y - (f >= 0.42 ? cu * r * 0.7 : 0), r * (1 + (f >= 0.42 ? 0.18 * Math.sin(cu * 3.14) : 0)), set, { alpha: alive, lift: f >= 0.42 ? cu * 0.5 : 0 });
     const e = ease(f), x = A.x + (B.x - A.x) * e, y = A.y + (B.y - A.y) * e, lift = Math.sin(f * Math.PI);
-    drawPeg(ctx, x, y, r, set, { lift: lift * 1.6, sq: f > 0.9 ? (1 - f) * 8 : 0 });
+    peg(x, y, r, set, { lift: lift * 1.6, sq: f > 0.9 ? (1 - f) * 8 : 0 });
   }
-  if (sc.drag) { const lift = 1.1; drawPeg(ctx, sc.drag.x, sc.drag.y - P * 0.35, r, set, { lift, glow: 1 }); }
+  if (sc.drag) { const lift = 1.1; peg(sc.drag.x, sc.drag.y - P * 0.35, r, set, { lift, glow: 1 }); }
   // sparkles
   if (sc.fx) for (const f of sc.fx) { const k = 1 - f.life / f.max, x = sc.cx + f.x * P, y = sc.cy + f.y * P; ctx.fillStyle = `rgba(${f.c[0]},${f.c[1]},${f.c[2]},${(1 - k) * 0.9})`; const s = P * 0.09 * (1 - k * 0.5); ctx.beginPath(); ctx.moveTo(x, y - s * 2); ctx.lineTo(x + s * 0.6, y - s * 0.6); ctx.lineTo(x + s * 2, y); ctx.lineTo(x + s * 0.6, y + s * 0.6); ctx.lineTo(x, y + s * 2); ctx.lineTo(x - s * 0.6, y + s * 0.6); ctx.lineTo(x - s * 2, y); ctx.lineTo(x - s * 0.6, y - s * 0.6); ctx.closePath(); ctx.fill(); }
   if (sc.cursor != null && sc.cursor >= 0) { const p = at(sc.cursor); ctx.lineWidth = Math.max(2, P * 0.06); ctx.strokeStyle = 'rgba(255,255,255,0.85)'; ctx.setLineDash?.([P * 0.12, P * 0.1]); ctx.beginPath(); ctx.arc(p.x, p.y, P * 0.5, 0, 6.3); ctx.stroke(); ctx.setLineDash?.([]); }
@@ -216,7 +221,7 @@ export const playScene = (S, L) => {
 
 function renderTitle(ctx, S, L) {
   const T = L.title(!!S.saved), hero = T.hero;
-  drawTable(ctx, L.w, L.h, { x: hero.x + hero.w / 2, y: hero.y + hero.h * 0.55 });
+  tableOrNone(ctx, L.w, L.h, { x: hero.x + hero.w / 2, y: hero.y + hero.h * 0.55 });
   // logo
   const logoSize = clamp(Math.min(hero.w * 0.15, hero.h * 0.13), 54, 110);
   const ly = hero.y + logoSize * 1.05;
@@ -249,7 +254,7 @@ function tabsRow(ctx, S, rects) {
   rects.forEach((r, i) => { const b = BOARDS[i], on = S.tab === i; button(ctx, r, b.short.split(' ')[0] === '15' ? 'Triangle' : b.name === 'Grand Cross' ? 'Cross' : b.name, { active: on, size: 26, sub: r.h > 70 ? b.short : null, kind: on ? 'plain' : 'ghost' }); });
 }
 function renderPuzzles(ctx, S, L) {
-  const C = L.select; drawTable(ctx, L.w, L.h);
+  const C = L.select; tableOrNone(ctx, L.w, L.h);
   text(ctx, 'Puzzles', C.title.x, C.title.y, C.title.size, { display: true, color: GOLD2, weight: 700, shadow: true });
   tabsRow(ctx, S, C.tabs);
   const b = BOARDS[S.tab], lv = LEVELS[b.id], done = lv.filter((_, i) => (S.progress.stars[`${b.id}:${i}`] ?? 0) > 0).length, stars = lv.reduce((s, _, i) => s + (S.progress.stars[`${b.id}:${i}`] ?? 0), 0);
@@ -269,7 +274,7 @@ function renderPuzzles(ctx, S, L) {
   if (S.msg) msgToast(ctx, S.msg, L.w / 2, C.back.y - 14, L.w);
 }
 function renderClassic(ctx, S, L) {
-  const C = L.select; drawTable(ctx, L.w, L.h);
+  const C = L.select; tableOrNone(ctx, L.w, L.h);
   text(ctx, 'Classic', C.title.x, C.title.y, C.title.size, { display: true, color: GOLD2, weight: 700, shadow: true });
   text(ctx, 'Pick a board, then remove the first peg.', L.w / 2, C.title.y + 36, 24, { color: MUTED, weight: 500, maxW: L.w - 40 });
   C.cards.forEach((r, i) => {
@@ -299,7 +304,7 @@ function playTitles(S) {
 }
 function renderPlay(ctx, S, L) {
   const P = L.play, g = S.g, b = boardById(g.bid);
-  drawTable(ctx, L.w, L.h, { x: P.board.cx, y: P.board.cy });
+  tableOrNone(ctx, L.w, L.h, { x: P.board.cx, y: P.board.cy });
   const [t1, t2] = playTitles(S);
   if (L.land) { if (P.left) panel(ctx, P.left, { fill: 'rgba(8,22,16,0.66)', rad: 26, brand: 0.5 }); panel(ctx, P.right, { fill: 'rgba(8,22,16,0.66)', rad: 26, brand: 0.5 }); }
   text(ctx, t1, P.title.x, P.title.y, P.title.size, { display: true, color: GOLD2, weight: 700, shadow: true, maxW: P.title.maxW });
@@ -357,7 +362,7 @@ function renderResult(ctx, S, L) {
 }
 
 function renderSettings(ctx, S, L) {
-  const C = L.settings; drawTable(ctx, L.w, L.h);
+  const C = L.settings; tableOrNone(ctx, L.w, L.h);
   text(ctx, 'Settings', C.title.x, C.title.y, C.title.size, { display: true, color: GOLD2, weight: 700, shadow: true });
   panel(ctx, C.panel, { fill: 'rgba(8,22,16,0.6)', rad: 24, brand: 0.45 });
   const row = (name, label, value, sub) => { const r = C.rows[name]; button(ctx, r, label, { size: 28, sub: null }); text(ctx, value, r.x + r.w - 24, r.y + r.h / 2 + 10, 28, { align: 'right', color: GOLD2, weight: 800, maxW: r.w * 0.4 }); void sub; };
@@ -378,7 +383,7 @@ function renderSettings(ctx, S, L) {
   button(ctx, C.back, 'Menu', { size: 32, kind: 'main' });
 }
 function renderSimple(ctx, S, L, title, lines) {
-  drawTable(ctx, L.w, L.h); const C = L.simple;
+  tableOrNone(ctx, L.w, L.h); const C = L.simple;
   text(ctx, title, C.cx, C.cy - 160, 58, { display: true, color: GOLD2, weight: 700, shadow: true, maxW: L.U.w - 40 });
   ctx.font = `600 28px ${UI}`; ctx.fillStyle = CREAM; ctx.textAlign = 'center'; let y = C.cy - 90;
   for (const ln of lines) for (const w of wrap(ctx, ln, Math.min(L.U.w - 60, 620))) { ctx.fillText(w, C.cx, y); y += 38; }
@@ -386,13 +391,14 @@ function renderSimple(ctx, S, L, title, lines) {
 }
 
 export function render(ctx, S, L) {
+  v3.pegs.length = 0; v3.pose = null;
   UZ = TEXT_SCALES[S.textScaleIdx] ?? 1;
   switch (S.scene) {
     case 'title': renderTitle(ctx, S, L); break;
     case 'puzzles': renderPuzzles(ctx, S, L); break;
     case 'classic': renderClassic(ctx, S, L); break;
     case 'play': renderPlay(ctx, S, L); break;
-    case 'doc': drawTable(ctx, L.w, L.h); renderDoc(ctx, S, L); break;
+    case 'doc': tableOrNone(ctx, L.w, L.h); renderDoc(ctx, S, L); break;
     case 'settings': renderSettings(ctx, S, L); break;
     case 'demo-limit': renderSimple(ctx, S, L, 'Enjoying it?', ['You have played the free puzzles of the web preview.', 'Get the free app on iPhone and Android: five boards, sixty puzzles, a daily puzzle and Auto Play.']); break;
     default: renderSimple(ctx, S, L, 'Peg Solitaire', ['Loading…']);

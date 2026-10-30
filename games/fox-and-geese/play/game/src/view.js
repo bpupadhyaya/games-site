@@ -3,6 +3,7 @@
 // landscape. The board scene (slab, pieces, glows) is drawn in canonical phone coordinates through the layout's one transform `L.board`;
 // header, cards and buttons are drawn in screen units. Static art (snowfield, board) and the two pieces are cached sprites (art.js, pieces.js).
 import { PIECE_R, SIZE, UNIT, TEXT_SCALES, THINK_STEPS, host, pointAt } from './layout.js';
+import { v3 } from './v3.js';
 import { drawField, drawBoardLayer, BOARD_NAMES } from './art.js';
 import { drawFox, drawGoose, SET_NAMES } from './pieces.js';
 import { unlocked, starNeed } from './unlocks.js';
@@ -38,11 +39,14 @@ export function render(ctx, state, L) {
   const memo = (key, fn) => { let v = fitMemo.get(key); if (v === undefined) { readerStats.fits++; v = fn(); fitMemo.set(key, v); } return v; };
   ui.buttons.length = 0;
   const { w, h } = L;
-  drawField(ctx, w, h);
+  const td = v3.on;                                  // td: the 3D presenter draws the clearing, the board and the pieces
+  if (!td) drawField(ctx, w, h);
+  else if (v3.fade < 1) { ctx.save(); ctx.globalAlpha = 1 - v3.fade; drawField(ctx, w, h); ctx.restore(); }   // the flat snowfield dissolves into the 3D one
+  v3.hero = null; v3.over = null;
   const set = state.look.set, big = state.look.big;
   const g = state.game, a = state.anim, scene = state.scene, hud = L.hud, B = L.board;
   const boardScene = scene === 'play' || scene === 'over' || scene === 'lesson' || scene === 'autoplay' || (scene === 'puzzle' && state.pz.status !== 'making');
-  const hudScene = boardScene && !(scene === 'over' && !L.over.drawBoard);          // wide result: art + buttons only, no board furniture
+  const hudScene = boardScene && !(scene === 'over' && (!L.over.drawBoard || v3.on));          // wide result: art + buttons only, no board furniture
   const minU = Math.max(12, 11 / (host.px || 0.6));                                  // smallest type (units) that is still ~11 css px
 
   const text = (str, x, y, size, color = INK, font = FONT, weight = 700, align = 'center') => { ctx.textAlign = align; ctx.font = `${weight} ${size}px ${font}`; ctx.fillStyle = color; ctx.fillText(str, x, y); };
@@ -79,10 +83,12 @@ export function render(ctx, state, L) {
     ui.buttons.push({ x: r.x, y: r.y, w: r.w, h: r.h, label });
     ctx.save(); if (o.dim) ctx.globalAlpha = 0.5;
     const rad = Math.min(18, r.h / 3);
-    ctx.fillStyle = 'rgba(0,0,0,0.38)'; ctx.beginPath(); ctx.roundRect(r.x + 3, r.y + 6, r.w, r.h, rad); ctx.fill();
-    const gr = ctx.createLinearGradient(0, r.y, 0, r.y + r.h); gr.addColorStop(0, o.primary ? '#ffd684' : '#3f5c78'); gr.addColorStop(1, o.primary ? '#e79a3c' : '#223649');
+    ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.beginPath(); ctx.roundRect(r.x + 2, r.y + 5, r.w, r.h, rad); ctx.fill();
+    // carved plaque: granite slab with a pale birch rim and an engraved inner line (primary: warm brass plate)
+    const gr = ctx.createLinearGradient(0, r.y, 0, r.y + r.h); gr.addColorStop(0, o.primary ? '#f6d586' : '#40566c'); gr.addColorStop(0.55, o.primary ? '#dba04a' : '#2b3e52'); gr.addColorStop(1, o.primary ? '#a8741e' : '#17252f');
     ctx.fillStyle = gr; ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, rad); ctx.fill();
-    ctx.strokeStyle = o.primary ? 'rgba(255,240,200,0.7)' : 'rgba(190,222,250,0.5)'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.lineWidth = 2.5; ctx.strokeStyle = o.primary ? 'rgba(255,244,214,0.9)' : 'rgba(214,230,244,0.62)'; ctx.stroke();
+    ctx.beginPath(); ctx.roundRect(r.x + 5, r.y + 5, r.w - 10, r.h - 10, Math.max(2, rad - 4)); ctx.lineWidth = 1.2; ctx.strokeStyle = o.primary ? 'rgba(110,70,10,0.5)' : 'rgba(4,10,20,0.6)'; ctx.stroke();
     // the label: one line if it fits, else a smaller line, else two lines (whichever stays largest)
     const size = Math.min(o.size ?? 30, r.h * 0.5), maxW = r.w - 20, col = o.primary ? '#2a1606' : INK, cy = r.y + r.h / 2, floor = Math.max(13, minU - 1);
     const w1 = (str, s) => { ctx.font = `700 ${s}px ${UI}`; return ctx.measureText(str).width; };
@@ -100,14 +106,19 @@ export function render(ctx, state, L) {
     else best.ls.forEach((ln, i) => text(ln, r.x + r.w / 2, cy + best.s * 0.35 + (i - 0.5) * best.s * 1.15, best.s, col, UI, 700));
     ctx.restore();
   };
-  const glow = (i, rgb, pulse) => { const p = pointAt(i); ctx.fillStyle = `rgba(${rgb},${0.45 + pulse * 0.3})`; ctx.beginPath(); ctx.ellipse(p.x, p.y, 25 * UNIT * p.s, 21 * UNIT * p.s, 0, 0, TAU); ctx.fill(); };
+  const glow = (i, rgb, pulse) => { if (td) { v3.marks.push({ i, rgb, a: 0.45 + pulse * 0.3 }); return; } const p = pointAt(i); ctx.fillStyle = `rgba(${rgb},${0.45 + pulse * 0.3})`; ctx.beginPath(); ctx.ellipse(p.x, p.y, 25 * UNIT * p.s, 21 * UNIT * p.s, 0, 0, TAU); ctx.fill(); };
   const onBoard = (fn) => { ctx.save(); ctx.translate(B.tx, B.ty); ctx.scale(B.s, B.s); fn(); ctx.restore(); };
 
   // snow drifting down over the scene (not in reduced-motion mode)
-  if (!state.calm) {
+  if (!state.calm && !td) {
     ctx.fillStyle = 'rgba(232,244,255,0.55)';
     const n = Math.max(40, Math.min(84, Math.round((44 * w * h) / (720 * 1560))));
     for (let i = 0; i < n; i++) { const f = FLAKES[i], y = (f.y * h + state.t * f.v) % (h + 20) - 10, x = f.x * w + Math.sin(state.t * 0.5 + f.ph) * 22; ctx.beginPath(); ctx.arc(x, y, f.r, 0, TAU); ctx.fill(); }
+  }
+
+  if (td && boardScene && hudScene && !L.wide) {                                   // scrims so the HUD stays readable over the lit scene
+    const top = Math.max(0, B.ty + 560 * B.s - 4), g1 = ctx.createLinearGradient(0, 0, 0, top + 60); g1.addColorStop(0, 'rgba(4,10,20,0.9)'); g1.addColorStop(0.8, 'rgba(4,10,20,0.78)'); g1.addColorStop(1, 'rgba(4,10,20,0)'); ctx.fillStyle = g1; ctx.fillRect(0, 0, w, top + 60);
+    const g2 = ctx.createLinearGradient(0, L.barY - 70, 0, L.barY - 8); g2.addColorStop(0, 'rgba(4,10,20,0)'); g2.addColorStop(1, 'rgba(4,10,20,0.85)'); ctx.fillStyle = g2; ctx.fillRect(0, L.barY - 70, w, h - L.barY + 70);
   }
 
   // where the moving piece is right now (canonical board coordinates)
@@ -128,12 +139,12 @@ export function render(ctx, state, L) {
     text(heading, 360 + Hh.dx, 150, credit ? 56 : 46);
     if (sub) text(sub, 360, credit ? 200 : 205, 26, SOFT, FONT, 400);
     const bob = state.calm ? 0 : Math.sin(state.t * 1.1) * 3;                       // the two heads breathe a little (never the board)
-    drawFox(ctx, 205, 505 + bob, 128, { set }); drawGoose(ctx, 520, 505 - bob, 112, { set, flip: true });
+    if (!td) { drawFox(ctx, 205, 505 + bob, 128, { set }); drawGoose(ctx, 520, 505 - bob, 112, { set, flip: true }); }
     ctx.restore();
   };
   const sceneHeading = (T) => {                                                      // the dark ground that carries a title-like screen's buttons
     if (T.drawBoard) {
-      onBoard(() => { drawBoardLayer(ctx, state.look.board); for (const i of PTS) { const k = state.game.board[i]; if (k) piece(k, pointAt(i), { flip: k === 'G' && flipOf(i) }); } });
+      if (!td) onBoard(() => { drawBoardLayer(ctx, state.look.board); for (const i of PTS) { const k = state.game.board[i]; if (k) piece(k, pointAt(i), { flip: k === 'G' && flipOf(i) }); } });
       const y0 = T.dim.y - 200, dark = ctx.createLinearGradient(0, y0, 0, T.dim.y); dark.addColorStop(0, 'rgba(4,10,20,0)'); dark.addColorStop(0.5, 'rgba(4,10,20,0.9)'); dark.addColorStop(1, 'rgba(4,10,20,0.94)');
       ctx.fillStyle = dark; ctx.fillRect(0, y0, w, 200); ctx.fillStyle = 'rgba(4,10,20,0.94)'; ctx.fillRect(0, T.dim.y, w, h - T.dim.y);
     } else if (T.dim) {
@@ -146,7 +157,7 @@ export function render(ctx, state, L) {
 
   // ---- the board scene ------------------------------------------------------------------------------------
   if (boardScene && (scene !== 'over' || L.over.drawBoard)) onBoard(() => {
-    drawBoardLayer(ctx, state.look.board);
+    if (!td) drawBoardLayer(ctx, state.look.board);
     const pulse = state.calm ? 0.6 : 0.5 + 0.5 * Math.sin(state.t * 6);
     if (state.sel >= 0 && !a) for (const m of legalMoves(g)) if (m.from === state.sel) glow(m.to, m.type === 'jump' ? '255,140,90' : '255,244,170', pulse);
     if (g.chain >= 0 && !a && scene !== 'over' && (state.two || g.turn === state.human)) for (const m of legalMoves(g)) if (m.type === 'jump') glow(m.to, '255,140,90', pulse);
@@ -160,20 +171,22 @@ export function render(ctx, state, L) {
     }
     const danger = state.marks && scene !== 'over' ? threatened(g) : new Set();
     for (const i of PTS) {                               // far rows first; the moving piece is drawn where it is, not where it will be
+      if (td) break;
       if (a && a.type === 'jump' && i === a.over) { ctx.save(); ctx.globalAlpha = Math.max(0, 1 - (a.t / a.dur) * 1.6); piece('G', pointAt(i), { flip: flipOf(i) }); ctx.restore(); }
       if (a && ((a.type !== 'refuse' && i === a.to) || (a.type === 'refuse' && i === a.from))) continue;
       const k = g.board[i]; if (!k) continue;
       const sel = state.sel === i || (k === 'F' && g.chain === i && !a);
       piece(k, pointAt(i), { selected: sel, lift: sel ? 0.5 + (state.calm ? 0 : Math.sin(state.t * 3) * 0.08) : 0, threat: k === 'G' && danger.has(i), flip: k === 'G' && flipOf(i) });
     }
-    if (a) { const pos = animPos(); piece(a.kind, pos, { lift: pos.lift, selected: a.type === 'refuse', flip: a.kind === 'G' && flipOf(a.from) }); }
+    if (a && !td) { const pos = animPos(); piece(a.kind, pos, { lift: pos.lift, selected: a.type === 'refuse', flip: a.kind === 'G' && flipOf(a.from) }); }
     // a capture lands with a ring of snow dust that spreads and fades (skipped in reduced-motion mode)
-    if (a && a.type === 'jump' && !state.calm && a.t / a.dur > 0.55) {
+    if (a && !td && a.type === 'jump' && !state.calm && a.t / a.dur > 0.55) {
       const f = (a.t / a.dur - 0.55) / 0.45, p = pointAt(a.to);
       ctx.strokeStyle = `rgba(235,246,255,${0.75 * (1 - f)})`; ctx.lineWidth = 6 * (1 - f) + 1;
       ctx.beginPath(); ctx.ellipse(p.x, p.y, (20 + 60 * f) * UNIT * p.s, (16 + 44 * f) * UNIT * p.s, 0, 0, TAU); ctx.stroke();
     }
-    if (state.kb && scene !== 'over') { const c = pointAt(state.cursor); ctx.strokeStyle = '#7dff9a'; ctx.lineWidth = 5; ctx.beginPath(); ctx.ellipse(c.x, c.y, 34 * UNIT * c.s, 28 * UNIT * c.s, 0, 0, TAU); ctx.stroke(); }
+    if (td && state.kb && scene !== 'over') v3.marks.push({ i: state.cursor, rgb: '125,255,154', a: 0.7 });
+    else if (state.kb && scene !== 'over') { const c = pointAt(state.cursor); ctx.strokeStyle = '#7dff9a'; ctx.lineWidth = 5; ctx.beginPath(); ctx.ellipse(c.x, c.y, 34 * UNIT * c.s, 28 * UNIT * c.s, 0, 0, TAU); ctx.stroke(); }
   });
 
   if (hudScene && L.wide) {                                                           // landscape: a status card left and a button card right
@@ -256,6 +269,7 @@ export function render(ctx, state, L) {
   if (scene === 'title' || scene === 'demo-limit' || scene === 'look' || making) {
     const T = scene === 'look' ? L.look : L.title(!!state.saved);
     sceneHeading(T);
+    if (td && T.hero) v3.hero = { x: T.hero.hx + 20 * T.hero.sc, y: T.hero.hy + 230 * T.hero.sc, w: 680 * T.hero.sc, h: 420 * T.hero.sc };
     if (scene === 'look') hero(T.hero, 'Board and pieces', 'Earned by winning. Never for sale.', false); else hero(T.hero, 'Fox and Geese', 'One fox. A flock of geese. A cross of frost.', true);
     if ((scene === 'title' || scene === 'demo-limit') && T.lock) drawTitleLockup(ctx, T.lock, state.lockPress > 0);
     if (making) {
@@ -305,14 +319,18 @@ export function render(ctx, state, L) {
     }
   } else if (scene === 'over') {
     const O = L.over;
-    ctx.fillStyle = 'rgba(4,10,20,0.74)'; ctx.fillRect(0, 0, w, h);
+    if (td) {
+      v3.over = { x: O.tx + 150 * O.sc, y: O.ty + 250 * O.sc, w: 420 * O.sc, h: 370 * O.sc };
+      const gr = ctx.createLinearGradient(0, O.ty + 560 * O.sc, 0, O.ty + 700 * O.sc); gr.addColorStop(0, 'rgba(4,10,20,0)'); gr.addColorStop(1, 'rgba(4,10,20,0.82)'); ctx.fillStyle = gr; ctx.fillRect(0, 0, w, h);
+      if (!L.tall) { ctx.fillStyle = 'rgba(4,10,20,0.35)'; ctx.fillRect(0, 0, w, h); }
+    } else { ctx.fillStyle = 'rgba(4,10,20,0.74)'; ctx.fillRect(0, 0, w, h); }
     if (O.card) brandPanel(O.card, 22, 'rgba(4,10,20,0.78)');
     // A win/star belongs to the player's own real progress; an Auto Play session never touches it
     // (state.starEarned stays false and stats/save are never written for it - see startAutoplay()).
     const realWin = !state.two && !state.overFromAutoplay && g.winner === state.human;
     const won = g.winner === 'draw' ? 'A draw' : (state.two || state.overFromAutoplay) ? `${SIDE[g.winner]} win` : g.winner === state.human ? 'You win!' : 'The computer wins';
     ctx.save(); ctx.translate(O.tx, O.ty); ctx.scale(O.sc, O.sc);
-    if (g.winner !== 'draw') (g.winner === 'F' ? drawFox : drawGoose)(ctx, 360, 520, g.winner === 'F' ? 170 : 130, { set, flip: true });
+    if (g.winner !== 'draw' && !td) (g.winner === 'F' ? drawFox : drawGoose)(ctx, 360, 520, g.winner === 'F' ? 170 : 130, { set, flip: true });
     if (state.overFromAutoplay) text('Auto Play', 360, 460, 24, SOFT, UI, 600);
     fitText(won, 360, 720, 64, 640, INK, FONT, 700); fitText(g.reason, 360, 780, 28, 640, '#eef7ff', UI, 500);
     text(`${g.moves} moves · ${g.captured} ${g.captured === 1 ? 'goose' : 'geese'} captured`, 360, 826, 24, SOFT, UI, 500);

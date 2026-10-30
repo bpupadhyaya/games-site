@@ -51,7 +51,7 @@ function bareTorso(h) {
           float grv = 0.0;
           for (int k = 0; k < 3; k++) { float gy = 1.1 - 0.075 * float(k); grv += (1.0 - smoothstep(0.0, 0.009, abs(y - gy))) * step(x, 0.075); }
           float nip = (1.0 - smoothstep(0.012, 0.024, length(vec2(x - 0.085, y - 1.2))));
-          float sh = 1.0 - tp * (0.30 * sternum + 0.22 * pec + 0.18 * min(grv, 1.0) + 0.22 * nip);
+          float sh = 1.0 - tp * (0.16 * sternum + 0.12 * pec + 0.10 * min(grv, 1.0) + 0.12 * nip);
           float form = 1.0 + tp * 0.10 * smoothstep(0.16, 0.0, x) * smoothstep(1.06, 1.22, y);
           diffuseColor.rgb *= sh * form;
         }`);
@@ -102,8 +102,10 @@ export async function loadCircle(scene, room, { quality = 'high', onStep, camera
   const C = { athletes: [], drummer: null, ready: false, M, quality, rings: [], lastCamKey: '', clock: 0, sweat: 0, crowd: null, dust: createDust(scene, { quality, floorR: room.floorR || 2.5 }), chime: createChime(scene), lastBell: 0 };
   const lod = quality === 'low' ? 2 : 1;
   const mk = async (i, kit, look) => {
-    const h = await loadHuman({ character: 'athlete_m', lod: 'auto', quality, kit: { top: dim(BARE[look.skin] || SKIN_TONES.tan, 1.03), bottoms: dim(kit.lang[0], 0.7), socks: kit.bottoms }, skin: look.skin, hair: look.hair, castShadow: quality !== 'low' });
+    const h = await loadHuman({ character: 'athlete_m', lod: 'auto', quality, top: 'bare', body: 'anatomic', kit: { bottoms: dim(kit.lang[0], 0.7), socks: kit.bottoms }, skin: look.skin, hair: look.hair, castShadow: quality !== 'low' });
     h.lodAuto = false; h.groundClamp = 'feet'; h.footPlanting = true;
+    // the bare chest takes the athlete's own skin tone (the library default is one fixed tan)
+    for (const m of h.mats) { const u = m.userData.tint; if (u && u.uBare) u.uBare.value.set(SKIN_TONES[look.skin] || SKIN_TONES.tan).multiplyScalar(0.94); }
     bareTorso(h);
     return h;
   };
@@ -132,7 +134,7 @@ export async function loadCircle(scene, room, { quality = 'high', onStep, camera
   }
   // the drummer, facing the viewer, on a stool on the dais, with the drum on a tripod in front of him
   {
-    const h = await loadHuman({ character: 'athlete_m', lod: 'auto', quality, kit: { top: '#27408f', bottoms: '#e9e0cc', socks: '#e8e0d0' }, skin: 'tan', hair: 'grey', castShadow: quality !== 'low' });
+    const h = await loadHuman({ character: 'athlete_m', lod: 'auto', quality, top: 'long', kit: { top: '#27408f', bottoms: '#e9e0cc', socks: '#e8e0d0' }, skin: 'tan', hair: 'grey', castShadow: quality !== 'low' });
     h.lodAuto = false; h.groundClamp = 'off'; h.footPlanting = false;
     const dc = drummerClips(h);
     for (const k in dc) h.addClip(dc[k]);
@@ -163,7 +165,7 @@ export async function loadCircle(scene, room, { quality = 'high', onStep, camera
       const x = Math.sin(a) * rr, z = Math.cos(a) * rr;
       pts.push({ x, y: room.stepY - 0.04, z, yaw: Math.atan2(-x, -z), seated: 1 });
     }
-    C.crowd = createCrowd3d({ scene, camera }, { points: pts, count: pts.length, seed: 21, culture: 'middle_eastern', quality: quality === 'high' ? 'medium' : 'low', excitement: 0.25 });
+    C.crowd = createCrowd3d({ scene, camera }, { points: pts, count: pts.length, seed: 21, culture: 'middle_eastern', look: 'natural', quality: quality === 'high' ? 'medium' : 'low', excitement: 0.25 });
   }
   C.ready = true;
   return C;

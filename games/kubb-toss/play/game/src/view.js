@@ -293,15 +293,22 @@ function drawCard(ctx, S, x, y, w, h, side, z) {
 const bodyDims = (b) => (b.kind === 'king' ? [KING.w, KING.h] : [KUBB.w, KUBB.h]);
 export function drawScene(ctx, S) {
   SC.setHost(ctx);
-  SC.drawBackdrop(ctx, S.baked);
+  // the lit 3D layer shows the same scene (lawn, blocks, batons, stands) behind this canvas; the 2D pictures below are its fallback and cross-fade out
+  let tm = null;
+  try { tm = ctx.getTransform ? ctx.getTransform() : null; } catch { tm = null; }
+  SC.v3.want = tm ? { m: tm, S, clip: SC.v3.clip } : null;
+  const va = SC.v3alpha();
+  if (va >= 0.01) { ctx.save(); ctx.globalAlpha *= va; SC.drawBackdrop(ctx, S.baked); ctx.restore(); }
   const ov = S.overlay, items = [];
   const w = S.world;
   // ground marks first: legal targets, throw line, valid zones, aim rings
   if (ov) drawGroundOverlay(ctx, S, ov);
   else if (S.marks && S.marks.length) drawGroundOverlay(ctx, S, {});
   // shadows
+  ctx.save(); ctx.globalAlpha *= va;
   if (w) for (const b of w.bodies) {
     const ps = SC.poseOf(b, S.alpha);
+    if (va < 0.01) break;
     if (b.kind === 'baton') SC.drawBatonShadow(ctx, ps.p, ps.q); else { const d = bodyDims(b); SC.drawBoxShadow(ctx, ps.p, ps.q, d[0], d[1]); }
     items.push({ d: proj(ps.p[0], ps.p[1], 0).d + (b.kind === 'baton' ? 0.001 : 0), draw: () => (b.kind === 'baton' ? SC.drawBaton(ctx, ps.p, ps.q, { team: b.team }) : SC.drawBox(ctx, ps.p, ps.q, bodyDims(b)[0], bodyDims(b)[1], { team: b.team, king: b.kind === 'king' })) });
   }
@@ -317,7 +324,8 @@ export function drawScene(ctx, S) {
   }
   if (S.showPaddles) for (const pd of S.paddles) items.push({ d: proj(pd.x, pd.y, 0).d, draw: () => SC.drawPaddle(ctx, pd.x, pd.y, pd.dir, pd.team, pd.lean, pd.held, pd.scale ?? 1) });
   items.sort((a, b) => b.d - a.d);
-  for (const it of items) it.draw();
+  if (va >= 0.01) for (const it of items) it.draw();
+  ctx.restore();
   if (ov) drawAirOverlay(ctx, S, ov);
   SC.drawButterflies(ctx, S.t);
   SC.drawParts(ctx, S.parts);
@@ -523,11 +531,13 @@ function drawTray(ctx, S, lay) {
 export function renderPlay(ctx, S) {
   const lay = computeLayout(S, ctx);
   LK = Math.max(Math.min(Math.min(lay.z, 2) / lay.s, 3.2), FLOOR.v / (18 * lay.s));
-  ctx.fillStyle = '#0a120a'; ctx.fillRect(0, 0, W, H);
+  ctx.save(); ctx.globalAlpha = SC.v3alpha(); ctx.fillStyle = '#0a120a'; ctx.fillRect(0, 0, W, H); ctx.restore();
   ctx.save();
   if (lay.clip) { ctx.beginPath(); ctx.rect(lay.clip.x, lay.clip.y, lay.clip.w, lay.clip.h); ctx.clip(); }
+  SC.v3.clip = lay.clip && ctx.getTransform ? SC.deviceRect(ctx.getTransform(), lay.clip.x, lay.clip.y, lay.clip.w, lay.clip.h) : null;
   ctx.translate(lay.vx, lay.vy - SCENE_Y0 * lay.s); ctx.scale(lay.s, lay.s);
   drawScene(ctx, S);
+  SC.v3.clip = null;
   ctx.restore();
   drawPull(ctx, S, lay);
   drawHud(ctx, S, lay);

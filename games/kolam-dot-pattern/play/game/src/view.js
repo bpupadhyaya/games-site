@@ -13,6 +13,25 @@ import { exits, headGate } from './trail.js';
 import { curves as sbCurves, modeLabel, drawnCount } from './sandbox.js';
 import { optCurve } from './play.js';
 import { bezPoint } from './board.js';
+import { v3, flatAlpha } from './v3.js';
+
+// The flat floor / pad / line only while there is no 3D threshold (or while it is still fading in).
+const floorV = (ctx, ...a) => { const k = flatAlpha(); if (k <= 0) return; ctx.save(); ctx.globalAlpha = k; floor(ctx, ...a); ctx.restore(); };
+const flat = (ctx, fn) => { const k = flatAlpha(); if (k <= 0) return; ctx.save(); ctx.globalAlpha *= k; fn(); ctx.restore(); };
+const glass = (a = 0.3) => (v3.on ? `rgba(16,12,9,${Math.min(0.8, a + 0.36)})` : `rgba(0,0,0,${a})`);
+const glassEdge = (a = 0.14) => (v3.on ? 'rgba(241,217,160,0.28)' : `rgba(255,255,255,${a})`);
+// 3D mode: soft halos over the flour dots (wrapped dots glow, the finish ripple); the dots themselves are flour on the stone
+function dotHalos(ctx, th, B, g, wrap, lit) {
+  for (let i = 0; i < B.dots.length; i++) {
+    const l = lit ? lit[i] : 0, a = Math.max((wrap ? wrap[i] : 0) * 0.3, l * 0.8);
+    if (a < 0.02) continue;
+    const [x, y] = toScreen(g, B.dots[i].x, B.dots[i].y), R = g.S * (0.3 + 0.2 * l);
+    const rg = ctx.createRadialGradient(x, y, 0, x, y, R);
+    rg.addColorStop(0, `rgba(${th.halo},${0.5 * a})`); rg.addColorStop(1, `rgba(${th.halo},0)`);
+    ctx.fillStyle = rg; ctx.fillRect(x - R, y - R, R * 2, R * 2);
+  }
+}
+const lastKey = (seq, b) => { const q = seq[Math.min(seq.length - 1, Math.max(0, Math.ceil(b) - 1))]; return q ? q.c.map((v) => Math.round(v * 200)).join(',') + q.dir : ''; };
 
 const theme = (S) => themeById(S.themeId);
 
@@ -126,15 +145,18 @@ function drawTitleScene(ctx, S, ui) {
   const g = boardGeo(A.puz.B, area, 10);
   const cyc = 9, tt = S.t % cyc;
   const k = clamp01(tt / 5.2);
-  drawRings(ctx, th, A.puz.B, g);
   const fin = clamp01((tt - 5.2) / 1.2);
-  const lit = new Float32Array(A.puz.B.dots.length).fill(fin * (0.5 + 0.3 * Math.sin(S.t * 2)));
-  drawPattern(ctx, th, g, A.seq, easeInOut(k), Math.max(3, g.S * 0.06), 1 + fin * 0.4);
-  drawDots(ctx, th, A.puz.B, g, new Float32Array(A.puz.B.dots.length).fill(k), lit);
+  if (v3.on) { const n = A.seq.length, b = easeInOut(k) * n; v3.want = { kind: 'hero', B: A.puz.B, id: A.puz.id, area, pad: 10, parts: [[A.seq, 0, b]], key: `h|${A.puz.id}|${b.toFixed(3)}`, growing: k > 0 && k < 1, tipSeq: A.seq, tipB: b, fin, land: Boolean(ui.zone.land), zone: z, theme: th.id }; }
+  flat(ctx, () => {
+    drawRings(ctx, th, A.puz.B, g);
+    const lit = new Float32Array(A.puz.B.dots.length).fill(fin * (0.5 + 0.3 * Math.sin(S.t * 2)));
+    drawPattern(ctx, th, g, A.seq, easeInOut(k), Math.max(3, g.S * 0.06), 1 + fin * 0.4);
+    drawDots(ctx, th, A.puz.B, g, new Float32Array(A.puz.B.dots.length).fill(k), lit);
+  });
 }
 
 function drawTitle(ctx, S, ui) {
-  floor(ctx, theme(S), S.t, screen.h * 0.36, screen.w, screen.h);
+  floorV(ctx, theme(S), S.t, screen.h * 0.36, screen.w, screen.h);
   drawTitleScene(ctx, S, ui);
   drawDocBlocks(ctx, S, ui, S.scroll[ui.scrollKey] ?? 0);
   drawFixed(ctx, S, ui.fixed);
@@ -142,7 +164,7 @@ function drawTitle(ctx, S, ui) {
 
 function drawDocScreen(ctx, S, ui) {
   const th = theme(S);
-  floor(ctx, th, S.t, screen.h * 0.49, screen.w, screen.h);
+  floorV(ctx, th, S.t, screen.h * 0.49, screen.w, screen.h);
   if (ui.panel) panel(ctx, th, ui.panel.x, ui.panel.y, ui.panel.w, ui.panel.h, {});
   drawDocBlocks(ctx, S, ui, S.scroll[ui.scrollKey] ?? 0);
   drawFixed(ctx, S, ui.fixed);
@@ -174,8 +196,8 @@ function hudBar(ctx, S, title, sub, auto, noPause) {
     icon(ctx, 'pause', Hd.pause.x + Hd.pause.w / 2, Hd.pause.y + Hd.pause.h / 2, 32 + 10 * Hd.k, th.ink);
   }
   const r = Hd.name;
-  ctx.fillStyle = 'rgba(0,0,0,0.3)'; rr(ctx, r.x, r.y, r.w, r.h, 18); ctx.fill();
-  ctx.strokeStyle = 'rgba(255,255,255,0.14)'; ctx.lineWidth = 1.5; rr(ctx, r.x, r.y, r.w, r.h, 18); ctx.stroke();
+  ctx.fillStyle = glass(0.3); rr(ctx, r.x, r.y, r.w, r.h, 18); ctx.fill();
+  ctx.strokeStyle = glassEdge(0.14); ctx.lineWidth = 1.5; rr(ctx, r.x, r.y, r.w, r.h, 18); ctx.stroke();
   const subS = 22 * Math.min(z, 1.5);
   const fs = fitOne(title, r.w - 24, Math.min(34 * Math.min(z, 1.7), r.h - subS - 14), 16);
   const total = fs + subS + 6, top = r.y + (r.h - total) / 2;
@@ -185,8 +207,8 @@ function hudBar(ctx, S, title, sub, auto, noPause) {
 
 function drawFocusBar(ctx, S, M, lay) {
   const th = theme(S), r = lay.focus, z = TEXT_SCALES[S.textIdx];
-  ctx.fillStyle = 'rgba(0,0,0,0.28)'; rr(ctx, r.x, r.y, r.w, r.h, 18); ctx.fill();
-  ctx.strokeStyle = 'rgba(255,255,255,0.12)'; ctx.lineWidth = 1.5; rr(ctx, r.x, r.y, r.w, r.h, 18); ctx.stroke();
+  ctx.fillStyle = glass(0.28); rr(ctx, r.x, r.y, r.w, r.h, 18); ctx.fill();
+  ctx.strokeStyle = glassEdge(0.12); ctx.lineWidth = 1.5; rr(ctx, r.x, r.y, r.w, r.h, 18); ctx.stroke();
   const p = progress(M);
   const l1 = `Arcs ${p.arcs} / ${p.nArc}`, l2 = `Dots wrapped ${p.wrapped} / ${p.dots}`;
   const innerW = r.w - 36, half = (r.h - 20) / 2;
@@ -203,8 +225,8 @@ function drawFocusBar(ctx, S, M, lay) {
 
 function drawStatus(ctx, S, rect, head, body, o = {}) {
   const th = theme(S);
-  ctx.fillStyle = 'rgba(0,0,0,0.3)'; rr(ctx, rect.x, rect.y, rect.w, rect.h, 20); ctx.fill();
-  ctx.strokeStyle = o.hint ? th.hint : 'rgba(255,255,255,0.12)'; ctx.lineWidth = o.hint ? 2.5 : 1.5; rr(ctx, rect.x, rect.y, rect.w, rect.h, 20); ctx.stroke();
+  ctx.fillStyle = glass(0.3); rr(ctx, rect.x, rect.y, rect.w, rect.h, 20); ctx.fill();
+  ctx.strokeStyle = o.hint ? th.hint : glassEdge(0.12); ctx.lineWidth = o.hint ? 2.5 : 1.5; rr(ctx, rect.x, rect.y, rect.w, rect.h, 20); ctx.stroke();
   const z = TEXT_SCALES[S.textIdx];
   const innerW = rect.w - 40 - (o.rightReserve ?? 0), innerH = rect.h - 24 - (o.bottomReserve ?? 0);
   const hs = head ? fitText(head, innerW, innerH * (body ? 0.4 : 1), 32 * z, 18, 1.2, 1.12) : null;
@@ -242,7 +264,7 @@ function seqOf(M) {
 
 function drawBoardPlay(ctx, S, M, area, o = {}) {
   const th = theme(S), B = M.B, g = boardGeo(B, area, 30);
-  drawPad(ctx, th, B, g);
+  flat(ctx, () => drawPad(ctx, th, B, g));
   drawRings(ctx, th, B, g);
   const sc = S.shot ? 1 : 1;
   const w = Math.max(3.2, g.S * 0.062) * sc;
@@ -271,9 +293,12 @@ function drawBoardPlay(ctx, S, M, area, o = {}) {
   }
   // the line
   const len = Math.min(M.disp, seq.length);
+  if (v3.on) {
+    const b = R ? seq.length : len;
+    v3.want = { kind: 'board', B, id: M.puz.id, area, pad: 30, parts: len > 0.001 ? [[seq, 0, b]] : [], key: `b|${M.puz.id}|${seq.length}|${b.toFixed(3)}|${lastKey(seq, b)}`, growing: Boolean(M.cur) || (len < seq.length - 0.001 && !R), tipSeq: seq, tipB: b, fin: rk, theme: th.id };
+  }
   if (len > 0.001) {
-    linePath(ctx, g, seq, 0, R ? seq.length : len);
-    powder(ctx, th, w * (1 + 0.5 * rk), 1 + 0.6 * rk, 1);
+    flat(ctx, () => { linePath(ctx, g, seq, 0, R ? seq.length : len); powder(ctx, th, w * (1 + 0.5 * rk), 1 + 0.6 * rk, 1); });
     if (R) { // a bright ripple travels once round the closed line
       const f = clamp01((R.t - 0.2) / 2.2);
       if (f > 0 && f < 1) { const n = seq.length; linePath(ctx, g, seq, Math.max(0, f * n - n * 0.1), f * n); ctx.strokeStyle = alpha('#ffffff', 0.9); ctx.lineWidth = w * 1.1; ctx.lineCap = 'round'; ctx.stroke(); }
@@ -286,7 +311,8 @@ function drawBoardPlay(ctx, S, M, area, o = {}) {
     const n = B.nArc;
     for (let i = 0; i < lit.length; i++) { const tc = 0.2 + 2.2 * (Math.max(0, M.order[i]) / n); const d = R.t - tc; lit[i] = d < 0 ? 0 : clamp01(0.55 + 0.45 * Math.max(0, 1 - d / 0.8)); }
   }
-  drawDots(ctx, th, B, g, M.wrap, lit);
+  flat(ctx, () => drawDots(ctx, th, B, g, M.wrap, lit));
+  if (v3.on) dotHalos(ctx, th, B, g, M.wrap, lit);
   // the glowing tip
   if (!R && (M.T.arcs.length || M.cur) && !M.fail) {
     const tp = M.cur ? bezPoint(M.shape.get(M.cur.arc) ? (M.cur.dir === 1 ? rev(M.shape.get(M.cur.arc)) : M.shape.get(M.cur.arc)) : M.cur.c, M.cur.p) : tipPoint(M);
@@ -316,7 +342,7 @@ const rev = (c) => [c[6], c[7], c[4], c[5], c[2], c[3], c[0], c[1]];
 
 function drawPlay(ctx, S) {
   const th = theme(S), M = S.match, z = TEXT_SCALES[S.textIdx], lay = playLayout(z);
-  floor(ctx, th, S.t, screen.h * 0.487, screen.w, screen.h);
+  floorV(ctx, th, S.t, screen.h * 0.487, screen.w, screen.h);
   hudBar(ctx, S, M.lesson !== null ? `Lesson ${M.lesson + 1}` : M.daily ? X.dailyHead : `Pattern ${orderOf(M.puz.id)}`, `${M.puz.name} · ${M.puz.dots} dots${M.puz.markCount ? ` · ${M.puz.markCount} marks` : ''}`, false);
   drawFocusBar(ctx, S, M, lay);
   drawBoardPlay(ctx, S, M, lay.area, { ghost: S.kbd });
@@ -339,10 +365,10 @@ function drawPlay(ctx, S) {
 
 function drawAuto(ctx, S) {
   const th = theme(S), M = S.match, a = S.auto, z = TEXT_SCALES[S.textIdx], lay = autoLayout(z);
-  floor(ctx, th, S.t, screen.h * 0.487, screen.w, screen.h);
+  floorV(ctx, th, S.t, screen.h * 0.487, screen.w, screen.h);
   hudBar(ctx, S, X.autoSession, `${M.puz.name} · ${M.puz.dots} dots`, true);
   const fr = lay.focus;
-  ctx.fillStyle = 'rgba(0,0,0,0.28)'; rr(ctx, fr.x, fr.y, fr.w, fr.h, 18); ctx.fill();
+  ctx.fillStyle = glass(0.28); rr(ctx, fr.x, fr.y, fr.w, fr.h, 18); ctx.fill();
   const p = progress(M);
   const fs = fitText(`Arcs ${p.arcs} / ${p.nArc}  ·  Dots wrapped ${p.wrapped} / ${p.dots}`, fr.w - 36, fr.h - 14, 28 * z, 16, 1.2);
   let yy = fr.y + (fr.h - fs.lines.length * fs.line) / 2 + fs.size * 0.88;
@@ -373,21 +399,28 @@ function drawAuto(ctx, S) {
 
 function drawSandbox(ctx, S) {
   const th = theme(S), SB = S.sb, z = TEXT_SCALES[S.textIdx], lay = sandboxLayout(z);
-  floor(ctx, th, S.t, screen.h * 0.45, screen.w, screen.h);
+  floorV(ctx, th, S.t, screen.h * 0.45, screen.w, screen.h);
   hudBar(ctx, S, X.sandboxBtn, `${SB.B.dots.length} dots · Mirror ${modeLabel(SB)}`, false);
   const g = boardGeo(SB.B, lay.area, 30);
-  drawPad(ctx, th, SB.B, g); drawRings(ctx, th, SB.B, g);
+  flat(ctx, () => drawPad(ctx, th, SB.B, g)); drawRings(ctx, th, SB.B, g);
   const w = Math.max(3.2, g.S * 0.062);
   const cs = sbCurves(SB);
   // arcs grow in as they are born
   const seq = cs.map((c) => ({ c: c.c, dir: 0 })), grow = cs.map((c) => clamp01((SB.t - c.born) / 0.25));
   const full = [], part = [];
   cs.forEach((c, i) => { if (grow[i] >= 1) full.push(seq[i]); else if (grow[i] > 0) part.push([seq[i], grow[i]]); });
-  if (full.length) { linePath(ctx, g, full, 0, full.length); powder(ctx, th, w, 1); }
-  for (const [s, k] of part) { linePath(ctx, g, [s], 0, k); powder(ctx, th, w, 1); }
+  if (v3.on) {
+    const parts = [[full, 0, full.length], ...part.map(([q, k]) => [[q], 0, k])];
+    v3.want = { kind: 'board', B: SB.B, id: `sb${SB.gridIdx}`, area: lay.area, pad: 30, parts, key: `s|${SB.gridIdx}|${full.length}|${part.map(([q, k]) => q.c.join(',') + k.toFixed(2)).join(';')}|${full.map((q) => q.c[0] + q.c[1] + q.c[6] * 3 + q.c[7] * 7).reduce((a, b) => a + b, 0).toFixed(3)}`, growing: part.length > 0, tipSeq: null, fin: 0, theme: th.id };
+  }
+  flat(ctx, () => {
+    if (full.length) { linePath(ctx, g, full, 0, full.length); powder(ctx, th, w, 1); }
+    for (const [s, k] of part) { linePath(ctx, g, [s], 0, k); powder(ctx, th, w, 1); }
+  });
   const wrapArr = new Float32Array(SB.B.dots.length);
   for (let i = 0; i < wrapArr.length; i++) { let n = 0; for (let k = 0; k < SB.B.D; k++) if (SB.drawn[i * SB.B.D + k]) n++; wrapArr[i] = n / SB.B.D; }
-  drawDots(ctx, th, SB.B, g, wrapArr);
+  flat(ctx, () => drawDots(ctx, th, SB.B, g, wrapArr));
+  if (v3.on) dotHalos(ctx, th, SB.B, g, wrapArr, null);
   const full2 = SB.wrapped === SB.B.dots.length;
   drawStatus(ctx, S, lay.status, full2 ? 'Every dot is wrapped.' : X.sbHint, `Arcs ${drawnCount(SB)} / ${SB.B.nArc} · Dots wrapped ${SB.wrapped} / ${SB.B.dots.length}`, {});
   drawToolbar(ctx, S, lay, { sbDraw: SB.erase ? X.sbErase : X.sbDraw, sbMirror: X.sbMirror, sbGrid: X.sbGrid, sbWeave: X.sbWeave, sbUndo: X.sbUndo, sbClear: S.sbClearArm > 0 ? 'Sure?' : X.sbClear }, {
@@ -398,19 +431,20 @@ function drawSandbox(ctx, S) {
 
 export function render(ctx, S, ui) {
   ctx.textBaseline = 'alphabetic';
+  if (v3.on) { ctx.clearRect(0, 0, screen.w, screen.h); v3.want = { kind: 'bare', theme: theme(S).id, calm: false }; }
   switch (S.scene) {
     case 'title': drawTitle(ctx, S, ui); break;
     case 'chapters': case 'patterns': case 'learn': case 'lesson': case 'howto': case 'rules': case 'about': case 'settings': drawDocScreen(ctx, S, ui); break;
     case 'daily': case 'demo-limit':
-      floor(ctx, theme(S), S.t, screen.h * 0.49, screen.w, screen.h);
+      floorV(ctx, theme(S), S.t, screen.h * 0.49, screen.w, screen.h);
       panel(ctx, theme(S), ui.panel.x, ui.panel.y, ui.panel.w, ui.panel.h, {});
       drawDocBlocks(ctx, S, ui, S.scroll[ui.scrollKey] ?? 0);
       drawFixed(ctx, S, ui.fixed);
       break;
-    case 'play': if (!S.match) floor(ctx, theme(S), S.t, screen.h * 0.49, screen.w, screen.h); else drawPlay(ctx, S); break;
-    case 'auto': if (!S.match || !S.auto) floor(ctx, theme(S), S.t, screen.h * 0.49, screen.w, screen.h); else drawAuto(ctx, S); break;
-    case 'sandbox': if (!S.sb) floor(ctx, theme(S), S.t, screen.h * 0.49, screen.w, screen.h); else drawSandbox(ctx, S); break;
-    default: floor(ctx, theme(S), S.t, screen.h * 0.49, screen.w, screen.h);
+    case 'play': if (!S.match) floorV(ctx, theme(S), S.t, screen.h * 0.49, screen.w, screen.h); else drawPlay(ctx, S); break;
+    case 'auto': if (!S.match || !S.auto) floorV(ctx, theme(S), S.t, screen.h * 0.49, screen.w, screen.h); else drawAuto(ctx, S); break;
+    case 'sandbox': if (!S.sb) floorV(ctx, theme(S), S.t, screen.h * 0.49, screen.w, screen.h); else drawSandbox(ctx, S); break;
+    default: floorV(ctx, theme(S), S.t, screen.h * 0.49, screen.w, screen.h);
   }
   if (S.overlay) drawOverlay(ctx, S, ui);
 }

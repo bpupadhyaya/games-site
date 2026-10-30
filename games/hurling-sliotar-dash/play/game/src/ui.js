@@ -23,11 +23,27 @@ export function setPress(ptr) {
 }
 const BTN_FILL = {
   disabled: ['rgba(200,205,225,0.35)', 'rgba(255,255,255,0.25)'],
-  primary: ['#1e9a5f', '#0f6a3e'],
-  active: ['#d99a1c', '#a8730f'],
-  dark: ['rgba(16,44,30,0.86)', 'rgba(255,246,228,0.35)'],
-  plain: ['#fff6e4', 'rgba(16,40,28,0.45)'],
+  primary: ['#ffd36b', '#f2a93b'],
+  active: ['#1e9a5f', '#8fe3b4'],
+  dark: ['#3a2314', '#c8963f'],
+  plain: ['#7a4e2c', '#e9c071'],
 };
+// A dark wood plaque with grain, a brass rim, an inner dark line and four brass studs (HUD + panels). a = fill opacity.
+export function woodPlaque(ctx, x, y, w, h, r = 20, a = 0.94) {
+  ctx.save();
+  roundPath(ctx, x, y + 4, w, h, r); ctx.fillStyle = 'rgba(4,10,6,0.35)'; ctx.fill();
+  roundPath(ctx, x, y, w, h, r);
+  const g = ctx.createLinearGradient(0, y, 0, y + h); g.addColorStop(0, `rgba(94,60,34,${a})`); g.addColorStop(1, `rgba(46,28,16,${a})`);
+  ctx.fillStyle = g; ctx.fill();
+  ctx.save(); ctx.clip(); ctx.globalAlpha = 0.1; ctx.strokeStyle = '#000'; ctx.lineWidth = 1;
+  for (let yy = y + 7; yy < y + h; yy += 9) { ctx.beginPath(); ctx.moveTo(x, yy); ctx.bezierCurveTo(x + w * 0.3, yy - 2, x + w * 0.6, yy + 3, x + w, yy); ctx.stroke(); }
+  ctx.restore();
+  const bg = ctx.createLinearGradient(0, y, 0, y + h); bg.addColorStop(0, '#f3d38a'); bg.addColorStop(0.5, '#c8963f'); bg.addColorStop(1, '#8c6224');
+  roundPath(ctx, x, y, w, h, r); ctx.lineWidth = 3; ctx.strokeStyle = bg; ctx.stroke();
+  roundPath(ctx, x + 3.5, y + 3.5, w - 7, h - 7, Math.max(2, r - 3.5)); ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(20,10,4,0.55)'; ctx.stroke();
+  if (w > 150 && h > 70) for (const [sx, sy] of [[x + 14, y + 14], [x + w - 14, y + 14], [x + 14, y + h - 14], [x + w - 14, y + h - 14]]) { ctx.beginPath(); ctx.arc(sx, sy, 3.2, 0, 6.283); ctx.fillStyle = bg; ctx.fill(); }
+  ctx.restore();
+}
 export function paintButton(ctx, r, o = {}) {
   const { primary = false, active = false, disabled = false, dark = false } = o;
   const k = disabled ? 'disabled' : primary ? 'primary' : active ? 'active' : dark ? 'dark' : 'plain';
@@ -37,11 +53,12 @@ export function paintButton(ctx, r, o = {}) {
   ctx.save();
   if (!disabled) { roundPath(ctx, r.x, r.y + (pressed ? 2 : 5), r.w, r.h, 18); ctx.fillStyle = pressed ? 'rgba(4,16,10,0.25)' : 'rgba(4,16,10,0.34)'; ctx.fill(); }
   roundPath(ctx, r.x, r.y + dy, r.w, r.h, 18);
-  ctx.fillStyle = fill; ctx.fill();
+  if (k === 'primary' || k === 'plain' || k === 'dark') { const g = ctx.createLinearGradient(0, r.y, 0, r.y + r.h); g.addColorStop(0, k === 'primary' ? '#ffe08a' : k === 'plain' ? '#8d5c34' : '#4a2e1b'); g.addColorStop(1, k === 'primary' ? '#f0a02f' : k === 'plain' ? '#573519' : '#2a1a0e'); ctx.fillStyle = g; } else ctx.fillStyle = fill;
+  ctx.fill();
   if (pressed) { ctx.fillStyle = 'rgba(4,16,10,0.16)'; ctx.fill(); }
-  ctx.lineWidth = 1.5; ctx.strokeStyle = edge; ctx.stroke();
+  ctx.lineWidth = k === 'primary' ? 2.5 : 2; ctx.strokeStyle = edge; ctx.stroke();
   ctx.restore();
-  return { dy, light: primary || active || dark };
+  return { dy, light: !primary };
 }
 
 // A flat pill. opts: primary (vermilion), active (teal), disabled, sub (small second line), size (font px)

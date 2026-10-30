@@ -61,10 +61,10 @@ export function buildUi(S) {
       if (S.save) b.push({ t: 'btn', id: 'continue', label: tr('continueBtn'), kind: 'primary', size: 32, sub: S.save.two ? tr('twoPlayers') : `${tr('vsComputer')} · ${lvName(S.save.level)}`, minH: mh(104) });
       const playSub = S.demo ? tr('demoLeft', { n: Math.max(0, DEMO_GAMES - S.demoGames) }) : undefined;
       b.push({ t: 'btn', id: 'play', label: tr('playBtn'), kind: S.save ? 'normal' : 'primary', size: 36, sub: playSub, minH: mh(S.save ? 92 : 118) });
-      b.push({ t: 'btn', id: 'learn', label: tr('learnBtn'), size: 30, sub: `${lessonsDone(S)} / ${LESSONS.length}`, minH: mh(96) });
-      b.push({ t: 'btn', id: 'auto', label: tr('autoBtn'), size: 30, minH: mh(92) });
-      b.push({ t: 'row', size: 28, minH: mh(92), items: [{ id: 'howto', label: tr('howtoBtn') }, { id: 'rules', label: tr('rulesBtn') }] });
-      b.push({ t: 'row', size: 28, minH: mh(92), items: [{ id: 'about', label: tr('aboutBtn') }, { id: 'settings', label: tr('settingsBtn') }] });
+      // one dominant Play button, then a tidy grid of the rest (leaves the 3D board room above the menu on tall phones)
+      b.push({ t: 'row', size: 27, minH: mh(84), items: [{ id: 'learn', icon: 'book', label: `${tr('learnBtn')} ${lessonsDone(S)}/${LESSONS.length}` }, { id: 'auto', icon: 'eye', label: tr('autoBtn') }] });
+      b.push({ t: 'row', size: 27, minH: mh(84), items: [{ id: 'howto', icon: 'question', label: tr('howtoBtn') }, { id: 'rules', icon: 'scroll', label: tr('rulesBtn') }] });
+      b.push({ t: 'row', size: 27, minH: mh(84), items: [{ id: 'about', icon: 'info', label: tr('aboutBtn') }, { id: 'settings', icon: 'gear', label: tr('settingsBtn') }] });
       ui.blocks = b;
       ui.fixed = langButtons();
       break;

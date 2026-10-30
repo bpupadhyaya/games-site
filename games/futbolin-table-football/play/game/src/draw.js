@@ -4,6 +4,7 @@
 import { HW, HL, FW, FL, BALL_R, GOAL_HW, CHAMFER, MAN_HX, MAN_HY, KINDS, dirOf } from './consts.js';
 import { RIM, GRIP } from './layout.js';
 import { manX } from './physics.js';
+import { v3 } from './v3.js';
 
 const TAU = Math.PI * 2;
 const hash = (n) => { const v = Math.sin(n * 12.9898 + 78.233) * 43758.5453; return v - Math.floor(v); };
@@ -226,3 +227,34 @@ export const KIT_PAL = (col, trim) => {
   const m = (hex, f) => { const n = parseInt(hex.slice(1), 16); const r = Math.max(0, Math.min(255, Math.round(((n >> 16) & 255) * f))), g = Math.max(0, Math.min(255, Math.round(((n >> 8) & 255) * f))), b = Math.max(0, Math.min(255, Math.round((n & 255) * f))); return `rgb(${r},${g},${b})`; };
   return { col, trim, light: m(col, 1.35), dark: m(col, 0.62) };
 };
+
+// ---- 3D mode: the presenter draws the room, table, rods, men and ball; the 2D layer only adds the plan overlay, the sparks
+// and the confetti, projected through the same camera so they sit on the table.
+export function drawOverlays3d(ctx, lay, S, o = {}) {
+  const P = (x, y, lift = 0) => v3.project(x, y, lift);
+  if (o.plan) {
+    const plan = o.plan, col = o.planCol || '#ffe28a', r = S.rods[plan.rod], K = KINDS[r.kind];
+    ctx.save();
+    const lane = [P(-HW, r.y - 4.4), P(HW, r.y - 4.4), P(HW, r.y + 4.4), P(-HW, r.y + 4.4)];
+    ctx.beginPath(); lane.forEach((q, i) => (i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y))); ctx.closePath();
+    ctx.fillStyle = 'rgba(255,215,122,0.18)'; ctx.fill();
+    ctx.setLineDash([10, 8]); ctx.strokeStyle = col; ctx.lineWidth = 3; ctx.stroke(); ctx.setLineDash([]);
+    const ring = (cx, cy, rad, lw) => { ctx.beginPath(); for (let i = 0; i <= 28; i++) { const a = (i / 28) * TAU, q = P(cx + Math.cos(a) * rad, cy + Math.sin(a) * rad); i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y); } ctx.lineWidth = lw; ctx.stroke(); };
+    const x = plan.tgt + (plan.k - (K.n - 1) / 2) * K.spacing;
+    ctx.strokeStyle = col; ring(x, r.y, 3.6, 4);
+    const b = S.ball, d = dirOf(r.team), gy = d * HL, a = P(b.x, b.y), g = P(plan.aimX, gy);
+    ctx.setLineDash([14, 10]); ctx.lineWidth = 4.5; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(g.x, g.y); ctx.stroke(); ctx.setLineDash([]);
+    ring(plan.aimX, gy, 2.2, 4);
+    ctx.restore();
+  }
+  if (o.fx && o.fx.length) {
+    const k = v3.scale ? v3.scale(0, 0) : lay.s;
+    for (const p of o.fx) {
+      const a = Math.max(0, 1 - p.age / p.life), q = P(p.x, p.y, p.t === 'conf' ? 6 + 10 * a : 2.5);
+      ctx.globalAlpha = a; ctx.fillStyle = p.col;
+      if (p.t === 'conf') { ctx.save(); ctx.translate(q.x, q.y); ctx.rotate(p.rot + p.age * p.spin); ctx.fillRect(-p.size * k, -p.size * k * 0.5, p.size * k * 2, p.size * k); ctx.restore(); }
+      else { ctx.beginPath(); ctx.arc(q.x, q.y, p.size * k * (0.4 + 0.6 * a), 0, TAU); ctx.fill(); }
+    }
+    ctx.globalAlpha = 1;
+  }
+}

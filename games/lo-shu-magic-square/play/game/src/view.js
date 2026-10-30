@@ -349,15 +349,15 @@ function drawTitle(ctx, s, w, h) {
   const done = Object.keys(s.progress).length, Bt = L.buttons;
   const lab = {
     continue: ['Continue', s.saved ? `${VARIANTS[s.saved.variant]?.name ?? 'Square'}${s.saved.kind === 'daily' ? ' · Daily' : ''}  ·  ${fmtTime(s.saved.t)}` : ''],
-    journey: ['The Journey', `${done} of ${CHAPTERS.reduce((a, c) => a + c.count, 0)} squares solved`], free: ['Free Play', 'Six kinds of square, three levels each'],
-    daily: ['Daily Square', s.dailyDone ? `${VARIANTS[s.dailyVariant].name}  ·  done today` : `${VARIANTS[s.dailyVariant].name}  ·  ${s.streak ? s.streak + ' day streak' : 'new every day'}`],
-    learn: ['Watch and Learn', ''], howto: ['How to Play', ''], rules: ['Rules', ''], stats: ['Stats', ''], settings: ['Settings', ''], about: ['About', ''],
+    journey: ['The Journey', `${done} of ${CHAPTERS.reduce((a, c) => a + c.count, 0)} squares solved`], free: ['Free Play', 'Six kinds of square'],
+    daily: ['Daily Square', s.dailyDone ? 'Done today' : (s.streak ? s.streak + ' day streak' : 'New every day')],
+    learn: ['Learn', ''], howto: ['How to Play', ''], rules: ['Rules', ''], stats: ['Stats', ''], settings: ['Settings', ''], about: ['About', ''],
   };
-  const iconOf = { learn: 'eye', settings: 'gear', stats: 'star' };
+  const iconOf = { learn: 'eye', howto: 'bulb', rules: 'fill', settings: 'gear', stats: 'star', about: 'flame' };
   for (const id of Object.keys(Bt)) {
-    const prim = id === 'continue' || id === 'journey' || id === 'free' || id === 'daily', r = Bt[id];
-    button(ctx, r, lab[id][0], { kind: id === 'journey' || id === 'continue' ? 'accent' : 'solid', size: prim ? 32 : 24, sub: prim ? lab[id][1] : '', radius: 20, flash: flashOf(s, id), icon: prim ? '' : (iconOf[id] ?? '') });
-    if (id === 'daily' && s.dailyDone) icons.check(ctx, r.x + r.w - 36, r.y + r.h / 2, 28, T.good);
+    const prim = id === 'continue' || id === 'journey' || id === 'free' || id === 'daily', r = Bt[id], lead = id === 'continue' || id === 'journey';
+    button(ctx, r, lab[id][0], { kind: lead ? 'accent' : 'solid', size: lead ? 40 : prim ? 28 : 22, sub: prim ? lab[id][1] : '', radius: 20, flash: flashOf(s, id), icon: prim ? '' : (iconOf[id] ?? '') });
+    if (id === 'daily' && s.dailyDone) icons.check(ctx, r.x + r.w - 26, r.y + 24, 22, T.good);
   }
   drawCredit(ctx, L.brand.x, L.brand.y, Math.min(16, Math.max(12.5, 13.5 / (host.px || 0.55) * 0.5 + 6)), { dim: 0.95 });
 }

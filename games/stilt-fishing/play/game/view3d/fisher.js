@@ -44,109 +44,6 @@ class Fisher {
   }
 }
 
-// Bare feet and bare calves: the shipped athlete wears trainers and socks. Repaints THIS person's body texture on a private canvas copy
-// (the shared vendored textures stay untouched) and drops the trainer triangles.
-function bareFeet(human) {
-  const N = 1024;
-  human.root.traverse((o) => {
-    if (!o.isSkinnedMesh || o.geometry.userData.barefoot) return;
-    const geo = o.geometry, ix = geo.index, si = geo.attributes.skinIndex, sw = geo.attributes.skinWeight;
-    if (!ix || !si) return;
-    const foot = new Set(o.skeleton.bones.map((bn, i) => (/_(Foot|Toe0)$/.test(bn.name) ? i : -1)).filter((i) => i >= 0));
-    const w = new Float32Array(geo.attributes.position.count);
-    for (let i = 0; i < w.length; i++) for (let k = 0; k < 4; k++) if (foot.has(si.getComponent(i, k))) w[i] += sw.getComponent(i, k);
-    const a = ix.array;
-    const P = geo.attributes.position, yA = (human._ankleRest || 0.08);
-    for (let t = 0; t < a.length; t += 3) {
-      const fw = w[a[t]] > 0.55 && w[a[t + 1]] > 0.55 && w[a[t + 2]] > 0.55;
-      // the sock cuff above the foot: low calf triangles that hug the ankle (below ankle height + 5 cm)
-      const lowY = P.getY(a[t]) < yA + 0.03 && P.getY(a[t + 1]) < yA + 0.03 && P.getY(a[t + 2]) < yA + 0.03;
-      if (fw || (lowY && (w[a[t]] + w[a[t + 1]] + w[a[t + 2]]) > 0.12)) { a[t + 1] = a[t]; a[t + 2] = a[t]; }
-    }
-    ix.needsUpdate = true; geo.userData.barefoot = true;
-  });
-  const cv = () => { const c = globalThis.document.createElement('canvas'); c.width = c.height = N; return c; };
-  const read = (img) => { const c = cv(); const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(img, 0, 0, N, N); return { c, g, d: g.getImageData(0, 0, N, N) }; };
-  for (const m of human.mats) {
-    if (m.userData.kind !== 'body' || !m.map || !m.userData.tint) continue;
-    const u = m.userData.tint;
-    const A = read(m.map.image), M = read(u.tMask.value.image), K = read(u.tSkin.value.image);
-    const a = A.d.data, mk = M.d.data, sk = K.d.data;
-    let r = 0, g = 0, b = 0, n = 0;
-    for (let y = 540; y < 760; y += 2) for (let x = 40; x < 270; x += 2) { const i = (y * N + x) * 4; r += a[i]; g += a[i + 1]; b += a[i + 2]; n++; }
-    r /= n; g /= n; b /= n;
-    const paint = (x0, y0, x1, y1, test) => {
-      for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
-        const i = (y * N + x) * 4;
-        if (test && !test(i)) continue;
-        const L = 0.299 * a[i] + 0.587 * a[i + 1] + 0.114 * a[i + 2];
-        const sh = Math.pow(clamp(L / 215, 0.55, 1.12), 0.55);
-        a[i] = clamp(r * sh, 0, 255); a[i + 1] = clamp(g * sh, 0, 255); a[i + 2] = clamp(b * sh, 0, 255); a[i + 3] = 255;
-        sk[i] = 255; mk[i] = 0; mk[i + 1] = 0; mk[i + 2] = 0;
-      }
-    };
-    // the shipped arm skin is blotchy and darker than the legs: flatten it to the leg tone with a faint trace of its shading
-    const avgL = 0.299 * r + 0.587 * g + 0.114 * b;
-    const arm = (x0, x1) => {
-      for (let y = 196; y < 438; y++) for (let x = x0; x < x1; x++) {
-        const i = (y * N + x) * 4;
-        if (!(sk[i] > 100)) continue;
-        const L = 0.299 * a[i] + 0.587 * a[i + 1] + 0.114 * a[i + 2];
-        const sh = clamp(1 + (L / Math.max(60, avgL * 0.8) - 1) * 0.35, 0.82, 1.1);
-        a[i] = clamp(r * sh, 0, 255); a[i + 1] = clamp(g * sh, 0, 255); a[i + 2] = clamp(b * sh, 0, 255);
-      }
-    };
-    arm(0, 312); arm(712, 1024);
-    // the skin mask of the arm is smudged at its top corners (this is the blotch on the shoulder): make it solid
-    for (const [x0, x1] of [[0, 312], [712, 1024]]) for (let y = 192; y < 442; y++) for (let x = x0; x < x1; x++) { const i = (y * N + x) * 4; if (sk[i] > 20) sk[i] = 255; }
-    paint(225, 868, 400, 1024);
-    paint(630, 868, 805, 1024);
-    paint(0, 420, 330, 620, (i) => mk[i + 2] > 60 || (a[i] > 150 && a[i + 1] > 150 && a[i + 2] > 140));
-    paint(700, 420, 1024, 620, (i) => mk[i + 2] > 60 || (a[i] > 150 && a[i + 1] > 150 && a[i + 2] > 140));
-    A.g.putImageData(A.d, 0, 0); M.g.putImageData(M.d, 0, 0); K.g.putImageData(K.d, 0, 0);
-    const tex = (c, srgb) => { const t = new THREE.CanvasTexture(c); t.flipY = false; t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace; t.generateMipmaps = true; t.minFilter = THREE.LinearMipmapLinearFilter; t.anisotropy = 4; return t; };
-    m.map = tex(A.c, true); u.tMask.value = tex(M.c, false); u.tSkin.value = tex(K.c, false);
-    m.needsUpdate = true;
-  }
-}
-
-// Bare feet: a smooth lofted foot (heel, arch, ball) plus five toes on a hinge, in the person's skin colour, parented to the foot bones.
-function footGeo() {
-  // stations along the foot (z forward from the heel): centre height, half width, half height
-  const S = [[-0.052, -0.052, 0.022, 0.030], [-0.040, -0.046, 0.033, 0.050], [-0.012, -0.034, 0.036, 0.074], [0.025, -0.060, 0.034, 0.040],
-    [0.065, -0.072, 0.038, 0.028], [0.105, -0.078, 0.046, 0.022], [0.140, -0.082, 0.047, 0.018], [0.168, -0.086, 0.040, 0.012]];
-  const N = 14, pos = [], idx = [];
-  S.forEach(([z, cy, hw, hh]) => { for (let j = 0; j < N; j++) { const a = j / N * Math.PI * 2; pos.push(Math.cos(a) * hw, cy + Math.sin(a) * hh, z); } });
-  for (let i = 0; i < S.length - 1; i++) for (let j = 0; j < N; j++) { const a = i * N + j, b = i * N + (j + 1) % N, c = a + N, d = b + N; idx.push(a, b, c, b, d, c); }
-  const cap = (i, dir) => { const c = pos.length / 3; pos.push(0, S[i][1], S[i][0]); for (let j = 0; j < N; j++) { const a = i * N + j, b = i * N + (j + 1) % N; if (dir > 0) idx.push(c, a, b); else idx.push(c, b, a); } };
-  cap(0, -1); cap(S.length - 1, 1);
-  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
-  return g;
-}
-function addFeet(human, hex) {
-  human._applyRest(); human.root.updateMatrixWorld(true);
-  const mat = new THREE.MeshStandardMaterial({ color: hex, roughness: 0.72, metalness: 0 });
-  const toeMat = new THREE.MeshStandardMaterial({ color: new THREE.Color(hex).multiplyScalar(0.97), roughness: 0.72, metalness: 0 });
-  const sph = new THREE.SphereGeometry(1, 14, 10), fg = footGeo();
-  const toes = {}, groups = {};
-  for (const side of ['L', 'R']) {
-    const fb = human.bones[`Bip01_${side}_Foot`];
-    const fr = human._sole[side];
-    const upV = fr.up.clone().normalize(), fwdV = fr.fwd.clone().normalize();
-    fwdV.addScaledVector(upV, -fwdV.dot(upV)).normalize();
-    const leftV = upV.clone().cross(fwdV).normalize();
-    const g = new THREE.Group(); g.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(leftV, upV, fwdV));
-    g.add(new THREE.Mesh(fg, mat));
-    const hinge = new THREE.Group(); hinge.position.set(0, -0.082, 0.14); g.add(hinge);
-    const medial = side === 'L' ? -1 : 1;
-    const R = [0.019, 0.0135, 0.0118, 0.0105, 0.0095], X = [0.028, 0.0095, -0.007, -0.022, -0.035], Z = [0.034, 0.042, 0.039, 0.033, 0.024];
-    R.forEach((r, i) => { const o = new THREE.Mesh(sph, toeMat); o.position.set(medial * X[i], -0.004, Z[i] * 0.55 + 0.004); o.scale.set(r, r * 0.72, Z[i] * 0.62); hinge.add(o); });
-    toes[side] = hinge; groups[side] = g;
-    fb.add(g);
-  }
-  return { mats: [mat, toeMat], toes, groups };
-}
-
 // A head cloth (wrapped, with a knot at the back) parented to the head bone.
 function addHeadCloth(human, hex) {
   human._applyRest(); human.root.updateMatrixWorld(true);
@@ -179,8 +76,7 @@ export async function createFisher({ quality = 'medium', base } = {}) {
   stage.setSky(null, null);
   const spec = { character: 'athlete_m', base, kit: { top: '#efe7d4', bottoms: '#27457e', socks: '#ffffff' }, skin: '#a8714a', hair: 'black' };
   const human = await loadHuman(spec);
-  bareFeet(human);
-  const feet = addFeet(human, '#a8714a');
+  const feet = { mats: [], toes: null, groups: null };   // the athlete's own skinned shoes: no add-on foot meshes, so no ankle seam
   const footMats = feet.mats;
   const cloth = addHeadCloth(human, '#d9e6ee');
   const fisher = new Fisher(human);
@@ -298,7 +194,7 @@ function makeApi(api, R) {
     const kneeF = 0.40, kneeU = YS + 0.0, shin = 0.335;
     // far (left) leg: relaxed hang
     const aL = leg.a, fF = kneeF - 0.02 + Math.sin(aL) * shin, fU = kneeU - Math.cos(aL) * shin - 0.01 + panic * 0.05;
-    const plantarFar = (42 + aL * 30 + panic * 20) * D2R;
+    const plantarFar = (30 + aL * 24 + panic * 20) * D2R;
     qy.setFromAxisAngle(up, yawU);
     const footQ = (plantar, yaw, roll) => {
       const q = new Quaternion().setFromAxisAngle(lat, -plantar);                     // toes down
@@ -457,7 +353,7 @@ function makeApi(api, R) {
       const hip = P(`${s}_Thigh`), kn = P(`${s}_Calf`), an = P(`${s}_Foot`), toe = P(`${s}_Toe0`);
       const th = kn.clone().sub(hip), sh = an.clone().sub(kn), ft = toe.clone().sub(an);
       const ang = (a, b) => Math.acos(clamp(a.clone().normalize().dot(b.clone().normalize()), -1, 1)) / D2R;
-      const gq = api.groups[s].getWorldQuaternion(new THREE.Quaternion()), mf = new Vector3(0, 0, 1).applyQuaternion(gq), mu = new Vector3(0, 1, 0).applyQuaternion(gq);
+      const gq = new THREE.Quaternion(), mf = new Vector3(0, 0, 1), mu = new Vector3(0, 1, 0);
       out[s] = { meshToeDown: +(Math.atan2(-mf.y, Math.hypot(mf.x, mf.z)) / D2R).toFixed(4), meshYaw: +(Math.atan2(mf.z, mf.x) / D2R).toFixed(1), soleUpY: +mu.y.toFixed(2), kneeFlex: +ang(th, sh).toFixed(4), shinLen: +sh.length().toFixed(3), thighLen: +th.length().toFixed(3), footVsShin: +ang(sh, ft).toFixed(1), footDownDeg: +(Math.atan2(-ft.y, Math.hypot(ft.x, ft.z)) / D2R).toFixed(1),
         shinYaw: +(Math.atan2(sh.z, sh.x) / D2R).toFixed(1), footYaw: +(Math.atan2(ft.z, ft.x) / D2R).toFixed(1), ankle: [an.x, an.y, an.z].map((x) => +x.toFixed(5)), knee: [kn.x, kn.y, kn.z].map((x) => +x.toFixed(3)) };
     }

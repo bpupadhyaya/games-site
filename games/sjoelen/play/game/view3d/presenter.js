@@ -6,8 +6,7 @@
 import * as THREE from '../vendor3d/three.js';
 import * as B from '../vendor3d/board3d.js';
 import * as V3D from '../vendor3d/index.js';
-import { createHand } from './hand3d.js';
-import { loadHandRig, poseHand } from './handrig.js';
+import { loadHands as buildHands } from './handrig.js';
 import { v3 } from '../src/v3.js';
 import { meta, bgLayout } from '../src/layout.js';
 import { layoutOf, sceneOf } from '../src/view.js';
@@ -178,28 +177,38 @@ export async function createPresenter({ kitCanvas, quality = 'high' }) {
   };
 
   // ---------------------------------------------------------------- hands
-  const HOLD = { y: Number(qs.get('hy') ?? 70), h: Number(qs.get('hh') ?? 2.0), dip: Number(qs.get('hd') ?? 0.4) };   // dev: ?hy=&hh=&hd= tune the grip
+  // The modelled hand (handmesh.js) is built in the background after the board is up. Motion: while a disc is ready the pads rest on
+  // its back rim (contact exact; the hand follows the disc exactly while you place it); on a slide the hand rides the disc for the first
+  // few centimetres, lets go, follows through a little and lifts, then withdraws toward the player. Position, lift and tilt run on
+  // critically damped springs (continuous velocity, no pops); a hand only hides when it is withdrawn off the near end.
   const hands = [null, null];
   let handsLoading = false;
   async function loadHands() {
     if (handsLoading) return; handsLoading = true;
-    for (let i = 0; i < 2; i++) {
-      try { const hd = await loadHandRig(THREE, V3D, createHand, i); scene.add(hd.h.object, hd.sleeve); hands[i] = hd; }
-      catch (e) { console.warn('hand failed', e); }
-    }
+    try { const hs = await buildHands(THREE); hs.forEach((h, i) => { scene.add(h.root); hands[i] = Object.assign(h, { x: TW / 2, y: START_Y + 170, h: 2, vx: 0, vy: 0, vh: 0, tilt: 0, vt: 0, hold: false, rel: null }); }); }
+    catch (e) { console.warn('hand failed', e); }
   }
+  const FOLLOW = 24, FOLLOW_T = 0.42, WITHDRAW_Y = START_Y + 170;   // sim units / s: follow-through ~5 cm; the rest point is off the near end
+  const spring = (Hd, k, tgt, w, dt) => {             // critically damped spring on Hd[k] with velocity Hd['v' + k]
+    const v = 'v' + (k === 'tilt' ? 't' : k), x = Hd[k] - tgt, e = Math.exp(-w * dt), vel = Hd[v];
+    Hd[k] = tgt + (x + (vel + w * x) * dt) * e; Hd[v] = (vel - (vel + w * x) * w * dt) * e;
+  };
+  const _hp = new THREE.Vector3(), _hf = new THREE.Vector3();
   function driveHand(i, tgt, dt) {
     const Hd = hands[i]; if (!Hd) return;
-    const k = 1 - Math.exp(-dt * tgt.rate);
-    Hd.x += (tgt.x - Hd.x) * k; Hd.y += (tgt.y - Hd.y) * k; Hd.hh += (tgt.h - Hd.hh) * k;
-    Hd.vis += (tgt.vis - Hd.vis) * (1 - Math.exp(-dt * 9));
-    const on = Hd.vis > 0.03 && TIERS[tier].hand;
-    Hd.h.object.visible = on; Hd.sleeve.visible = on;
+    dt = Math.min(dt, 1 / 20);
+    if (tgt.exact) {                                   // contact: on the disc exactly, velocity carried for the hand-off to the springs
+      if (dt > 0) { Hd.vx = (tgt.x - Hd.x) / dt; Hd.vy = (tgt.y - Hd.y) / dt; Hd.vh = (0 - Hd.h) / dt; }
+      Hd.x = tgt.x; Hd.y = tgt.y; Hd.h = 0; spring(Hd, 'tilt', 0, 18, dt);
+    } else {
+      spring(Hd, 'x', tgt.x, tgt.w, dt); spring(Hd, 'y', tgt.y, tgt.w, dt); spring(Hd, 'h', tgt.h, tgt.w, dt); spring(Hd, 'tilt', tgt.tilt || 0, tgt.w, dt);
+      if (Hd.h < 0) { Hd.h = 0; Hd.vh = Math.max(0, Hd.vh); }   // never through the board
+    }
+    const on = TIERS[tier].hand && !(Hd.y > WITHDRAW_Y - 12 && tgt.y >= WITHDRAW_Y);
+    Hd.root.visible = on;
     if (!on) return;
-    const kf = 1 - Math.exp(-dt * 12);
-    for (const n of Object.keys(Hd.fingers)) Hd.fingers[n] += (tgt.fingers[n] - Hd.fingers[n]) * kf;
-    const w = toW(WX(Hd.x), Hd.hh, WZ(Hd.y), new THREE.Vector3()), f = toW(0, 0, -1, new THREE.Vector3());
-    poseHand(THREE, Hd, w, f, tgt.dip, i === 0 ? 1 : -1, dt, 4);
+    toW(WX(Hd.x), 0, WZ(Hd.y), _hp); toW(0, 0, -1, _hf);
+    Hd.place(_hp, _hf, 0.26, Hd.h, Hd.tilt);
   }
 
   // ---------------------------------------------------------------- per-disc motion memory (impacts make a disc chatter)
@@ -259,7 +268,7 @@ export async function createPresenter({ kitCanvas, quality = 'high' }) {
     // the disc in hand
     const aim = sc.aim;
     if (sc.ready && aim) {
-      placeDisc(side, aim.x, START_Y, { lift: 0.4 + Math.sin(clock * 2.2) * 0.02, ry: 0.4 });
+      placeDisc(side, aim.x, START_Y, { lift: hands[side & 1] && TIERS[tier].hand ? 0 : 0.4 + Math.sin(clock * 2.2) * 0.02, ry: 0.4 });
       if (sc.readyGlow) mark(aim.x, START_Y, ringTex, '#ffe8a0', 0.5 + 0.2 * Math.sin(clock * 3), DISC_R * 2.9);
       if (sc.hint) { mark(sc.hint.x, START_Y, ringTex, '#ffd24a', 0.9, DISC_R * 2.9); mark(sc.hint.x, START_Y, glowTex, '#ffd24a', 0.45, DISC_R * 3.2); }
     }
@@ -277,17 +286,23 @@ export async function createPresenter({ kitCanvas, quality = 'high' }) {
     for (let i = 0; i < 2; i++) {
       const hd = hands[i]; if (!hd) continue;
       const mine = i === (side & 1);
-      const t = { x: hd.x, y: START_Y + 130, h: 3.4, rate: 5, vis: 0, dip: 0, fingers: hd.fingers };
+      let t = { x: hd.x, y: WITHDRAW_Y, h: 2.2, tilt: -0.12, w: 5 };
       if (mine && !state.pass && (playing || sc.moving)) {
         if (sc.ready && aim) {
-          t.x = aim.x; t.y = START_Y + HOLD.y + Math.sin(clock * 1.7) * 0.8; t.h = HOLD.h + Math.sin(clock * 2.1) * 0.03; t.rate = 13; t.vis = 1; t.dip = HOLD.dip;
-          t.fingers = { thumb: 0.55, index: 0.55, middle: 0.5, ring: 0.45, pinky: 0.4, spread: 0.15, thumbOut: 0.2 };
+          hd.rel = null;
+          const near = Math.hypot(hd.x - aim.x, hd.y - START_Y) < 0.4 && hd.h < 0.02;
+          if (hd.hold || near) { hd.hold = true; t = { exact: true, x: aim.x, y: START_Y }; }
+          else t = { x: aim.x, y: START_Y, h: 0, tilt: 0, w: 11 };
         } else if (sc.moving) {
-          const m = sc.moving, travelled = START_Y - m.y;
-          if (travelled < 78) { t.x = m.x; t.y = Math.max(m.y, START_Y - 78) + HOLD.y + 20; t.h = HOLD.h - 0.8; t.rate = 22; t.vis = 1; t.dip = HOLD.dip * 0.6; t.fingers = { thumb: 0.15, index: 0.05, middle: 0.05, ring: 0.1, pinky: 0.1, spread: 0.2, thumbOut: 0.4 }; }
-          else { t.x = hd.x; t.y = START_Y - 78 + HOLD.y; t.h = 2.6; t.rate = 4; t.vis = 0; t.fingers = { thumb: 0.1, index: 0.05, middle: 0.05, ring: 0.05, pinky: 0.05, spread: 0.7, thumbOut: 1 }; }
+          // the disc leaves the pads at once (the slide starts at full speed): the hand follows through after it, lifting a little,
+          // then withdraws toward the player
+          hd.hold = false;
+          if (!hd.rel) hd.rel = { x: hd.x, y: hd.y, t: 0 };
+          hd.rel.t += dt;
+          t = hd.rel.t < FOLLOW_T ? { x: hd.rel.x + (sc.moving.x - hd.rel.x) * 0.15, y: hd.rel.y - FOLLOW, h: 0.35, tilt: 0, w: 13 } : { x: hd.rel.x, y: WITHDRAW_Y, h: 2.2, tilt: -0.12, w: 5 };
         }
       }
+      if (!t.exact && hd.hold && !(sc.ready && aim)) hd.hold = false;
       driveHand(i, t, dt);
     }
     // ambience

@@ -2,6 +2,8 @@ import { boot } from './kit/index.js';
 import { createGame, meta } from './src/game.js';
 import { host } from './src/layout.js';
 import { setLogo, setLockup } from './src/brand.js';
+import { v3 } from './src/v3.js';
+import { ABOUT_CREDITS } from './src/content.js';
 
 // The kit loop does not hand the draw call its sub-step fraction, so the shell supplies a display clock (drawing only: the game
 // logic never reads it) and the game draws moving stones and the hand a fraction of a step ahead, which keeps motion smooth at 120 Hz.
@@ -28,4 +30,36 @@ const load = (src, set) => { const im = new Image(); im.onload = () => set(im); 
 load('./brand/arcforge-af.png', setLogo);
 load('./brand/arcforge-lockup.png', setLockup);
 
-boot({ createGame: (env) => createGame({ ...env, clock, wheel }), meta, canvas, background: '#000' });
+// 3D presenter (a teak Hawalis board with pearls on a Sadu rug, behind the kit canvas). The game boots at once on the flat 2D art (styled
+// title in the first frame); three.js is fetched and the scene built in small slices after that, then crossfades in. No WebGL, ?flat=1
+// or a lost context: the flat art stays. The presenter only reads the drawing state.
+const q = new URLSearchParams(location.search);
+let presenter = null, inner = null;
+const bg = { toString: () => (v3.on ? 'rgba(0,0,0,0)' : '#000') };     // read by the kit every frame, so the switch is instant
+const wrap = (g) => Object.assign(Object.create(g), g, {
+  render(ctx, view) {
+    if (v3.on && presenter) {
+      // the kit fills its background each frame; a transparent fill erases nothing, so clear the 2D layer here
+      ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height); ctx.restore();
+      presenter.pre();
+    }
+    g.render(ctx, view);
+    if (v3.on && presenter) presenter.post();
+  },
+});
+boot({ createGame: async (env) => (inner = wrap(await createGame({ ...env, clock, wheel }))), meta, canvas, background: bg });
+if (q.has('dev')) { Object.defineProperty(window, '__p3', { get: () => presenter }); window.__v3 = v3; }
+if (!q.has('flat')) {
+  const start = () => import('./view3d/presenter.js').then((m) => m.createPresenter({ kitCanvas: canvas })).then((p) => {
+    if (!p.ok) return;
+    const go = () => { if (!inner || !v3.S) return setTimeout(go, 30); presenter = p; p.attach(); window.__v3At = performance.now(); };
+    go();
+  }).catch((e) => console.warn('3D presenter unavailable; flat art stays', e));
+  // let the flat title paint and become interactive first
+  requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(start, 30)));
+}
+// Credits for the 3D layer (three.js, view3d), shown at the end of About.
+fetch('./vendor3d/LICENSES.md').then((r) => (r.ok ? r.text() : '')).then((md) => {
+  if (!md) return;
+  ABOUT_CREDITS.push(...md.split(/\n\s*\n/).map((t) => t.trim()).filter((t) => t && !t.startsWith('#')).map((t) => t.replace(/\s*\n\s*/g, ' ').replace(/[`*]/g, '')));
+}).catch(() => {});

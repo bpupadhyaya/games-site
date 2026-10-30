@@ -33,7 +33,7 @@ function grassTexture(THREE) {
   for (let y = 5; y < F.LEN; y += 5) for (const hx of [-F.HALF + 0.8, F.HALF - 0.8]) line(hx - 0.5, G0 + y, hx + 0.5, G0 + y, 0.1);
   // yard numbers, read from the user's end: 10 20 (half) 20 10 (shortened field: midfield is the 20)
   g.fillStyle = 'rgba(246,244,236,0.9)'; g.font = `800 ${Math.round(2.3 * PX)}px "Avenir Next Condensed","Arial Narrow",Arial,sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
-  for (const [y, t] of [[10, '10'], [20, '20'], [30, '10']]) for (const sx of [-1, 1]) { g.save(); g.translate(X(sx * 9.6), Z(G0 + y)); g.rotate(sx * Math.PI / 2); g.fillText(t, 0, 0); g.restore(); }
+  for (const [y, t] of [[10, '10'], [20, '20'], [30, '10']]) for (const sx of [-1, 1]) { g.save(); g.translate(X(sx * 9.6), Z(G0 + y)); g.scale(-1, 1); g.rotate(sx * Math.PI / 2); g.fillText(t, 0, 0); g.restore(); }
   const base = canvasOf(c.width, c.height); base.getContext('2d').drawImage(c, 0, 0);
   const redraw = (los, first) => {
     g.drawImage(base, 0, 0);

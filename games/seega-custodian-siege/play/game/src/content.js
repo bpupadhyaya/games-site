@@ -393,6 +393,8 @@ const ABOUT_DEF = [
 const pick = (def) => def.map((d) => ({ art: d.art, ...(isAr() ? d.ar : d.en) }));
 export const getHowto = () => pick(HOWTO_DEF);
 export const getRules = () => pick(RULES_DEF);
-export const getAbout = () => ABOUT_DEF.map((d) => (isAr() ? d.ar : d.en));
+// Extra About sections added at run time (main.js appends the 3D graphics credits when the 3D layer ships).
+export const ABOUT_EXTRA = [];
+export const getAbout = () => [...ABOUT_DEF.map((d) => (isAr() ? d.ar : d.en)), ...ABOUT_EXTRA];
 export const RULE_COUNT = RULES_DEF.length;
 export const HOWTO_COUNT = HOWTO_DEF.length;

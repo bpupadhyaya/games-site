@@ -23,8 +23,10 @@ const font = (px, w = 700) => `${w} ${Math.max(Math.round(px), minU())}px ${FONT
 const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 const fmtTime = (t) => { const s = Math.max(0, Math.ceil(t)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
 
-function chip(ctx, x, y, w, h, fill = 'rgba(30,16,8,0.74)', edge = 'rgba(251,243,226,0.24)') {
-  roundPath(ctx, x, y, w, h, Math.min(18, h / 2)); ctx.fillStyle = fill; ctx.fill(); ctx.lineWidth = 1.5; ctx.strokeStyle = edge; ctx.stroke();
+function chip(ctx, x, y, w, h, fill, edge) {
+  roundPath(ctx, x, y, w, h, Math.min(18, h / 2));
+  if (!fill) { const g = ctx.createLinearGradient(0, y, 0, y + h); g.addColorStop(0, '#5b3d27'); g.addColorStop(1, '#2f1c10'); ctx.fillStyle = g; edge = edge || '#c9962f'; } else ctx.fillStyle = fill;
+  ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = edge || 'rgba(251,243,226,0.24)'; ctx.stroke();
 }
 function label(ctx, txt, x, y, px, col = ink, align = 'center', w = 700) {
   ctx.save(); ctx.shadowColor = 'rgba(20,8,0,0.7)'; ctx.shadowBlur = 5; ctx.shadowOffsetY = 1; ctx.fillStyle = col; ctx.font = font(px, w); ctx.textAlign = align;
@@ -114,7 +116,7 @@ function drawBar(ctx, G, s, k, half, M) {
   ctx.fillStyle = lvB; ctx.fillRect(b.x + b.w - zone, b.y, zone, b.h); ctx.globalAlpha = 1;
   ctx.fillStyle = 'rgba(251,243,226,0.3)'; ctx.fillRect(b.x + b.w / 2 - 1.5, b.y, 3, b.h);
   ctx.restore();
-  ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(251,243,226,0.4)'; roundPath(ctx, b.x, b.y, b.w, b.h, b.h / 2); ctx.stroke();
+  ctx.lineWidth = 2.5; ctx.strokeStyle = '#c9962f'; roundPath(ctx, b.x, b.y, b.w, b.h, b.h / 2); ctx.stroke();
   // the flag: moves toward the team that is winning
   const u = clamp(0.5 - 0.5 * sign * (s.x / LIMIT), 0, 1);
   const fx = b.x + zone * 0.0 + u * b.w, fy = b.y + b.h / 2, r = b.h * 0.9;

@@ -4,7 +4,7 @@
 // How a move is made: PLACING = TAP an empty point. SLIDING = TAP a cow (its legal points glow) then TAP a point, or DRAG the cow
 // onto a point. A mill lets you shoot: the other side's unprotected cows glow red and you TAP one. An illegal move visibly TRIES
 // (the cow travels toward the point, shudders, comes back) and a message says why.
-import { layoutFor, lockHit, TEXT_SCALES, AUTO_THINK_STEPS, AUTO_REVEAL_SECONDS, inRect } from './layout.js';
+import { layoutFor, lockHit, TEXT_SCALES, AUTO_THINK_STEPS, AUTO_REVEAL_SECONDS, inRect, boardPick, boardPt } from './layout.js';
 import { RULES as R, POINT_UV } from './morabaraba.js';
 import { LEVELS, createThinker, chooseMove } from './engine.js';
 import { LESSONS, boardOf } from './lessons.js';
@@ -30,6 +30,7 @@ export function createGame(env) {
     // Auto Play ("Watch & Learn"): a full, silent, start-to-finish demonstration game. `auto` is null
     // except while `scene === 'auto'`; it never touches `state.game`/`state.saved`/`state.stats`.
     autoThinkIdx: 1, auto: null,
+    sheet: false, // the Settings sheet over the menu
   };
   let thinker = null, hintThinker = null, puzzleToday = null, pendingReply = null, infoDrag = null, sizeKey = '';
   const lay = () => layoutFor(meta.width, meta.height);
@@ -281,15 +282,15 @@ export function createGame(env) {
   function updateDrag(input) {
     const p = input.pointer, g = state.game;
     if (p.pressed && !state.take && humanTurn() && R.phase(g, g.turn) !== 'place') {
-      const i = geo().board.pointNear(p.x, p.y);
+      const i = boardPick(geo().board, p.x, p.y);
       if (i >= 0 && g.board[i] === g.turn && R.canMoveFrom(g, i).length) state.drag = { from: i, x: p.x, y: p.y, moved: false, wasSel: state.sel === i };
     }
     if (state.drag) {
-      if (p.down) { state.drag.x = p.x; state.drag.y = p.y; if (Math.hypot(p.x - geo().board.pointAt(state.drag.from).x, p.y - geo().board.pointAt(state.drag.from).y) > 26 * geo().bs) { state.drag.moved = true; state.sel = state.drag.from; } }
+      if (p.down) { state.drag.x = p.x; state.drag.y = p.y; if (Math.hypot(p.x - boardPt(geo().board, state.drag.from).x, p.y - boardPt(geo().board, state.drag.from).y) > 26 * geo().bs) { state.drag.moved = true; state.sel = state.drag.from; } }
       if (p.released) {
         const d = state.drag; state.drag = null;
         if (d.moved) {
-          const i = geo().board.pointNear(p.x, p.y);
+          const i = boardPick(geo().board, p.x, p.y);
           if (i >= 0 && i !== d.from) { const m = R.basicMoves(g).find((x) => x.from === d.from && x.to === i); if (m) return { move: m }; refuse(d.from, i, R.whyNotMove(g, d.from, i)); }
           return { handled: true };
         }
@@ -303,18 +304,24 @@ export function createGame(env) {
     for (let k = 0; k < 2 && !puzzleToday; k++) puzzleToday = maker.step().puzzle;
     if (!tap) return;
     const TT = lay().title(!!state.saved), RW = TT.rows, hit = (r) => inRect(r, tap.x, tap.y);
+    if (state.sheet) {
+      const SH = TT.sheet;
+      if (hit(SH.level)) { state.level = (state.level + 1) % LEVELS.length; savePrefs(); clack(); say(`${LEVELS[state.level].name}: ${LEVELS[state.level].blurb}`, 3); }
+      else if (hit(SH.sound)) { state.sound = !state.sound; audio.setMuted?.(!state.sound); savePrefs(); clack(); }
+      else if (hit(SH.marks)) { state.marks = !state.marks; savePrefs(); clack(); }
+      else if (hit(SH.calm)) { state.calm = !state.calm; savePrefs(); clack(); }
+      else if (hit(SH.big)) { state.big = !state.big; savePrefs(); clack(); }
+      else if (hit(SH.close) || !hit(SH.panel)) { state.sheet = false; clack(360); }
+      return;
+    }
     if (hit(lockHit(lay(), TT))) { state.lockPress = 0.18; env.openArcforgeHome?.(); return; }
-    if (hit(RW.resume)) resume();
+    if (hit(RW.settings)) { state.sheet = true; clack(); }
+    else if (hit(RW.resume)) resume();
     else if (hit(RW.learn)) startLesson(0);
     else if (hit(RW.dark)) start(1, false);
     else if (hit(RW.light)) start(2, false);
     else if (hit(RW.two)) start(1, true);
     else if (hit(RW.daily)) startPuzzle();
-    else if (hit(RW.level)) { state.level = (state.level + 1) % LEVELS.length; savePrefs(); clack(); say(`${LEVELS[state.level].name}: ${LEVELS[state.level].blurb}`, 3); }
-    else if (hit(RW.sound)) { state.sound = !state.sound; audio.setMuted?.(!state.sound); savePrefs(); clack(); }
-    else if (hit(RW.marks)) { state.marks = !state.marks; savePrefs(); clack(); }
-    else if (hit(RW.calm)) { state.calm = !state.calm; savePrefs(); clack(); }
-    else if (hit(RW.big)) { state.big = !state.big; savePrefs(); clack(); }
     else if (hit(RW.howto)) { state.info = { which: 'howto', page: 0, scroll: 0 }; infoDrag = null; state.scene = 'info'; }
     else if (hit(RW.about)) { state.info = { which: 'about', page: 0, scroll: 0 }; infoDrag = null; state.scene = 'info'; }
     else if (hit(RW.rules)) { state.info = { which: 'rules', page: 0, scroll: 0 }; infoDrag = null; state.scene = 'info'; }
@@ -357,7 +364,7 @@ export function createGame(env) {
     if (d?.handled) return;
     if (!tap) return;
     if (state.drag?.moved) return;
-    const i = geo().board.pointNear(tap.x, tap.y);
+    const i = boardPick(geo().board, tap.x, tap.y);
     if (i < 0) { if (!state.take) state.sel = -1; return; }
     if (state.drag && state.drag.wasSel && state.sel === i && !state.take) { state.drag = null; state.sel = -1; return; }
     const r = tapBoard(i);
@@ -455,7 +462,7 @@ export function createGame(env) {
   function keyboard(input) {
     const k = input.keys.pressed, sc = state.scene, L = lay(), G = geo(), BTN = G.BTN, mid = (r) => ({ x: r.x + 5, y: r.y + 5 });
     if (input.pointer.pressed) { state.kb = false; return null; }
-    if (sc === 'title') { if (k.has('Enter') || k.has('Space')) return { key: 'start' }; return null; }
+    if (sc === 'title') { if (state.sheet) { if (k.has('Escape') || k.has('Enter')) { const c = L.title(!!state.saved).sheet.close; return mid(c); } return null; } if (k.has('Enter') || k.has('Space')) return { key: 'start' }; return null; }
     if (sc === 'over') { if (k.has('Enter') || k.has('Space')) return mid(L.over.again); return null; }
     if (sc === 'info') {
       const F = L.info.footer(true, true);
@@ -478,7 +485,7 @@ export function createGame(env) {
       for (let i = 0; i < 24; i++) { if (i === state.cursor) continue; const du = POINT_UV[i][0] - cu, dv = POINT_UV[i][1] - cv, along = du * dx + dv * dy, across = Math.abs(du * dy) + Math.abs(dv * dx); if (along <= 0) continue; const sc2 = along + across * 2.2; if (sc2 < bs) { bs = sc2; best = i; } }
       if (best >= 0) state.cursor = best; return null;
     }
-    if (k.has('Enter') || k.has('Space')) { state.kb = true; const p = G.board.pointAt(state.cursor); return { x: p.x, y: p.y }; }
+    if (k.has('Enter') || k.has('Space')) { state.kb = true; const p = boardPt(G.board, state.cursor); return { x: p.x, y: p.y }; }
     return null;
   }
 

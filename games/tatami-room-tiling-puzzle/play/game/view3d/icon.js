@@ -1,6 +1,6 @@
 // Offline app-icon render (developer tool, not part of the game): node tools/render-icon.mjs --root web --page icon.html?size=2048 --out store
-// Draws the SAME models the game uses (models.js, hand3d): two tatami mats laid in a staggered joint on a dark timber floor and a third mat
-// being lowered into place by two hands in crimson kimono sleeves, in front of lit shoji and a tokonoma. Tilt-shift depth of field, bloom, vignette.
+// Draws the SAME models the game uses (models.js, arm.js + handmesh.js): two tatami mats laid in a staggered joint on a dark timber floor and a third mat
+// being pressed into place by two modelled hands (palms flat on the rush) in crimson kimono sleeves, in front of lit shoji and a tokonoma. Tilt-shift depth of field, bloom, vignette.
 import * as THREE from '../vendor3d/three.js';
 import * as B from '../vendor3d/board3d.js';
 import { createArm } from './arm.js';
@@ -59,16 +59,15 @@ mat(-3.3, 0.5, Y0, 0, 0, 0, 0xc4bd78);                    // laid, near row (a s
 mat(0.7, 0.5, Y0, 0, 0, 0, 0xcfc884, true);
 const held = mat(-1.3, 0.5, Y0 + 0.1, 0.0, 0.0, 0.07, 0xd8d190);   // the mat being slid and set down into the gap, still a hair above the floor
 
-// the two hands (athlete_f rig) press the mat's end from the right, kimono sleeves trailing out of the frame, one hanging panel each
-const hy = held.position.y + MAT.TH + 0.03;
-for (const side of ['L', 'R']) {
-  const arm = await createArm(THREE, side, { skin: 'light', cloth: '#8c1f3f' });
+// the two modelled hands press the mat's raised end from the right, palms flat on the rush, kimono sleeves trailing out of the frame
+held.updateMatrixWorld(true);
+for (const side of ['R', 'L']) {
+  const arm = await createArm(THREE, side, { cloth: '#8c1f3f', voxel: Number(q.get('voxel') || 0.13) });
   scene.add(arm.object, arm.root); (window.__arms ||= []).push(arm);
-  const zz = side === 'L' ? 0.25 : 0.75;
-  const wr = new THREE.Vector3(held.position.x + 0.62, hy + (side === 'L' ? 0.03 : 0.0), zz);
-  arm.state.prev.copy(wr);
-  const shoulder = new THREE.Vector3(0.65, 0.42, side === 'L' ? -0.2 : 0.3);
-  for (let i = 0; i < 70; i++) arm.pose(wr, { dirF: new THREE.Vector3(-1, -0.28, 0.05), press: 0.6, dt: 0.03, iters: 2, shoulder });
+  const contact = held.localToWorld(new THREE.Vector3(Number(q.get('hx') || 0.8), MAT.TH + 0.002, side === 'R' ? -0.25 : 0.25));
+  arm.state.prev.copy(contact);
+  arm.pose(contact, { dirF: new THREE.Vector3(-1, 0, side === 'R' ? 0.1 : -0.1), tilt: -0.07 + Number(q.get('tilt') || 0), dt: 1 / 30 });
+  for (let i = 0; i < 40; i++) arm.pose(contact, { dirF: new THREE.Vector3(-1, 0, side === 'R' ? 0.1 : -0.1), tilt: -0.07 + Number(q.get('tilt') || 0), dt: 1 / 30, clock: 1 });
 }
 
 // motes
@@ -76,9 +75,9 @@ const r = rng(9);
 for (let i = 0; i < 26; i++) glow(-4 + r() * 8, 0.4 + r() * 3.4, -2 + r() * 5, 0.12 + r() * 0.12, 0xfff0c0, 0.8);
 for (let i = 0; i < 14; i++) { const m = new THREE.Mesh(new THREE.CircleGeometry(0.06, 6), new THREE.MeshBasicMaterial({ color: 0xffb8cc, side: THREE.DoubleSide })); m.position.set(-3 + r() * 6, 0.5 + r() * 3, -2 + r() * 4); m.rotation.set(r() * 3, r() * 3, r() * 3); scene.add(m); }
 
-const cam = new THREE.PerspectiveCamera(Number(q.get('fov') || 38), 1, 0.3, 200);
-const tgt = new THREE.Vector3(Number(q.get('tx') || -0.5), Number(q.get('ty') || 0.2), Number(q.get('tz') || 0.4));
-const pos = new THREE.Vector3(Number(q.get('cx') || -0.4), Number(q.get('cy') || 0.95), Number(q.get('cz') || 2.5));
+const cam = new THREE.PerspectiveCamera(Number(q.get('fov') || 34), 1, 0.3, 200);
+const tgt = new THREE.Vector3(Number(q.get('tx') || -0.7), Number(q.get('ty') || 0.2), Number(q.get('tz') || 0.45));
+const pos = new THREE.Vector3(Number(q.get('cx') || -0.3), Number(q.get('cy') || 0.95), Number(q.get('cz') || 2.1));
 cam.position.copy(pos); cam.lookAt(tgt);
 
 renderer.render(scene, cam);

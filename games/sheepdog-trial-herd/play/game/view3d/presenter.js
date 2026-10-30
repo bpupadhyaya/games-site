@@ -147,19 +147,23 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
       fov = 52; k = 0.4;
       return { pos, look, fov, k, shift: 0 };
     }
-    // auto: frame the dog and the flock (and the handler when he is walking) from behind, looking up the field
-    const pts = [A, B]; void Hn;
+    // auto: a follow-the-flock camera. The flock is the subject; the dog joins the frame while he is near, the next gate/pen
+    // joins when it is close, and the shot widens only when they spread (then the animals get a size boost, see below).
+    const C = d.B, dogD = Math.hypot(A.x - C.x, A.z - C.z), cap = 17 + d.flockR * 0.7;
+    const pts = [C];
+    if (dogD <= cap) pts.push(A); else pts.push({ x: C.x + (A.x - C.x) * cap / dogD, z: C.z + (A.z - C.z) * cap / dogD });
+    if (d.dest) { const dd = Math.hypot(d.dest.x - C.x, d.dest.z - C.z); if (dd < 14) pts.push(d.dest); }
     let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9; for (const p of pts) { x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x); z0 = Math.min(z0, p.z); z1 = Math.max(z1, p.z); }
-    const rad = Math.max(d.flockR + 3.5, 7.5);
+    const rad = Math.max(d.flockR + 3.6, 6);
     const hw = (x1 - x0) / 2 + rad, hd = (z1 - z0) / 2 + rad;
     const M = V((x0 + x1) / 2, 0, (z0 + z1) / 2);
     const pitch = land ? 0.5 : 0.52;
-    const distW = hw / Math.tan(hfov / 2), distD = (hd * Math.sin(pitch) + 6) / Math.tan(vfov / 2);
-    const dist = clamp(Math.max(distW, distD) * 1.12, 18, 330);
+    const distW = hw / Math.tan(hfov / 2), distD = (hd * Math.sin(pitch) + 3) / Math.tan(vfov / 2);
+    const dist = clamp(Math.max(distW, distD) * 1.0, 11, 330);
     const az = land ? 0.28 : 0.22;
     pos = V(M.x - Math.sin(az) * dist * Math.cos(pitch), M.y + dist * Math.sin(pitch) + 1.5, M.z - Math.cos(az) * dist * Math.cos(pitch));
     look = V(M.x, 0.5, M.z);
-    k = 0.55;
+    k = 0.5;
     return { pos, look, fov, k, shift: sh };
   }
 
@@ -217,7 +221,7 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
     const w = canvas.clientWidth || 720, h = canvas.clientHeight || 1280, aspect = w / h;
     sizeBudget(w, h);
     const hAt = world.hAt;
-    animals.updateFlock(s.sheep, s.dog, dt, tReal, hAt);
+    animals.updateFlock(s.sheep, s.dog, dt, tReal, hAt, clamp(Math.hypot(cam.pos.x + s.cen.x, cam.pos.z - s.cen.z, cam.pos.y) / 24, 1, 1.45));
     animals.updateDog(s.dog, s.cen, dt, tReal, hAt);
     if (world) { world.sheepX = s.sheep[0].x; world.sheepZ = s.sheep[0].z; }
     const dogS = { x: -s.dog.x, y: hAt(-s.dog.x, s.dog.z), z: s.dog.z }, cenS = { x: -s.cen.x, y: hAt(-s.cen.x, s.cen.z), z: s.cen.z };
@@ -232,7 +236,7 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
     const land = aspect > 1.1;
     const d = {
       aspect, mode: !inPlay && G.scene !== 'result' ? 'menu' : G.scene === 'result' ? 'end' : 'play', A: dogS, B: cenS, Hn: handS, land,
-      shift: land ? 4.5 + (clamp(aspect, 1.1, 2.4) - 1.1) * 3.2 : 0, chase: !!(G.settings && G.settings.cam === 'chase' && inPlay), sceneT: tReal, flockR: s.rho,
+      shift: land ? 4.5 + (clamp(aspect, 1.1, 2.4) - 1.1) * 3.2 : 0, chase: !!(G.settings && G.settings.cam === 'chase' && inPlay), sceneT: tReal, flockR: s.rho, dest: s.dest ? { x: -s.dest.x, z: s.dest.z } : null,
     };
     let dr = director(d);
     const dbg = dbgCam(dogS, cenS);

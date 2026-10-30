@@ -3,10 +3,11 @@ import { playLayout, titleLayout, shelfLayout, docLayout, settingsLayout, overLa
 import { SPECIES, STYLES, POTS, COMMISSIONS, SEASON_NAMES, YEAR, SEASON, potById, commissionById } from './species.js';
 import { geo, makeTree, seasonIdx, wireStart, wireDrag, wireRelease, stepTree, descendants, wireCount, MAX_WIRES, SET_T } from './tree.js';
 import { measure, judge, CRITERIA, CRIT_NAME } from './judge.js';
-import { drawRoom, drawShelfBoard, drawPot, drawPotBack, drawSoilFront, drawTree, drawForecast, strokePoly, drawSnap, snapOf, leafState, rgb } from './art.js';
+import { drawRoom, drawShelfBoard, drawPot, drawPotBack, drawSoilFront, drawTree, drawWires, drawForecast, strokePoly, drawSnap, snapOf, leafState, rgb } from './art.js';
 import { demoTree } from './demo.js';
 import { DOCS } from './content.js';
 import { drawCredit } from './brand.js';
+import { v3 } from './v3.js';
 import { C, SANS, SERIF, rr, txt, para, panel, button, toolButton, icon, stars } from './ui.js';
 
 export const metrics = { max: 0, rect: null };
@@ -76,9 +77,19 @@ export function paintWorld(ctx, T, pot, yt, o = {}) {
   drawSoilFront(ctx, pot, yt, T.comId ? T.comId.charCodeAt(1) : 3);
   if (o.forecast) drawForecast(ctx, T, T.species);
 }
+// Cut a window in the (opaque) 2D paper so the WebGL scene behind the canvas shows through inside the rounded rectangle r.
+function punch(ctx, r, rad) {
+  ctx.save(); ctx.globalCompositeOperation = 'destination-out'; rr(ctx, r.x, r.y, r.w, r.h, rad); ctx.fillStyle = '#000'; ctx.fill(); ctx.restore();
+}
 // A framed stage showing a whole tree auto-fitted into rect r (title, pot choice, judging, figures, shelf).
 export function drawStage(ctx, S, r, T, o = {}) {
   const pot = potById(o.potId ?? T.potId ?? 'drum'), yt = o.yt ?? PRESENT_YT, cam = camTarget(T, pot, r, o.margin ?? 30);
+  if (o.d3 && v3.on && !v3.stage) {
+    punch(ctx, r, o.radius ?? 22); v3.stage = { rect: r, cam, T, pot, yt, leaf: o.leaf, sway: 8 };
+    if (o.after) { ctx.save(); rr(ctx, r.x, r.y, r.w, r.h, o.radius ?? 22); ctx.clip(); ctx.translate(r.x + r.w / 2, r.y + r.h / 2); ctx.scale(cam.k, cam.k); ctx.translate(-cam.cx, -cam.cy); o.after(ctx, cam); ctx.restore(); }
+    if (o.stroke !== false) { rr(ctx, r.x, r.y, r.w, r.h, o.radius ?? 22); ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(60,40,20,0.35)'; ctx.stroke(); }
+    return;
+  }
   ctx.save(); rr(ctx, r.x, r.y, r.w, r.h, o.radius ?? 22); ctx.clip();
   drawRoom(ctx, r, yt, S.t);
   ctx.translate(r.x + r.w / 2, r.y + r.h / 2); ctx.scale(cam.k, cam.k); ctx.translate(-cam.cx, -cam.cy);
@@ -94,7 +105,7 @@ function drawTitle(ctx, S, w, h) {
   const sc = scaleOf(S), T = titleLayout(w, h, !!S.saved, sc), hero = T.hero, k = Math.min(sc, 1.35), fs = 30 * k;
   const stage = { x: hero.x + 12, y: hero.y + 8, w: hero.w - 24, h: hero.h - (T.mode === 'land' ? 130 : 150) };
   const tree = demoTree('c4', 80);
-  drawStage(ctx, S, stage, tree, { potId: 'round', margin: 28 });
+  drawStage(ctx, S, stage, tree, { potId: 'round', margin: 28, d3: true });
   const ty = stage.y + stage.h + 64;
   const ts = Math.min(hero.w * 0.13, 84);
   txt(ctx, 'BONSAI', hero.x + hero.w / 2, ty - ts * 0.1, { size: ts, weight: 700, color: C.ink, align: 'center', serif: true, maxW: hero.w - 30 });
@@ -316,11 +327,14 @@ function drawPlay(ctx, S, w, h) {
   const T = S.T, com = commissionById(T.comId), L = playLayout(w, h, S.auto.on), bd = L.board, pot = potById(T.potId ?? 'drum'), cam = S.cam;
   paper(ctx, w, h);
   // board
+  const D3 = v3.on && !v3.stage;
   ctx.save(); rr(ctx, bd.x, bd.y, bd.w, bd.h, 22); ctx.clip();
-  drawRoom(ctx, bd, T.t, S.t);
+  if (D3) { ctx.restore(); punch(ctx, bd, 22); v3.stage = { rect: bd, cam, T, pot, yt: T.t, pulse: S.tool === 'pinch' ? 0.5 + 0.5 * Math.sin(S.t * 6) : 0, sway: 3 }; ctx.save(); rr(ctx, bd.x, bd.y, bd.w, bd.h, 22); ctx.clip(); }
+  else drawRoom(ctx, bd, T.t, S.t);
   ctx.translate(bd.x + bd.w / 2, bd.y + bd.h / 2); ctx.scale(cam.k, cam.k); ctx.translate(-cam.cx, -cam.cy);
   const pulse = S.tool === 'pinch' ? 0.5 + 0.5 * Math.sin(S.t * 6) : 0;
-  paintWorld(ctx, T, pot, T.t, { t: S.t, budPulse: pulse, forecast: S.prefs.forecast && !S.paused });
+  if (D3) { drawWires(ctx, T, SPECIES[T.species], S.t, true); if (S.prefs.forecast && !S.paused) drawForecast(ctx, T, T.species); }
+  else paintWorld(ctx, T, pot, T.t, { t: S.t, budPulse: pulse, forecast: S.prefs.forecast && !S.paused });
   candidateOverlay(ctx, S, T, cam);
   drawHintMark(ctx, S, cam);
   drawParts(ctx, S, T);
@@ -369,7 +383,7 @@ function drawPotScene(ctx, S, w, h) {
   paper(ctx, w, h);
   const PL = potLayout(w, h), T = S.T;
   head(ctx, S, PL, 'Choose a Pot', { backLabel: 'Tree' });
-  drawStage(ctx, S, PL.board, T, { potId: S.potId });
+  drawStage(ctx, S, PL.board, T, { potId: S.potId, d3: true });
   POTS.forEach((p, i) => {
     const r = PL.cards[i], on = S.potId === p.id;
     panel(ctx, r, { radius: 16, fill: on ? '#dfeadb' : C.paper, stroke: on ? C.moss : C.line, lw: on ? 3 : 1.4 });
@@ -385,7 +399,7 @@ function drawPotScene(ctx, S, w, h) {
 function drawOver(ctx, S, w, h) {
   paper(ctx, w, h);
   const sc = scaleOf(S), O = overLayout(w, h), R0 = S.result, k = Math.min(sc, 2.4), com = commissionById(R0.com);
-  drawStage(ctx, S, O.hero, S.T, { potId: R0.pot });
+  drawStage(ctx, S, O.hero, S.T, { potId: R0.pot, d3: true });
   const col = O.col;
   scrollBody(ctx, S, col, () => {
     let y = col.y;
@@ -505,6 +519,7 @@ export function drawFigure(ctx, r, name, S) {
 // ---- entry --------------------------------------------------------------------------------------------------------------------------------------------------------------
 export function render(ctx, S, view) {
   const w = view.width, h = view.height;
+  v3.stage = null;
   switch (S.scene) {
     case 'title': drawTitle(ctx, S, w, h); break;
     case 'shelf': drawShelf(ctx, S, w, h); break;

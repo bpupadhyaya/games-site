@@ -5,6 +5,7 @@ import { RULES, HOWTO, ABOUT, LESSONS } from './content.js';
 import { settingsItems } from './settings.js';
 import { canMove, movesLeft, isSolved, solution, allOn, toggle, parAll } from './rules.js';
 import { drawLockup, drawMoreLine, edgeStroke } from './brand.js';
+import { v3, flatAlpha } from './v3.js';
 
 const FONT = '"Cinzel", Georgia, "Times New Roman", serif';
 const UI = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
@@ -17,6 +18,32 @@ const fitMemo = new Map(); let fitFontsKey = '';
 const ease = (f) => f * f * (3 - 2 * f);
 const easeBack = (f) => { const c = 1.35, x = f - 1; return 1 + (c + 1) * x * x * x + c * x * x; };
 const lerp = (a, b, f) => a + (b - a) * f;
+
+// Where each ring is drawn this frame (shared with the 3D presenter): pos 0 (off) .. 1 (on the bar) with an eased, slightly springy slide,
+// squash 0..1 how far the ring is turned while it travels.
+export function ringPose(bitsNow, anims) {
+  const pos = [], squash = [];
+  for (let i = 0; i < bitsNow.length; i++) {
+    const a = anims ? anims[i] : null;
+    if (a) { const f = clamp(a.t / a.dur, 0, 1); pos.push(lerp(a.from, a.to, easeBack(f))); squash.push(Math.sin(Math.PI * f)); } else { pos.push(bitsNow[i] ? 1 : 0); squash.push(0); }
+  }
+  return { pos, squash };
+}
+// The title animation: a four-ring puzzle solving itself, move by move, then starting over.
+export function heroBits(t, calm) {
+  const seq = solution(allOn(4)), step = 1.15, cyc = (seq.length + 2) * step, tt = calm ? 0 : t % cyc, idx = Math.min(seq.length, Math.floor(tt / step));
+  let b = allOn(4); for (let i = 0; i < idx; i++) b = toggle(b, seq[i]);
+  const anims = Array(4).fill(null); if (idx > 0 && idx <= seq.length && tt - (idx - 1) * step < 0.5) { const k2 = seq[idx - 1]; anims[k2] = { from: b[k2] ? 0 : 1, to: b[k2] ? 1 : 0, t: tt - (idx - 1) * step, dur: 0.5 }; }
+  return { bits: b, anims };
+}
+// Title hero geometry: the lettering on top, the four-ring scene below it (null when there is no room).
+export function heroFrame(r, minU = 12) {
+  const cx = r.x + r.w / 2, ts = clamp(Math.min(r.w / 8.2, r.h / 4.2), 28, 92), sub = Math.max(minU, ts * 0.27), y0 = r.y + ts * 1.0;
+  const py = y0 + ts * 0.26, pw = Math.min(r.w * 0.8, ts * 8.4), top = py + sub * 1.9 + ts * 0.3, room = r.y + r.h - top;
+  let sc = null;
+  if (room > 90) { const G = sceneGeom(4), k = Math.min((r.w - 16) / G.W, room / G.H, 1.7); sc = { ox: cx - G.W * k / 2, oy: top + (room - G.H * k) / 2, k, G }; }
+  return { cx, ts, sub, y0, py, pw, top, room, sc };
+}
 
 export function render(ctx, state, L) {
   { ctx.font = `700 40px ${FONT}`; const a = ctx.measureText('Hamburgefonstiv').width; ctx.font = `600 40px ${UI}`; const k = a + '/' + ctx.measureText('Hamburgefonstiv').width; if (k !== fitFontsKey || fitMemo.size > 3000) { fitMemo.clear(); fitFontsKey = k; } }
@@ -45,7 +72,7 @@ export function render(ctx, state, L) {
     return ls.length;
   };
   const panel = (r, rad = 16, fill = 'rgba(24,12,14,0.74)', stroke = 'rgba(230,180,92,0.26)', brand = true) => {
-    ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, rad); ctx.fillStyle = fill; ctx.fill(); ctx.strokeStyle = stroke; ctx.lineWidth = 2; ctx.stroke();
+    ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, rad); ctx.fillStyle = v3.on ? 'rgba(22,7,5,0.84)' : fill; ctx.fill(); ctx.strokeStyle = stroke; ctx.lineWidth = 2; ctx.stroke();
     if (brand) edgeStroke(ctx, r, rad, 0.34);
   };
   // Flat, clean buttons: one solid fill and one line; no inner gloss shape.
@@ -54,8 +81,10 @@ export function render(ctx, state, L) {
     ctx.save(); if (o.dim) ctx.globalAlpha = 0.5;
     const rad = Math.min(14, r.h / 3);
     ctx.fillStyle = 'rgba(0,0,0,0.42)'; ctx.beginPath(); ctx.roundRect(r.x + 1, r.y + 4, r.w, r.h, rad); ctx.fill();
-    ctx.fillStyle = o.primary ? '#e0a23a' : o.on ? '#5b2a22' : '#2b1618'; ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, rad); ctx.fill();
-    ctx.strokeStyle = o.primary ? '#ffe3a0' : o.on ? '#e6b45c' : 'rgba(230,180,92,0.5)'; ctx.lineWidth = 2; ctx.stroke();
+    // over the 3D desk: deep red-lacquer buttons with a brass edge and a lacquer lip (still one flat fill, no gloss shape)
+    if (v3.on && !o.primary) { ctx.fillStyle = '#1c0705'; ctx.beginPath(); ctx.roundRect(r.x, r.y + 3, r.w, r.h, rad); ctx.fill(); }
+    ctx.fillStyle = o.primary ? '#e0a23a' : o.on ? '#5b2a22' : v3.on ? '#4a120c' : '#2b1618'; ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, rad); ctx.fill();
+    ctx.strokeStyle = o.primary ? '#ffe3a0' : o.on ? '#e6b45c' : v3.on ? 'rgba(222,170,80,0.78)' : 'rgba(230,180,92,0.5)'; ctx.lineWidth = 2; ctx.stroke();
     const size = o.size ?? 28, maxW = r.w - 20, col = o.primary ? '#2a1400' : BRASS, cy = r.y + r.h / 2;
     const w1 = (str, s) => { ctx.font = `700 ${s}px ${FONT}`; return ctx.measureText(str).width; };
     let s1 = size; while (s1 > minU && w1(label, s1) > maxW) s1 -= 1;
@@ -75,8 +104,11 @@ export function render(ctx, state, L) {
   };
 
   // ---------------------------------------------------------------- scenes
-  drawRoom(ctx, L, state.t);
-  if (!state.calm) motes(ctx, L, state.t);
+  if (v3.on) { ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height); ctx.restore(); }
+  const fa = flatAlpha();
+  if (fa > 0) { ctx.save(); ctx.globalAlpha = fa; drawRoom(ctx, L, state.t); ctx.restore(); }
+  if (v3.on) { const vg = ctx.createRadialGradient(L.w / 2, L.h / 2, Math.min(L.w, L.h) * 0.4, L.w / 2, L.h / 2, Math.hypot(L.w, L.h) * 0.62); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.42)'); ctx.fillStyle = vg; ctx.fillRect(0, 0, L.w, L.h); }
+  if (!state.calm && !v3.on) motes(ctx, L, state.t);
 
   if (scene === 'title' || scene === 'demo-limit') drawTitle();
   else if (scene === 'doc') drawDocument();
@@ -85,21 +117,15 @@ export function render(ctx, state, L) {
   if (state.sceneT < 0.22) { ctx.fillStyle = `rgba(10,5,7,${(1 - state.sceneT / 0.22) * 0.85})`; ctx.fillRect(0, 0, L.w, L.h); }
 
   // ---- the ring scene: positions follow the logic with an eased, slightly springy slide through the bar
-  function ringState(bitsNow, anims) {
-    const pos = [], squash = [];
-    for (let i = 0; i < bitsNow.length; i++) {
-      const a = anims ? anims[i] : null;
-      if (a) { const f = clamp(a.t / a.dur, 0, 1); pos.push(lerp(a.from, a.to, easeBack(f))); squash.push(Math.sin(Math.PI * f)); } else { pos.push(bitsNow[i] ? 1 : 0); squash.push(0); }
-    }
-    return { pos, squash };
-  }
   function sceneOf(sc, bitsNow, anims, o = {}) {
-    const rs = ringState(bitsNow, anims), pulse = state.calm ? 0.6 : 0.5 + 0.5 * Math.sin(state.t * 4.5);
+    const rs = ringPose(bitsNow, anims), pulse = state.calm ? 0.6 : 0.5 + 0.5 * Math.sin(state.t * 4.5);
     const glow = Array(bitsNow.length).fill(0), glowRgb = Array(bitsNow.length).fill(fin.glow);
     if (o.assist) for (let i = 0; i < bitsNow.length; i++) if (canMove(bitsNow, i)) glow[i] = 0.55 + 0.25 * pulse;
     if (o.hint) { glow[o.hint.ring] = 1; glowRgb[o.hint.ring] = '90,230,170'; }
     ctx.save(); ctx.translate(sc.ox, sc.oy); ctx.scale(sc.k, sc.k);
-    drawScene(ctx, sc.G, { pos: rs.pos, squash: rs.squash, glow, glowRgb, shake: o.shake ? o.shake.map((s) => Math.sin(s * 28) * 7 * s) : null, finish: state.finish, t: state.t, k: sc.k, font: FONT, sel: o.sel ?? -1, labels: true });
+    const fa2 = flatAlpha();
+    if (fa2 > 0) { ctx.save(); ctx.globalAlpha = fa2; drawScene(ctx, sc.G, { pos: rs.pos, squash: rs.squash, glow, glowRgb, shake: o.shake ? o.shake.map((s) => Math.sin(s * 28) * 7 * s) : null, finish: state.finish, t: state.t, k: sc.k, font: FONT, sel: -1, labels: true }); ctx.restore(); }
+    if ((o.sel ?? -1) >= 0) { const G = sc.G, x = G.ringX(o.sel), y = lerp(G.yOff, G.barY, rs.pos[o.sel]); ctx.strokeStyle = 'rgba(255,236,170,0.9)'; ctx.lineWidth = 3; ctx.setLineDash([8, 8]); ctx.beginPath(); ctx.ellipse(x, y, G.R * 0.5 + 12, G.R + 12, 0, 0, TAU); ctx.stroke(); ctx.setLineDash([]); }
     if (o.hint) hintArrow(sc.G, o.hint, rs.pos[o.hint.ring]);
     ctx.restore();
   }
@@ -139,26 +165,15 @@ export function render(ctx, state, L) {
   }
 
   function hero(r) {
-    const cx = r.x + r.w / 2;
-    const ts = clamp(Math.min(r.w / 8.2, r.h / 4.2), 28, 92), sub = Math.max(minU, ts * 0.27);
-    const y0 = r.y + ts * 1.0;
+    const HF = heroFrame(r, minU), { cx, ts, sub, y0, py, pw } = HF;
     ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.6)'; ctx.shadowBlur = 16; ctx.shadowOffsetY = 4;
     const grad = ctx.createLinearGradient(0, y0 - ts * 0.8, 0, y0 + ts * 0.1); grad.addColorStop(0, '#fff0c2'); grad.addColorStop(1, '#d99a3a');
     fitText('CHINESE RINGS', cx, y0, ts, r.w - 20, grad, FONT, 700);
     ctx.restore();
-    const py = y0 + ts * 0.26, pw = Math.min(r.w * 0.8, ts * 8.4);
     ctx.fillStyle = '#b8321f'; ctx.beginPath(); ctx.roundRect(cx - pw / 2, py, pw, sub * 1.9, sub * 0.95); ctx.fill();
     ctx.strokeStyle = 'rgba(255,214,140,0.75)'; ctx.lineWidth = 1.5; ctx.stroke();
     fitText('A MECHANICAL PUZZLE FROM CHINA', cx, py + sub * 1.34, sub, pw - 24, '#ffeccb', FONT, 700);
-    const top = py + sub * 1.9 + ts * 0.3, room = r.y + r.h - top;
-    if (room > 90) {
-      const G = sceneGeom(4), k = Math.min((r.w - 16) / G.W, room / G.H, 1.7), sc = { ox: cx - G.W * k / 2, oy: top + (room - G.H * k) / 2, k, G };
-      // the title animation: a four-ring puzzle solving itself, move by move, then starting over
-      const seq = solution(allOn(4)), step = 1.15, cyc = (seq.length + 2) * step, tt = state.calm ? 0 : state.t % cyc, idx = Math.min(seq.length, Math.floor(tt / step));
-      let b = allOn(4); for (let i = 0; i < idx; i++) b = toggle(b, seq[i]);
-      const anims = Array(4).fill(null); if (idx > 0 && idx <= seq.length && tt - (idx - 1) * step < 0.5) { const k2 = seq[idx - 1]; anims[k2] = { from: b[k2] ? 0 : 1, to: b[k2] ? 1 : 0, t: tt - (idx - 1) * step, dur: 0.5 }; }
-      sceneOf(sc, b, anims, {});
-    }
+    if (HF.sc) { const hb = heroBits(state.t, state.calm); sceneOf(HF.sc, hb.bits, hb.anims, {}); }
   }
 
   // ================================================================ play / over / lesson
@@ -232,7 +247,7 @@ export function render(ctx, state, L) {
     }
   }
   function overlay() {
-    ctx.fillStyle = 'rgba(8,3,5,0.74)'; ctx.fillRect(0, 0, L.w, L.h);
+    ctx.fillStyle = v3.on ? 'rgba(8,3,5,0.5)' : 'rgba(8,3,5,0.74)'; ctx.fillRect(0, 0, L.w, L.h);
     const O = L.over, c = O.card, cx = c.x + c.w / 2;
     panel(c, 26, 'rgba(26,13,15,0.95)', 'rgba(230,180,92,0.55)');
     const res = state.result || { moves: P.moves, par: P.par, stars: 3, rings: n }, k = Math.min(1, (O.again.y - c.y - 16) / 430), cw2 = c.w / k;
@@ -264,7 +279,7 @@ export function render(ctx, state, L) {
   // ================================================================ documents (rules, how to play, about, settings)
   function drawDocument() {
     const D = L.doc, panelR = D.panel, vp = D.viewport, kind = state.doc.kind;
-    ctx.fillStyle = 'rgba(8,3,5,0.55)'; ctx.fillRect(0, 0, L.w, L.h);
+    ctx.fillStyle = v3.on ? 'rgba(8,3,5,0.3)' : 'rgba(8,3,5,0.55)'; ctx.fillRect(0, 0, L.w, L.h);
     ctx.beginPath(); ctx.roundRect(panelR.x, panelR.y, panelR.w, panelR.h, 26);
     const pg = ctx.createLinearGradient(0, panelR.y, 0, panelR.y + panelR.h); pg.addColorStop(0, 'rgba(58,22,22,0.9)'); pg.addColorStop(1, 'rgba(22,9,11,0.95)');
     ctx.fillStyle = pg; ctx.fill(); ctx.strokeStyle = 'rgba(230,180,92,0.34)'; ctx.lineWidth = 2; ctx.stroke();

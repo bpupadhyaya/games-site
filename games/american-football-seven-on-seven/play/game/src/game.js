@@ -2,13 +2,13 @@
 // Scenes: title, setup, settings, learn, howto / about / rules, demolimit, play (a real game, Watch & Learn and the lessons), result.
 // The 3D presenter (web/view3d, web/main.js) only reads getState(): state.E (the engine: match, play, ball, events).
 import { W, H, PLAY, TEXT_SCALES, THINK_STEPS, REVEAL_SECS, TEXT_DEC, TEXT_INC, REF_BACK, REF_NEXT, SETUP_PINS, READ, LY, syncLayout, inRect, resetPlayLayout } from './layout.js';
-import { LEVELS, ROLES, roleById, FIELD, TEAM_LEVEL } from './consts.js';
-import { OFF_PLAYS, DEF_CALLS } from './plays.js';
+import { LEVELS, ROLES, roleById, FIELD, TEAM_LEVEL, OFF_SLOT_OF_P, DEF_SLOT_OF_P } from './consts.js';
+import { OFF_PLAYS, DEF_CALLS, offPlay, defCall, offFormation, defFormation } from './plays.js';
 import { createEngine, step as engineStep, choose, exportSave, importSave, validSave, aiPick } from './engine.js';
 import { receiverRead } from './sim.js';
 import { thinkOffense, thinkDefense, callName } from './coach.js';
 import { controlButtons, ctlHit, ctlRects, renderPlay, playLayoutNow, drawOverlayFor } from './view.js';
-import { renderTitle, renderSetup, renderSettings, renderResult, renderPause, renderPages, renderDemoLimit, renderLearn, renderHint, renderLesson, renderCall, renderWatchCall, renderRoleIntro, hitScreen, flowMeta, readerMeta, ensureLayout, resetMenus, resetPages, PAIRS, getLockTap, setLockDown } from './menus.js';
+import { renderTitle, renderSetup, renderSettings, renderResult, renderPause, renderPages, renderDemoLimit, renderLearn, renderHint, renderLesson, renderCall, renderWatchCall, renderRoleIntro, drawFormationTags, beginFrame, hitScreen, flowMeta, readerMeta, ensureLayout, resetMenus, resetPages, PAIRS, getLockTap, setLockDown } from './menus.js';
 import { ABOUT, HOWTO, RULES, LESSONS } from './content.js';
 import { setPress } from './ui.js';
 
@@ -526,6 +526,30 @@ export function createGame(env) {
     scrollBy(dy) { if (['rules', 'howto', 'about'].includes(state.scene)) state.wheel = (state.wheel || 0) + dy; else { const mt = flowMeta(); const max = mt && mt.lay ? Math.max(0, mt.lay.contentH - (mt.bottom - mt.top)) : 0; state.ui.scroll = clamp(state.ui.scroll + dy, 0, max); } },
     isPreviewExempt: () => !(state.scene === 'play' && state.mode === 'ai' && !!state.E && state.E.phase === 'play' && !state.paused && !state.roleIntro),
     setView3d(on) { state.v3 = !!on; },
+    setFv3d(on) { state.fv3d = !!on; },
+    // the one 3D formation view (title, Call your play, Watch & Learn): a private frozen engine at the formation, never stepped, built on first use by the 3D presenter;
+    // each request puts the fourteen players on the line-up of the chosen play and defensive call
+    formationEngine(fv) {
+      if (state.fvE === undefined) {
+        state.fvE = null;
+        try {
+          const E = createEngine(rng.fork(), { mode: 'ai', level: 2, quarter: 1, role: 'QB', levels: [2, 2], first: 0, auto: true });
+          for (let g = 0; g < 4000 && !(E.phase === 'play' && E.P && E.P.phase === 'set'); g++) { if (E.need && E.need.pick && !E.need.human) choose(E, E.need.pick.value); else if (E.need && E.need.human) autoChoose(E); engineStep(E, 1 / 60); }
+          if (E.phase === 'play' && E.P && E.P.phase === 'set') state.fvE = E;
+        } catch { state.fvE = null; }
+      }
+      const E = state.fvE;
+      if (E) {
+        const key = `${fv.off}|${fv.def}|${fv.offTeam | 0}`;
+        if (E.fvKey !== key) {
+          E.fvKey = key;
+          const P = E.P, of = offFormation(offPlay(fv.off)), df = defFormation(defCall(fv.def));
+          for (const a of P.actors) { const isOff = a.team === (fv.offTeam | 0); a.unit = isOff ? 'off' : 'def'; a.slot = (isOff ? OFF_SLOT_OF_P : DEF_SLOT_OF_P)[a.p]; a.face = a.pface = isOff ? 0 : Math.PI; const f = (isOff ? of : df)[a.slot]; if (!f) continue; const pt = P.fieldPt(f[0], f[1]); a.x = a.px = pt.x; a.z = a.pz = pt.z; a.vx = a.vz = 0; }
+        }
+      }
+      return E;
+    },
+    drawFormationOverlay: (ctx, proj) => drawFormationTags(ctx, state, proj),
     drawOverlay: (ctx, proj) => drawOverlayFor(state)(ctx, proj),
     debugStart: (cfg) => startGame(cfg),
     setCredits(text) {
@@ -558,6 +582,7 @@ export function createGame(env) {
     render(ctx) {
       relayout();
       ctx.clearRect(0, 0, W, H);
+      state.fv = null; beginFrame(ctx);
       switch (state.scene) {
         case 'title': renderTitle(ctx, state); break;
         case 'setup': renderSetup(ctx, state); break;

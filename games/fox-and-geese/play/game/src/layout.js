@@ -9,6 +9,7 @@
 //   tall     portrait phone (h >= 1540): the approved phone look, unchanged.
 //   compact  every other portrait / squarish screen (small phones, tablets): header on top, the board scaled to the free height, button bar below.
 //   wide     landscape: a status card on the left, the board in the middle, a button card on the right; title / result: art + a card of buttons.
+import { v3 } from './v3.js';
 import { PTS } from './rules.js';
 
 export const W = 720, H = 1560;           // the canonical phone scene (also the kit's initial size)
@@ -82,10 +83,15 @@ function build(w, h, ins) {
   const B = L.board;
   L.toCanon = (x, y) => ({ x: (x - B.tx) / B.s, y: (y - B.ty) / B.s });
   L.toScreen = (x, y) => ({ x: B.tx + x * B.s, y: B.ty + y * B.s });
-  L.pointScreen = (i) => { const p = pointAt(i); return L.toScreen(p.x, p.y); };
+  L.pointScreen = (i) => { if (v3.on && v3.pt) { const p = v3.pt(i); return { x: p.x, y: p.y }; } const p = pointAt(i); return L.toScreen(p.x, p.y); };
   // which board point a tap means: the nearest point or the head standing on it (all in canonical units)
   const reach = clamp(30 / Math.max(0.2, (ins.px || 0.6) * B.s), 56, 74);
   L.pointNear = (x, y) => {
+    if (v3.on && v3.pt) {                                  // 3D: a point is where the presenter's tilted camera shows it
+      let b3 = -1, d3 = Infinity, r3 = 60;
+      for (const i of PTS) { const p = v3.pt(i), d = Math.min(Math.hypot(p.x - x, p.y - y), Math.hypot(p.x - x, p.hy - y), Math.hypot(p.x - x, (p.y + p.hy) / 2 - y)); if (d < d3) { d3 = d; b3 = i; r3 = Math.max(44, 58 * p.s); } }
+      return d3 < r3 ? b3 : -1;
+    }
     const c = L.toCanon(x, y); let best = -1, bd = Infinity;
     for (const i of PTS) { const p = pointAt(i), d = Math.min(Math.hypot(p.x - c.x, p.y - c.y), Math.hypot(p.x - c.x, p.y - 26 * p.s - c.y)); if (d < bd) { bd = d; best = i; } }
     return bd < reach ? best : -1;
@@ -217,7 +223,7 @@ function buildTitle(L, hasSave) {
   T.drawBoard = false;
   if (!L.wide) {                                                  // compact portrait: art on top, two-column grid below
     const lk = lockRect(w / 2, 0, 300), lockY = h - Math.max(10, ins.b) - lk.h - 8; T.lock = { ...lk, y: lockY };
-    const pitch = clamp((h - 330 - lk.h) / n, 54, 78), bh = pitch - 10, rowsH = n * pitch, y0 = lockY - 8 - 62 - rowsH + (pitch - bh);
+    const pitch = clamp((h - (h > 860 ? h * 0.5 : 330) - lk.h) / n, 50, 78), bh = pitch - 10, rowsH = n * pitch, y0 = lockY - 8 - 62 - rowsH + (pitch - bh);
     place(U.x0 + 40, U.w - 80, y0, pitch, bh);
     const zone = y0 - 14, topPad = Math.max(10, ins.t + 6);
     T.hero = heroFit(24, topPad, w - 48, zone - topPad - 4);

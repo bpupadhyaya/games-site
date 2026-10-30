@@ -17,6 +17,22 @@ export const docMetrics = { max: 0, view: 0 };
 const fitMemo = new Map(); let fitFontsKey = '';
 const ease = (f) => f * f * (3 - 2 * f);
 
+
+function drawIcon(ctx, id, x, y, s, col) {
+  ctx.save(); ctx.translate(x, y); ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = Math.max(2, s * 0.09); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  const h = s / 2, L = (a, b, c, d) => { ctx.beginPath(); ctx.moveTo(a * h, b * h); ctx.lineTo(c * h, d * h); ctx.stroke(); }, C = (cx, cy, r, f) => { ctx.beginPath(); ctx.arc(cx * h, cy * h, r * h, 0, TAU); f ? ctx.fill() : ctx.stroke(); };
+  if (id === 'two') { C(-0.45, -0.3, 0.3, 1); C(0.45, -0.3, 0.3, 1); ctx.beginPath(); ctx.arc(-0.45 * h, 0.95 * h, 0.7 * h, Math.PI * 1.1, Math.PI * 1.9); ctx.stroke(); ctx.beginPath(); ctx.arc(0.45 * h, 0.95 * h, 0.7 * h, Math.PI * 1.1, Math.PI * 1.9); ctx.stroke(); }
+  else if (id === 'auto') { ctx.beginPath(); ctx.moveTo(-0.55 * h, -0.8 * h); ctx.lineTo(0.8 * h, 0); ctx.lineTo(-0.55 * h, 0.8 * h); ctx.closePath(); ctx.fill(); }
+  else if (id === 'rules') { ctx.beginPath(); ctx.roundRect(-0.7 * h, -0.9 * h, 1.4 * h, 1.8 * h, 0.2 * h); ctx.stroke(); L(-0.35, -0.35, 0.35, -0.35); L(-0.35, 0.05, 0.35, 0.05); L(-0.35, 0.45, 0.1, 0.45); }
+  else if (id === 'how') { C(0, 0, 0.9, 0); ctx.font = `800 ${s * 0.9}px system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.fillText('?', 0, s * 0.31); }
+  else if (id === 'about') { C(0, 0, 0.9, 0); C(0, -0.42, 0.11, 1); L(0, -0.1, 0, 0.5); }
+  else if (id === 'settings') { L(-0.85, -0.5, 0.85, -0.5); L(-0.85, 0.5, 0.85, 0.5); C(-0.3, -0.5, 0.26, 1); C(0.35, 0.5, 0.26, 1); }
+  else if (id === 'menu') { L(-0.8, -0.55, 0.8, -0.55); L(-0.8, 0, 0.8, 0); L(-0.8, 0.55, 0.8, 0.55); }
+  else if (id === 'hint') { C(0, -0.2, 0.62, 0); L(-0.3, 0.7, 0.3, 0.7); L(-0.2, 0.98, 0.2, 0.98); }
+  else if (id === 'play') { ctx.beginPath(); ctx.moveTo(-0.5 * h, -0.8 * h); ctx.lineTo(0.8 * h, 0); ctx.lineTo(-0.5 * h, 0.8 * h); ctx.closePath(); ctx.fill(); }
+  ctx.restore();
+}
+
 export function render(ctx, state, L) {
   { ctx.font = `700 40px ${FONT}`; const a = ctx.measureText('Hamburgefonstiv').width; ctx.font = `600 40px ${UI}`; const k = a + '/' + ctx.measureText('Hamburgefonstiv').width; if (k !== fitFontsKey || fitMemo.size > 3000) { fitMemo.clear(); fitFontsKey = k; } }
   const memo = (key, fn) => { let v = fitMemo.get(key); if (v === undefined) { v = fn(); fitMemo.set(key, v); } return v; };
@@ -67,7 +83,9 @@ export function render(ctx, state, L) {
       ctx.strokeStyle = o.primary ? 'rgba(255,224,150,0.85)' : 'rgba(246,200,90,0.5)'; ctx.lineWidth = 2; ctx.stroke();
     }
     if (o.dim && P3) ctx.globalAlpha = 0.6;
-    const size = o.size ?? 28, maxW = r.w - 20, col = o.primary ? '#fff6e0' : '#fbeccd', cy = r.y + r.h / 2;
+    const tcx0 = r.x + r.w / 2;
+    const size = o.size ?? 28, icw = o.icon && r.w > 150 ? Math.min(r.h * 0.42, 34) : 0, maxW = r.w - 20 - (icw ? icw + 12 : 0), col = o.primary ? '#fff6e0' : '#fbeccd', cy = r.y + r.h / 2;
+    const tcx = tcx0 + (icw ? (icw + 12) / 2 : 0);
     const w1 = (str, s) => { ctx.font = `700 ${s}px ${UI}`; return ctx.measureText(str).width; };
     let s1 = size; while (s1 > minU && w1(label, s1) > maxW) s1 -= 1;
     let best = { s: s1, ls: [label] };
@@ -79,9 +97,10 @@ export function render(ctx, state, L) {
         if (s2 > best.s) best = { s: s2, ls };
       }
     }
-    if (o.sub && best.ls.length === 1) { text(label, r.x + r.w / 2, cy + best.s * 0.1 - 6, best.s, col, UI, 700); fitText(o.sub, r.x + r.w / 2, cy + best.s * 0.1 + Math.max(minU, size * 0.62) + 2, Math.round(size * 0.62), maxW, DIM, UI, 500, 'center', minU); }
-    else if (best.ls.length === 1) text(label, r.x + r.w / 2, cy + best.s * 0.35, best.s, col, UI, 700);
-    else best.ls.forEach((ln, i) => text(ln, r.x + r.w / 2, cy + best.s * 0.35 + (i - 0.5) * best.s * 1.15, best.s, col, UI, 700));
+    if (o.sub && best.ls.length === 1) { text(label, tcx, cy + best.s * 0.1 - 6, best.s, col, UI, 700); fitText(o.sub, tcx, cy + best.s * 0.1 + Math.max(minU, size * 0.62) + 2, Math.round(size * 0.62), maxW, DIM, UI, 500, 'center', minU); }
+    else if (best.ls.length === 1) text(label, tcx, cy + best.s * 0.35, best.s, col, UI, 700);
+    else best.ls.forEach((ln, i) => text(ln, tcx, cy + best.s * 0.35 + (i - 0.5) * best.s * 1.15, best.s, col, UI, 700));
+    if (icw) { ctx.font = `700 ${best.s}px ${UI}`; const tw = Math.max(...best.ls.map((l) => ctx.measureText(l).width)); drawIcon(ctx, o.icon, tcx - tw / 2 - 12 - icw / 2, cy, icw, col); }
     ctx.restore();
   };
 
@@ -106,9 +125,9 @@ export function render(ctx, state, L) {
     } else {
       if (Rr.resume) button(Rr.resume, 'Continue your game', { primary: true, size: 30 });
       button(Rr.play, 'Play the computer', { primary: !Rr.resume, size: 32, sub: `${LEVELS[state.level].name} · as ${NAMES[state.humanSide]}` });
-      button(Rr.two, 'Two players', { size: 26 }); button(Rr.auto, 'Auto Play', { size: 26 });
-      button(Rr.rules, 'Rules', { size: 26 }); button(Rr.how, 'How to Play', { size: 26 });
-      button(Rr.about, 'About', { size: 26 }); button(Rr.settings, 'Settings', { size: 26 });
+      button(Rr.two, 'Two players', { size: 26, icon: 'two' }); button(Rr.auto, 'Auto Play', { size: 26, icon: 'auto' });
+      button(Rr.rules, 'Rules', { size: 26, icon: 'rules' }); button(Rr.how, 'How to Play', { size: 26, icon: 'how' });
+      button(Rr.about, 'About', { size: 26, icon: 'about' }); button(Rr.settings, 'Settings', { size: 26, icon: 'settings' });
       if (state.msg) fitText(state.msg.text, L.w / 2, Rr.play.y - 14, 24, L.w - 40, GOLD, UI, 600);
     }
     const lk = T.lockup; state.lockupRect = drawLockup(ctx, lk.x, lk.y + 4, 50);
@@ -245,7 +264,7 @@ export function render(ctx, state, L) {
     }
     ctx.restore();
 
-    plates(); trayDraw(); buttonsFor();
+    if (!over) { plates(); trayDraw(); buttonsFor(); }
     if (over) overlay();
   }
 
@@ -338,7 +357,7 @@ export function render(ctx, state, L) {
         button(BTN.auto.exit, 'Exit', { size: 24 }); button(BTN.auto.pause, state.autoPaused ? 'Resume' : 'Pause', { size: 24, primary: state.autoPaused });
         button(BTN.auto.dec, '- Think', { size: 22, dim: state.autoThinkIdx <= 0 }); button(BTN.auto.inc, L.land ? `Think + ${THINK_STEPS[state.autoThinkIdx]}s` : 'Think +', { size: 22, dim: state.autoThinkIdx >= THINK_STEPS.length - 1 });
               } else {
-        button(BTN.menu, 'Menu', { size: sz }); button(BTN.hint, `Hint (${state.hintsLeft})`, { size: sz, dim: state.hintsLeft <= 0, primary: !!state.hint });
+        button(BTN.menu, 'Menu', { size: sz, icon: 'menu' }); button(BTN.hint, `Hint (${state.hintsLeft})`, { size: sz, icon: 'hint', dim: state.hintsLeft <= 0, primary: !!state.hint });
       }
     }
   }

@@ -1,6 +1,6 @@
 // Everything drawn each frame. Reads state, changes nothing.
 import {
-  W, H, VIEW, UI, DISPLAY, THEMES, themeById, text, rr, panel, button, background, icon, alpha, clamp01, ease, backOut,
+  W, H, VIEW, UI, DISPLAY, THEMES, themeById, text, rr, panel, plaque, button, background, icon, alpha, clamp01, ease, backOut,
   BW, BH, CELLS, boardGeo, drawBoardBase, drawBoardStones, drawBoardMarks, drawDan, drawQuan, drawHand, ringCell, fillCell, dirArrow, slotPos,
 } from './art.js';
 import { TEXT_SCALES, wrap, tw } from './ui.js';
@@ -13,6 +13,10 @@ import { drawLockup, drawMoreLine } from './brand.js';
 import { THINK_STEPS } from './screens.js';
 import { humanTurn, flightPos, fromState } from './match.js';
 import { moveWords } from './explain.js';
+import { v3, traySlot } from './v3.js';
+
+// The board geometry for the screen rectangle: the projected 3D board while the 3D scene is alive, else the flat 2D board.
+export const geoFor = (x, y, w) => (v3.on && v3.geo ? v3.geo() : boardGeo(x, y, w));
 
 const theme = (S) => themeById(S.themeId);
 
@@ -259,7 +263,13 @@ function drawArt(ctx, S, name, x, y, w, h, b) {
 function drawTitleArt(ctx, S, T, withBoard) {
   const th = theme(S), t = T.title;
   const M = S.attract;
-  if (M && T.board && withBoard) drawMatchBoard(ctx, S, M, boardGeo(T.board.x, T.board.y, T.board.w), null, { noCounts: T.board.w < 340 });
+  if (M && T.board && withBoard) {
+    if (v3.on) {
+      const b = T.board, bh = b.w * BH / BW;
+      v3.req = { mode: 'title', rect: { x: b.x + b.w * 0.02, y: b.y - bh * 0.02, w: b.w * 0.96, h: bh * 1.12 }, trays: false };
+      drawMatchBoard(ctx, S, M, v3.geo(), null, { noCounts: true });
+    } else drawMatchBoard(ctx, S, M, boardGeo(T.board.x, T.board.y, T.board.w), null, { noCounts: T.board.w < 340 });
+  }
   const g = ctx.createLinearGradient(0, t.y1 - 90, 0, t.y1 + 50);
   g.addColorStop(0, '#fff3c4'); g.addColorStop(0.5, th.accent); g.addColorStop(1, '#a8782a');
   ctx.save();
@@ -335,6 +345,7 @@ const screenDx = (cell, dir) => (cell >= 1 && cell <= 5 ? dir : -dir);
 
 // o: { auto, legal: bool, zoom }. Draws base, stones (the display state D), flights, the hand, marks and effects.
 function drawMatchBoard(ctx, S, M, geo, auto, o = {}) {
+  if (v3.on && geo.p3) { drawMatchBoard3(ctx, S, M, geo, auto, o); return; }
   const th = theme(S), D = M.D, A = M.A;
   ctx.save();
   ctx.translate(geo.x, geo.y); ctx.scale(geo.sc, geo.sc);
@@ -385,6 +396,98 @@ function drawMatchBoard(ctx, S, M, geo, auto, o = {}) {
   void mine;
 }
 
+
+// ---- the same board when the 3D scene is alive: stones, glows and the hand are handed to the 3D presenter (board units), counts,
+// arrows and sparks are drawn on the 2D canvas through the projection of the tilted board (geo.toScreen).
+const GOLD = 2.399963;
+function drawMatchBoard3(ctx, S, M, geo, auto, o) {
+  const th = theme(S), D = M.D, A = M.A, pl = pulse(S), acc = th.accent, turn = M.st.turn, z = TEXT_SCALES[S.textIdx] ?? 1;
+  const mark = (cell, col, a, fill = false, grow = 0) => v3.marks.push({ cell, col, a, fill, grow });
+  if (!M.over && !M.auto) for (const i of SIDE[turn]) mark(i, acc, (M.busy ? 0.05 : 0.08 + 0.06 * pl), true);
+  if (humanTurn(M)) for (const i of SIDE[turn]) if (D.cells[i] > 0 && M.sel !== i) mark(i, acc, 0.3 + 0.2 * pl);
+  if (M.sel >= 0) { mark(M.sel, acc, 0.35 + 0.15 * pl, true); mark(M.sel, acc, 1); }
+  if (M.flash >= 0) mark(M.flash, '#ff6a5a', 0.6 * clamp01(M.flashT / 0.3), true);
+  if (M.ringT > 0 && M.ringCell >= 0) mark(M.ringCell, '#ffe27a', clamp01(M.ringT / 0.5), false, (1 - M.ringT / 0.9) * 16);
+  // stones resting in the squares
+  for (let i = 0; i < 12; i++) {
+    const n = D.cells[i], hasQ = i === 0 ? D.q[0] === 1 : i === 6 ? D.q[1] === 1 : false;
+    if (hasQ) v3.stones.push({ kind: 'q', cell: i, k: -1, x: CELLS[i].cx, y: CELLS[i].cy, glow: M.ringT > 0 ? 0.6 : 0 });
+    for (let k = 0; k < n; k++) {
+      const [x, y] = slotPos(i, k, hasQ), b = M.bounce ? M.bounce[`${i}:${k}`] : undefined;
+      let hop = 0; if (b !== undefined) { const u = Math.min(1, b / 0.3); hop = Math.sin(u * Math.PI) * (1 - u) * 15; }
+      v3.stones.push({ kind: 'd', cell: i, k, x, y, seed: i * 53 + k, lift: hop });
+    }
+  }
+  // stones in flight, then the hand that carries them
+  const al = S.alpha ?? 1;
+  if (A) {
+    for (const f of A.flights) {
+      if (f.delay > 0) continue;
+      const [fx, fy, k] = flightPos(f, al), arc = f.kind === 'drop' ? Math.sin(k * Math.PI) * 9 + (1 - k) * 30 : Math.sin(k * Math.PI) * 48;
+      v3.stones.push({ kind: f.big ? 'q' : 'd', fly: true, x: fx, y: fy + (f.kind === 'drop' ? Math.sin(k * Math.PI) * 9 : Math.sin(k * Math.PI) * 48), lift: arc, seed: f.seed < 0 ? 5 : f.seed, scale: f.kind === 'drop' ? 1 : 1 - 0.15 * k });
+    }
+    const h = A.hand;
+    if (h && h.n > 0) {
+      const hx = h.px === undefined ? h.x : h.px + (h.x - h.px) * al, hy = h.py === undefined ? h.y : h.py + (h.y - h.py) * al, lift = (30 + (h.lift ?? 0)) * 0.9;
+      for (let k = 0; k < Math.min(7, h.n); k++) { const a = k * GOLD, rad = k === 0 ? 0 : 9 + k * 1.2; v3.stones.push({ kind: 'd', fly: true, x: hx + Math.cos(a) * rad * 0.9, y: hy + Math.sin(a) * rad * 0.7, lift, seed: 900 + k * 7 }); }
+      if (h.n > 1) {
+        const p = geo.toScreen(hx, hy), fs = Math.min(40, Math.max(22, 21 * (1 + (z - 1) * 0.28))), pw = String(h.n).length * fs * 0.62 + 20, py = p[1] - lift * geo.sc * 0.7 - 30;
+        ctx.save(); ctx.fillStyle = th.accent; ctx.beginPath(); ctx.roundRect(p[0] + 14, py - fs, pw, fs + 8, (fs + 8) / 2); ctx.fill();
+        text(ctx, String(h.n), p[0] + 14 + pw / 2, py - fs + fs * 0.88 + 1, fs, th.primaryInk, { weight: 800 }); ctx.restore();
+      }
+    }
+  }
+  // the two capture trays (only when the layout has room for them)
+  if (v3.req && v3.req.trays) for (const who of [1, 2]) {
+    for (let k = 0; k < Math.min(2, D.pq[who - 1]); k++) { const [x, y] = traySlot(who, k, true); v3.stones.push({ kind: 'q', tray: true, x, y, layer: 0 }); }
+    const n = Math.min(60, Math.max(0, D.pd[who - 1]));
+    for (let k = 0; k < n; k++) { const [x, y, layer] = traySlot(who, k, false); v3.stones.push({ kind: 'd', tray: true, x, y, layer, seed: 700 + who * 100 + k }); }
+  }
+  // counts on the squares
+  if (!o.noCounts) {
+    const fs = Math.min(40, 21 * (1 + (z - 1) * 0.28)) * 1.05;
+    for (let i = 0; i < 12; i++) {
+      const r = CELLS[i], n = D.cells[i], hasQ = i === 0 ? D.q[0] === 1 : i === 6 ? D.q[1] === 1 : false;
+      if (!n && !hasQ) continue;
+      const label = `${n}`, w = Math.max(34, label.length * fs * 0.62 + 18) + (hasQ ? 20 : 0), h = fs + 12;
+      const [px, py] = geo.toScreen(r.cx, r.top ? r.y + 24 : r.y + r.h - 24);
+      ctx.fillStyle = 'rgba(14,5,1,0.7)'; ctx.beginPath(); ctx.roundRect(px - w / 2, py - h / 2, w, h, h / 2); ctx.fill();
+      ctx.strokeStyle = 'rgba(236,206,146,0.35)'; ctx.lineWidth = 1.2; ctx.stroke();
+      if (hasQ) { ctx.fillStyle = th.quan.base; ctx.beginPath(); ctx.arc(px - w / 2 + 14, py, 5.5, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = th.quan.ring; ctx.lineWidth = 1.6; ctx.stroke(); }
+      text(ctx, label, px + (hasQ ? 7 : 0), py + fs * 0.34, fs, th.ink, { weight: 800 });
+    }
+  }
+  // hints, direction arrows and Watch & Learn marks
+  const arrow3 = (mv, a = 1, col = acc) => {
+    const dx = screenDx(mv.cell, mv.dir), r = CELLS[mv.cell], y = r.cy + (r.top ? 38 : -38), x0 = r.cx + dx * 4, x1 = r.cx + dx * 56;
+    const P = (x, yy) => geo.toScreen(x, yy), s0 = P(x0, y), s1 = P(x1 - dx * 8, y), t1 = P(x1 + dx * 8, y), t2 = P(x1 - dx * 10, y - 13), t3 = P(x1 - dx * 10, y + 13);
+    ctx.save(); ctx.globalAlpha = a; ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = 7 * geo.sc; ctx.lineCap = 'round';
+    ctx.shadowColor = 'rgba(0,0,0,0.6)'; ctx.shadowBlur = 8;
+    ctx.beginPath(); ctx.moveTo(s0[0], s0[1]); ctx.lineTo(s1[0], s1[1]); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(t1[0], t1[1]); ctx.lineTo(t2[0], t2[1]); ctx.lineTo(t3[0], t3[1]); ctx.closePath(); ctx.fill(); ctx.restore();
+  };
+  if (M.hint && !M.over) { mark(M.hint.mv.cell, acc, 0.7 + 0.3 * pl, false, 2); arrow3(M.hint.mv, 0.7 + 0.3 * pl); }
+  if (M.sel >= 0 && humanTurn(M)) {
+    const l = S.press && S.press.id === 'dir:-1' && S.press.active, r = S.press && S.press.id === 'dir:1' && S.press.active;
+    arrow3({ cell: M.sel, dir: screenDx(M.sel, -1) }, l ? 1 : 0.6); arrow3({ cell: M.sel, dir: screenDx(M.sel, 1) }, r ? 1 : 0.6);
+  }
+  if (auto && auto.phase === 'reveal' && auto.plan) {
+    for (const c of auto.plan.cells) if (c !== auto.plan.mv.cell) mark(c, '#a0beff', 0.5 + 0.2 * pl);
+    mark(auto.plan.mv.cell, acc, 0.9 + 0.2 * pl, false, 2); mark(auto.plan.mv.cell, acc, 0.3 + 0.15 * pl, true);
+    arrow3(auto.plan.mv, 1);
+  }
+  if (auto && auto.phase === 'think' && auto.scan != null) mark(auto.scan, '#ffffff', 0.12 + 0.1 * pl, true);
+  // sparks and landing rings, through the projection
+  for (const q of M.parts) {
+    const a = clamp01(q.life / (q.max * 0.6));
+    ctx.globalAlpha = a; ctx.fillStyle = q.color; ctx.strokeStyle = q.color;
+    const c = geo.toScreen(q.x, q.y);
+    if (q.shape === 'ring') { ctx.lineWidth = (q.w ?? 4) * geo.sc; ctx.beginPath(); ctx.ellipse(c[0], c[1], q.size * geo.sx, q.size * geo.sy, 0, 0, Math.PI * 2); ctx.stroke(); }
+    else { ctx.beginPath(); ctx.arc(c[0], c[1], q.size * geo.sc * (0.4 + 0.6 * a) * 1.2, 0, Math.PI * 2); ctx.fill(); }
+  }
+  ctx.globalAlpha = 1;
+}
+
 // ------------------------------------------------------------------------------------------ play
 function drawHud(ctx, S, title, sub, showPause) {
   const th = theme(S);
@@ -409,12 +512,15 @@ export function plateIcons(r) {
 
 function drawPlate(ctx, S, M, r, who, name, sub, active) {
   const th = theme(S), z = TEXT_SCALES[S.textIdx];
-  ctx.save();
-  ctx.fillStyle = 'rgba(8,6,6,0.55)'; rr(ctx, r.x, r.y, r.w, r.h, 20); ctx.fill();
-  ctx.strokeStyle = active ? th.accent : 'rgba(255,255,255,0.14)'; ctx.lineWidth = active ? 3 : 1.5;
-  if (active) { ctx.shadowColor = alpha(th.accent, 0.7); ctx.shadowBlur = 16; }
-  rr(ctx, r.x, r.y, r.w, r.h, 20); ctx.stroke();
-  ctx.restore();
+  if (v3.on) plaque(ctx, th, r.x, r.y, r.w, r.h, 20, { strong: true, active });
+  else {
+    ctx.save();
+    ctx.fillStyle = 'rgba(8,6,6,0.55)'; rr(ctx, r.x, r.y, r.w, r.h, 20); ctx.fill();
+    ctx.strokeStyle = active ? th.accent : 'rgba(255,255,255,0.14)'; ctx.lineWidth = active ? 3 : 1.5;
+    if (active) { ctx.shadowColor = alpha(th.accent, 0.7); ctx.shadowBlur = 16; }
+    rr(ctx, r.x, r.y, r.w, r.h, 20); ctx.stroke();
+    ctx.restore();
+  }
   const D = M.D, st = M.st;
   const dan = D.pd[who - 1], quan = D.pq[who - 1];
   const total = dan + st.qv * quan;
@@ -468,10 +574,13 @@ function drawTray(ctx, S, M, r, who) {
 
 function drawStatus(ctx, S, r, head, body, col, box) {
   const th = theme(S), z = TEXT_SCALES[S.textIdx];
-  ctx.save();
-  ctx.fillStyle = 'rgba(8,6,6,0.6)'; rr(ctx, r.x, r.y, r.w, r.h, 22); ctx.fill();
-  ctx.strokeStyle = th.stroke; ctx.lineWidth = 1.5; rr(ctx, r.x, r.y, r.w, r.h, 22); ctx.stroke();
-  ctx.restore();
+  if (v3.on) plaque(ctx, th, r.x, r.y, r.w, r.h, 22, { strong: true });
+  else {
+    ctx.save();
+    ctx.fillStyle = 'rgba(8,6,6,0.6)'; rr(ctx, r.x, r.y, r.w, r.h, 22); ctx.fill();
+    ctx.strokeStyle = th.stroke; ctx.lineWidth = 1.5; rr(ctx, r.x, r.y, r.w, r.h, 22); ctx.stroke();
+    ctx.restore();
+  }
   const b = box ?? { x: r.x, y: r.y, w: r.w, h: r.h };
   const pad = 22, w = b.w - pad * 2;
   const full = body ? `${head}\n${body}` : head;
@@ -558,7 +667,7 @@ const nameOf = (S, M, who) => {
 
 export function playGeo(S) {
   const lay = playLayout(TEXT_SCALES[S.textIdx]);
-  return { lay, geo: boardGeo(lay.board.x, lay.board.y, lay.board.w) };
+  return { lay, geo: geoFor(lay.board.x, lay.board.y, lay.board.w) };
 }
 
 function drawPlay(ctx, S) {
@@ -566,6 +675,10 @@ function drawPlay(ctx, S) {
   background(ctx, th, S.t, 800);
   const auto = S.scene === 'auto' ? S.auto : null;
   const { lay, geo } = playGeo(S);
+  if (v3.on) {
+    const b = lay.board, bh = b.w * BH / BW, t0 = lay.trays[0], t1 = lay.trays[1];
+    v3.req = t0 ? { mode: 'play', trays: true, rect: { x: t0.x, y: t0.y, w: t0.w, h: t1.y + t1.h - t0.y } } : { mode: 'play', trays: false, rect: { x: b.x, y: b.y - bh * 0.12, w: b.w, h: bh * 1.24 } };
+  }
   const title = M.lesson ? lessonText(M.lesson.id).title : tr('appName');
   const sub = M.lesson ? tr('lessonOf', { n: S.lessonIdx + 1, m: LESSONS.length }) : auto ? `${tr('autoSession')} · ${tr('think')} ${THINK_STEPS[S.thinkIdx]}${tr('seconds')}` : M.two ? tr('twoPlayers') : `${tr('oppWord')}: ${levelName(M.level)}`;
   drawHud(ctx, S, title, sub, !auto);
@@ -583,7 +696,7 @@ function drawPlay(ctx, S) {
   drawPlate(ctx, S, M, lay.chips[0], 2, nameOf(S, M, 2), plateSub(2), toMove === 2 && !M.over);
   drawPlate(ctx, S, M, lay.chips[1], 1, nameOf(S, M, 1), plateSub(1), toMove === 1 && !M.over);
   drawMatchBoard(ctx, S, M, geo, auto, {});
-  if (lay.trays[0]) { drawTray(ctx, S, M, lay.trays[0], 2); drawTray(ctx, S, M, lay.trays[1], 1); }
+  if (lay.trays[0] && !v3.on) { drawTray(ctx, S, M, lay.trays[0], 2); drawTray(ctx, S, M, lay.trays[1], 1); }
   // status or the direction buttons
   const choosing = !auto && humanTurn(M) && M.sel >= 0;
   let head = '', body = '', col = null;
@@ -616,6 +729,8 @@ function drawPlay(ctx, S) {
 
 export function render(ctx, S, ui) {
   ctx.textBaseline = 'alphabetic';
+  v3.theme = S.themeId;
+  v3.scrim = S.scene === 'play' || S.scene === 'auto' || S.scene === 'title' ? 0 : S.scene === 'lang' ? 0.25 : 0.55;
   switch (S.scene) {
     case 'lang': drawLang(ctx, S, ui); break;
     case 'title': drawTitle(ctx, S, ui); break;

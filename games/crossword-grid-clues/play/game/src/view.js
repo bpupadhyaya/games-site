@@ -8,6 +8,7 @@ import { LIBRARY } from './library.js';
 import { drawGrid } from './board.js';
 import { DOCS } from './content.js';
 import { drawFigure } from './figures.js';
+import { v3 } from './v3.js';
 
 export const metrics = { max: 0, view: 0, rect: null, list: null };   // scroll body of the current screen, filled in each frame
 export const SETTINGS = [
@@ -43,6 +44,7 @@ export const CHECK_ITEMS = ['Letter', 'Word', 'Puzzle'];
 export const listFs = () => F(21);
 
 export function render(ctx, s, view) {
+  v3.stage = null;
   const w = view.width, h = view.height, T = theme();
   background(ctx, w, h, s.prefs.calm ? 0 : s.t);
   metrics.max = 0; metrics.rect = null; metrics.list = null;
@@ -71,7 +73,7 @@ function gridOptions(s) {
   return { v: P.v, pencil: P.pencil, rev: P.rev, mark: P.mark, sel: s.sel, cells, focus, flash, pop: s.fx.pop, wave: s.fx.wave, shake: s.fx.shake, autoCheck: s.prefs.check === 'type', win: s.winT > 0, hideLetters: s.paused };
 }
 function drawBoard(ctx, s, L) {
-  drawGrid(ctx, L.board, s.P.pz, gridOptions(s));
+  drawGrid(ctx, L.board, s.P.pz, { ...gridOptions(s), d3: true });
   if (L.chip && !s.paused) { const c = L.chip; ctx.save(); rr(ctx, c.x, c.y, c.w, c.h, 20); ctx.fillStyle = theme().frame; ctx.fill(); button(ctx, c, '', { icon: 'zoom', size: 26, radius: 20, active: L.zoomOn, flash: flashOf(s, 'zoom') }); ctx.restore(); }
   for (const p of s.sparks) { ctx.globalAlpha = Math.max(0, 1 - p.t / p.life); ctx.fillStyle = p.c; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 7); ctx.fill(); }
   ctx.globalAlpha = 1;
@@ -301,7 +303,7 @@ function drawTitle(ctx, s, w, h) {
   const seen = new Set(order.slice(0, shown)), v = pz.sol.map((ch, i) => (seen.has(i) ? ch : ''));
   const cur = order[Math.min(shown, order.length - 1)];
   const wv = pz.sol.map((c, i) => (seen.has(i) ? -1 : 99));
-  drawGrid(ctx, boardGeo(x0, y0, gs, 5), pz, { v, sel: shown < N ? cur : -1, numbers: true, cells: shown < N ? new Set(pz.slots[pz.acc[cur] >= 0 ? pz.acc[cur] : pz.dwn[cur]].cells) : null, wave: wv });
+  drawGrid(ctx, boardGeo(x0, y0, gs, 5), pz, { v, sel: shown < N ? cur : -1, numbers: true, cells: shown < N ? new Set(pz.slots[pz.acc[cur] >= 0 ? pz.acc[cur] : pz.dwn[cur]].cells) : null, wave: wv, d3: true });
   const ty = y0 + gs + tb * 0.52;
   txt(ctx, 'CROSSWORD', hero.x + hero.w / 2, ty, { size: tb * 0.6, color: T.text, align: 'center', maxW: hero.w * 0.96, min: 24, serif: true });
   txt(ctx, 'GRID  &  CLUES', hero.x + hero.w / 2, ty + tb * 0.42, { size: tb * 0.2, weight: 800, color: T.accent, align: 'center', maxW: hero.w * 0.9, min: 13 });
@@ -494,7 +496,7 @@ function drawOver(ctx, s, w, h) {
   const T = theme(), sc = scaleOf(s), R0 = s.result;
   if (!R0 || !s.P) return;
   const O = overLayout(w, h, sc, s.P.pz.n);
-  drawGrid(ctx, O.board, s.P.pz, { v: s.P.v, numbers: O.board.s > 38, wave: s.fx.wave, win: true });
+  drawGrid(ctx, O.board, s.P.pz, { v: s.P.v, numbers: O.board.s > 38, wave: s.fx.wave, win: true, d3: true });
   const body = O.body;
   scrollBody(ctx, s, body, () => {
     let y = body.y + 4;

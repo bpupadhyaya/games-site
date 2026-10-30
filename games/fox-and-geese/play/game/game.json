@@ -4,7 +4,7 @@
   "tagline": "One fox. A flock of geese. A cross of frost.",
   "genre": "abstract strategy board game",
   "orientation": "any",
-  "version": "1.1.6",
+  "version": "1.2.0",
   "monetization": {
     "model": "premium",
     "priceUsd": 2.99,

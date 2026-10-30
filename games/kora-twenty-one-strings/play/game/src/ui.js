@@ -1,6 +1,28 @@
 // Small drawing helpers for the interface: text, flat buttons, panels, icons. Pure canvas.
 import { PAL, UI, DISPLAY, rgba } from './art.js';
 import { host } from './layout.js';
+import { v3 } from './v3.js';
+
+// Over the 3D courtyard the panels become plaques of dark hide-covered wood with a gilt inset line and brass tacks at the corners
+// (the same tacks that hold the kora's skin); the flat 2D fallback keeps the original translucent panels.
+const inWorld = () => v3.on && v3.scene !== 'calib';
+function tack(ctx, x, y, r) {
+  ctx.fillStyle = 'rgba(20,8,4,0.6)'; ctx.beginPath(); ctx.arc(x + r * 0.25, y + r * 0.35, r * 1.05, 0, 6.3); ctx.fill();
+  const g = ctx.createRadialGradient(x - r * 0.35, y - r * 0.4, r * 0.1, x, y, r); g.addColorStop(0, '#fff0b8'); g.addColorStop(0.45, '#d6a443'); g.addColorStop(1, '#7a5214');
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, 6.3); ctx.fill();
+}
+export function plaque(ctx, r, rad = 22, alpha = 0.9) {
+  ctx.save();
+  ctx.fillStyle = 'rgba(8,3,2,0.35)'; rrect(ctx, { x: r.x + 3, y: r.y + 6, w: r.w, h: r.h }, rad); ctx.fill();
+  const g = ctx.createLinearGradient(0, r.y, 0, r.y + r.h); g.addColorStop(0, `rgba(66,32,18,${alpha})`); g.addColorStop(1, `rgba(34,14,8,${alpha})`);
+  ctx.fillStyle = g; rrect(ctx, r, rad); ctx.fill();
+  ctx.lineWidth = 2.5; ctx.strokeStyle = 'rgba(20,8,4,0.9)'; rrect(ctx, r, rad); ctx.stroke();
+  const i = Math.min(10, r.h * 0.12, r.w * 0.12);
+  if (i > 3) { ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(246,217,138,0.38)'; rrect(ctx, { x: r.x + i, y: r.y + i, w: r.w - i * 2, h: r.h - i * 2 }, Math.max(4, rad - i)); ctx.stroke(); }
+  const tr = Math.max(3, Math.min(7, Math.min(r.w, r.h) * 0.05)), m = Math.max(tr + 4, rad * 0.55);
+  if (Math.min(r.w, r.h) > 60) for (const [x, y] of [[r.x + m, r.y + m], [r.x + r.w - m, r.y + m], [r.x + m, r.y + r.h - m], [r.x + r.w - m, r.y + r.h - m]]) tack(ctx, x, y, tr);
+  ctx.restore();
+}
 
 // Text that never goes below ~11 css px.
 export const minUnits = () => 11.5 / Math.max(0.2, host.px);
@@ -37,8 +59,11 @@ export function button(ctx, r, label, o = {}) {
   ctx.save();
   if (!o.noShadow) { ctx.fillStyle = 'rgba(0,0,0,0.28)'; rrect(ctx, { x: r.x, y: r.y + 4, w: r.w, h: r.h }, rad); ctx.fill(); }
   const fills = { primary: '#e8743b', ghost: 'rgba(255,240,220,0.08)', quiet: 'rgba(255,240,220,0.14)', on: '#2fb6a3', danger: '#b9304a', gold: '#f0b94a', disabled: 'rgba(255,255,255,0.05)' };
+  const world = inWorld();
+  if (world) { fills.ghost = 'rgba(40,18,10,0.84)'; fills.quiet = 'rgba(62,30,16,0.88)'; fills.disabled = 'rgba(30,14,8,0.7)'; }
   ctx.fillStyle = fills[kind] ?? fills.ghost; rrect(ctx, r, rad); ctx.fill();
-  if (kind === 'ghost' || kind === 'quiet' || kind === 'disabled') { ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(255,230,200,0.32)'; rrect(ctx, r, rad); ctx.stroke(); }
+  if (kind === 'ghost' || kind === 'quiet' || kind === 'disabled') { ctx.lineWidth = 2; ctx.strokeStyle = world ? 'rgba(246,217,138,0.42)' : 'rgba(255,230,200,0.32)'; rrect(ctx, r, rad); ctx.stroke(); }
+  else if (world && kind === 'primary') { ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(255,226,170,0.7)'; rrect(ctx, r, rad); ctx.stroke(); }
   if (o.press) { ctx.fillStyle = 'rgba(255,255,255,0.18)'; rrect(ctx, r, rad); ctx.fill(); }
   const dark = kind === 'primary' || kind === 'on' || kind === 'gold';
   const col = kind === 'disabled' ? 'rgba(255,240,220,0.4)' : dark ? (kind === 'primary' ? '#fff' : '#10101e') : PAL.text;
@@ -51,6 +76,7 @@ export function button(ctx, r, label, o = {}) {
 }
 
 export function panel(ctx, r, o = {}) {
+  if (inWorld()) { plaque(ctx, r, o.rad ?? 24, 0.86); return; }
   ctx.save();
   const rad = o.rad ?? 24;
   ctx.fillStyle = o.fill ?? 'rgba(14,10,36,0.72)'; rrect(ctx, r, rad); ctx.fill();

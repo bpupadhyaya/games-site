@@ -10,7 +10,7 @@ const TAU = Math.PI * 2;
 const clamp = sim.clamp;
 const R = (x, y, w, h) => ({ x, y, w, h });
 export const TIPS = { off: false };
-const PAN = 'rgba(4,32,40,0.80)', PAN_EDGE = 'rgba(140,235,226,0.38)';
+const PAN = 'rgba(40,24,12,0.86)', PAN_EDGE = 'rgba(236,184,80,0.85)';
 
 // ---- pearls and shells ----------------------------------------------------------------------------------------------------------------------------------------------------
 const hash = (n) => { let h = Math.imul(n ^ 0x9e3779b9, 0x85ebca6b); h ^= h >>> 13; h = Math.imul(h, 0xc2b2ae35); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
@@ -116,12 +116,12 @@ function circleButton(ctx, c, label, o = {}) {
   const { disabled = false, primary = true, sub = null, pressed = false } = o;
   ctx.save();
   const dy = pressed ? 3 : 0;
-  ctx.beginPath(); ctx.arc(c.cx, c.cy + (pressed ? 1 : 5), c.r, 0, TAU); ctx.fillStyle = disabled ? '#1c2a2e' : primary ? '#04474f' : '#6e4208'; ctx.fill();
+  ctx.beginPath(); ctx.arc(c.cx, c.cy + (pressed ? 1 : 5), c.r, 0, TAU); ctx.fillStyle = disabled ? '#1c2a2e' : primary ? '#6e4208' : '#1a0e05'; ctx.fill();
   ctx.beginPath(); ctx.arc(c.cx, c.cy + dy, c.r, 0, TAU);
   const g = ctx.createRadialGradient(c.cx - c.r * 0.3, c.cy - c.r * 0.35 + dy, c.r * 0.1, c.cx, c.cy + dy, c.r);
-  if (disabled) { g.addColorStop(0, '#53656a'); g.addColorStop(1, '#3a4a4e'); } else if (primary) { g.addColorStop(0, '#22c3cf'); g.addColorStop(1, '#0a8794'); } else { g.addColorStop(0, '#f6b94c'); g.addColorStop(1, '#c27a14'); }
-  ctx.fillStyle = g; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = disabled ? 'rgba(255,255,255,0.15)' : primary ? '#a6fff6' : '#ffe2a0'; ctx.stroke();
-  ctx.fillStyle = disabled ? 'rgba(255,255,255,0.4)' : '#fffdf2'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  if (disabled) { g.addColorStop(0, '#53656a'); g.addColorStop(1, '#3a4a4e'); } else if (primary) { g.addColorStop(0, '#ffd067'); g.addColorStop(1, '#d28f1c'); } else { g.addColorStop(0, '#5a3a1e'); g.addColorStop(1, '#2e1c0d'); }
+  ctx.fillStyle = g; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = disabled ? 'rgba(255,255,255,0.15)' : primary ? '#fff0bf' : '#f0ba54'; ctx.stroke();
+  ctx.fillStyle = disabled ? 'rgba(255,255,255,0.4)' : primary ? '#2a1706' : '#fff3d6'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   const px = fit(ctx, label, c.r * 1.55, Math.round(c.r * 0.36), 800, FONT);
   ctx.fillText(label, c.cx, c.cy + dy - (sub ? px * 0.35 : 0));
   if (sub) { ctx.font = `600 ${Math.round(px * 0.62)}px ${FONT}`; ctx.globalAlpha = 0.9; ctx.fillText(sub, c.cx, c.cy + dy + px * 0.62); }
@@ -187,7 +187,7 @@ export function bedAt(state, x, y) {
 
 function drawChart(ctx, state, rc) {
   const S = state.S, D = S.D, L = chartLayout(rc);
-  panel(ctx, rc.x, rc.y, rc.w, rc.h, { r: 22, fill: 'rgba(8,52,58,0.86)', stroke: PAN_EDGE, lw: 2 });
+  panel(ctx, rc.x, rc.y, rc.w, rc.h, { r: 22, fill: 'rgba(52,32,16,0.88)', stroke: PAN_EDGE, lw: 2 });
   // sand floor
   ctx.save(); roundPath(ctx, rc.x + 3, rc.y + 3, rc.w - 6, rc.h - 6, 20); ctx.clip();
   const g = ctx.createLinearGradient(0, rc.y, 0, rc.y + rc.h); g.addColorStop(0, '#0c5560'); g.addColorStop(0.55, '#176d72'); g.addColorStop(1, '#2c8b86');
@@ -272,7 +272,7 @@ export function renderDive(ctx, state) {
     const canSig = D.phase === 'bottom';
     const warn = D.warn && canSig;
     const flash = warn && Math.floor(S.clock * 4) % 2 === 0;
-    const { dy, light } = paintButton(ctx, sg, { primary: !warn, active: warn && flash, disabled: !canSig });
+    const { dy, light } = paintButton(ctx, sg, { dark: !warn, active: warn && flash, disabled: !canSig });
     ctx.save(); ctx.fillStyle = !canSig ? 'rgba(255,255,255,0.35)' : '#fff7e6'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     fit(ctx, 'SIGNAL', sg.w - 70, Math.round(HUD.fonts.btn * 1.1), 800, FONT); ctx.fillText('SIGNAL', sg.x + sg.w / 2 + 14, sg.y + dy + sg.h / 2 - 8);
     ctx.font = `600 ${Math.round(HUD.fonts.btn * 0.62)}px ${FONT}`; ctx.globalAlpha = 0.9; ctx.fillText(canSig ? 'tug to be hauled up' : '', sg.x + sg.w / 2 + 14, sg.y + dy + sg.h / 2 + HUD.fonts.btn * 0.62); ctx.restore(); void light;
@@ -449,7 +449,7 @@ export function renderNecklace(ctx, state) {
   ctx.fillStyle = '#e0a93a'; for (const q of [a, b]) { ctx.beginPath(); ctx.arc(q.x, q.y - 22, 5, 0, TAU); ctx.fill(); }
   // the tray
   const T = L.tray;
-  panel(ctx, T.x, T.y, T.w, T.h, { r: 22, fill: 'rgba(3,26,33,0.7)', stroke: PAN_EDGE, lw: 2 });
+  panel(ctx, T.x, T.y, T.w, T.h, { r: 22, fill: 'rgba(34,20,10,0.78)', stroke: PAN_EDGE, lw: 2 });
   ctx.font = `700 ${Math.round(24 * Math.min(hs, 1.3))}px ${FONT}`; ctx.fillStyle = '#fff3d6'; ctx.textAlign = 'left'; ctx.fillText(`Your pearls (${L.grid.length})`, T.x + 18, T.y + 36);
   ctx.save(); ctx.beginPath(); ctx.rect(T.x, T.y + 46, T.w, T.h - 52); ctx.clip();
   const scroll = clamp(state.ui.scroll, 0, Math.max(0, L.rows * L.cell - (T.h - 60)));

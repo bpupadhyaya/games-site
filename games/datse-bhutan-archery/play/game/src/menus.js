@@ -21,7 +21,18 @@ function plan(state, key) {
   switch (key) {
     case 'title': {
       if (land) return { panes: [{ wd: titleWidgets(state, true), box: { x: LY.title.col.x, w: LY.title.col.w, top: U.y0 + 10, bottom: U.y1 - 40 }, vcenter: true }] };
-      return { panes: [{ wd: titleWidgets(state, false), box: { ...full, x: LY.title.col.x, w: LY.title.col.w, bottom: LY.flowBottom - 36 } }] };
+      // portrait: the buttons sit at the bottom and the hero (title over the live valley) takes all the height above them
+      // squat portrait screens (tablets): a narrower, shorter button block so the valley still gets room
+      const squat = LY.h / LY.w < 1.7, cw = squat ? Math.min(LY.title.col.w, 540) : LY.title.col.w; LY.title.squat = squat;
+      const box = { ...full, x: Math.round((U.x0 + U.x1) / 2 - cw / 2), w: cw, bottom: LY.flowBottom - 24 };
+      const btnH = flowLayout(estCtx, titleWidgets(state, true, squat), TEXT_SCALES[state.settings.textIdx], { x: box.x, w: box.w }).contentH;
+      // when large text makes the buttons scroll anyway, keep the full-size hero (as before) instead of squeezing the title
+      const minHero = btnH + 274 > box.bottom - box.top ? Math.max(260, Math.min(520, Math.round(LY.h * (LY.h < 1100 ? 0.3 : 0.34)))) : 260;
+      const heroH = Math.round(Math.max(minHero, Math.min((box.bottom - box.top) * 0.68, box.bottom - box.top - btnH - 14)));
+      const tk = heroScale(box.w, heroH), ttop = heroTop(heroH, tk);
+      LY.title.heroH = heroH;
+      LY.title.region = { x: U.x0, y: Math.round(box.top + ttop + 300 * tk - 30), w: U.w, h: Math.round(Math.max(200, heroH - ttop - 300 * tk + 110)) };
+      return { panes: [{ wd: titleWidgets(state, false, squat), box }] };
     }
     case 'setup': return { panes: [{ wd: setupWidgets(state), box: { ...full, bottom: LY.setupBottom } }], pins: 'col' };
     case 'settings': return { panes: [{ wd: settingsWidgets(state), box: full }] };
@@ -84,8 +95,10 @@ function scrim(ctx, state, a = 0.55) {
 }
 
 // ---- title --------------------------------------------------------------------------------------------------------------------------------------------------------------------
+const heroScale = (w, h) => Math.max(0.35, Math.min(w / 560, (LY.land ? h * 0.5 : LY.title.squat ? h * 0.6 : h) / 300, 1.35));
+const heroTop = (h, k) => (LY.land ? 6 : Math.max(6, Math.min(44, (h - 300 * k) / 2)));   // a tall portrait hero keeps the title near the top; the valley shows below it
 export function drawHero(ctx, state, w, h) {
-  const k = Math.max(0.35, Math.min(w / 560, (LY.land ? h * 0.5 : h) / 300, 1.35)), cx = w / 2, top = LY.land ? 6 : Math.max(6, (h - 300 * k) / 2);
+  const k = heroScale(w, h), cx = w / 2, top = heroTop(h, k);
   ctx.save(); ctx.translate(cx, top); ctx.scale(k, k); ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
   ctx.font = `700 24px ${FONT}`; ctx.fillStyle = 'rgba(255,214,140,0.98)'; spaced(ctx, 'BHUTAN’S NATIONAL SPORT', 0, 40, 6);
   ctx.font = `800 138px ${NUM}`; ctx.lineJoin = 'round'; ctx.lineWidth = 16; ctx.strokeStyle = 'rgba(30,14,0,0.8)'; ctx.strokeText('DATSE', 0, 168); textShadow(ctx, 'DATSE', 0, 168, '#fff1cf', 12);
@@ -106,14 +119,14 @@ const lockupArt = () => ({ t: 'art', brand: true, h: Math.round(LOCK_CAP * 327 /
   drawLockup(ctx, w / 2, 20, lw, 1);
 } });
 const heroArt = (state) => ({ t: 'art', h: LY.title.heroH || 360, draw(ctx, w, h) { ctx.save(); drawHero(ctx, state, w, h); ctx.restore(); } });
-export function titleWidgets(state, land = false) {
-  const wd = land ? [] : [heroArt(state)];
-  if (state.resume) wd.push({ t: 'btn', id: 'continue', label: 'Continue match', sub: `${state.resume.teams[0].name} ${state.resume.teams[0].pts} – ${state.resume.teams[1].pts} ${state.resume.teams[1].name}`, primary: true, h: 92 }, { t: 'btn', id: 'play', label: 'New match', h: 80 });
-  else wd.push({ t: 'btn', id: 'play', label: 'Play a match', primary: true, h: 92 });
-  wd.push({ t: 'btn', id: 'practice', label: 'Practice range', row: 1 }, { t: 'btn', id: 'learn', label: 'Learn', row: 1 });
-  wd.push({ t: 'btn', id: 'watch', label: 'Watch & Learn', row: 2 }, { t: 'btn', id: 'howto', label: 'How to Play', row: 2 });
-  wd.push({ t: 'btn', id: 'rules', label: 'Rules', row: 3 }, { t: 'btn', id: 'about', label: 'About', row: 3 });
-  wd.push({ t: 'btn', id: 'settings', label: 'Settings', dark: true, h: 76 });
+export function titleWidgets(state, land = false, squat = false) {
+  const wd = land ? [] : [heroArt(state)], hp = squat ? 76 : 92, hr = squat ? 64 : 76;
+  if (state.resume) wd.push({ t: 'btn', id: 'continue', label: 'Continue match', sub: `${state.resume.teams[0].name} ${state.resume.teams[0].pts} – ${state.resume.teams[1].pts} ${state.resume.teams[1].name}`, primary: true, h: hp }, { t: 'btn', id: 'play', label: 'New match', h: hr });
+  else wd.push({ t: 'btn', id: 'play', label: 'Play a match', primary: true, h: hp });
+  wd.push({ t: 'btn', id: 'practice', label: 'Practice range', row: 1, h: hr }, { t: 'btn', id: 'learn', label: 'Learn', row: 1, h: hr });
+  wd.push({ t: 'btn', id: 'watch', label: 'Watch & Learn', row: 2, h: hr }, { t: 'btn', id: 'howto', label: 'How to Play', row: 2, h: hr });
+  wd.push({ t: 'btn', id: 'rules', label: 'Rules', row: 3, h: hr }, { t: 'btn', id: 'about', label: 'About', row: 3, h: hr });
+  wd.push({ t: 'btn', id: 'settings', label: 'Settings', dark: true, h: hr });
   wd.push(lockupArt());
   return wd;
 }
@@ -248,7 +261,12 @@ export function renderTitle(ctx, state) {
   if (behind(state)) { // a darker panel behind the buttons so they read over the 3D valley
     const col = LY.title.col;
     if (LY.land) { const g = ctx.createLinearGradient(col.x - 80, 0, col.x + 40, 0); g.addColorStop(0, 'rgba(4,12,9,0)'); g.addColorStop(1, 'rgba(4,12,9,0.78)'); ctx.fillStyle = g; ctx.fillRect(col.x - 80, 0, W - col.x + 80, H); const g2 = ctx.createLinearGradient(0, 0, 0, H * 0.4); g2.addColorStop(0, 'rgba(4,12,9,0.45)'); g2.addColorStop(1, 'rgba(4,12,9,0)'); ctx.fillStyle = g2; ctx.fillRect(0, 0, col.x, H * 0.4); }
-    else { const y0 = LY.flowTop + (LY.title.heroH || 0) - 30; const g = ctx.createLinearGradient(0, y0, 0, y0 + 160); g.addColorStop(0, 'rgba(4,12,9,0)'); g.addColorStop(1, 'rgba(4,12,9,0.84)'); ctx.fillStyle = g; ctx.fillRect(0, y0, W, 160); ctx.fillStyle = 'rgba(4,12,9,0.84)'; ctx.fillRect(0, y0 + 160, W, H - y0 - 160); const g2 = ctx.createLinearGradient(0, 0, 0, 220); g2.addColorStop(0, 'rgba(4,12,9,0.5)'); g2.addColorStop(1, 'rgba(4,12,9,0)'); ctx.fillStyle = g2; ctx.fillRect(0, 0, W, 220); }
+    else {   // the valley stays visible behind the buttons: a soft shade that deepens toward the bottom, no solid panel
+      const y0 = LY.flowTop + (LY.title.heroH || 0) - 70, g = ctx.createLinearGradient(0, y0, 0, H);
+      g.addColorStop(0, 'rgba(4,12,9,0)'); g.addColorStop(Math.min(0.5, 150 / Math.max(1, H - y0)), 'rgba(4,12,9,0.5)'); g.addColorStop(1, 'rgba(4,12,9,0.8)');
+      ctx.fillStyle = g; ctx.fillRect(0, y0, W, H - y0);
+      const g2 = ctx.createLinearGradient(0, 0, 0, 300); g2.addColorStop(0, 'rgba(4,12,9,0.5)'); g2.addColorStop(1, 'rgba(4,12,9,0)'); ctx.fillStyle = g2; ctx.fillRect(0, 0, W, 300);
+    }
   } else scrim(ctx, state, 0.18);
   if (LY.land && LY.title.hero) { const h = LY.title.hero; ctx.save(); ctx.translate(h.x, h.y); ctx.beginPath(); ctx.rect(0, 0, h.w, h.h); ctx.clip(); drawHero(ctx, state, h.w, h.h); ctx.restore(); }
   const fr = drawFlowScreen(ctx, state, 'title');

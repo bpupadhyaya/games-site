@@ -1,6 +1,7 @@
 // GAME CONTRACT (docs/GAME-CONTRACT.md): exports meta and createGame(env) -> { update, render, getState }.
 // This file owns state and flow (scenes, input, turns, saving). Rules live in rules.js, the computer in ai.js,
 // everything drawn in view.js. `state` is plain JSON: closures hold nothing that matters.
+import { v3 } from './v3.js';
 import { W, H, UNIT, BOARD, TRAY, DICE_SPOTS, G, creditHit, useLayout, inRect, posXY, hopPath } from './layout.js';
 import { TRIES, SEAT_NAMES, newGame, legalMoves, checkMove, noMoveReason, applyMove, nextTurn, pairPenalty, onBoard, deepClone, homeCount, progressOf } from './rules.js';
 import { chooseMove, hintMove, describeMove } from './ai.js';
@@ -274,9 +275,10 @@ export function createGame(env) {
 
   // ---- hitting things --------------------------------------------------------------------------------------------------------------
   function pawnAt(x, y) {
-    const g = state.g; let best = null, bd = Math.max(36, 40 * UNIT);
+    const g = state.g; let best = null, bd = v3.on ? Math.max(26, 24 * UNIT) : Math.max(36, 40 * UNIT);
     g.players.forEach((_, q) => g.pos[q].forEach((p, i) => {
-      const s = posXY(g, q, i, p), d = Math.hypot(s.x - x, s.y - 18 * UNIT - y);
+      // 3D: (x, y) is already the board square under the finger; a tap on a tall pawn lands a little behind its foot, so take the nearer of foot and head
+      const s = posXY(g, q, i, p), d = v3.on ? Math.min(Math.hypot(s.x - x, s.y - y), Math.hypot(s.x - x, s.y - 13 * UNIT - y) * 1.1) : Math.hypot(s.x - x, s.y - 18 * UNIT - y);
       if (d < bd) { bd = d; best = { pl: q, i, p }; }
     }));
     return best;
@@ -299,10 +301,11 @@ export function createGame(env) {
     if (state.phase !== 'choose') return;
     const di = DICE_SPOTS.findIndex((s) => Math.hypot(s.x - x, s.y - y) < 54);
     if (di >= 0) { if (state.roll.rem[di] == null) say('That die is already used.'); else if (!selectDie(di)) say(`No piece can use the ${state.roll.dice[di]} right now.`); return; }
+    if (v3.on && v3.toBoard) { const b = v3.toBoard(x, y); x = b.x; y = b.y; }   // from here on: board space (the square under the finger)
     const cur2 = dieOpts(state.dieSel);
     if (state.sel >= 0) {
       const m = cur2.find((o) => o.i === state.sel);
-      if (m) { const d = posXY(g, m.pl, m.i, m.to); if (Math.hypot(d.x - x, d.y - 14 * UNIT - y) < Math.max(26, 30 * UNIT)) { play(m); return; } }
+      if (m) { const d = posXY(g, m.pl, m.i, m.to); if (Math.min(Math.hypot(d.x - x, d.y - 14 * UNIT - y), v3.on ? Math.hypot(d.x - x, d.y - y) : 1e9) < Math.max(26, 30 * UNIT)) { play(m); return; } }
     }
     const pw = pawnAt(x, y);
     if (!pw) { state.sel = -1; say('TAP one of the glowing pieces, or TAP a die to switch.'); return; }

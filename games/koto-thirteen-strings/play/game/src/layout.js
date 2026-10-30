@@ -141,7 +141,7 @@ function build(w, h) {
       const hy = T.titleY + T.size * 1.12;
       const ax = S.x + 16, aw = S.w - 32, ah = y - 12 - hy;
       if (ah >= aw * 0.9) { const hh = Math.min(ah, aw * 1.7), ww = hh / 1.95; T.hero = R(ax + (aw - ww) / 2, hy + (ah - hh) / 2, ww, hh); T.heroVert = true; }
-      else T.hero = hero(ax, hy, aw, ah);
+      else { T.hero = R(ax, hy, aw, ah); T.heroDiag = true; }
       T.play = R(bx, y, bwid, bh + 16); y += bh + 16 + 12;
       T.free = R(bx, y, bwid, bh); y += bh + 12;
       T.auto = R(bx, y, bwid, bh); y += bh + 12;

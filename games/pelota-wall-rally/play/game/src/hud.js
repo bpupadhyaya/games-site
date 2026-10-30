@@ -40,6 +40,17 @@ function marker(ctx, G, a, col = '#ffd54a', lbl) {
   ctx.restore();
 }
 
+// dark wood plaque with a brass edge (scoreboard)
+function plaque(ctx, x, y, w, h, r) {
+  ctx.save();
+  roundPath(ctx, x, y + 3, w, h, r); ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fill();
+  roundPath(ctx, x, y, w, h, r);
+  const g = ctx.createLinearGradient(0, y, 0, y + h); g.addColorStop(0, '#4a2f1c'); g.addColorStop(1, '#2a180d');
+  ctx.fillStyle = g; ctx.fill();
+  ctx.lineWidth = 2; ctx.strokeStyle = '#d9a947'; ctx.stroke();
+  ctx.restore();
+}
+
 function scoreboard(ctx, G, s, lay) {
   const mt = s.match, m = lay.sm, th = lay.topH, y0 = host.t;
   const g = ctx.createLinearGradient(0, -240, 0, th + 30); g.addColorStop(0, 'rgba(14,22,20,0.9)'); g.addColorStop(0.7, 'rgba(14,22,20,0.8)'); g.addColorStop(1, 'rgba(14,22,20,0)');
@@ -52,8 +63,9 @@ function scoreboard(ctx, G, s, lay) {
   };
   for (const i of [0, 1]) {
     const left = i === 0, x0 = left ? cx - half - colw : cx + half;
+    plaque(ctx, x0 - 6, y0 + 6, colw + 12, th - y0 - 28, 14);
     ctx.fillStyle = i === 0 ? '#e0443a' : '#2a79d4';
-    roundPath(ctx, x0, y0 + 14, 10, th - y0 - 44, 5); ctx.fill();
+    roundPath(ctx, x0 + 4, y0 + 16, 8, th - y0 - 48, 4); ctx.fill();
     ctx.textAlign = left ? 'left' : 'right'; ctx.textBaseline = 'alphabetic';
     const ax = left ? x0 + 22 : x0 + colw - 22;
     let n = nm(i); ctx.font = `700 ${Math.round(minFont(24 * m))}px ${FONT}`;

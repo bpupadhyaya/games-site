@@ -10,7 +10,7 @@ const rr = (c, x, y, w, h, r) => { c.beginPath(); c.roundRect ? c.roundRect(x, y
 const lin = (c, x0, y0, x1, y1, stops) => { const g = c.createLinearGradient(x0, y0, x1, y1); stops.forEach(([o, col]) => g.addColorStop(o, col)); return g; };
 
 // fine wood grain: many long, slightly wavy, translucent strokes inside a rectangle
-function grain(c, x, y, w, h, { seed = 1, dark = 'rgba(40,18,6,', light = 'rgba(255,220,160,', n = 90, vertical = false, amp = 3, a = 0.13 } = {}) {
+export function grain(c, x, y, w, h, { seed = 1, dark = 'rgba(40,18,6,', light = 'rgba(255,220,160,', n = 90, vertical = false, amp = 3, a = 0.13 } = {}) {
   const r = lcg(seed);
   c.save(); rr(c, x, y, w, h, 0); c.clip();
   for (let i = 0; i < n; i++) {
@@ -27,7 +27,7 @@ function grain(c, x, y, w, h, { seed = 1, dark = 'rgba(40,18,6,', light = 'rgba(
   c.restore();
 }
 
-function star8(c, cx, cy, r, fills) {
+export function star8(c, cx, cy, r, fills) {
   // an eight-pointed inlay star: two squares, a ring and a centre stone
   c.save(); c.translate(cx, cy);
   const sq = (rad, rot, fill, stroke) => { c.save(); c.rotate(rot); c.fillStyle = fill; c.strokeStyle = stroke; c.lineWidth = 1.2; c.beginPath(); c.rect(-rad, -rad, rad * 2, rad * 2); c.fill(); c.stroke(); c.restore(); };
@@ -41,7 +41,7 @@ function star8(c, cx, cy, r, fills) {
   c.restore();
 }
 
-function point(c, idx) {
+export function point(c, idx) {
   const g = pointGeom(idx), y0 = g.y - SLOT / 2 + 3, y1 = g.y + SLOT / 2 - 3, bx = g.edge, tx = g.edge + g.dir * PLEN;
   const teal = idx % 2 === 0;
   const path = (inset = 0) => {
@@ -72,7 +72,7 @@ function point(c, idx) {
   c.fillStyle = 'rgba(232,196,106,0.85)'; c.beginPath(); c.arc(dx - g.dir * 26, g.y, 2, 0, TAU); c.fill(); c.beginPath(); c.arc(dx + g.dir * 26, g.y, 2, 0, TAU); c.fill();
 }
 
-function brass(c, x, y, w, h, r = 4) {
+export function brass(c, x, y, w, h, r = 4) {
   rr(c, x, y, w, h, r); c.fillStyle = lin(c, x, y, x, y + h, [[0, '#f6dc8a'], [0.45, '#c8973a'], [0.55, '#a9772a'], [1, '#e2b85c']]); c.fill();
   c.strokeStyle = 'rgba(60,30,5,0.7)'; c.lineWidth = 1.2; c.stroke();
 }

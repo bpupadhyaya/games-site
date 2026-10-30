@@ -1,7 +1,7 @@
 import { boot } from './kit/index.js';
 import { createGame, meta } from './src/game.js';
 import { host } from './src/layout.js';
-import { setLogo, setLockup } from './src/brand.js';
+import { setLogo, setLockup, setHero } from './src/brand.js';
 
 // The 3D pitch is drawn in a WebGL canvas behind the kit canvas; the kit canvas (transparent) keeps HUD, menus and input.
 // Without WebGL the game keeps playing with its flat 2D pitch.
@@ -20,6 +20,7 @@ window.addEventListener('orientationchange', () => setTimeout(syncHost, 200));
 window.addEventListener('safeinsets', syncHost);
 const af = new Image(); af.onload = () => setLogo(af); af.src = './brand/arcforge-af.png';
 const lk = new Image(); lk.onload = () => setLockup(lk); lk.src = './brand/arcforge-lockup.png';
+const hr = new Image(); hr.onload = () => setHero(hr); hr.src = './brand/hero.jpg';
 let presenter = null;
 try { const { createPresenter } = await import('./view3d/presenter.js'); presenter = await createPresenter({ kitCanvas: canvas, meta }); } catch (e) { console.warn('3D presenter unavailable', e); }
 

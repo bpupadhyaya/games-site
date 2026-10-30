@@ -279,17 +279,20 @@ export async function createLane3d({ quality = 'medium', base, sceneryBase, host
   // ------------------------------------------------------------------------------------------------------------------------------ horse + rider
   const COATS = ['bay', 'chestnut', 'grey', 'darkbay', 'palomino'];
   const horse = await loadHorse({ coat: 'bay', mane: 'loose', tack: 'english', quality: quality === 'low' ? 'low' : 'high', base });
-  const human = await loadHuman({ character: 'athlete_m', base, kit: { top: '#17315a', bottoms: '#1d2540', socks: '#1c120c' }, skin: '#c48a60', hair: 'black' });
+  const human = await loadHuman({ character: 'athlete_m', base, top: 'long', kit: { top: '#17315a', bottoms: '#1d2540', socks: '#1c120c' }, skin: '#c48a60', hair: 'black' });
   const rig = new Group(); rig.name = 'rider3'; scene.add(rig);
   rig.add(horse.root); rig.add(human.root);
   const LOOK = { kit: '#17315a', trim: '#e0b64a', accent: '#e0b64a', dark: '#0c1a33', cap: 'turban', turban: '#f1e8d0', boot: 0x1c120c, trousers: 0xe9e2cf };
   const dress = dressRider(human, LOOK, 0);
   // the shared horse's neck and head are single-sided as posed; seen from above (the saddle) they must draw from both sides
+  // the shared horse's neck and head are single-sided as posed; seen from above (the saddle) they must draw from both sides
   for (const m of horse.meshes) { m.material.side = DoubleSide; m.material.needsUpdate = true; }
-  // the model's poll is open between the ears: a forelock tuft closes it
-  const tuftMat = new MeshStandardMaterial({ color: 0x1a0f08, roughness: 0.9 });
-  const tuft = new Mesh(new SphereGeometry(1, 14, 10), tuftMat); tuft.scale.set(0.07, 0.04, 0.085); tuft.position.set(0, 0.062, 0.0); horse.b.Head.add(tuft);
-  const fore = new Mesh(new SphereGeometry(1, 12, 8), tuftMat); fore.scale.set(0.05, 0.075, 0.03); fore.position.set(0, 0.0, 0.14); fore.rotation.x = 0.5; horse.b.Head.add(fore);
+  // the model's crest (top of the neck, poll to withers) is an open channel where the mane roots; from the saddle camera it reads as a hollow. Two soft
+  // mane-base pads, attached to the Neck2 and Head bones in the rest pose, close it (the shared mane strands grow out of them). Colour follows the coat.
+  const tuftMat = new MeshStandardMaterial({ color: '#7b4220', roughness: 0.85 });   // body colour of the coat (the strands keep the mane colour)
+  const crestPad = (bone, at, rad) => { const m = new Mesh(new SphereGeometry(1, 16, 10), tuftMat); m.scale.set(...rad); m.position.set(at[0], at[1], at[2]).sub(horse.rest[bone]); horse.b[bone].add(m); return m; };
+  crestPad('Head', [0, 2.2, 1.38], [0.085, 0.03, 0.16]);
+  crestPad('Neck2', [0, 2.17, 1.1], [0.085, 0.035, 0.17]);
   horse.setTack('english', { blanket: '#1f8a96', trim: '#f2d08c' });
   // seat clips: the shared ones do not close their 2 s loop (the torso steps forward a few centimetres at every wrap), so they are authored here
   // with the same poses and full keys at both ends; horse3d uses clips of these names when they exist
@@ -304,6 +307,7 @@ export async function createLane3d({ quality = 'medium', base, sceneryBase, host
   horse.attachRider(human, { style: 'english', hat: false });
   addGloves(human, { color: 0x6b4527, trim: 0x3a2412 });
   human.setFingers('L', 'fist');
+  human.lodAuto = false; if (human.setLOD) human.setLOD(0);   // full-detail hands and sleeves (close to the camera)
   const body = { human, horse };
 
   // two stewards in regimental dress stand beside the peg gate with a red flag each (they move to the gate of every run)
@@ -456,7 +460,7 @@ export async function createLane3d({ quality = 'medium', base, sceneryBase, host
     tuneSky(lk);
     for (const [k, v] of cache) v.group.visible = k === i;
     horse.setCoat({ coat: COATS[i % COATS.length], blaze: i % 2 === 0 ? 'blaze' : undefined });
-    tuftMat.color.set(horse.coat && typeof horse.coat.mane === 'string' ? horse.coat.mane : [0x1a0f08, 0x2a140a, 0xcfcac2, 0x120a06, 0xe8d8b0][i % 5]);
+    tuftMat.color.set(horse.coat && typeof horse.coat.body === 'string' ? horse.coat.body : '#7b4220');
     if (cache.has(i) || building === i) return;
     building = i;
     const layers = [{ t: 'sky', id: lk.sky }, { t: 'backdrop', id: lk.bd }];

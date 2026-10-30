@@ -241,8 +241,8 @@ export async function createPresenter({ kitCanvas, quality = 'high', getLook }) 
     const drift = state.prefs.calm ? 0 : Math.sin(clock * 0.2);
     if (playing) {
       const r0 = v3.fieldRect || { x: L.w * 0.04, y: L.h * 0.14, w: L.w * 0.92, h: L.w * 0.92 };
-      const rh = L.w < L.h ? Math.min(r0.h, r0.w * 0.8) : r0.h, rect = { x: r0.x, y: r0.y + r0.h - rh, w: r0.w, h: rh };
-      fitCamera(rect, hw, hh, L.land ? 46 : 40, L.land ? 30 : 34, 0, 0.02, 0.98);
+      const rh = L.w < L.h ? Math.min(r0.h, r0.w * 1.04) : r0.h, rect = { x: r0.x, y: r0.y + r0.h - rh, w: r0.w, h: rh };
+      fitCamera(rect, hw, hh, L.land ? 56 : 72, L.land ? 30 : 34, 0, 0.02, 1.0);
     } else if (sc === 'title' || sc === 'demo-limit') {
       const hr = v3.heroRect || { x: L.w * 0.06, y: L.h * 0.06, w: L.w * 0.88, h: L.h * 0.4 };
       fitCamera(hr, hw, hh, 34, 38, drift * 7, 0.02, 0.9);

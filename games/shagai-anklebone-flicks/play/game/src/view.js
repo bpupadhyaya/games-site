@@ -5,6 +5,7 @@ import { drawScenery, drawTrail, drawMat, drawPanel, drawBone, drawToken, drawTi
 import { screenButtons, screenLayout, readerFlow, readerMax, zoomOf } from './ui.js';
 import { drawLockup, drawMoreLine } from './brand.js';
 import { ART_H } from './text.js';
+import { v3, flatAlpha, Tp, Mp, slotPos } from './v3.js';
 
 export const DISPLAY = '"Fredoka", "Trebuchet MS", "Segoe UI", system-ui, sans-serif';
 const TAU = Math.PI * 2;
@@ -22,13 +23,14 @@ export function render(ctx, state, L = curLayout()) {
   PRESSED = state.press && !state.press.moved ? state.press.b : null;
   const R = makeText(ctx);
 
-  drawScenery(ctx, L.w, L.h);
+  const fa = flatAlpha();
+  if (fa > 0) { ctx.save(); ctx.globalAlpha = fa; drawScenery(ctx, L.w, L.h); ctx.restore(); }
   if (panelScene) { scrim(ctx, L, 0.28); drawPanelScene(ctx, state, R, z, L); return; }
   if (sc === 'title') { drawTitle(ctx, state, R, L); return; }
 
   const P = L.play, g = state.g, auto = sc === 'autoplay' || sc === 'autoplay-over';
-  inBand(ctx, P.trail, () => drawTrail(ctx));
-  inBand(ctx, P.mat, () => drawMat(ctx));
+  if (fa > 0) { ctx.save(); ctx.globalAlpha = fa; inBand(ctx, P.trail, () => drawTrail(ctx)); inBand(ctx, P.mat, () => drawMat(ctx)); ctx.restore(); }
+  if (v3.on) inBand(ctx, P.mat, () => matFrame(ctx));
   inBand(ctx, P.ttl, () => R.glowText(auto ? 'Auto Play · Watch & Learn' : 'Shagai', 360, auto ? 76 : 84, auto ? 38 : 64, '#fff4d6'));
   inBand(ctx, P.trail, () => { drawTrailOverlay(ctx, state, R); drawTokens(ctx, state, g, true); });
   inBand(ctx, P.plaque, () => { plaque(ctx, 36, 216, 648, 82); R.fit(state.msg || '', 360, 218, 600, 78, 27 * Math.min(z, 1.4), 15, '#fff4d6'); });
@@ -100,21 +102,23 @@ const scrim = (ctx, L, a = 0.62) => { ctx.fillStyle = `rgba(10,5,3,${a})`; ctx.f
 function drawTrailOverlay(ctx, state, R) {
   const T0 = state.t;
   const lab = (str, x, y, size, color = '#fff8e6', align = 'center') => { ctx.save(); ctx.lineJoin = 'round'; ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(60,35,10,0.8)'; ctx.font = `700 ${size}px ${DISPLAY}`; ctx.textAlign = align; ctx.strokeText(str, x, y); ctx.fillStyle = color; ctx.fillText(str, x, y); ctx.restore(); };
-  for (let i = 10; i < FINISH; i += 10) { if (TILES[i]) continue; const p = stationXY(i); lab(String(i), p.x, p.y + 5, 14, '#6b4a22'.replace('#6b4a22', '#fff8e6')); }
-  const s0 = stationXY(0), f = stationXY(FINISH);
+  const q = (p, h = 0) => { const [x, y] = Tp(p.x, p.y, h); return { x, y }; };
+  const k3 = v3.on ? 1.15 : 1;
+  for (let i = 10; i < FINISH; i += 10) { if (TILES[i]) continue; const p = q(stationXY(i), v3.on ? 4 : 0); lab(String(i), p.x, p.y + (v3.on ? 0 : 5), 14 * k3, '#fff8e6'); }
+  const s0 = q(stationXY(0)), f = q(stationXY(FINISH));
   lab('START', s0.x - 34, s0.y + 66, 17, '#fff8e6', 'left'); lab('FINISH', f.x - 24, f.y + 52, 18, '#ffe27a');
   // the landing preview: where the bones as they lie would take the current rider
   const ph = state.phase, rd = state.ride;
   if (!['decide', 'aithink', 'aiact', 'apthink', 'apreveal', 'show'].includes(ph) || !rd.tossed || rd.anim) return;
   const g = state.g, me = g.riders[g.turn], res = previewGallop(g, g.turn, scoreOf(rd.faces).total);
-  const a = stationXY(me.pos), pulse = 0.5 + 0.5 * Math.sin(T0 * 5);
+  const a = q(stationXY(me.pos), 1), pulse = 0.5 + 0.5 * Math.sin(T0 * 5);
   ctx.save(); ctx.strokeStyle = 'rgba(255,248,214,0.85)'; ctx.lineWidth = 4; ctx.setLineDash([2, 9]); ctx.lineCap = 'round'; ctx.beginPath();
   ctx.moveTo(a.x, a.y);
-  for (let s = me.pos * STEP; s <= res.landed * STEP; s += 10) { const p = pathPoint(s); ctx.lineTo(p.x, p.y); }
-  const e = stationXY(Math.min(res.landed, FINISH)); ctx.lineTo(e.x, e.y); ctx.stroke(); ctx.restore();
-  const d = stationXY(res.finished ? FINISH : res.landed);
+  for (let s = me.pos * STEP; s <= res.landed * STEP; s += 10) { const p = q(pathPoint(s), 1); ctx.lineTo(p.x, p.y); }
+  const e = q(stationXY(Math.min(res.landed, FINISH)), 1); ctx.lineTo(e.x, e.y); ctx.stroke(); ctx.restore();
+  const d = q(stationXY(res.finished ? FINISH : res.landed), 1);
   ctx.save(); ctx.strokeStyle = res.bumped.length ? `rgba(255,100,80,${0.7 + 0.3 * pulse})` : `rgba(255,236,150,${0.6 + 0.4 * pulse})`; ctx.lineWidth = 5; ctx.shadowColor = '#ffd45a'; ctx.shadowBlur = 14;
-  ctx.beginPath(); ctx.arc(d.x, d.y, 24 + pulse * 3, 0, TAU); ctx.stroke(); ctx.restore();
+  ctx.beginPath(); ctx.ellipse(d.x, d.y, 24 + pulse * 3, v3.on ? 14 + pulse * 2 : 24 + pulse * 3, 0, 0, TAU); ctx.stroke(); ctx.restore();
   let tag = res.finished ? 'Finish!' : `Station ${res.final}`;
   if (!res.finished) {
     if (res.effect?.kind === 'wind') tag = `Tailwind: to ${res.final}`; else if (res.effect?.kind === 'burrow') tag = `Burrow: back to ${res.final}`;
@@ -135,6 +139,7 @@ export function drawTokens(ctx, state, g, live) {
     if (flying.has(i) || (G && G.res.pl === i)) return;
     const k = String(r.pos); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(i);
   });
+  if (v3.on) { drawTokens3(ctx, state, g, live, groups); return; }
   for (const ids of groups.values()) ids.forEach((i, k) => { const p = stationXY(g.riders[i].pos), o = slotOffset(k, ids.length); list.push({ i, x: p.x + o.dx, y: p.y + o.dy + 8, lift: 0, kk: 1.12 }); });
   if (G) {
     const p = stationXY(G.u), hop = G.stage === 'run' ? Math.abs(Math.sin(Math.PI * (G.u % 1))) * 14 : G.stage === 'wind' ? 10 : G.stage === 'burrow' ? -6 : 4;
@@ -152,6 +157,24 @@ export function drawTokens(ctx, state, g, live) {
     if (g.winner === it.i) lift = 4 + Math.abs(Math.sin(T0 * 6)) * 10;
     drawToken(ctx, it.i, x, y, it.kk, lift);
   }
+}
+
+// 3D: the presenter draws the bone-horses (it reads v3.tokens); the number badge over each one stays 2D so it is always crisp
+function drawTokens3(ctx, state, g, live, groups) {
+  const G = state.gal, T0 = state.t, list = [], hopOf = (u, st) => (st === 'run' ? Math.abs(Math.sin(Math.PI * (u % 1))) * 14 : st === 'wind' ? 10 : st === 'burrow' ? -6 : 4);
+  for (const ids of groups.values()) ids.forEach((i, k) => list.push({ i, s: g.riders[i].pos * STEP, k, n: ids.length, lift: 0 }));
+  if (G) list.push({ i: G.res.pl, s: G.u * STEP, k: 0, n: 1, lift: Math.max(0, hopOf(G.u, G.stage)), moving: G.stage === 'run' });
+  for (const f of state.fly) { const u = ease(clamp(f.t / f.dur, 0, 1)); list.push({ i: f.pl, x: f.from.x + (f.to.x - f.from.x) * u, y: f.from.y + (f.to.y - f.from.y) * u, ang: f.from.ang, lift: Math.sin(Math.PI * u) * 46, fly: true }); }
+  for (const it of list) {
+    const turn = live && !it.fly && g.turn === it.i && g.winner < 0 && state.scene !== 'over' && state.scene !== 'autoplay-over' && !(G && G.res.pl === it.i && !it.s);
+    it.turn = Boolean(turn) && !(G && G.res.pl === it.i);
+    if (g.winner === it.i) { it.win = true; it.lift = 3; }
+    v3.tokens.push(it);
+    const sp = it.x != null ? it : slotPos(it.s, it.k, it.n), p0 = Tp(sp.x, sp.y, it.lift + 58), p1 = Tp(sp.x + 10, sp.y, it.lift + 58), sc = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]) / 10 || 1, r = 13 * sc * 1.15;
+    ctx.save(); ctx.fillStyle = RIDER[it.i]; ctx.beginPath(); ctx.arc(p0[0], p0[1], r, 0, TAU); ctx.fill(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.2 * sc; ctx.stroke();
+    ctx.textAlign = 'center'; ctx.font = `700 ${Math.round(17 * sc * 1.1)}px ${DISPLAY}`; ctx.fillStyle = '#fff'; ctx.fillText(String(it.i + 1), p0[0], p0[1] + 6 * sc * 1.1); ctx.restore();
+  }
+  void T0;
 }
 
 // ---- the rider strip -------------------------------------------------------------------------------------------------------------------
@@ -173,18 +196,25 @@ function drawChips(ctx, state, R) {
 }
 
 // ---- bones and the mat -------------------------------------------------------------------------------------------------------------------
+function matFrame(ctx) {
+  ctx.save(); ctx.strokeStyle = 'rgba(0,0,0,0.55)'; ctx.lineWidth = 7; ctx.beginPath(); ctx.roundRect(36, 1004, 648, 300, 6); ctx.stroke();
+  ctx.strokeStyle = '#f0c24a'; ctx.lineWidth = 4; ctx.beginPath(); ctx.roundRect(36, 1004, 648, 300, 6); ctx.stroke(); ctx.restore();
+}
 function drawBones(ctx, state, R) {
   const rd = state.ride, T0 = state.t, ph = state.phase, g = state.g;
+  // 3D: the bones are drawn by the presenter (v3.bones); labels are placed at the projected bone, anchored on its canonical spot
+  const ms = (x, y) => { const a = Mp(x, y), b = Mp(x + 10, y); return Math.hypot(b[0] - a[0], b[1] - a[1]) / 10 || 1; };
+  const at = (x, y, fn) => { if (!v3.on) { fn(); return; } const [a, b] = Mp(x, y), k = ms(x, y); ctx.save(); ctx.translate(a, b); ctx.scale(k, k); ctx.translate(-x, -y); fn(); ctx.restore(); };
   const yours = ph === 'throw' && g.riders[g.turn].human && state.scene === 'play';
   const calm = state.prefs.calm;
-  if (yours) {
+  if (yours && !v3.on) {
     ctx.save(); const pulse = 0.5 + 0.5 * Math.sin(T0 * 4), gr = ctx.createRadialGradient(360, 1168, 20, 360, 1168, 300);
     gr.addColorStop(0, `rgba(255,224,120,${0.28 + 0.2 * pulse})`); gr.addColorStop(1, 'rgba(255,190,60,0)'); ctx.fillStyle = gr; ctx.beginPath(); ctx.ellipse(360, 1168, 300, 110, 0, 0, TAU); ctx.fill(); ctx.restore();
   }
   const resting = !rd.tossed;
   BONE_SPOTS.forEach((sp, i) => {
     const pose = rd.pose[i] || { dx: 0, dy: 0, rot: 0 };
-    if (resting) { drawBone(ctx, [0, 1, 2, 3][i], sp.x + (i % 2 ? 4 : -4), sp.y + Math.sin(T0 * 2 + i * 1.7) * 3, (i % 2 ? 0.25 : -0.2), 1, 0, { alpha: yours ? 1 : 0.8 }); return; }
+    if (resting) { if (v3.on) v3.bones.push({ i, x: sp.x + (i % 2 ? 4 : -4), y: sp.y, rot: (i % 2 ? 0.25 : -0.2), lift: 1 + Math.sin(T0 * 2 + i * 1.7) * 3 * 0.5, face: i }); else drawBone(ctx, [0, 1, 2, 3][i], sp.x + (i % 2 ? 4 : -4), sp.y + Math.sin(T0 * 2 + i * 1.7) * 3, (i % 2 ? 0.25 : -0.2), 1, 0, { alpha: yours ? 1 : 0.8 }); return; }
     const a = rd.anim, it = a?.items[i];
     if (a && it) {
       const D = a.dur - 0.12, u = clamp((a.t - it.dl) / D, 0, 1);
@@ -193,33 +223,34 @@ function drawBones(ctx, state, R) {
       let zz = u < 0.72 ? 230 * 4 * (u / 0.72) * (1 - u / 0.72) : bounce(0.72, 0.88, 26) + bounce(0.88, 1, 8);
       if (calm) zz = 0;
       const rotA = it.r0 + (it.r1 - it.r0) * (1 - (1 - u) * (1 - u)), face = u < 0.85 ? (Math.floor(a.t * 16) + it.face0 + i) % 4 : rd.faces[i];
+      if (v3.on) { const e = ease(clamp(u / 0.9, 0, 1)); v3.bones.push({ i, x, y, rot: rotA, lift: zz, face: rd.faces[i], roll: rd.faces[i] + (1 - e) * 9 }); return; }
       drawBone(ctx, face, x, y, rotA, 0.7 + 0.3 * (u < 0.72 ? 0.7 + 0.3 * Math.sin(Math.PI * u / 0.72) : 1) * 1, zz);
       return;
     }
     // resting on the mat (a held bone during a re-toss simply stays where it is)
     const held = rd.hold[i] && (ph === 'decide' || ph === 'aithink' || ph === 'aiact' || ph === 'apreveal' || ph === 'toss');
     const lift = held && !a ? (calm ? 14 : 14 + Math.sin(T0 * 4 + i) * 2) : 0;
-    drawBone(ctx, rd.faces[i], sp.x + pose.dx, sp.y + pose.dy, pose.rot, 1, lift, { hold: held && !a });
-    if (!a) {
+    if (v3.on) v3.bones.push({ i, x: sp.x + pose.dx, y: sp.y + pose.dy, rot: pose.rot, lift, face: rd.faces[i], hold: held && !a }); else drawBone(ctx, rd.faces[i], sp.x + pose.dx, sp.y + pose.dy, pose.rot, 1, lift, { hold: held && !a });
+    if (!a) at(sp.x + pose.dx, sp.y + pose.dy, () => {
       const lx = sp.x + pose.dx, ly = sp.y + 66;
       ctx.save(); ctx.font = `600 21px ${DISPLAY}`; const t = `${FACE_NAMES[rd.faces[i]]} ${FACE_VALUE[rd.faces[i]]}`, tw = ctx.measureText(t).width + 18;
       ctx.fillStyle = 'rgba(8,20,48,0.78)'; ctx.beginPath(); ctx.roundRect(lx - tw / 2, ly - 18, tw, 28, 14); ctx.fill(); ctx.restore();
       R.text(t, lx, ly + 3, 21, '#fff4d6', DISPLAY, 600);
       if (held) { ctx.fillStyle = rd.hint ? '#7fd6a8' : '#ffd45a'; ctx.beginPath(); ctx.roundRect(sp.x + pose.dx - 34, sp.y - 76, 68, 26, 13); ctx.fill(); R.text(rd.hint ? 'KEEP' : 'HOLD', sp.x + pose.dx, sp.y - 57, 18, '#2a1b12', DISPLAY, 700); }
-    }
+    });
   });
   // read-out above the bones
   if (rd.tossed && !rd.anim && ph !== 'gallop' && ph !== 'after' && ph !== 'won') {
     const sc = scoreOf(rd.faces), t = `${sc.total} strides${sc.bonus ? ' · ' + comboLabel(rd.faces) : ''}`;
-    R.fit(t, 360, 1056, 560, 40, 30, 16, sc.bonus ? '#ffe27a' : '#fff4d6');
-  } else if (yours) {
+    at(360, 1157, () => R.fit(t, 360, v3.on ? 1030 : 1056, 560, 40, 30, 16, sc.bonus ? '#ffe27a' : '#fff4d6'));
+  } else if (yours) { at(360, 1157, () => {
     const a = 0.5 + 0.5 * Math.sin(T0 * 5);
     ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.6)'; ctx.shadowBlur = 12; ctx.shadowOffsetY = 4; ctx.fillStyle = 'rgba(16,34,72,0.94)'; ctx.beginPath(); ctx.roundRect(110, 1228, 500, 52, 26); ctx.fill(); ctx.restore();
     ctx.strokeStyle = `rgba(255,224,130,${0.6 + 0.4 * a})`; ctx.lineWidth = 3; ctx.beginPath(); ctx.roundRect(110, 1228, 500, 52, 26); ctx.stroke();
     R.text('TAP or SWIPE UP to toss', 360, 1263, 26, '#fff4d6', DISPLAY, 600);
     ctx.strokeStyle = `rgba(255,236,170,${0.4 + 0.5 * a})`; ctx.lineWidth = 5; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
     const cy = 1098 - a * 8; ctx.beginPath(); ctx.moveTo(340, cy + 9); ctx.lineTo(360, cy - 3); ctx.lineTo(380, cy + 9); ctx.stroke();
-  }
+  }); }
   void TRAY;
 }
 
@@ -227,18 +258,21 @@ function drawBones(ctx, state, R) {
 function drawFx(ctx, state, R, L, over) {
   const bands = over ? [{ s: 1, tx: (L.w - 720) / 2, ty: L.h / 2 - 360 - 0 }] : [L.play.trail, L.play.mat];
   const pick = (y) => (over ? bands[0] : L.play.bandAt(y));
-  for (const B of bands) inBand(ctx, B, () => { drawParticles(ctx, state.parts.filter((p) => pick(p.y) === B)); drawPops(ctx, state.pops.filter((p) => pick(p.y) === B), R); });
+  const mapFor = (B) => (over || !v3.on ? null : B === L.play.trail ? (x, y, h) => Tp(x, y, h) : (x, y, h) => Mp(x, y, h));
+  for (const B of bands) inBand(ctx, B, () => { const mp = mapFor(B); drawParticles(ctx, state.parts.filter((p) => pick(p.y) === B), mp); drawPops(ctx, state.pops.filter((p) => pick(p.y) === B), R, mp); });
 }
-function drawParticles(ctx, parts) {
-  for (const p of parts) {
+function drawParticles(ctx, parts, mp) {
+  for (let p of parts) {
+    if (mp) { const [x, y] = mp(p.x, p.y, 2); p = { ...p, x, y }; }
     const a = clamp(p.life / p.max, 0, 1);
     ctx.save(); ctx.globalAlpha = a; ctx.fillStyle = p.col;
     if (p.rect) { ctx.translate(p.x, p.y); ctx.rotate(p.rot || 0); ctx.fillRect(-p.sz, -p.sz * 0.6, p.sz * 2, p.sz * 1.2); } else { ctx.beginPath(); ctx.arc(p.x, p.y, p.sz * (0.4 + 0.6 * a), 0, TAU); ctx.fill(); }
     ctx.restore();
   }
 }
-function drawPops(ctx, pops, R) {
-  for (const p of pops) {
+function drawPops(ctx, pops, R, mp) {
+  for (let p of pops) {
+    if (mp) { const [x, y] = mp(p.x, p.y, 20); p = { ...p, x, y }; }
     const a = clamp(1 - Math.max(0, p.t - 0.9) / 0.6, 0, 1), up = ease(clamp(p.t / 0.5, 0, 1)) * 22;
     ctx.save(); ctx.globalAlpha = a; ctx.font = `700 26px ${DISPLAY}`; const w = ctx.measureText(p.text).width + 28, x = clamp(p.x, w / 2 + 48, 672 - w / 2), y = p.y - up;
     ctx.fillStyle = 'rgba(16,34,72,0.92)'; ctx.beginPath(); ctx.roundRect(x - w / 2, y - 26, w, 38, 19); ctx.fill(); ctx.strokeStyle = '#f0c24a'; ctx.lineWidth = 2.5; ctx.stroke();
@@ -358,11 +392,13 @@ function drawRulesArt(ctx, kind, cx, cy, T0) {
 // ---- title ---------------------------------------------------------------------------------------------------------------------
 function drawTitle(ctx, state, R, L) {
   const T0 = state.t, T = L.title, pr = T.plate.r;
+  const fa = flatAlpha();
   inBand(ctx, T.trail, () => {
-    drawTrail(ctx);
+    if (fa > 0) { ctx.save(); ctx.globalAlpha = fa; drawTrail(ctx); ctx.restore(); }
     drawTokens(ctx, { ...state, gal: null, fly: [] }, TITLE_G, false);
+    const q = (p, h = 0) => { const [x, y] = Tp(p.x, p.y, h); return { x, y }; };
     const lab = (str, x, y, size) => { ctx.save(); ctx.lineJoin = 'round'; ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(60,35,10,0.8)'; ctx.font = `700 ${size}px ${DISPLAY}`; ctx.textAlign = 'center'; ctx.strokeText(str, x, y); ctx.fillStyle = '#fff8e6'; ctx.fillText(str, x, y); ctx.restore(); };
-    lab('START', stationXY(0).x - 34 + 24, stationXY(0).y + 66, 17); lab('FINISH', stationXY(FINISH).x - 24, stationXY(FINISH).y + 52, 18);
+    const s0 = q(stationXY(0)), f0 = q(stationXY(FINISH)); lab('START', s0.x - 34 + 24, s0.y + 66, 17); lab('FINISH', f0.x - 24, f0.y + 52, 18);
   });
   // title on the sky
   inBand(ctx, T.tblk, () => {
@@ -371,7 +407,7 @@ function drawTitle(ctx, state, R, L) {
     R.glowText('The ankle-bone race', 360, 252, 38, '#fff4d6');
   });
   // the four sides, floating over the menu plate (phone-portrait only: there is no spare room elsewhere)
-  if (T.bones) inBand(ctx, T.bones, () => [0, 1, 2, 3].forEach((f, i) => drawBone(ctx, f, 360 + (i - 1.5) * 128, 944 + Math.sin(T0 * 2 + i * 1.3) * 4, (i % 2 ? 0.2 : -0.16), 0.62, 6)));
+  if (T.bones && !v3.on) inBand(ctx, T.bones, () => [0, 1, 2, 3].forEach((f, i) => drawBone(ctx, f, 360 + (i - 1.5) * 128, 944 + Math.sin(T0 * 2 + i * 1.3) * 4, (i % 2 ? 0.2 : -0.16), 0.62, 6)));
   // menu plate
   const rad = 24 * T.plate.s;
   ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.55)'; ctx.shadowBlur = 20; ctx.shadowOffsetY = 6; ctx.fillStyle = 'rgba(14,30,66,0.95)'; ctx.beginPath(); ctx.roundRect(pr.x, pr.y, pr.w, pr.h, rad); ctx.fill(); ctx.restore();

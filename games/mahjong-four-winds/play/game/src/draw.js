@@ -1,4 +1,5 @@
 // Shared drawing helpers: fonts, text, buttons, the felt table, tile placement. Nothing here changes game state.
+import { v3 } from './v3.js';
 import { W, H, GEO, host } from './layout.js';
 import { tileSprite, backSprite, FW, FH, SPRITE_W, SPRITE_H, PAD, getLang } from './tiles.js';
 import { kindOf } from './rules.js';
@@ -91,6 +92,7 @@ export function panel(ctx, x, y, w, h, o = {}) {
 // ---- the felt table, painted once per screen size (and inlay rectangle)
 let tableCache = null, tableKey = '';
 export function drawTable(ctx, inlay = undefined) {
+  if (v3.on) return;   // the 3D presenter draws the table behind the transparent 2D layer
   if (inlay === undefined) inlay = GEO.variant === 'tall' && !GEO.wide ? GEO.inlay : null;
   const key = `${W}x${H}|${inlay ? [inlay.x, inlay.y, inlay.w, inlay.h].map(Math.round).join(',') : '-'}`;
   if (key !== tableKey) {

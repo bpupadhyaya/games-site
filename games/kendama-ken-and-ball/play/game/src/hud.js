@@ -5,6 +5,7 @@ import { drawBackdrop, drawOuter, drawKen, drawBall, drawBallShadow, drawRope, d
 import { FONT, C, drawButton, panel, roundPath, textShadow, wrapLines } from './ui.js';
 import { stepText, starsFor, RUN_STRIKES, offerValue, runMult } from './tricks.js';
 import { isFlipped, CUPS } from './phys.js';
+import { v3 } from './v3.js';
 
 const TAU = Math.PI * 2;
 const TGT_COL = { big: COL.big, small: COL.small, spike: COL.spike, base: COL.base, any: '#f0bd3c' };
@@ -12,6 +13,15 @@ export const tgtName = (t) => ({ big: 'Big cup', small: 'Small cup', spike: 'Spi
 
 // ---- the world ----------------------------------------------------------------------------------
 export function drawWorld(ctx, w, rope, o = {}) {
+  if (v3.on) {
+    // the 3D layer draws the garden, ken, ball and cord from this hand-off; the flat layers that stay: petals, hint, ghost, particles
+    v3.world = { w, rope, m: ctx.getTransform(), stage: !o.noBackdrop, glow: o.glow ?? null };
+    if (o.petals) drawParticles(ctx, o.petals);
+    if (o.hint) drawHintUnder(ctx, o.hint, o.t ?? 0);
+    if (o.ghost) drawKen(ctx, { ...w.ken, x: o.ghost.x, y: o.ghost.y, th: o.ghost.flip ? Math.PI : 0 }, {}, 0.32);
+    if (o.parts) drawParticles(ctx, o.parts);
+    return;
+  }
   if (!o.noBackdrop) drawBackdrop(ctx);
   if (o.petals) drawParticles(ctx, o.petals);
   drawBallShadow(ctx, w.ball);

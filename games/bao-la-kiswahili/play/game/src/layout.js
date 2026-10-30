@@ -10,6 +10,7 @@
 // The board is ONE group drawn in "group space" (x 8..712, y from FRAME.y) and placed with a uniform scale k: screen = o + group * k.
 // Two group shapes share the pit/seed code: 'tall' (rows 138 apart, the approved phone board) and 'flat' (rows 108 apart, 714 high).
 import { colOf, rowIsFront } from './rules.js';
+import { v3 } from './v3.js';
 
 export const PIT_R = 34, PITCH = 78, CX = 360;
 export const TEXT_SCALES = [1, 1.5, 2, 2.5, 3];
@@ -43,10 +44,11 @@ export function pitLocal(p, r, g = G) {
 export const trayLocal = (p) => { const T = p === 0 ? G.TRAY.s : G.TRAY.n; return { x: 360, y: T.y + T.h / 2 }; };
 export const toScreen = (x, y) => ({ x: L.grp.ox + x * L.grp.k, y: L.grp.oy + y * L.grp.k });
 export const toLocal = (x, y) => ({ x: (x - L.grp.ox) / L.grp.k, y: (y - L.grp.oy) / L.grp.k });
-export const pitPos = (p, r) => { const q = pitLocal(p, r); return toScreen(q.x, q.y); };   // SCREEN position (taps, tests)
+export const pitPos = (p, r) => { if (v3.on && v3.pit) return v3.pit(p, r); const q = pitLocal(p, r); return toScreen(q.x, q.y); };   // SCREEN position (taps, tests)
 export const trayPos = trayLocal;
 // nearest pit of player p to a SCREEN tap (generous), or -1
 export function pitNear(p, x, y) {
+  if (v3.on && v3.pick) return v3.pick(p, x, y);                      // the tilted 3D board (presenter ray cast)
   const t = toLocal(x, y);
   let best = -1, bd = 1e9;
   for (let r = 0; r < 16; r++) {

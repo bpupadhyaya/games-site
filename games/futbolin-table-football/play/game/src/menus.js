@@ -6,6 +6,7 @@ import { FONT, DISPLAY, C, roundPath, drawButton, panel, wrapLines, flowLayout, 
 import { LEVELS, MATCH_GOALS, THINK_STEPS, CUP, HW, HL, KINDS, ROD_LAYOUT, ROD_Y, HOME_KIT, RIVAL_KITS } from './consts.js';
 import { drawTable, KIT_PAL } from './draw.js';
 import { createSim } from './sim.js';
+import { v3 } from './v3.js';
 
 const TAU = Math.PI * 2;
 let LAID = { key: '', lay: null, top: 0, bottom: H };
@@ -40,34 +41,60 @@ export function ensureLayout(state, key) {
 }
 export function hitScreen(x, y, scroll) { return LAID.lay ? flowHit(LAID.lay, LAID.top, scroll, x, y) : null; }
 
+// The title lettering: warm gold, embossed (dark cut edge below, light edge above), a soft glow so it reads over the 3D room.
+function goldTitle(ctx, text, cx, y, px) {
+  ctx.font = `800 ${px}px ${DISPLAY}`;
+  const g = ctx.createLinearGradient(0, y - px * 0.8, 0, y + px * 0.12);
+  g.addColorStop(0, '#fff6d8'); g.addColorStop(0.38, '#ffd77a'); g.addColorStop(0.62, '#d89a2e'); g.addColorStop(1, '#fbe3a0');
+  ctx.save();
+  ctx.shadowColor = 'rgba(0,0,0,0.75)'; ctx.shadowBlur = px * 0.18; ctx.shadowOffsetY = px * 0.05;
+  ctx.fillStyle = '#3a1a06'; ctx.fillText(text, cx, y + px * 0.045);
+  ctx.shadowColor = 'rgba(255,190,90,0.35)'; ctx.shadowBlur = px * 0.25; ctx.shadowOffsetY = 0;
+  ctx.fillStyle = g; ctx.fillText(text, cx, y);
+  ctx.shadowColor = 'transparent';
+  ctx.lineWidth = Math.max(1, px * 0.012); ctx.strokeStyle = 'rgba(255,250,230,0.55)'; ctx.strokeText(text, cx, y - px * 0.01);
+  ctx.restore();
+}
 const heroArt = (k = 1) => ({
-  t: 'art', h: Math.round(330 * k),
+  t: 'art', h: Math.round(300 * k),
   draw(ctx, w) {
     ctx.save(); ctx.scale(k, k); ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
     const cx = w / k / 2;
-    ctx.font = `700 34px ${FONT}`; ctx.fillStyle = '#ffd77a'; ctx.shadowColor = 'rgba(0,0,0,0.7)'; ctx.shadowBlur = 8; ctx.shadowOffsetY = 2;
-    ctx.fillText('TABLE FOOTBALL', cx, 70);
-    ctx.font = `800 118px ${DISPLAY}`; ctx.fillStyle = '#fff3d6'; ctx.shadowBlur = 16; ctx.shadowOffsetY = 5;
-    ctx.fillText('Futbolín', cx, 200);
-    ctx.font = `600 30px ${FONT}`; ctx.fillStyle = 'rgba(255,230,190,0.9)'; ctx.shadowBlur = 6;
-    ctx.fillText('Slide. Spin. Score.', cx, 262);
+    ctx.font = `700 30px ${FONT}`; ctx.fillStyle = '#ffd77a'; ctx.shadowColor = 'rgba(0,0,0,0.8)'; ctx.shadowBlur = 8; ctx.shadowOffsetY = 2;
+    if (ctx.letterSpacing !== undefined) ctx.letterSpacing = '6px';
+    ctx.fillText('TABLE FOOTBALL', cx, 66);
+    if (ctx.letterSpacing !== undefined) ctx.letterSpacing = '0px';
+    ctx.shadowColor = 'transparent';
+    goldTitle(ctx, 'Futbolín', cx, 196, 124);
+    ctx.font = `600 30px ${FONT}`; ctx.fillStyle = 'rgba(255,236,200,0.95)'; ctx.shadowColor = 'rgba(0,0,0,0.85)'; ctx.shadowBlur = 8; ctx.shadowOffsetY = 2;
+    ctx.fillText('Slide. Spin. Score.', cx, 256);
     ctx.restore();
   },
 });
 
-export function titleWidgets(state, wide = false) {
+// Title buttons: ONE big Play button, then a tidy grid of quieter wooden buttons.
+function titleButtons(state) {
   const cup = state.cup;
   return [
-    ...(wide ? [] : [heroArt(H < 1100 ? 0.78 : 1)]),
-    { t: 'btn', id: 'play', label: 'Play a match', primary: true, h: 88 },
-    { t: 'btn', id: 'cup', label: cup.round > 0 && cup.round < CUP.length ? 'Continue the Cup' : 'The Cup', sub: cup.won ? 'You have won the Cup' : `Round ${Math.min(CUP.length, cup.round + 1)} of ${CUP.length}`, row: 1 },
-    { t: 'btn', id: 'watch', label: 'Watch & Learn', sub: 'Two sides play, you learn why', row: 1 },
-    { t: 'btn', id: 'howto', label: 'How to Play', row: 2 },
-    { t: 'btn', id: 'rules', label: 'Rules', row: 2 },
-    { t: 'btn', id: 'about', label: 'About', row: 2 },
-    { t: 'btn', id: 'settings', label: 'Settings', row: 3 },
-    { t: 'btn', id: 'sound', label: state.settings.sound ? 'Sound: On' : 'Sound: Off', row: 3 },
+    { t: 'btn', id: 'play', label: 'Play a match', primary: true, big: true, h: 118 },
+    { t: 'btn', id: 'cup', label: cup.round > 0 && cup.round < CUP.length ? 'Continue the Cup' : 'The Cup', sub: cup.won ? 'You have won the Cup' : `Round ${Math.min(CUP.length, cup.round + 1)} of ${CUP.length}`, row: 1, dark: true },
+    { t: 'btn', id: 'watch', label: 'Watch & Learn', sub: 'Two sides play, you learn why', row: 1, dark: true },
+    { t: 'btn', id: 'howto', label: 'How to Play', row: 2, dark: true, h: 72 },
+    { t: 'btn', id: 'rules', label: 'Rules', row: 2, dark: true, h: 72 },
+    { t: 'btn', id: 'about', label: 'About', row: 2, dark: true, h: 72 },
+    { t: 'btn', id: 'settings', label: 'Settings', row: 3, dark: true, h: 72 },
+    { t: 'btn', id: 'sound', label: state.settings.sound ? 'Sound: On' : 'Sound: Off', row: 3, dark: true, h: 72 },
   ];
+}
+
+export function titleWidgets(state, wide = false) {
+  if (wide) return titleButtons(state);
+  // portrait: the lettering at the top, the buttons at the bottom, and the 3D table showing in between
+  const g = geomFor('title'), hero = heroArt(H < 1100 ? 0.78 : 1), btns = titleButtons(state);
+  const sc = TEXT_SCALES[state.settings.textIdx];
+  const need = flowLayout(estCtx, [hero, ...btns.map((b) => ({ ...b }))], sc, { x: g.x, w: g.w, hk: g.hk }).contentH;
+  const gap = Math.max(0, Math.round(g.bottom - g.top - need - 16));
+  return [hero, { t: 'gap', h: gap }, ...btns];
 }
 
 export function setupWidgets(state) {
@@ -212,9 +239,28 @@ function drawFlowScreen(ctx, state, key, widgets, g = geomFor(key)) {
 }
 const bg = (ctx, a) => scrim(ctx, a);
 
+// Title over the live 3D room: dark only where text and buttons sit, so the lit table stays visible in between.
+function titleVeil3d(ctx, g, state) {
+  if (!g.wide) {
+    const btns = LAID.key === 'title' && LAID.lay ? LAID.lay.items.filter((i) => i.w.t === 'btn') : [];
+    const by = btns.length ? LAID.top + Math.min(...btns.map((i) => i.y)) : H * 0.6;
+    const t = ctx.createLinearGradient(0, 0, 0, Math.min(H * 0.32, 420)); t.addColorStop(0, 'rgba(14,5,0,0.78)'); t.addColorStop(1, 'rgba(14,5,0,0)');
+    ctx.fillStyle = t; ctx.fillRect(0, 0, W, Math.min(H * 0.32, 420));
+    const b = ctx.createLinearGradient(0, by - 140, 0, by + 60); b.addColorStop(0, 'rgba(14,5,0,0)'); b.addColorStop(1, 'rgba(14,5,0,0.86)');
+    ctx.fillStyle = b; ctx.fillRect(0, by - 140, W, H - by + 140);
+    const hy = Math.round(Math.min(H * 0.17, 300)); v3.hero = { x: 0, y: hy, w: W, h: Math.max(Math.round(H * 0.4), Math.round(by - 10 - hy)) };
+  } else {
+    const gr = ctx.createLinearGradient(g.x - 120, 0, g.x + 30, 0); gr.addColorStop(0, 'rgba(14,5,0,0)'); gr.addColorStop(1, 'rgba(14,5,0,0.8)');
+    ctx.fillStyle = gr; ctx.fillRect(g.x - 120, 0, W - g.x + 120, H);
+    ctx.fillStyle = 'rgba(14,5,0,0.8)'; ctx.fillRect(g.x + 30, 0, W, H);
+    v3.hero = { x: host.l, y: 0, w: g.x - 30 - host.l, h: H };
+  }
+}
+
 export function renderTitle(ctx, state) {
   const g = geomFor('title');
-  if (!g.wide) {
+  if (v3.on) titleVeil3d(ctx, g, state);
+  else if (!g.wide) {
     const gr = ctx.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, 'rgba(14,5,0,0.15)'); gr.addColorStop(0.35, 'rgba(14,5,0,0.5)'); gr.addColorStop(1, 'rgba(14,5,0,0.9)');
     ctx.fillStyle = gr; ctx.fillRect(0, 0, W, H);
   } else {
@@ -226,8 +272,12 @@ export function renderTitle(ctx, state) {
   }
   drawFlowScreen(ctx, state, 'title', titleWidgets(state, g.wide), g);
   if (g.wide) {
+    if (v3.on) { ctx.save(); const gl = ctx.createLinearGradient(0, 0, 0, 260); gl.addColorStop(0, 'rgba(14,5,0,0.7)'); gl.addColorStop(1, 'rgba(14,5,0,0)'); ctx.fillStyle = gl; ctx.fillRect(0, 0, g.x, 260); ctx.restore(); }
     const hw = g.heroCx * 2;
-    const hk = Math.max(0.4, Math.min(1, (hw - 40) / 740)); ctx.save(); ctx.translate(g.heroCx - hw / 2, Math.round((H - 330 * hk) / 2) - 34); heroArt(hk).draw(ctx, hw); ctx.restore();
+    const hk = Math.max(0.4, Math.min(1, (hw - 40) / 740));
+    const ty = v3.on ? host.t - 6 : Math.round((H - 330 * hk) / 2) - 34;
+    if (v3.on) { const k2 = Math.min(hk, 0.78); v3.hero = { x: host.l, y: Math.round(250 * k2), w: g.x - 30 - host.l, h: H - Math.round(250 * k2) }; ctx.save(); ctx.translate(g.heroCx - hw / 2, ty); heroArt(k2).draw(ctx, hw); ctx.restore(); }
+    else { ctx.save(); ctx.translate(g.heroCx - hw / 2, ty); heroArt(hk).draw(ctx, hw); ctx.restore(); }
   }
   {   // themed lockup: bottom centre, under the menu buttons
     const btns = LAID.lay.items.filter((i) => i.w.t === 'btn');

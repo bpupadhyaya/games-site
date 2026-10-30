@@ -120,5 +120,10 @@ export const ABOUT = [
   { title: 'Where it comes from', body: 'Games of three in a row on a small board are very old. Roman writers describe terni lapilli, "three pebbles", in which each side has three pieces that are first placed and then moved. In Britain and much of the Commonwealth the placing game is called Noughts and Crosses (in print by the 1850s); in North America it is Tic-Tac-Toe.' },
   { title: 'In this game', body: 'Classic 3x3, the Roman Terni Lapilli with sliding pieces, Misère where three in a row loses, and Quad on a 4x4 board. Five opponent levels from Beginner to a Perfect solver, two players on one phone, Think with a plain-English reason, a course of eleven lessons and Watch & Learn. Three boards to choose from, text that scales up to 300 percent, no timers, works offline.' },
 ];
+// Credits for the optional 3D layer (three.js and the shared view3d library), added at the end of About by main.js once loaded.
+export const addAboutCredits = (body) => {
+  if (ABOUT.some((d) => d.credits)) return;
+  ABOUT.push({ credits: true, title: '3D graphics credits', body });
+};
 export const RULE_COUNT = RULES.length;
 export const HOWTO_COUNT = HOWTO.length;

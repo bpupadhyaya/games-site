@@ -51,7 +51,7 @@ export function plaque(ctx, x, y, w, h, o = {}) {
 }
 const BTN = {
   disabled: { top: '#6a6f7d', bot: '#4c505c', lip: '#33363f', rim: ['rgba(255,255,255,0.35)', 'rgba(255,255,255,0.15)'] },
-  primary: { top: '#f4723a', bot: '#c8420f', lip: '#7d2508', rim: ['#ffe7a8', '#d9a23a'] },
+  primary: { top: '#ffd96b', bot: '#e3a523', lip: '#8a5a0a', rim: ['#fff3c4', '#b8862a'] },
   active: { top: '#2fa8ae', bot: '#146b72', lip: '#0b4146', rim: ['#c6f3f1', '#5fc0c4'] },
   dark: { top: '#4b3524', bot: '#2c1e14', lip: '#150d08', rim: BRASS },
   plain: { top: '#fffaee', bot: '#efdbae', lip: '#a77f45', rim: ['#c79a52', '#8c6630'] },
@@ -84,7 +84,7 @@ export function paintButton(ctx, r, o = {}) {
   const rg = ctx.createLinearGradient(0, fy, 0, fy + fh); rg.addColorStop(0, B.rim[0]); rg.addColorStop(1, B.rim[1]);
   ctx.lineWidth = 2.2; ctx.strokeStyle = rg; ctx.stroke();
   ctx.restore();
-  return { dy, light: primary || active || dark };
+  return { dy, light: active || dark };
 }
 
 // A flat pill. opts: primary (vermilion), active (teal), disabled, sub (small second line), size (font px)

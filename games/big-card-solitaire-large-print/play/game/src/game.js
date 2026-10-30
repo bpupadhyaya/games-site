@@ -53,7 +53,7 @@ export function createGame(env) {
     fourColorDeck: false,
     unlockedThemes: [],
     activeTheme: 'classic',
-    table: 0,
+    table: 2,
     options: false, // the options sheet is open (over the title or over a hand)
     reducedMotion: false,
     message: '', // quiet, non-scored feedback (e.g. the deal-honesty note below)
@@ -68,13 +68,13 @@ export function createGame(env) {
     storage.get('unlockedThemes', []),
     storage.get('activeTheme', 'classic'),
     storage.get('fourColorDeck', false),
-    storage.get('table', 0),
+    storage.get('table', 2),
     storage.get('reducedMotion', false),
     storage.get('textScaleIdx', 0),
     storage.get('autoThinkIdx', 1),
   ]).then(([handsPlayed, handsWon, unlockedThemes, activeTheme, fourColorDeck, table, reducedMotion, textScaleIdx, autoThinkIdx]) => {
     state.reducedMotion = Boolean(reducedMotion);
-    state.table = TABLES[table] ? table : 0;
+    state.table = TABLES[table] ? table : 2;
     state.handsPlayed = handsPlayed;
     state.handsWon = handsWon;
     state.unlockedThemes = unlockedThemes;

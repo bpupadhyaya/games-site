@@ -2,6 +2,7 @@ import { boot } from './kit/index.js';
 import { createGame, meta, wheelInput } from './src/game.js';
 import { host } from './src/layout.js';
 import { setLogo, setLockup } from './src/brand.js';
+import { v3 } from './src/v3.js';
 
 const canvas = document.getElementById('game');
 
@@ -23,7 +24,29 @@ canvas.addEventListener('wheel', (e) => { e.preventDefault(); wheelInput.dy += e
 const af = new Image(); af.onload = () => setLogo(af); af.src = './brand/arcforge-af.png';
 const lk = new Image(); lk.onload = () => setLockup(lk); lk.src = './brand/arcforge-lockup.png';
 
-const app = await boot({ createGame, meta, canvas, background: '#06281f' });
+// 3D presenter (velvet-mat rosewood table, bevelled ivory/bamboo tiles, lantern light). The game boots at once on the flat 2D art; three.js is
+// fetched and the scene built after that, then fades in. No WebGL, ?flat=1 or a lost context: the flat art stays. The presenter only reads state.
+let presenter = null, inner = null;
+const bg = { toString: () => (v3.on ? 'rgba(0,0,0,0)' : '#06281f') };     // read by the kit every frame, so the switch is instant
+const wrap = (g) => Object.assign(Object.create(g), g, {
+  render(ctx, view) {
+    if (v3.on && presenter) {
+      ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height); ctx.restore();
+      presenter.pre();
+    }
+    g.render(ctx, view);
+    if (v3.on && presenter) presenter.post();
+  },
+});
+const app = await boot({ createGame: async (env) => (inner = wrap(await createGame(env))), meta, canvas, background: bg });
+if (!new URLSearchParams(location.search).has('flat')) {
+  const start = () => import('./view3d/presenter.js').then((m) => m.createPresenter({ kitCanvas: canvas })).then((p) => {
+    if (!p.ok) return;
+    const go = () => { if (!inner) return setTimeout(go, 30); presenter = p; p.attach(inner); };
+    go();
+  }).catch((e) => console.warn('3D presenter unavailable; flat art stays', e));
+  requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(start, 30)));
+}
 
 // Screenshot verification only (used with ?shot=1, e.g. by `tools/arc shots` or a manual capture): optional
 // &lang=en|zh, &scene=NAME and &page=N force the tile-language pref, the current scene and (for a paginated

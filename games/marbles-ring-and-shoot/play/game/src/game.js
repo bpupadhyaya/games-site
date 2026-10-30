@@ -15,6 +15,7 @@ import { renderPlay, layoutOf } from './view.js';
 import { renderTitle, renderSetup, renderSettings, renderResult, renderPause, renderPages, renderDemoLimit, hitScreen, flowMeta, REF, ensureLayout, resetMenus, setupPinRects, lockupZone } from './menus.js';
 import { ABOUT, HOWTO, RULES } from './content.js';
 import { setPress } from './ui.js';
+import { v3 } from './v3.js';
 
 export { meta };
 const DEMO_ROUND_CAP = 2;
@@ -553,6 +554,7 @@ export function createGame(env) {
     },
     render(ctx) {
       syncSize();
+      ctx.clearRect(0, 0, meta.width, meta.height); v3.drawn = false;
       switch (state.scene) {
         case 'title': renderTitle(ctx, state); break;
         case 'setup': renderSetup(ctx, state); break;

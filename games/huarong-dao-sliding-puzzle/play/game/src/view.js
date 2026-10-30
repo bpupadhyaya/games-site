@@ -7,6 +7,7 @@ import { rectOf, nameBlocks, movesFor } from './puzzle.js';
 import { LEVELS, HDLM_MOVES } from './levels.js';
 import { tr, RULES } from './content.js';
 import { TEXT_SCALES, tw, wrap } from './ui.js';
+import { v3, flatAlpha } from './v3.js';
 import { drawCredit, drawLockup, drawMoreLine, drawBadgeStack } from './brand.js';
 import {
   BACK_BTN, PAUSE_BTN, TOOLBAR_IDS, toolRect, AUTO_BTNS, DOC_PANEL, NAV_PREV, NAV_NEXT, CELL, BOARD_ORIGIN, BOARD_PX, FRAME, GATE_PX, STATS, LAY, NAV_LABEL, applyLayout,
@@ -145,6 +146,9 @@ function drawLevelCell(ctx, S, r, c, pressed) {
 
 // ----------------------------------------------------------------------------------- illustrations
 const HDLM_ROWS = ['ABBC', 'ABBC', 'DEEF', 'DGHF', 'I..J'];
+export const HDLM_PIECES = () => blocksOf(HDLM_ROWS).map((p) => ({ ...p }));
+// Flat backdrop/art alpha: 1 without 3D, fading out in the crossfade, 0 over the 3D scene.
+const flat = (ctx, fn) => { const fa = flatAlpha(); if (fa <= 0) return; ctx.save(); ctx.globalAlpha = fa; fn(); ctx.restore(); };
 function drawArt(ctx, name, x, y, w, h, S, b) {
   if (name === 'more') { drawMoreLine(ctx, x + w / 2, y + h - 6, 22); return; }
   const cx = x + w / 2, cy = y + h / 2;
@@ -261,7 +265,7 @@ function drawArt(ctx, name, x, y, w, h, S, b) {
 // --------------------------------------------------------------------------------------- title
 // The title board plays the first moves of the famous layout, over and over, by itself.
 let attract = null;
-function attractState(tt) {
+export function attractState(tt) {
   if (!attract) {
     const start = blocksOf(HDLM_ROWS).map((p) => ({ ...p }));
     const states = [start.map((p) => ({ id: p.id, x: p.x, y: p.y }))];
@@ -320,7 +324,7 @@ const fitSize = (str, size, maxW, min = 20) => { let z = size; while (z > min &&
 
 function drawTitle(ctx, S, ui) {
   const Ti = LAY.title, U = LAY.U;
-  background(ctx, S.t, 560);
+  flat(ctx, () => background(ctx, S.t, 560));
   const ly = Ti.title.lanternY;
   lantern(ctx, Ti.title.lanternL ?? U.x0 + 62, ly, S.t, 0.9, 0); lantern(ctx, Ti.title.lanternR ?? U.x1 - 62, ly, S.t, 0.9, 2);
   const zh = S.lang === 'zh';
@@ -342,7 +346,7 @@ function drawTitle(ctx, S, ui) {
   ctx.restore();
   if (Ti.board.k > 0) {
     const { pieces, lift } = attractState(S.t);
-    miniBoard(ctx, HDLM_ROWS, Ti.board.x, Ti.board.y, Ti.board.k, { pieces, lift });
+    flat(ctx, () => miniBoard(ctx, HDLM_ROWS, Ti.board.x, Ti.board.y, Ti.board.k, { pieces, lift }));
   }
   drawDocBlocks(ctx, S, ui, S.scroll[ui.scrollKey] ?? 0);
   drawFixed(ctx, S, ui.fixed);
@@ -522,7 +526,7 @@ function routeArrow(ctx, path, p) {
 
 function drawPuzzle(ctx, S, T, auto) {
   const puz = S.puz;
-  drawFrame(ctx, S, puz);
+  flat(ctx, () => drawFrame(ctx, S, puz));
   const pulse = 0.5 + 0.5 * Math.sin(S.t * 5);
   const sel = puz.pieces[puz.selected];
   // landing cells of the selected block, and the cell under a held block
@@ -564,9 +568,9 @@ function drawPuzzle(ctx, S, T, auto) {
     if (hintPiece || chosen) glow = 0.55 + 0.45 * pulse;
     if (scanning) glow = 0.35 + 0.25 * pulse;
     if (puz.done && p === cao) glow = 0.6 + 0.4 * Math.sin(S.t * 6);
-    drawBlock(ctx, r, p, { lift: p.lift, scale: sc, dx: shake, glow });
+    if (!v3.on) drawBlock(ctx, r, p, { lift: p.lift, scale: sc, dx: shake, glow }); else flat(ctx, () => drawBlock(ctx, r, p, { lift: p.lift, scale: sc, dx: shake, glow }));
   }
-  if (cao && puz.exit > 0) {
+  if (cao && puz.exit > 0 && !v3.on) {
     // the Commander walks out through the gate and fades into the light
     const r = rectOf(cao);
     const e = smooth(puz.exit);
@@ -659,7 +663,7 @@ function drawAutoBar(ctx, S, T, auto) {
 
 function drawPlay(ctx, S, ui) {
   const T = (k, v) => tr(S.lang, k, v);
-  background(ctx, S.t, 700);
+  flat(ctx, () => background(ctx, S.t, 700));
   const puz = S.puz;
   const auto = S.scene === 'auto' ? S.auto : null;
   const lv = puz.level;
@@ -700,11 +704,12 @@ export function render(ctx, S, ui, view) {
   setBlockLang(S.lang);
   setSize(LAY.w, LAY.h);
   ctx.textBaseline = 'alphabetic';
+  if (v3.on) ctx.clearRect(0, 0, LAY.w, LAY.h);   // the 3D scene shows through the transparent 2D canvas
   switch (S.scene) {
     case 'title': drawTitle(ctx, S, ui); break;
     case 'levels': case 'howto': case 'rules': case 'about': case 'settings': drawDocScreen(ctx, S, ui); break;
     case 'demo-limit':
-      background(ctx, S.t);
+      flat(ctx, () => background(ctx, S.t));
       panel(ctx, ui.panel.x, ui.panel.y, ui.panel.w, ui.panel.h, {});
       drawDocBlocks(ctx, S, ui, S.scroll[ui.scrollKey] ?? 0);
       drawFixed(ctx, S, ui.fixed);

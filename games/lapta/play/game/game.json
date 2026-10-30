@@ -4,7 +4,7 @@
   "tagline": "Aim the bat, time the swing, run the far line and dodge the throw.",
   "genre": "bat-and-run sport",
   "orientation": "any",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "monetization": {
     "model": "premium",
     "priceUsd": 2.99,

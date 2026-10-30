@@ -119,11 +119,11 @@ export function flowLayout(ctx, widgets, scale, o = {}) {
     if (wd.t === 'btn' && wd.row !== undefined) {
       const group = [];
       while (i < widgets.length && widgets[i].t === 'btn' && widgets[i].row === wd.row) group.push(widgets[i++]);
-      const fs = Math.round((o.btn ?? 26) * Math.min(scale, 3));
+      const fs = Math.round((group[0].fs0 ?? o.btn ?? 26) * Math.min(scale, 3));
       // a row of side-by-side buttons falls back to a stack when the text no longer fits
       ctx.font = `700 ${fs}px ${FONT}`;
       const cw0 = (w0 - GAP * (group.length - 1)) / group.length;
-      const tooWide = group.some((g) => g.label.split(' ').some((word) => ctx.measureText(word).width > cw0 - 28));
+      const tooWide = group.some((g) => g.label.split(' ').some((word) => ctx.measureText(word).width > cw0 - (g.ico ? 10 : 28)));
       if (tooWide || (scale > 1.5 && group.length > 1)) {
         widgets.splice(i, 0, ...group.map((g) => ({ ...g, row: undefined, h: g.h ?? 76 })));
         continue;
@@ -132,9 +132,9 @@ export function flowLayout(ctx, widgets, scale, o = {}) {
       let hmax = 0;
       const prepared = group.map((g) => {
         ctx.font = `700 ${fs}px ${FONT}`;
-        const lines = wrapLines(ctx, g.label, cw - 28);
+        const lines = wrapLines(ctx, g.label, cw - (g.ico ? 8 : 28));
         const sub = g.sub ? wrapLines(ctx, g.sub, cw - 28).length : 0;
-        const h = Math.max(g.h ?? 76, lines.length * fs * 1.15 + sub * fs * 0.72 + 34);
+        const h = Math.max(g.h ?? 76, lines.length * fs * 1.15 + sub * fs * 0.72 + (g.ico ? 20 : 34));
         hmax = Math.max(hmax, h);
         return { g, lines, h, subLines: sub };
       });
@@ -195,6 +195,21 @@ export function drawFlow(ctx, lay, top, bottom, scroll, o = {}) {
   }
   ctx.restore();
 }
+// Small vector glyphs for the title buttons (drawn in the button's text colour).
+const ICO = {
+  play: (c, s) => { c.beginPath(); c.moveTo(-0.6 * s, -0.8 * s); c.lineTo(0.8 * s, 0); c.lineTo(-0.6 * s, 0.8 * s); c.closePath(); c.fill(); },
+  two: (c, s) => { for (const k of [-1, 1]) { c.beginPath(); c.arc(k * 0.5 * s, 0, 0.62 * s, 0, 7); c.stroke(); } },
+  solo: (c, s) => { c.beginPath(); c.arc(0, 0, 0.8 * s, 0, 7); c.stroke(); c.beginPath(); c.arc(0, 0, 0.3 * s, 0, 7); c.fill(); },
+  watch: (c, s) => { c.beginPath(); c.moveTo(-0.9 * s, 0); c.quadraticCurveTo(0, -0.95 * s, 0.9 * s, 0); c.quadraticCurveTo(0, 0.95 * s, -0.9 * s, 0); c.stroke(); c.beginPath(); c.arc(0, 0, 0.3 * s, 0, 7); c.fill(); },
+  howto: (c, s) => { c.beginPath(); c.arc(0, -0.15 * s, 0.75 * s, 0, 7); c.stroke(); c.beginPath(); c.moveTo(-0.15 * s, 0.1 * s); c.lineTo(0.2 * s, -0.15 * s); c.moveTo(0.45 * s, -0.5 * s); c.lineTo(0.2 * s, -0.15 * s); c.stroke(); },
+  rules: (c, s) => { c.beginPath(); c.rect(-0.7 * s, -0.85 * s, 1.4 * s, 1.7 * s); c.stroke(); for (const y of [-0.4, 0, 0.4]) { c.beginPath(); c.moveTo(-0.35 * s, y * s); c.lineTo(0.35 * s, y * s); c.stroke(); } },
+  about: (c, s) => { c.beginPath(); c.arc(0, 0, 0.85 * s, 0, 7); c.stroke(); c.beginPath(); c.arc(0, -0.4 * s, 0.1 * s, 0, 7); c.fill(); c.beginPath(); c.moveTo(0, -0.1 * s); c.lineTo(0, 0.5 * s); c.stroke(); },
+  records: (c, s) => { c.beginPath(); c.moveTo(-0.55 * s, -0.8 * s); c.lineTo(0.55 * s, -0.8 * s); c.lineTo(0.4 * s, 0.1 * s); c.quadraticCurveTo(0, 0.5 * s, -0.4 * s, 0.1 * s); c.closePath(); c.stroke(); c.beginPath(); c.moveTo(0, 0.4 * s); c.lineTo(0, 0.75 * s); c.moveTo(-0.4 * s, 0.8 * s); c.lineTo(0.4 * s, 0.8 * s); c.stroke(); },
+  settings: (c, s) => { c.beginPath(); c.arc(0, 0, 0.5 * s, 0, 7); c.stroke(); for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4; c.beginPath(); c.moveTo(Math.cos(a) * 0.68 * s, Math.sin(a) * 0.68 * s); c.lineTo(Math.cos(a) * 0.92 * s, Math.sin(a) * 0.92 * s); c.stroke(); } },
+  sound: (c, s) => { c.beginPath(); c.moveTo(-0.8 * s, -0.25 * s); c.lineTo(-0.4 * s, -0.25 * s); c.lineTo(0, -0.7 * s); c.lineTo(0, 0.7 * s); c.lineTo(-0.4 * s, 0.25 * s); c.lineTo(-0.8 * s, 0.25 * s); c.closePath(); c.fill(); c.beginPath(); c.arc(0, 0, 0.55 * s, -0.8, 0.8); c.stroke(); },
+  mute: (c, s) => { ICO.sound(c, s); c.beginPath(); c.moveTo(0.3 * s, -0.5 * s); c.lineTo(0.95 * s, 0.5 * s); c.moveTo(0.95 * s, -0.5 * s); c.lineTo(0.3 * s, 0.5 * s); c.stroke(); },
+};
+const drawIco = (ctx, key, x, y, s, color) => { const f = ICO[key]; if (!f) return; ctx.save(); ctx.translate(x, y); ctx.fillStyle = color; ctx.strokeStyle = color; ctx.lineWidth = Math.max(2, s * 0.17); ctx.lineCap = 'round'; ctx.lineJoin = 'round'; f(ctx, s); ctx.restore(); };
 function drawButtonRect(ctx, r, it, wd) {
   const { disabled = false } = wd;
   const { dy, light } = paintButton(ctx, r, wd);
@@ -202,6 +217,20 @@ function drawButtonRect(ctx, r, it, wd) {
   ctx.fillStyle = disabled ? 'rgba(50,52,80,0.6)' : light ? '#fffaf0' : C.ink;
   ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
   ctx.font = `700 ${it.fs}px ${FONT}`;
+  if (wd.ico) {
+    const col = ctx.fillStyle, is = Math.min(r.h * 0.2, it.fs * 0.9);
+    if (r.w > 300) {   // wide button: glyph left of the label
+      const tw = Math.max(...it.lines.map((l) => ctx.measureText(l).width));
+      drawIco(ctx, wd.ico, r.x + r.w / 2 - tw / 2 - is - 14, r.y + dy + r.h / 2, is, col);
+      const y0 = r.y + dy + (r.h - it.lines.length * it.fs * 1.15) / 2 + it.fs * 0.88;
+      it.lines.forEach((l, k) => ctx.fillText(l, r.x + r.w / 2 + (is + 14) / 2, y0 + k * it.fs * 1.15));
+    } else {              // narrow: glyph above the label
+      const total = it.fs * 1.15 * it.lines.length + is * 2 + 6, t0 = r.y + dy + (r.h - total) / 2;
+      drawIco(ctx, wd.ico, r.x + r.w / 2, t0 + is, is, col);
+      it.lines.forEach((l, k) => ctx.fillText(l, r.x + r.w / 2, t0 + is * 2 + 6 + it.fs * 0.88 + k * it.fs * 1.15));
+    }
+    ctx.restore(); return;
+  }
   const subLines = wd.sub ? (() => { ctx.font = `400 ${Math.round(it.fs * 0.72)}px ${FONT}`; const l = wrapLines(ctx, wd.sub, r.w - 28); ctx.font = `700 ${it.fs}px ${FONT}`; return l; })() : [];
   const total = it.lines.length * it.fs * 1.15 + subLines.length * it.fs * 0.72;
   let y = r.y + dy + (r.h - total) / 2 + it.fs * 0.88;

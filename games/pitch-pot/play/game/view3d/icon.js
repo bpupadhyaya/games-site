@@ -5,7 +5,6 @@ import * as THREE from '../vendor3d/three.js';
 import * as B from '../vendor3d/board3d.js';
 import { makeVase, makeArrow, makeMat, makeLantern } from './models.js';
 import { boardsTexture, glowTex } from './world.js';
-import { createThrower, followBody } from './thrower.js';
 
 const q = new URLSearchParams(location.search), SIZE = Number(q.get('size') || 2048);
 const canvas = document.createElement('canvas');
@@ -24,7 +23,7 @@ const floor = new THREE.Mesh(new THREE.PlaneGeometry(14, 8), new THREE.MeshPhysi
 floor.rotation.x = -Math.PI / 2; floor.position.set(0, 0, 0.5); floor.receiveShadow = true; floor.renderOrder = 5; scene.add(floor);
 
 // ---- backdrop screen and bokeh --------------------------------------------------------------------------------------------------------------------
-const c = document.createElement('canvas'); c.width = 8; c.height = 256; { const x = c.getContext('2d'), g = x.createLinearGradient(0, 0, 0, 256); g.addColorStop(0, '#4a1a10'); g.addColorStop(0.5, '#8a2c18'); g.addColorStop(1, '#3a120a'); x.fillStyle = g; x.fillRect(0, 0, 8, 256); }
+const c = document.createElement('canvas'); c.width = 8; c.height = 256; { const x = c.getContext('2d'), g = x.createLinearGradient(0, 0, 0, 256); g.addColorStop(0, '#2a0d08'); g.addColorStop(0.5, '#5a1c10'); g.addColorStop(1, '#1e0a05'); x.fillStyle = g; x.fillRect(0, 0, 8, 256); }
 const ct = new THREE.CanvasTexture(c); ct.colorSpace = THREE.SRGBColorSpace;
 const wall = new THREE.Mesh(new THREE.PlaneGeometry(14, 6), new THREE.MeshBasicMaterial({ map: ct })); wall.position.set(0, 2.6, -2.6); scene.add(wall);
 const gl = glowTex();
@@ -44,16 +43,6 @@ const flyer = put(0, -0.14, 0.7, -0.62, 0.8, 0.02);                             
 put(1, -0.25, 0.03, 0.05, 1.2, 0.2);                                                      // one that bounced out and lies on the mat
 void flyer;
 
-// the thrower: the same robed rig as the game, mostly out of frame; the wide sleeve and the open hand just past the release enter from the left
-const T = await createThrower({ g: 'm', kit: { top: '#a9281c', trim: '#f2c14e' }, skin: 'tan', hair: 'black', quality: 'high' });
-group.add(T.root);
-const h = T.h;
-h.setPosition(-0.96, 0, 0.0); h.setFacing(Math.PI / 2 - 0.1); h.groundClamp = 'off'; h.footPlanting = false; h.play('idle'); h.update(0.016);
-const sh = h.bonePosition('R_UpperArm', new THREE.Vector3());
-h.setReach('R', new THREE.Vector3(-0.36, 0.74, 0.04), { weight: 1, pole: new THREE.Vector3(sh.x - 0.05, sh.y - 0.8, sh.z + 0.3) });
-h.setFingers('R', 'open');
-for (let i = 0; i < 8; i++) h.update(0.016);
-followBody(T, 0.016, new THREE.Vector3());
 // mirrored copies under the floor give the reflection
 const mir = new THREE.Group(); mir.scale.y = -1; scene.add(mir);
 const mv = makeVase(); mv.rotation.y = 0.5; mir.add(mv);
@@ -61,9 +50,9 @@ const mv = makeVase(); mv.rotation.y = 0.5; mir.add(mv);
 mir.traverse((o) => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; } });
 
 const camera = new THREE.PerspectiveCamera(24, 1, 0.5, 60);
-const tgt = new THREE.Vector3(-0.1, 0.46, 0.0), dist = 2.5, yaw = 0.36, pitch = 0.1;
+const tgt = new THREE.Vector3(-0.04, 0.40, 0.0), dist = 2.25, yaw = 0.36, pitch = 0.1;
 camera.position.set(tgt.x + Math.sin(yaw) * Math.cos(pitch) * dist, tgt.y + Math.sin(pitch) * dist, Math.cos(yaw) * Math.cos(pitch) * dist);
 camera.lookAt(tgt);
 scene.updateMatrixWorld(true);
-B.renderIcon({ scene, camera, size: SIZE, renderer, exposure: 0.92, background: '#1a0d09', bloom: 0.32, vignette: 0.55 });
+B.renderIcon({ scene, camera, size: SIZE, renderer, exposure: 0.92, background: '#1a0d09', bloom: 0.32, vignette: 0.7 });
 document.title = 'READY';

@@ -8,6 +8,7 @@ import { worldScale, drawFloor, drawYard, drawHomeMark, drawStone, drawGho, draw
 import { playLayout, THINK_STEPS, meta, minU } from './layout.js';
 import { FONT, DISPLAY, C, roundPath, drawButton, panel, wrapLines, fitPx } from './ui.js';
 import { tx, stageName } from './content.js';
+import { applyView } from './v3.js';
 
 const TAU = Math.PI * 2;
 const ease = (u) => 1 - Math.pow(1 - clamp(u, 0, 1), 3);
@@ -164,7 +165,7 @@ export function drawAttract(ctx, state, ox, oy, s = 1) {
   if (ox === undefined) { ox = (W - 660 * s) / 2; oy = Math.max(10, Math.min(70, (H - 800 * s) / 2)); }
   drawFloor(ctx, W, H);
   const a = state.att;
-  ctx.save(); ctx.translate(ox, oy); ctx.scale(s, s); worldScale.s = s;
+  ctx.save(); worldScale.s = applyView(ctx, ox, oy, s, 'title');
   if (a) drawWorld(ctx, state, a.rd, a.p, { noPlanBadge: true });
   ctx.restore();
 }
@@ -386,7 +387,7 @@ export function renderPlay(ctx, state, hp) {
   drawFloor(ctx, W, H);
   if (L.panels) for (const r of L.panels) { roundPath(ctx, r.x, r.y, r.w, r.h, 26); ctx.fillStyle = 'rgba(30,14,6,0.3)'; ctx.fill(); }
   ctx.save();
-  ctx.translate(L.view.ox, L.view.oy); ctx.scale(L.view.s, L.view.s); worldScale.s = L.view.s;
+  worldScale.s = applyView(ctx, L.view.ox, L.view.oy, L.view.s, 'play');
   drawWorld(ctx, state, rd, state.match.ps[rd.who], hp);
   ctx.restore();
   if (rd.flash > 0 && !state.settings.calm) { ctx.fillStyle = `rgba(255,90,70,${0.14 * rd.flash})`; ctx.fillRect(0, 0, W, H); }

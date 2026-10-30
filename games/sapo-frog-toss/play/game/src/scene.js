@@ -2,6 +2,7 @@
 // the brass frog, the discs and the sparks. All vector drawing every frame (no baked images, so the first frame is instant).
 // World units are metres: x across the table, y up from the table top, z from the front edge away from the thrower.
 import { HW, TD, A, DISC_H, FROG, HOLES, MOUTH, BOARD_H, HAND } from './phys.js';
+import { r3 } from './r3.js';
 
 export const TAU = Math.PI * 2;
 // THE camera. It stands behind the thrower, high enough to see into the table, and never moves, zooms, tilts or shakes: the table, the
@@ -30,6 +31,7 @@ const FLOOR_Y = -0.75;
 // ---- the courtyard: wall, floor, lamps ---------------------------------------------------------------------------------------
 const WALL_Z = 1.45;
 export function drawRoom(ctx, t) {
+  if (r3.on) { r3.begin(ctx, t); return; }
   ctx.fillStyle = '#16100b'; ctx.fillRect(0, 0, 720, 1280);
   const wBot = proj(0, FLOOR_Y, WALL_Z).y;
   // the back wall: warm plaster, a painted lower band, shuttered window frames and a shelf
@@ -68,6 +70,7 @@ export function drawRoom(ctx, t) {
 // ---- the table -------------------------------------------------------------------------------------------------------------------
 const WOOD = ['#8a5a2e', '#9a6734', '#7e4f27', '#a3733c', '#8d5c2f', '#96652f'];
 export function drawTable(ctx, t) {
+  if (r3.on) return;
   const TH = 0.7;   // height of the cabinet
   // contact shadow on the floor
   quad(ctx, [-HW - 0.2, FLOOR_Y, -0.1], [HW + 0.2, FLOOR_Y, -0.1], [HW + 0.3, FLOOR_Y, TD + 0.15], [-HW - 0.3, FLOOR_Y, TD + 0.15]); ctx.fillStyle = 'rgba(0,0,0,0.34)'; ctx.fill();
@@ -114,6 +117,7 @@ function star(ctx, x, y, r, col) {
 // Holes: dark openings with a brass rim, and the painted score beside each one.
 const HOLE_TAG = { mouth: false, mill: true, bridgeL: true, bridgeR: true, sideL: true, sideR: true, cornerL: true, cornerR: true };
 export function drawHoles(ctx, S, t = 0) {
+  if (r3.on) { r3.flash = S && S.holeFlash ? S.holeFlash : null; return; }
   drawMill(ctx, t);
   const flash = S && S.holeFlash ? S.holeFlash : {};
   for (const h of HOLES) {
@@ -231,6 +235,17 @@ export function pose(d, a) {
 
 // Everything that stands on the table, far to near: the frog, the mill, the bridges and every disc.
 export function drawActors(ctx, t, discs, alpha, S, o = {}) {
+  if (r3.on) {
+    for (const d of discs) {
+      if (d.st === 'out' && d.y <= -0.74) continue;
+      const p = pose(d, d.st === 'fly' || d.st === 'slide' ? alpha : 1);
+      let k = 0, x = p.x, y = p.y, z = p.z;
+      if (d.st === 'in') { k = clamp((S && S.simT !== undefined ? S.simT - d.tin : 0.5) / 0.28, 0, 1); if (k >= 1) continue; const h = HOLES.find((q) => q.id === d.hole); if (h) { x = h.x; z = h.z; } y = -0.11 * k; }
+      r3.discs.push({ owner: d.owner === 1 ? 1 : 0, x, y: Math.max(y, d.st === 'out' ? -0.74 : -1), z, ang: p.ang, k });
+      if (o.hl && o.hl.has(d.id)) { poly(ctx, flatCircle(p.x, 0.003, p.z, A * 1.55, 20)); ctx.strokeStyle = o.hlCol ?? '#7dffa0'; ctx.lineWidth = 4; ctx.stroke(); }
+    }
+    return;
+  }
   const items = [];
   items.push({ z: FROG.z, f: () => drawFrog(ctx, t, S) });
   

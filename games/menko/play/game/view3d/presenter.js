@@ -105,7 +105,8 @@ export async function createPresenter({ kitCanvas, quality = 'high' }) {
   // The card turns about its own centre (TH/2 above its bottom), so the group is offset to keep that centre where it should be.
   const _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _ax = new THREE.Vector3(), _c = new THREE.Vector3(), _e = new THREE.Euler();
   function orient(m, lift, tx, tz, yaw, flip, axis) {
-    _e.set(tx || 0, yaw || 0, tz || 0, 'YXZ'); _q.setFromEuler(_e);
+    _e.set(tx || 0, yaw || 0, tz || 0, 'XZY'); _q.setFromEuler(_e);   // spin about the card's own axis first, then tilt in the world (so a
+    // tilt toward the thrower leans toward the thrower whatever the print's spin)
     if (flip) { _ax.set(Math.cos(axis || 0), 0, Math.sin(axis || 0)); _q2.setFromAxisAngle(_ax, flip); _q.premultiply(_q2); }
     m.quaternion.copy(_q);
     _c.set(0, TH / 2, 0).applyQuaternion(_q);
@@ -337,8 +338,11 @@ export async function createPresenter({ kitCanvas, quality = 'high' }) {
       const hgt = k < 0.22 ? 1.9 + 0.8 * Math.sin(w * Math.PI / 2) : 2.7 * (1 - e) + 0.012;
       const fx = sx + (a.to.x - sx) * e, fy = sy + (a.to.y - sy) * e;
       const g = disc('fly', a.d, side);
-      put(g, fx, fy, { lift: hgt, tx: dirZ * (k < 0.22 ? 0.18 * w : -0.34 * (1 - e)), yaw: a.spin });
-      holder = { x: fx, y: fy, h: hgt + TH, side, held: true };
+      // tilt: from the held tilt (0.42, the far edge raised in the pinch) the wrist cocks the disc back in the wind-up (0.72), then snaps the leading edge down and flattens
+      // at the floor (continuous, no pop where the wind-up turns into the drop)
+      const wu = 0.42 + 0.3 * ease(w), tilt = k < 0.22 ? wu : 0.72 + (-0.34 * (1 - e) - 0.72) * ease(clamp(f / 0.3, 0, 1));
+      put(g, fx, fy, { lift: hgt, tx: dirZ * tilt, yaw: a.spin });
+      holder = { x: fx, y: fy, h: hgt + TH, side, held: true, g };
     }
     if (!a.out) return;
     const land = a.out.land || a.out.card;
@@ -435,7 +439,7 @@ export async function createPresenter({ kitCanvas, quality = 'high' }) {
     let view = 'menu';
     if (sc === 'play' && state.m) {
       const pl = layoutOf(state), F = pl.floor;
-      fitCamera({ x: F.x, y: F.y, w: F.size, h: F.size }, L, pl.land ? 50 : 52, 28, 0); view = 'play';
+      fitCamera({ x: F.x, y: F.y, w: F.size, h: F.size }, L, pl.land ? 50 : 68, 28, 0); view = 'play';
     } else if (sc === 'result' && state.m) {
       const size = Math.min(L.w, L.h) * 0.86, cy = land ? L.h / 2 : L.h * 0.62;
       fitCamera({ x: (L.w - size) / 2, y: cy - size / 2, w: size, h: size }, L, 44, 30, drift); view = 'result';
@@ -467,7 +471,8 @@ export async function createPresenter({ kitCanvas, quality = 'high' }) {
       if (!state.act && !m.over && (aimVisible(state) || (state.think && state.think.phase === 'aim'))) {
         // the hand holds the disc it is about to slam, a little behind the aim point on the player's edge
         const hi = state.aim.hi, d = m.hands[m.turn][hi];
-        if (d !== undefined) { const g = disc('held', d, m.turn), dir = m.turn === 0 ? 1 : -1; put(g, state.aim.x, state.aim.y + dir * 70, { lift: 1.9 + Math.sin(clock * 2.2) * 0.04, tx: dir * 0.1, yaw: clock * 0.3 }); }
+        // (held still in the fingers: it bobs with the hand but does not turn under them)
+        if (d !== undefined) { const g = disc('held', d, m.turn), dir = m.turn === 0 ? 1 : -1; put(g, state.aim.x, state.aim.y + dir * 70, { lift: 1.9 + Math.sin(clock * 2.2) * 0.04, tx: dir * 0.42, yaw: 0 }); holder = { x: state.aim.x, y: state.aim.y + dir * 70, side: m.turn, held: true, g }; }
       }
     }
     else if (state.att) drawParts(state.att.parts);

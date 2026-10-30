@@ -1,7 +1,7 @@
 // Everything drawn each frame. Reads state, changes nothing.
 import {
   W, H, setSize, DISPLAY, THEMES, themeById, PALETTE, GLASS, text, rr, panel, button, background, icon, drawParticles, drawLion, drawMarble, drawStick,
-  drawBoard, fillCell, drawMiniTrack, arrow, alpha, clamp01, ease, backOut, smooth, light,
+  drawBoard, studs, fillCell, drawMiniTrack, arrow, alpha, clamp01, ease, backOut, smooth, light,
 } from './art.js';
 import { TEXT_SCALES, wrap, tw, clampScroll } from './ui.js';
 import { TRACK, HEAD, isSafe, isHome, isBack, cellOf, LENGTHS, VALUE_P, THROW_VALUES } from './rules.js';
@@ -9,7 +9,8 @@ import { tr, getRules, lvName, lenName, themeName, seatColor, lionsText } from '
 import { SCREEN, host, playFrame, titleFrame } from './layout.js';
 import { drawLockup } from './brand.js';
 import { THINK_STEPS } from './screens.js';
-import { trackGeo, pathBetween, CELL_PTS } from './geo.js';
+import { trackGeo, pathBetween, CELL_PTS, SPIRAL } from './geo.js';
+import { v3, flatAlpha } from './v3.js';
 import { actionsNow, allActions, humanTurn, STICK_T, STEP_T } from './match.js';
 import { STICKS } from './rules.js';
 
@@ -177,19 +178,22 @@ const cellPos = (g, c) => g.cells[Math.max(0, Math.min(TRACK, c))];
 function posAlong(g, a, b, k) {
   const path = pathBetween(g, a, b, 5);
   const f = clamp01(k) * (path.length - 1), i = Math.min(path.length - 2, Math.floor(f)), r = f - i;
-  return { x: path[i].x + (path[i + 1].x - path[i].x) * r, y: path[i].y + (path[i + 1].y - path[i].y) * r, ang: path[i].ang };
+  return { x: path[i].x + (path[i + 1].x - path[i].x) * r, y: path[i].y + (path[i + 1].y - path[i].y) * r, ang: path[i].ang, ux: path[i].ux + (path[i + 1].ux - path[i].ux) * r, uy: path[i].uy + (path[i + 1].uy - path[i].uy) * r };
 }
 
 function drawAttract(ctx, S, A) {
   const th = theme(S), t = S.t;
   const side = 440, bx = (720 - side) / 2, by = 300;
-  const g = trackGeo(bx, by, side);
+  const g = trackGeo(bx, by, side, true), D3 = v3.on;
   ctx.save();
   ctx.translate(A.x, A.y); ctx.scale(A.s, A.s);
-  const glow = ctx.createRadialGradient(360, by + side / 2, 30, 360, by + side / 2, 380);
-  glow.addColorStop(0, th.glow); glow.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.fillStyle = glow; ctx.fillRect(0, by - 140, 720, side + 300);
-  drawBoard(ctx, th, g, S.baked, t);
+  if (D3) v3.hero = { x: A.x + bx * A.s, y: A.y + by * A.s, w: side * A.s, h: side * A.s };
+  else {
+    const glow = ctx.createRadialGradient(360, by + side / 2, 30, 360, by + side / 2, 380);
+    glow.addColorStop(0, th.glow); glow.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = glow; ctx.fillRect(0, by - 140, 720, side + 300);
+    drawBoard(ctx, th, g, S.baked, t);
+  }
   // lions pace round the snake, one cell at a time, with a hop between
   const items = [];
   for (const L of ATTRACT_LIONS) {
@@ -200,10 +204,11 @@ function drawAttract(ctx, S, A) {
     items.push({ y: p.y, L, p, hop: Math.sin(Math.min(1, (step - base) * 1.6) * Math.PI), face: Math.cos(p.ang) >= 0 ? 1 : -1 });
   }
   items.sort((a, b) => a.y - b.y);
-  for (const it of items) drawLion(ctx, it.p.x, it.p.y + g.cellW * 0.06, g.cellW * 1.2, PALETTE[it.L.pal], { face: it.face, lift: it.hop * 0.7 });
+  if (D3) items.forEach((it, k) => v3.lions.push({ id: `a${k}`, q: it.L.pal % 6, ux: it.p.ux, uy: it.p.uy, ang: it.p.ang, lift: it.hop * 0.7 }));
+  else for (const it of items) drawLion(ctx, it.p.x, it.p.y + g.cellW * 0.06, g.cellW * 1.2, PALETTE[it.L.pal], { face: it.face, lift: it.hop * 0.7 });
   // a marble rolls from the tail to the head
   const mk = (t % 5.2) / 3.6;
-  if (mk < 1) { const p = posAlong(g, 0, TRACK, ease(mk)); drawMarble(ctx, p.x, p.y, g.cellW * 0.2, GLASS, { rot: mk * 40 }); }
+  if (mk < 1) { const p = posAlong(g, 0, TRACK, ease(mk)); if (D3) v3.marbles.push({ ux: p.ux, uy: p.uy, rot: mk * 40 }); else drawMarble(ctx, p.x, p.y, g.cellW * 0.2, GLASS, { rot: mk * 40 }); }
   // title
   const gr = ctx.createLinearGradient(0, 70, 0, 200);
   gr.addColorStop(0, light(th.accent, 0.55)); gr.addColorStop(0.5, th.accent); gr.addColorStop(1, '#9a7428');
@@ -377,14 +382,15 @@ const pulse = (S, rate = 5) => 0.5 + 0.5 * Math.sin(S.t * rate);
 // Board scene: the carved board, highlights, lions, marbles, particles.
 function drawBoardScene(ctx, S, M, g, lay, auto) {
   const th = theme(S), st = M.st, acc = th.accent.length === 7 ? th.accent : '#f1c45a';
-  const t = S.t, pl = pulse(S);
-  drawBoard(ctx, th, g, S.baked, t);
+  const t = S.t, pl = pulse(S), D3 = v3.on && g.p3;
+  const mark = (cell, col, fill, line) => v3.marks.push({ cell, col, fill, line });
+  if (!D3) drawBoard(ctx, th, g, S.baked, t);
   const p = st.turn;
   // last move trail
   if (M.lastMove && !M.lastMove.pass && !M.over && M.lastMove.to != null) {
     const lm = M.lastMove, a = cellOf(lm.from), b = isHome(lm.to) ? (st.mode === 'full' ? 0 : HEAD) : cellOf(lm.to);
-    if (b >= 1) fillCell(ctx, g, b, 0.98, alpha(acc, 0.1 + 0.06 * pl), null);
-    if (a >= 1) fillCell(ctx, g, a, 0.98, alpha(acc, 0.06), null);
+    if (D3) { if (b >= 1) mark(b, acc, 0.1 + 0.06 * pl, 0.3); if (a >= 1) mark(a, acc, 0.06, 0.15); }
+    else { if (b >= 1) fillCell(ctx, g, b, 0.98, alpha(acc, 0.1 + 0.06 * pl), null); if (a >= 1) fillCell(ctx, g, a, 0.98, alpha(acc, 0.06), null); }
   }
   // choices: the lit stones and the lions that can go
   const choosing = M.phase === 'choose' && ((humanTurn(M) && !auto) || (auto && auto.phase === 'reveal'));
@@ -399,6 +405,7 @@ function drawBoardScene(ctx, S, M, g, lay, auto) {
     if (dc < 1) continue;
     const isSel = selAct === a, isChosen = chosen && chosen.i === a.i && chosen.adj === a.adj && chosen.from === a.from;
     const col = a.kind === 'capture' ? '#ff7a5c' : a.kind === 'safe' || a.kind === 'head' || a.kind === 'home' ? '#ffe08a' : acc;
+    if (D3) { mark(dc, col.length === 7 ? col : acc, (isSel || isChosen ? 0.34 : 0.15) + 0.1 * pl, isSel || isChosen ? 1 : 0.62 + (isChosen && auto ? 0.3 * pl : 0)); continue; }
     fillCell(ctx, g, dc, 0.98, alpha(col.length === 7 ? col : acc, (isSel || isChosen ? 0.34 : 0.15) + 0.1 * pl), col, isSel || isChosen ? 4 : 2.5);
     if (isChosen && auto) fillCell(ctx, g, dc, 1.1, null, alpha(col, 0.5 + 0.5 * pl), 4);
   }
@@ -411,7 +418,8 @@ function drawBoardScene(ctx, S, M, g, lay, auto) {
     ctx.beginPath(); path.forEach((q, i) => (i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y))); ctx.stroke(); ctx.restore();
     if (dc >= 1) {
       const q = g.cells[dc];
-      drawLion(ctx, q.x, q.y + g.cellW * 0.06, g.cellW * 1.2, PALETTE[p % 6], { face: faceAt(g, dc, false), alpha: 0.42 + 0.2 * pl, shadow: false });
+      if (D3) v3.lions.push({ id: 'ghost', q: p % 6, ux: q.ux, uy: q.uy, ang: q.uang, alpha: 0.4 + 0.2 * pl, ghost: true });
+      else drawLion(ctx, q.x, q.y + g.cellW * 0.06, g.cellW * 1.2, PALETTE[p % 6], { face: faceAt(g, dc, false), alpha: 0.42 + 0.2 * pl, shadow: false });
     }
   }
   // ring on the lions that could move
@@ -425,11 +433,11 @@ function drawBoardScene(ctx, S, M, g, lay, auto) {
       if (isHome(c) && st.mode === 'full') return;
       if (isHome(c) || cellOf(c) === HEAD) { headIdx.push(i); return; }
       const pt = g.cells[cellOf(c)];
-      draw.push({ y: pt.y, q, i, x: pt.x, py: pt.y, cell: cellOf(c), back: isBack(c) });
+      draw.push({ y: pt.y, q, i, x: pt.x, py: pt.y, cell: cellOf(c), back: isBack(c), ux: pt.ux, uy: pt.uy, hd: pt.uang + (isBack(c) ? Math.PI : 0) });
     });
     headIdx.forEach((i, k) => {
       const n = headIdx.length, a = (k / Math.max(1, n)) * Math.PI * 2 + (q * 0.9) - Math.PI / 2, rr0 = n > 1 ? g.head.r * 0.34 : 0;
-      draw.push({ y: g.head.y + Math.sin(a) * rr0, q, i, x: g.head.x + Math.cos(a) * rr0, py: g.head.y + Math.sin(a) * rr0, cell: HEAD, head: true });
+      draw.push({ y: g.head.y + Math.sin(a) * rr0, q, i, x: g.head.x + Math.cos(a) * rr0, py: g.head.y + Math.sin(a) * rr0, cell: HEAD, head: true, ux: 0.5 + Math.cos(a) * (n > 1 ? SPIRAL.headR * 0.4 : 0), uy: 0.5 + Math.sin(a) * (n > 1 ? SPIRAL.headR * 0.4 : 0), hd: a + Math.PI / 2 });
     });
   }
   // the lion in motion
@@ -443,7 +451,7 @@ function drawBoardScene(ctx, S, M, g, lay, auto) {
     const mx = pa.x + (pb.x - pa.x) * r0, my = pa.y + (pb.y - pa.y) * r0;
     const hop = a.t < 0 || a.t > a.dur ? 0 : Math.abs(Math.sin(e * steps * Math.PI));
     const face = pb.x < pa.x - 0.01 ? -1 : pb.x > pa.x + 0.01 ? 1 : -1;
-    draw.push({ y: my + 1000, q: a.p, i: a.i, x: mx, py: my, cell: -1, hop, face, moving: true });
+    draw.push({ y: my + 1000, q: a.p, i: a.i, x: mx, py: my, cell: -1, hop, face, moving: true, ux: pa.ux + (pb.ux - pa.ux) * r0, uy: pa.uy + (pb.uy - pa.uy) * r0, hd: Math.atan2(pb.uy - pa.uy, pb.ux - pa.ux) + (a.toCell < a.fromCell ? 0 : 0) });
   }
   draw.sort((u, v) => u.y - v.y);
   const lionS = g.cellW * 1.2;
@@ -457,13 +465,15 @@ function drawBoardScene(ctx, S, M, g, lay, auto) {
     const small = d.head ? 0.62 : 1;
     const o = { face: d.face ?? faceAt(g, d.cell, d.back), lift: d.moving ? d.hop * 0.8 : sel ? 0.6 : 0, glow: sel ? 0.8 : isChosenLion ? 0.6 + 0.4 * pl : movable ? 0.25 + 0.2 * pl : (M.over && M.over.winner === d.q ? 0.5 + 0.3 * Math.sin(M.winT * 6) : 0), scale: small };
     if (M.over && M.over.winner !== d.q) o.dim = true;
-    drawLion(ctx, d.x, d.py + g.cellW * 0.06, lionS, pal, o);
+    if (D3) v3.lions.push({ id: `${d.q}:${d.i}`, q: d.q % 6, ux: d.ux, uy: d.uy, ang: d.hd, lift: o.lift, glow: o.glow, dim: Boolean(o.dim), scale: d.head ? 0.8 : 1, moving: Boolean(d.moving), hop: d.hop ?? 0 });
+    else drawLion(ctx, d.x, d.py + g.cellW * 0.06, lionS, pal, o);
   }
   // captured lions (still standing until the mover arrives, then shrinking away)
   for (const gh of M.ghosts) {
     const q = g.cells[Math.max(1, gh.cell)], pal = PALETTE[gh.p % 6];
-    if (gh.t < gh.delay) { drawLion(ctx, q.x, q.y + g.cellW * 0.06, lionS, pal, { face: faceAt(g, gh.cell, false), lift: 0 }); continue; }
+    if (gh.t < gh.delay) { if (D3) v3.lions.push({ id: `x${gh.p}:${gh.cell}`, q: gh.p % 6, ux: q.ux, uy: q.uy, ang: q.uang }); else drawLion(ctx, q.x, q.y + g.cellW * 0.06, lionS, pal, { face: faceAt(g, gh.cell, false), lift: 0 }); continue; }
     const k = clamp01((gh.t - gh.delay) / gh.dur);
+    if (D3) { v3.lions.push({ id: `x${gh.p}:${gh.cell}`, q: gh.p % 6, ux: q.ux, uy: q.uy, ang: q.uang, alpha: 1 - k, scale: 1 - 0.35 * k, lift: k * 1.2 }); continue; }
     drawLion(ctx, q.x, q.y + g.cellW * 0.06, lionS, pal, { face: faceAt(g, gh.cell, false), alpha: 1 - k, scale: 1 - 0.35 * k, lift: k * 1.2, shadow: false });
   }
   void penHint;
@@ -478,7 +488,8 @@ function drawBoardScene(ctx, S, M, g, lay, auto) {
       let x, y, rot;
       if (kk < 0.18) { const a = kk / 0.18; x = src.x + (g.cells[0].x - src.x) * a; y = src.y + (g.cells[0].y - src.y) * a - Math.sin(a * Math.PI) * 30; rot = a * 6; }
       else { const a = (kk - 0.18) / 0.82; const q = posAlong(g, 0, TRACK, a); x = q.x; y = q.y; rot = a * 60; }
-      drawMarble(ctx, x, y, g.cellW * 0.2, GLASS, { rot, alpha: 1 - (kk > 0.95 ? (kk - 0.95) * 20 : 0) });
+      if (D3 && kk >= 0.18) { const q = posAlong(g, 0, TRACK, (kk - 0.18) / 0.82); v3.marbles.push({ ux: q.ux, uy: q.uy, rot, alpha: 1 - (kk > 0.95 ? (kk - 0.95) * 20 : 0) }); }
+      else drawMarble(ctx, x, y, g.cellW * 0.2, GLASS, { rot, alpha: 1 - (kk > 0.95 ? (kk - 0.95) * 20 : 0) });
     } else if (m.kind === 'steal' && lay && lay.plates) {
       const a = plateMarblePt(lay, m.from), b = plateMarblePt(lay, m.to), kk = smooth(k);
       drawMarble(ctx, a.x + (b.x - a.x) * kk, a.y + (b.y - a.y) * kk - Math.sin(kk * Math.PI) * 50, g.cellW * 0.2, GLASS, { rot: kk * 10 });
@@ -489,7 +500,7 @@ function drawBoardScene(ctx, S, M, g, lay, auto) {
   }
   // auto "think" scan
   if (auto && auto.phase === 'think' && auto.scan != null) {
-    const c = auto.scan; if (c >= 1) fillCell(ctx, g, c, 1.05, null, 'rgba(255,255,255,0.7)', 3);
+    const c = auto.scan; if (c >= 1) { if (D3) mark(c, '#ffffff', 0, 0.9); else fillCell(ctx, g, c, 1.05, null, 'rgba(255,255,255,0.7)', 3); }
   }
   drawParticles(ctx, M.parts);
 }
@@ -604,7 +615,7 @@ function drawPlay(ctx, S) {
   const auto = S.scene === 'auto' ? S.auto : null;
   const lay = playFrame(S.w, S.h, z, M.st.n);
   background(ctx, th, S.t, lay.board.y + lay.board.side / 2, false, lay.board.x + lay.board.side / 2);
-  for (const c of lay.cards) { ctx.fillStyle = 'rgba(8,5,3,0.3)'; rr(ctx, c.x, c.y, c.w, c.h, 24); ctx.fill(); ctx.strokeStyle = th.stroke; ctx.globalAlpha = 0.5; ctx.lineWidth = 1.5; rr(ctx, c.x, c.y, c.w, c.h, 24); ctx.stroke(); ctx.globalAlpha = 1; }
+  for (const c of lay.cards) { ctx.fillStyle = 'rgba(8,5,3,0.3)'; rr(ctx, c.x, c.y, c.w, c.h, 24); ctx.fill(); ctx.strokeStyle = th.stroke; ctx.globalAlpha = 0.5; ctx.lineWidth = 1.5; rr(ctx, c.x, c.y, c.w, c.h, 24); ctx.stroke(); ctx.globalAlpha = 1; if (v3.on) studs(ctx, th, c.x, c.y, c.w, c.h, 24); }
   const sub = auto ? tr('watchSub', { n: THINK_STEPS[S.thinkIdx] }) : tr('lengthLine', { n: M.st.n, len: lenName(M.length) });
   drawHud(ctx, S, lay, 'Mehen', sub, !auto && lay.mode === 'stack');
   for (let i = 0; i < M.st.n; i++) drawPlate(ctx, S, M, lay.plates[i], i);

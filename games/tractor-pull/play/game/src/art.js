@@ -64,8 +64,8 @@ export function stepFx(parts, dt) {
 
 // ---- the camera ----------------------------------------------------------------------------------------------------------
 export function makeCam(rect, p) {
-  const s = Math.max(26, Math.min(96, Math.min(rect.w / 10.6, rect.h / 5.0)));
-  const gy = rect.y + Math.max(rect.h * 0.58, Math.min(rect.h * 0.8, rect.h - 3.4 * s)), ax = rect.x + rect.w * 0.6;
+  const s = Math.max(26, Math.min(100, Math.min(rect.w / 10.2, rect.h / 5.0)));
+  const gy = rect.y + Math.max(rect.h * 0.58, Math.min(rect.h * 0.74, rect.h - 3.0 * s)), ax = rect.x + rect.w * 0.58;
   return { s, gy, ax, camX: p.x, rect, X: (wx) => ax + (wx - p.x) * s, Y: (wy) => gy - wy * s };
 }
 

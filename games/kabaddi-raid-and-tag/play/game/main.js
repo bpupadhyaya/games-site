@@ -1,7 +1,7 @@
 import { boot } from './kit/index.js';
 import { createGame, meta, wheelInput } from './src/game.js';
 import { host } from './src/layout.js';
-import { setLogo, setLockup } from './src/brand.js';
+import { setLogo, setLockup, setHero } from './src/brand.js';
 
 const canvas = document.getElementById('game');
 
@@ -26,6 +26,7 @@ import('./view3d/presenter.js').then((m) => m.createPresenter({ kitCanvas: canva
 
 // The Arcforge badge and the themed lockup (see src/brand.js): optional, the screens read without them.
 const af = new Image(); af.onload = () => setLogo(af); af.src = './brand/arcforge-af.png';
+const hr = new Image(); hr.onload = () => setHero(hr); hr.src = './brand/hero.jpg';
 const lk = new Image(); lk.onload = () => setLockup(lk); lk.src = './brand/arcforge-lockup.png';
 
 const booted = boot({

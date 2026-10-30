@@ -25,7 +25,7 @@ export function camFor(aspect) {
   let c = camCache.get(key);
   if (c) return c;
   const t0 = clamp((aspect - 0.9) / (1.5 - 0.9), 0, 1), t = t0 * t0 * (3 - 2 * t0);
-  const P = initialCam(), f0 = fovFor(aspect);
+  const P = initialCam(), f0 = fovFor(aspect) * (1 - 0.15 * clamp((aspect - 0.62) / 0.14, 0, 1));   // tablets in portrait: tighter lens so the court fills the field
   const mix = (a, b) => a + (b - a) * t;
   c = { x: mix(P.x, LAND.x), y: mix(P.y, LAND.y), z: mix(P.z, LAND.z), lx: mix(P.lx, LAND.lx), ly: mix(P.ly, LAND.ly), lz: mix(P.lz, LAND.lz), fov: mix(f0, LAND.fov) };
   camCache.set(key, c);

@@ -351,7 +351,7 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
       frame(rect, Ly, hero, { pitch: land ? 16 : 14, fov: 38, dir: [Math.cos((a * Math.PI) / 180), -Math.sin((a * Math.PI) / 180)], lat: land ? 3.6 : 3.4, ax: 0.5, ay: 0.62 });
     } else if (sc === 'play') {
       if (land) frame(rect, Ly, F, { pitch: 42, fov: 40, yaw: 0, lat: 3.4, ax: 0.32, ay: 0.55 });
-      else frame(rect, Ly, F, { pitch: 50, fov: 42, yaw: 0, lat: 4.4, ax: 0.5, ay: 0.7 });
+      else frame(rect, Ly, F, { pitch: 40, fov: 42, yaw: 0, lat: 3.3, ax: 0.5, ay: 0.68 });
     } else frame(rect, Ly, F, land ? { pitch: 40, fov: 42, yaw: 0, lat: 7.5, ax: 0.5, ay: 0.55 } : { pitch: 46, fov: 44, yaw: 0, lat: 7.0, ax: 0.5, ay: 0.7 });
     { const a = v3.proj(me.s, me.n, 0), b = v3.proj(me.s + 1, me.n, 0), c = v3.proj(me.s, me.n + 1, 0); v3.ppm = Math.max(18, (Math.hypot(b.x - a.x, b.y - a.y) + Math.hypot(c.x - a.x, c.y - a.y)) / 2); }
     if (scenery) scenery.update(dts, camera);

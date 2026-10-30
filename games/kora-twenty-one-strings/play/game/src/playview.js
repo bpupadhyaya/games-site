@@ -1,9 +1,10 @@
 // Drawing for the playing screens: the stage (strings, notes, bridge, calabash, fingers, sparks), the HUD, free play and calibration.
 import { PAL, UI, DISPLAY, drawBackdrop, drawMat, drawString, drawNote, drawCalabash, drawBridge, drawPost, drawFinger, drawPopup, drawParticles, handColor, handRGB } from './art.js';
-import { txt, button, panel, rrect, chip, wrap } from './ui.js';
+import { txt, button, panel, rrect, chip, wrap, plaque } from './ui.js';
 import { menuRects, stringMap, xAt } from './layout.js';
 import { SPEEDS, ENSEMBLE, STRING_COUNT, barDur, comboMult, handOf, stringName, FINGER_NAMES } from './music.js';
 import { drawCredit, edgeStroke } from './brand.js';
+import { use3d, flatAlpha, glowOp } from './v3.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const TAU = Math.PI * 2;
@@ -25,17 +26,18 @@ function bodyGeo(G, wide) {
 export function drawStage(ctx, st, L, sess, G, o) {
   const { w, h } = L, t = sess.t, pulse = sess.pulse, pl = o.pl, free = !pl;
   ctx.save();
-  drawBackdrop(ctx, w + 20, h + 20, st.t, pulse);
+  // with the 3D layer the courtyard, mat, strings, calabash, bridge and posts are real geometry behind this canvas (fa -> 0)
+  const d3 = use3d(st.scene), fa = flatAlpha(st.scene);
   const B = bodyGeo(G, L.mode === 'wide'), map = stringMap(G, pl ? pl.piece : null);
-  drawMat(ctx, w, h, G.bridgeY - 20, G.cx, pulse);
+  if (fa > 0) { ctx.save(); ctx.globalAlpha = fa; drawBackdrop(ctx, w + 20, h + 20, st.t, pulse); drawMat(ctx, w, h, G.bridgeY - 20, G.cx, pulse); ctx.restore(); }
   const appr = SPEEDS[st.prefs.speedIdx].approach;
   const lanes = pl ? G.lanesFor(pl.piece.lanes.length) : null;
 
   // ---- the board the strings run over: a dark, softly lit perspective strip
   {
     const xl = G.ax + 8, xr = G.ax + G.aw - 8, far = G.far, cx = G.cx;
-    const g = ctx.createLinearGradient(0, G.laneTop - 40, 0, G.bridgeY);
-    g.addColorStop(0, 'rgba(12,5,12,0)'); g.addColorStop(0.18, 'rgba(18,7,14,0.55)'); g.addColorStop(1, 'rgba(26,10,14,0.78)');
+    const g = ctx.createLinearGradient(0, G.laneTop - 40, 0, G.bridgeY), sk = d3 ? 0.42 + 0.58 * fa : 1;
+    g.addColorStop(0, 'rgba(12,5,12,0)'); g.addColorStop(0.18, `rgba(18,7,14,${0.55 * sk})`); g.addColorStop(1, `rgba(26,10,14,${0.78 * sk * (d3 ? 0.35 + 0.65 * fa : 1)})`);
     ctx.fillStyle = g; ctx.beginPath();
     ctx.moveTo(cx + (xl - cx) * far, G.laneTop - 40); ctx.lineTo(cx + (xr - cx) * far, G.laneTop - 40); ctx.lineTo(xr, G.bridgeY); ctx.lineTo(xl, G.bridgeY); ctx.closePath(); ctx.fill();
     ctx.strokeStyle = 'rgba(255,214,160,0.16)'; ctx.lineWidth = 2; ctx.beginPath();
@@ -61,18 +63,26 @@ export function drawStage(ctx, st, L, sess, G, o) {
     }
   }
   // all 21 strings, running from the far end to the bridge; the ones you play are bright
-  for (let i = 0; i < STRING_COUNT; i++) {
-    const lane = map.lane[i], mine = lane >= 0, sv = sess.sv[i];
-    drawString(ctx, map.xt[i], G.laneTop - 40, map.x[i], G.bridgeY, i, sv.amp, st.t, { thick: mine ? 4.2 : 2.6, dim: mine || free ? 1 : 0.22 });
+  if (fa > 0) {
+    ctx.save(); ctx.globalAlpha = fa;
+    for (let i = 0; i < STRING_COUNT; i++) {
+      const lane = map.lane[i], mine = lane >= 0, sv = sess.sv[i];
+      drawString(ctx, map.xt[i], G.laneTop - 40, map.x[i], G.bridgeY, i, sv.amp, st.t, { thick: mine ? 4.2 : 2.6, dim: mine || free ? 1 : 0.22 });
+    }
+    ctx.restore();
   }
   // ---- calabash, bridge, hand posts (kept inside the stage so side panels stay clean)
   ctx.save(); ctx.beginPath(); ctx.rect(G.ax, G.laneTop - 60, G.aw, h); ctx.clip();
-  drawCalabash(ctx, B.cx, B.cy, B.rx, B.ry, sess.glow || 0);
-  const bx0 = Math.min(...map.x) - 14, bx1 = Math.max(...map.x) + 14;
-  drawBridge(ctx, Math.max(G.ax + 20, bx0), Math.min(G.ax + G.aw - 20, bx1), G.bridgeY + 8, Math.max(22, B.ry * 0.11), sess.glow || 0);
-  const postY0 = B.cy + B.ry * 0.7, postTop = G.bridgeY - 30;
-  drawPost(ctx, B.cx - B.rx * 0.9, postY0, G.ax + 2, postTop + 40, Math.max(14, B.rx * 0.05));
-  drawPost(ctx, B.cx + B.rx * 0.9, postY0, G.ax + G.aw - 2, postTop + 40, Math.max(14, B.rx * 0.05));
+  if (fa > 0) {
+    ctx.save(); ctx.globalAlpha = fa;
+    drawCalabash(ctx, B.cx, B.cy, B.rx, B.ry, sess.glow || 0);
+    const bx0 = Math.min(...map.x) - 14, bx1 = Math.max(...map.x) + 14;
+    drawBridge(ctx, Math.max(G.ax + 20, bx0), Math.min(G.ax + G.aw - 20, bx1), G.bridgeY + 8, Math.max(22, B.ry * 0.11), sess.glow || 0);
+    const postY0 = B.cy + B.ry * 0.7, postTop = G.bridgeY - 30;
+    drawPost(ctx, B.cx - B.rx * 0.9, postY0, G.ax + 2, postTop + 40, Math.max(14, B.rx * 0.05));
+    drawPost(ctx, B.cx + B.rx * 0.9, postY0, G.ax + G.aw - 2, postTop + 40, Math.max(14, B.rx * 0.05));
+    ctx.restore();
+  }
 
   // targets on the bridge
   if (lanes) for (const ln of lanes) {
@@ -80,7 +90,7 @@ export function drawStage(ctx, st, L, sess, G, o) {
     ctx.save();
     ctx.strokeStyle = `rgba(255,248,230,${0.45 + 0.4 * amp})`; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(ln.cx, G.bridgeY, nr * 1.08, 0, TAU); ctx.stroke();
     ctx.strokeStyle = `rgba(${rgb},${0.7})`; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(ln.cx, G.bridgeY, nr * 1.28, 0, TAU); ctx.stroke();
-    if (amp > 0.02) { ctx.globalCompositeOperation = 'lighter'; const gg = ctx.createRadialGradient(ln.cx, G.bridgeY, 2, ln.cx, G.bridgeY, nr * 2.4); gg.addColorStop(0, `rgba(${rgb},${0.6 * amp})`); gg.addColorStop(1, `rgba(${rgb},0)`); ctx.fillStyle = gg; ctx.beginPath(); ctx.arc(ln.cx, G.bridgeY, nr * 2.4, 0, TAU); ctx.fill(); }
+    if (amp > 0.02) { ctx.globalCompositeOperation = glowOp(); const gg = ctx.createRadialGradient(ln.cx, G.bridgeY, 2, ln.cx, G.bridgeY, nr * 2.4); gg.addColorStop(0, `rgba(${rgb},${0.6 * amp})`); gg.addColorStop(1, `rgba(${rgb},0)`); ctx.fillStyle = gg; ctx.beginPath(); ctx.arc(ln.cx, G.bridgeY, nr * 2.4, 0, TAU); ctx.fill(); }
     ctx.restore();
   }
   // notes
@@ -114,6 +124,19 @@ export function drawStage(ctx, st, L, sess, G, o) {
     const fg = sess.fg[f], kind = f % 2 === 0 ? 'thumb' : 'index', hand = f < 2 ? 'L' : 'R';
     const x = fg.x === null ? defaults[f] : fg.x;
     const tipY = restY - clamp(fg.lift, 0, 1) * (restY - (G.bridgeY + 16));
+    if (d3) {
+      // 3D: no drawn hands (a cartoon finger would sit badly on the real instrument). Each finger is a soft light that rises to the
+      // string it plucks, with its name, so Watch and Learn still shows which finger plays.
+      if (!o.fingerNames && fg.glow < 0.02) continue;
+      const fy = restY - clamp(fg.lift, 0, 1) * (restY - (G.bridgeY + 34)), rgb = handRGB(hand), rr = size * (kind === 'thumb' ? 0.42 : 0.34);
+      ctx.save(); ctx.globalCompositeOperation = glowOp();
+      const gg = ctx.createRadialGradient(x, fy, 1, x, fy, rr * (2.4 + fg.glow)); gg.addColorStop(0, `rgba(${rgb},${0.5 + 0.4 * fg.glow})`); gg.addColorStop(1, `rgba(${rgb},0)`);
+      ctx.fillStyle = gg; ctx.beginPath(); ctx.arc(x, fy, rr * (2.4 + fg.glow), 0, TAU); ctx.fill(); ctx.restore();
+      ctx.strokeStyle = `rgba(${rgb},0.95)`; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(x, fy, rr, 0, TAU); ctx.stroke();
+      ctx.fillStyle = 'rgba(255,248,232,0.9)'; ctx.beginPath(); ctx.arc(x, fy, rr * 0.38, 0, TAU); ctx.fill();
+      if (o.fingerNames) txt(ctx, ['L thumb', 'L index', 'R thumb', 'R index'][f], x, fy + rr + 20 + (f % 2) * 22, 18, handColor(hand), { align: 'center', weight: 800, stroke: 5 });
+      continue;
+    }
     drawFinger(ctx, x, tipY, size * (kind === 'thumb' ? 1.05 : 0.8), kind, hand, G.bottom + 20, fg.glow);
     if (o.fingerNames) txt(ctx, ['L thumb', 'L index', 'R thumb', 'R index'][f], x, tipY - 18 - (f % 2) * 22, 17, handColor(hand), { align: 'center', weight: 800, stroke: 5 });
   }
@@ -227,6 +250,7 @@ export function renderPlay(ctx, st, L, view, meta, pauseItems) {
     if (kind) chip(ctx, G.ax + G.aw / 2, S.y + 40, KIND_LABEL[kind] + ` · ${pl.piece.name}`, 24, { align: 'center', color: KIND_COL[kind], fill: 'rgba(14,10,36,0.7)' });
   } else {
     const sc = P.score, tall = L.mode === 'tall';
+    if (use3d(st.scene)) plaque(ctx, { x: S.x + 8, y: S.y + 10, w: S.w - 16, h: P.hudTop.y + P.hudTop.h - S.y - 8 }, 26, 0.8);   // the HUD sits on a plaque over the far strings
     txt(ctx, 'SCORE', sc.x + 8, sc.y + 18, 20, PAL.gold, { weight: 800 });
     txt(ctx, String(pl.score), sc.x + 8, sc.y + 56, tall ? 54 : 46, PAL.text, { weight: 800, maxW: sc.w * 0.6 });
     txt(ctx, 'COMBO', sc.x + sc.w - 8, sc.y + 18, 20, PAL.gold, { align: 'right', weight: 800 });
@@ -277,6 +301,8 @@ export function renderFree(ctx, st, L, meta) {
     tips.forEach((tp, i) => { ctx.font = `500 21px ${UI}`; wrapText(ctx, tp, mid.x + 18, mid.y + 100 + i * 84, mid.w - 36, 26, PAL.text); });
     drawCredit(ctx, mid.x + mid.w / 2, mid.y + mid.h - 18, 11.5, { dim: 0.8 });
   } else {
+    if (use3d(st.scene)) plaque(ctx, { x: S.x + 8, y: S.y + 6, w: S.w - 16, h: mid.y + mid.h + 58 - S.y }, 24, 0.82);
+    button(ctx, F.exit, 'Back', { icon: 'back', kind: 'ghost', size: 28 });
     txt(ctx, 'FREE PLAY', S.x + S.w / 2, mid.y + mid.h / 2, 40, PAL.gold, { align: 'center', font: DISPLAY, weight: 700, stroke: 6, maxW: S.w * 0.4 });
     txt(ctx, f.echo ? (f.hits ? 'Stop for a moment and a partner answers' : 'Tap a string, or slide across them') : 'Tap a string, or slide across them', S.x + S.w / 2, mid.y + mid.h + 30, 22, PAL.dim, { align: 'center', weight: 600, maxW: S.w - 40 });
   }
@@ -300,7 +326,7 @@ export function renderCalib(ctx, st, L) {
   const g = ctx.createRadialGradient(p.x - r * 0.3, p.y - r * 0.35, r * 0.1, p.x, p.y, r);
   g.addColorStop(0, '#fff6dc'); g.addColorStop(0.5, '#ffb347'); g.addColorStop(1, '#b8661a');
   ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, 6.3); ctx.fill(); ctx.lineWidth = 6; ctx.strokeStyle = 'rgba(255,250,235,0.9)'; ctx.stroke();
-  ctx.save(); ctx.globalCompositeOperation = 'lighter'; const gl = ctx.createRadialGradient(p.x, p.y, 5, p.x, p.y, r * 1.6); gl.addColorStop(0, `rgba(255,170,70,${0.6 * c.pulse + 0.7 * c.flash})`); gl.addColorStop(1, 'rgba(255,170,70,0)'); ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(p.x, p.y, r * 1.6, 0, 6.3); ctx.fill(); ctx.restore();
+  ctx.save(); ctx.globalCompositeOperation = glowOp(); const gl = ctx.createRadialGradient(p.x, p.y, 5, p.x, p.y, r * 1.6); gl.addColorStop(0, `rgba(255,170,70,${0.6 * c.pulse + 0.7 * c.flash})`); gl.addColorStop(1, 'rgba(255,170,70,0)'); ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(p.x, p.y, r * 1.6, 0, 6.3); ctx.fill(); ctx.restore();
   // a ring that closes on the next beat
   if (c.phase === 'run') {
     const next = c.T0 + (Math.floor(Math.max(0, (c.t - c.T0)) * c.bpm / 60) + (c.t < c.T0 ? 0 : 1)) * 60 / c.bpm, u = clamp((next - c.t) / (60 / c.bpm), 0, 1);

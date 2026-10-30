@@ -1,7 +1,7 @@
 // The play screen furniture drawn over the arena: scoreboard, clock, run cells, horse buttons, Burst, the steering knob, hint and Watch & Learn
 // panels, result banner. Pure drawing from the game state G; hit-testing uses the same rectangles (playLayout / watchRects).
 import { live, MIN_FONT, playLayout, THINK_STEPS } from './layout.js';
-import { FONT, DISPLAY, roundPath, drawButton, paintButton, leatherPlate, wrapLines, panel, textShadow, fitPx } from './ui.js';
+import { FONT, DISPLAY, roundPath, drawButton, paintButton, woodPlate, wrapLines, panel, textShadow, fitPx } from './ui.js';
 import { drawScene, makeCam } from './scene.js';
 import { HORSES, ROUNDS, RUNS_PER_ROUND, CHALLENGE_LIVES, KNOCK_S, HINT_COST } from './consts.js';
 
@@ -15,17 +15,14 @@ export function watchRects(L) {
 }
 
 const small = (ctx, px, wt = 400) => { ctx.font = `${wt} ${Math.max(MIN_FONT, Math.round(px))}px ${FONT}`; };
-function pill(ctx, x, y, w, h, fill = 'rgba(30,16,6,0.78)', stroke = 'rgba(255,255,255,0.22)') {
-  // a dark tooled-leather plaque with a brass edge and a row of stitches
-  void fill; void stroke;
-  const r = Math.min(24, h / 2);
-  roundPath(ctx, x, y + 4, w, h, r); ctx.fillStyle = 'rgba(10,4,0,0.35)'; ctx.fill();
-  leatherPlate(ctx, { x, y, w, h }, { look: { g: ['#4a3322', '#34210f', '#24160a'], edge: '#d6aa54', stitch: 'rgba(224,184,120,0.55)', hi: 0.16 }, r, stitch: h > 64 });
+function pill(ctx, x, y, w, h) {
+  // a wood plaque with a brass rim (the HUD plaques)
+  woodPlate(ctx, { x, y, w, h });
 }
 
 // the runs of a round as little cells showing the net time of each
 function cells(ctx, x, y, w, n, results, cur) {
-  const gap = Math.min(150, (w - 8) / n), cw = gap - 10, ch = 32;
+  const gap = Math.min(150, (w - 8) / n), cw = gap - 10, ch = 30;
   const x0 = x + w / 2 - gap * n / 2 + 5;
   for (let i = 0; i < n; i++) {
     const cx = x0 + i * gap, a = results[i];
@@ -65,10 +62,10 @@ export function renderHud(ctx, G) {
   // a narrow board (landscape phone) drops the long part of the title rather than overflowing
   { ctx.font = `700 ${MIN_FONT}px ${FONT}`; const wide = (t) => ctx.measureText(t).width > bw;
     if (wide(t1)) t1 = t1.split(' · ')[0] === t1 ? t1 : (wide(t1.split(' · ').slice(0, -1).join(' · ')) ? t1.split(' · ')[0] : t1.split(' · ').slice(0, -1).join(' · ')); }
-  const f1 = fitPx(ctx, t1, 700, 28, bw, MIN_FONT), f2 = fitPx(ctx, t2, 700, 34, bw, MIN_FONT);
+  const f1 = fitPx(ctx, t1, 700, 26, bw, MIN_FONT), f2 = fitPx(ctx, t2, 800, 32, bw, MIN_FONT);
   ctx.fillStyle = 'rgba(255,255,255,0.78)'; ctx.font = `700 ${f1}px ${FONT}`; ctx.fillText(t1, B.x + B.w / 2, B.y + 10 + f1 * 0.85);
   ctx.fillStyle = '#fff'; ctx.font = `800 ${f2}px ${FONT}`; ctx.fillText(t2, B.x + B.w / 2, B.y + 14 + f1 + f2 * 0.82);
-  if ((mode === 'cup' || mode === 'watch' || mode === 'shot') && B.h > 100) cells(ctx, B.x, B.y + B.h - 26, B.w, RUNS_PER_ROUND, R.mine, R.runIdx);
+  if ((mode === 'cup' || mode === 'watch' || mode === 'shot') && B.h > 100) cells(ctx, B.x, B.y + B.h - 24, B.w, RUNS_PER_ROUND, R.mine, R.runIdx);
 
   // the clock
   if (s) {
@@ -110,7 +107,7 @@ export function renderHud(ctx, G) {
   if (s && s.phase === 'ride' && !s.finished && mode !== 'watch') {
     const r = L.burst, ready = !s.burstUsed;
     paintButton(ctx, r, { primary: ready, dark: !ready });
-    ctx.save(); ctx.fillStyle = ready ? '#fffaf0' : 'rgba(255,255,255,0.45)'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.save(); ctx.fillStyle = ready ? '#2a1606' : 'rgba(255,255,255,0.45)'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     small(ctx, Math.min(40, r.h * 0.3), 800); ctx.fillText(s.burstT > 0 ? 'GO!' : 'Burst', r.x + r.w / 2, r.y + r.h / 2 - 4);
     small(ctx, 22, 700); ctx.fillText(s.burstT > 0 ? '' : ready ? 'or flick up' : 'used', r.x + r.w / 2, r.y + r.h / 2 + r.h * 0.22);
     ctx.restore();

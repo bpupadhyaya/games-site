@@ -11,6 +11,7 @@ import { FONT, C, roundPath, drawButton, panel, textShadow, wrapLines } from './
 import { PROFILES } from './opponents.js';
 import { PER_SIDE } from './match.js';
 
+import { v3 } from './v3.js';
 const TAU = Math.PI * 2;
 const FALL_T = 0.5;
 const SHOT_MODE = (() => { try { return /[?&]shot=/.test(globalThis.location.search); } catch { return false; } })();
@@ -92,6 +93,15 @@ function drawDiscs(ctx, state, w, o = {}) {
       ctx.beginPath(); ctx.moveTo(d.x, d.y); ctx.lineTo(d.x - nx * len, d.y - ny * len); ctx.stroke();
     }
   }
+  if (v3.ready) {   // 3D layer draws the discs; hand over their pose
+    for (const d of discs) {
+      const hot = d.mode === 'live' && d.id === w.shot && !w.settled ? 0.7 : 0;
+      if (d.mode === 'live') v3.discs.push({ team: d.team, x: d.x, y: d.y, spin: d.spin, lift: hot ? 2 : 0, glow: Math.max(hot, d.heat ?? 0), sc: 1, a: 1 });
+      else if (d.mode === 'pocket') { const k = Math.min(1, d.fall / 0.45); if (k < 1) v3.discs.push({ team: d.team, x: d.x * (1 - k), y: d.y * (1 - k), spin: d.spin, lift: -k * 24, glow: 0, sc: 1 - 0.3 * k, a: 1 }); }
+      else if (d.mode === 'gutter') { const k = d.fall / FALL_T; if (k < 1) { const rc = Math.hypot(d.x, d.y) || 1; v3.discs.push({ team: d.team, x: d.x + (d.x / rc) * k * 18, y: d.y + (d.y / rc) * k * 18, spin: d.spin, lift: -k * 14, glow: 0, sc: 1 - 0.25 * k, a: 1 - k * k }); } }
+    }
+    return;
+  }
   for (const d of discs) {
     if (d.mode === 'live') {
       const hot = d.id === w.shot && !w.settled ? 0.7 : 0;
@@ -132,17 +142,25 @@ function drawParticles(ctx, parts) {
 
 // The table with whatever lies on it. o: { rot, scale, over(ctx) } - `over` draws in board coordinates after the discs.
 export function drawTable(ctx, state, w, parts, o = {}) {
-  const bg = ensureBackdrop(ctx);
-  if (bg) ctx.drawImage(bg, 0, 0, W, H); else drawBackdrop(ctx, W, H);
-  const spr = ensureBoard(ctx);
+  const live = v3.ready;
+  let spr;
+  if (live) {   // 3D: clear the kit's fill so the WebGL table shows through; board, pegs and discs are drawn by the presenter
+    ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height); ctx.restore();
+    v3.discs.length = 0; v3.pegFlash = state.pegFlash || null;
+    v3.table = { cx: o.cx ?? W / 2, cy: o.cy ?? H / 2, s: o.scale || 1, rot: o.rot ?? state.view?.rot ?? 0 };
+  } else {
+    const bg = ensureBackdrop(ctx);
+    if (bg) ctx.drawImage(bg, 0, 0, W, H); else drawBackdrop(ctx, W, H);
+    spr = ensureBoard(ctx);
+  }
   ctx.save();
   ctx.translate(o.cx ?? W / 2, o.cy ?? H / 2);
   ctx.rotate(o.rot ?? state.view?.rot ?? 0);
   if (o.scale) ctx.scale(o.scale, o.scale);
-  if (spr) ctx.drawImage(spr, -SPRITE_SIZE / 2, -SPRITE_SIZE / 2, SPRITE_SIZE, SPRITE_SIZE);
+  if (live) { /* 3D board */ } else if (spr) ctx.drawImage(spr, -SPRITE_SIZE / 2, -SPRITE_SIZE / 2, SPRITE_SIZE, SPRITE_SIZE);
   else if (spr === false) drawBoardDirect(ctx);
-  else BOARD_STAGES[0](ctx);
-  if (state.pegFlash) state.pegFlash.forEach((f, i) => { if (f > 0.02) drawPeg(ctx, PEGS[i].x, PEGS[i].y, f); });
+  else if (!live) BOARD_STAGES[0](ctx);
+  if (state.pegFlash && !live) state.pegFlash.forEach((f, i) => { if (f > 0.02) drawPeg(ctx, PEGS[i].x, PEGS[i].y, f); });
   if (o.base !== undefined) drawBaseGlow(ctx, o.base, state.t, o.baseStrength ?? 1);
   drawDiscs(ctx, state, w, o);
   drawParticles(ctx, parts);
@@ -192,7 +210,8 @@ function drawAim(ctx, state) {
   const T = TEAM[side];
   const dragging = !!(a.active || state.aiDrag);
   // the waiting disc, hovering a little
-  drawDisc(ctx, p.x, p.y, side, a.ang * 0.4, { lift: 7, glow: 0.35 + 0.2 * Math.sin(t * 5) });
+  if (v3.ready) v3.discs.push({ team: side, x: p.x, y: p.y, spin: a.ang * 0.4, lift: 9, glow: 0.45 + 0.25 * Math.sin(t * 5), sc: 1, a: 1 });
+  else drawDisc(ctx, p.x, p.y, side, a.ang * 0.4, { lift: 7, glow: 0.35 + 0.2 * Math.sin(t * 5) });
   if (state.blocked) {
     ctx.save(); ctx.strokeStyle = '#ff7a5a'; ctx.lineWidth = 4; ctx.globalAlpha = 0.65 + 0.3 * Math.sin(t * 9);
     ctx.beginPath(); ctx.arc(p.x, p.y, R_DISC + 7, 0, TAU); ctx.moveTo(p.x - 13, p.y - 13); ctx.lineTo(p.x + 13, p.y + 13); ctx.stroke(); ctx.restore();

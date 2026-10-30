@@ -181,7 +181,7 @@ export function layoutFor(state) { return playLayout(textScale(state), barSpecFo
 // control bar, so the town stays as large as it can be. The same numbers drive the 2D fallback and the 3D layer.
 // Three-quarter view: the thrower (waist up), the town and a row of onlookers behind the far board. The width is fitted on the short side
 // (wcap = 696 units), so the town is the same size in portrait and landscape; landscape only loses a little thrower at the bottom.
-export const playOpts = (mode) => ({ pitch: 30, dist: 15, wcap: 696, box: mode === 'wide' ? [1.3, -4.0, 4.4, 0.9, 1.75] : [1.12, -3.4, 4.8, 1.9, 1.0] });
+export const playOpts = (mode) => ({ pitch: mode === 'wide' ? 30 : 26, dist: mode === 'wide' ? 15 : 12, wcap: 696, box: mode === 'wide' ? [1.3, -4.0, 4.4, 0.9, 1.75] : [0.8, -3.8, 3.6, 2.1, 1.3] });
 export const heroOpts = () => ({ pitch: 24, dist: 17, box: [3.1, -4.6, 6.2, 2.0, 0.0] });
 export function camFor(state, lay) {
   const l = lay ?? layoutFor(state);

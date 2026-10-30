@@ -27,7 +27,7 @@ const GOLD = '#f2c14e', CREAM = '#fbf3e2', SKY = '#8fd3e6';
 function drawHero(ctx, w, flat) {
   ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
   const cx = w / 2, k = Math.min(1, (w - 20) / 640);
-  ctx.fillStyle = flat ? 'rgba(30,14,6,0.5)' : 'rgba(30,14,6,0.62)'; roundPath(ctx, 2, 40, w - 4, 288, 30); ctx.fill();
+  { const g = ctx.createLinearGradient(0, 40, 0, 328); g.addColorStop(0, flat ? 'rgba(91,61,39,0.78)' : 'rgba(91,61,39,0.94)'); g.addColorStop(1, flat ? 'rgba(47,28,16,0.78)' : 'rgba(47,28,16,0.94)'); ctx.fillStyle = g; roundPath(ctx, 2, 40, w - 4, 288, 30); ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = '#c9962f'; ctx.stroke(); }
   let px = Math.round(32 * k);
   ctx.font = `700 ${px}px ${FONT}`;
   const kick = 'A VILLAGE ROPE CONTEST';

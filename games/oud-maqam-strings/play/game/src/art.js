@@ -104,11 +104,12 @@ export function drawRug(ctx, r) {
 }
 
 // ---- the oud, in its own frame (u along the neck from the nut, v across) ---------------------------------------------------------------------------
-const PROFILE = [[0, 0.3], [0.1, 0.46], [0.2, 0.63], [0.32, 0.8], [0.45, 0.93], [0.6, 1], [0.74, 0.98], [0.86, 0.86], [0.94, 0.66], [0.985, 0.36], [1, 0]];
+export const PROFILE = [[0, 0.3], [0.1, 0.46], [0.2, 0.63], [0.32, 0.8], [0.45, 0.93], [0.6, 1], [0.74, 0.98], [0.86, 0.86], [0.94, 0.66], [0.985, 0.36], [1, 0]];
 function half(t) {
   for (let i = 1; i < PROFILE.length; i++) if (t <= PROFILE[i][0]) { const a = PROFILE[i - 1], b = PROFILE[i], k = (t - a[0]) / (b[0] - a[0]), s = k * k * (3 - 2 * k); return a[1] + (b[1] - a[1]) * s; }
   return 0;
 }
+export const bodyHalf = half;          // the body outline (0..1 along the body -> half width 0..1), shared with the 3D oud
 function bodyPath(u0, L, W, inset = 0) { return { u0, L, W, inset }; }
 function trace(ctx, b) {
   const n = 40;
@@ -148,11 +149,28 @@ function rosette(ctx, cu, R) {
   ctx.restore();
 }
 
+// Degree marks on the fingerboard (mother-of-pearl dots; a turquoise diamond for quarter-tones), in the instrument frame.
+function marks(ctx, G, o, uf, w0, w1) {
+  const { Lneck } = G;
+  if (o.marks !== false && o.maqam) {
+    const M = MAQAMAT[o.maqam];
+    M.deg.forEach((cts, i) => {
+      if (cts > G.span + 1) return;
+      const u = posOfCents(cts, G.span) * Lneck, q = M.q.includes(i);
+      ctx.strokeStyle = q ? 'rgba(53,199,184,0.55)' : 'rgba(242,196,109,0.28)'; ctx.lineWidth = q ? 2.4 : 1.6;
+      ctx.beginPath(); ctx.moveTo(u, -w0 / 2 - (w1 - w0) * u / uf / 2); ctx.lineTo(u, w0 / 2 + (w1 - w0) * u / uf / 2); ctx.stroke();
+      if (q) { ctx.fillStyle = PAL.turq; ctx.beginPath(); ctx.moveTo(u, -9); ctx.lineTo(u + 7, 0); ctx.lineTo(u, 9); ctx.lineTo(u - 7, 0); ctx.closePath(); ctx.fill(); }
+      else { ctx.fillStyle = i === 0 || i === 7 ? PAL.gold : PAL.pearl; ctx.beginPath(); ctx.arc(u, 0, i === 0 || i === 7 ? 6.5 : 5, 0, TAU); ctx.fill(); }
+    });
+  }
+}
+
 // Draw the whole instrument. G = geometry from layout.instGeo (with G.span set); o = { t, vib: {u, age} | null, marks, deg: maqam id | null }.
 export function drawOud(ctx, G, o = {}) {
   const [a, b, c, d, e, f] = G.matrix;
   const { Lneck, Lbody, bodyW, nutW } = G, uB = Lneck - Lbody * 0.02;
   ctx.save(); ctx.transform(a, b, c, d, e, f);
+  if (o.marksOnly) { marks(ctx, G, o, Lneck + Lbody * 0.12, nutW, nutW * 1.12); ctx.restore(); return; }     // the 3D oud is drawn behind; only the inlays
   // shadow on the rug
   ctx.save(); ctx.translate(10, 14); ctx.fillStyle = 'rgba(0,0,0,0.38)'; trace(ctx, bodyPath(uB, Lbody, bodyW)); ctx.fill(); ctx.restore();
   // pegbox and head
@@ -191,18 +209,7 @@ export function drawOud(ctx, G, o = {}) {
   ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(0, -w0 / 2); ctx.lineTo(uf, -w1 / 2); ctx.lineTo(uf, w1 / 2); ctx.lineTo(0, w0 / 2); ctx.closePath(); ctx.fill();
   ctx.strokeStyle = 'rgba(242,196,109,0.35)'; ctx.lineWidth = 2; ctx.stroke();
   ctx.fillStyle = '#efe6d2'; ctx.fillRect(-3, -w0 / 2, 6, w0);                                           // the nut
-  // degree marks (mother-of-pearl dots; a turquoise diamond for quarter-tones)
-  if (o.marks !== false && o.maqam) {
-    const M = MAQAMAT[o.maqam];
-    M.deg.forEach((cts, i) => {
-      if (cts > G.span + 1) return;
-      const u = posOfCents(cts, G.span) * Lneck, q = M.q.includes(i);
-      ctx.strokeStyle = q ? 'rgba(53,199,184,0.55)' : 'rgba(242,196,109,0.28)'; ctx.lineWidth = q ? 2.4 : 1.6;
-      ctx.beginPath(); ctx.moveTo(u, -w0 / 2 - (w1 - w0) * u / uf / 2); ctx.lineTo(u, w0 / 2 + (w1 - w0) * u / uf / 2); ctx.stroke();
-      if (q) { ctx.fillStyle = PAL.turq; ctx.beginPath(); ctx.moveTo(u, -9); ctx.lineTo(u + 7, 0); ctx.lineTo(u, 9); ctx.lineTo(u - 7, 0); ctx.closePath(); ctx.fill(); }
-      else { ctx.fillStyle = i === 0 || i === 7 ? PAL.gold : PAL.pearl; ctx.beginPath(); ctx.arc(u, 0, i === 0 || i === 7 ? 6.5 : 5, 0, TAU); ctx.fill(); }
-    });
-  }
+  marks(ctx, G, o, uf, w0, w1);
   // strings: six courses, each a pair, shaking after a pluck
   const vib = o.vib;
   for (let i = 0; i < 6; i++) {

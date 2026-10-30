@@ -1,6 +1,8 @@
 // Drawing helpers: themes, the painted wooden board, lit stones, panels, flat buttons, icons.
 // Plain canvas 2D, no images, nothing here changes game state.
 
+import { v3 } from './v3.js';
+
 export const W = 720, H = 1560;
 export const UI = '-apple-system, "SF Pro Text", "Segoe UI", Roboto, "Noto Sans Ethiopic", "Kefa", "Nyala", "Abyssinica SIL", system-ui, sans-serif';
 export const DISPLAY = '"Palatino Linotype", Palatino, "Iowan Old Style", Georgia, "Times New Roman", "Noto Serif Ethiopic", "Noto Sans Ethiopic", "Kefa", "Nyala", serif';
@@ -201,7 +203,8 @@ export function cellRect(i) {
 export const CELLS = Array.from({ length: 18 }, (_, i) => cellRect(i));
 
 // geo: where the board sits on screen. sc = screen pixels per board unit.
-export function boardGeo(x, y, w) {
+export function boardGeo(x, y, w, rot) {
+  if (rot) { const g = boardGeo(x, y, (w * BW) / BH); g.rot = true; g.fr = { x, y, w, h: (w * BW) / BH }; return g; }   // rot: (x, y, w) is the SCREEN rectangle of a board stood up the screen (3D only)
   const sc = w / BW;
   return { x, y, w, h: BH * sc, sc, toLocal: (sx, sy) => [(sx - x) / sc, (sy - y) / sc], toScreen: (lx, ly) => [x + lx * sc, y + ly * sc] };
 }
@@ -379,10 +382,12 @@ export function drawBoardMarks(ctx, th, view, text) {
 }
 
 export function ringCell(ctx, i, col, lw, a = 1, grow = 0) {
+  if (v3.live) { v3.marks.push({ i, col, a, lw, grow, fill: false }); return; }
   ctx.save(); ctx.globalAlpha = a; ctx.strokeStyle = col; ctx.lineWidth = lw;
   pitPath(ctx, CELLS[i], grow); ctx.stroke(); ctx.restore();
 }
 export function fillCell(ctx, i, col, a) {
+  if (v3.live) { v3.marks.push({ i, col, a, lw: 0, grow: 0, fill: true }); return; }
   ctx.save(); ctx.globalAlpha = a; ctx.fillStyle = col; pitPath(ctx, CELLS[i], 0); ctx.fill(); ctx.restore();
 }
 

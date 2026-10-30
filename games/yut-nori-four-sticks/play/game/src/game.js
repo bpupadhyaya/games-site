@@ -8,6 +8,7 @@ import { LEVELS, createThinker, reasonFor } from './ai.js';
 import { LESSONS, lessonGame } from './lessons.js';
 import { createPuzzleMaker, rate, dayIsWeekend } from './puzzle.js';
 import { render } from './view.js';
+import { v3 } from './v3.js';
 
 // Fluid viewport (kit 1.7): the short side is always 720 units; `meta.width/height` are updated live by the kit on every resize and
 // every position comes from layoutFor(meta.width, meta.height).
@@ -183,7 +184,8 @@ export function createGame(env) {
   // ---- taps on the board ---------------------------------------------------------------------------
   function stackAt(i) { const g = state.game; return g.g[g.turn].find((x) => x.pos === i); }
   function tapBoard(wx, wy) {
-    const { x, y } = toLocal(lay().board, wx, wy);
+    // the tilted 3D board (when it is on) maps a screen point to the board through the camera; otherwise the flat board's transform
+    const { x, y } = (v3.on && v3.pick && v3.pick(wx, wy)) || toLocal(lay().board, wx, wy);
     const g = state.game, me = g.turn;
     if (g.phase === 'throw') { say('First throw the sticks: TAP the pad or SWIPE up on it.'); return null; }
     if (g.phase !== 'move') return null;

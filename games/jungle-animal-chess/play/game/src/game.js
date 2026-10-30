@@ -2,6 +2,7 @@
 //
 // How a move is made: tap an animal (it lifts and its legal squares glow; squares that eat are ringed in red, lake leaps get an arrow), then
 // tap the square - or drag the animal onto it. A refused move says why. Moves glide (or leap, or swim), then a capture puffs the eaten token away.
+import { v3 } from './v3.js';
 import { layoutFor, TEXT_SCALES, THINK_STEPS, inRect } from './layout.js';
 import { newGame, clone, applyMove, tryMove, legalFrom, endangered, describeMove, pieceOf, rankOf, sideOf, NAMES, ANIMALS, TERR, WATER } from './rules.js';
 import { LEVELS, createThinker } from './ai.js';
@@ -33,6 +34,11 @@ export function createGame(env) {
   };
   let thinker = null, hintThinker = null, lastScene = state.scene, drag0 = null, docDrag = null;
   const lay = () => layoutFor(meta.width, meta.height, state.flip);
+  // With the 3D board alive a tap is mapped through the tilted view (v3.cellAt: display cells, turned back when Blue is at the bottom); otherwise through the flat layout.
+  const sqAt = (L, x, y) => {
+    if (v3.on && v3.frame && v3.frame.mode === 'play' && v3.cellAt) { const c = v3.cellAt(x, y); if (!c) return -1; let cx = Math.floor(c.x), cy = Math.floor(c.y); if (cx < 0 || cx > 6 || cy < 0 || cy > 8) return -1; if (state.flip) { cx = 6 - cx; cy = 8 - cy; } return cy * 7 + cx; }
+    return L.squareAt(x, y);
+  };
 
   storage.get('prefs', null).then((v) => {
     if (!v) return;
@@ -259,10 +265,10 @@ export function createGame(env) {
     }
     // board: tap to select / move, or press-drag-release
     const L = lay(); let m = null;
-    if (p.pressed) { m = pressSquare(L.squareAt(p.x, p.y)); drag0 = state.sel >= 0 && !m ? { x: p.x, y: p.y } : null; }
+    if (p.pressed) { m = pressSquare(sqAt(L, p.x, p.y)); drag0 = state.sel >= 0 && !m ? { x: p.x, y: p.y } : null; }
     if (!m && p.down && drag0 && state.sel >= 0) { if (state.drag || Math.hypot(p.x - drag0.x, p.y - drag0.y) > L.cell * 0.28) state.drag = { x: p.x, y: p.y }; }
     if (!m && p.released && drag0) {
-      if (state.drag) { const i = L.squareAt(p.x, p.y); state.drag = null; if (i >= 0 && i !== state.sel) { const q = state.selMoves.find((s) => s.to === i); if (q) m = { from: state.sel, to: i, jump: q.jump }; else if (state.game.board[i] === 0 || sideOf(state.game.board[i]) !== state.game.turn) { const r = tryMove(state.game, state.sel, i); say(r.error, 5); } } }
+      if (state.drag) { const i = sqAt(L, p.x, p.y); state.drag = null; if (i >= 0 && i !== state.sel) { const q = state.selMoves.find((s) => s.to === i); if (q) m = { from: state.sel, to: i, jump: q.jump }; else if (state.game.board[i] === 0 || sideOf(state.game.board[i]) !== state.game.turn) { const r = tryMove(state.game, state.sel, i); say(r.error, 5); } } }
       drag0 = null;
     }
     if (!p.down) { state.drag = null; }
@@ -290,7 +296,7 @@ export function createGame(env) {
       return;
     }
     if (!p.pressed) return;
-    const m = pressSquare(lay().squareAt(p.x, p.y)); if (!m) return;
+    const m = pressSquare(sqAt(lay(), p.x, p.y)); if (!m) return;
     const goal = l.goal;
     let ok = false;
     if (goal.type === 'to') ok = m.to === goal.to;

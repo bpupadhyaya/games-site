@@ -1,5 +1,5 @@
 {
-  "version": "1.6.0",
+  "version": "1.13.1",
   "characters": [
     "mannequin_m",
     "mannequin_f"
@@ -7,6 +7,7 @@
   "clips": [
     "base"
   ],
+  "scenery": [],
   "files": {
     "characters/mannequin_m.glb": "b75014e5b6033ec6ef0979a126cac399f1004f23bc1ed2e9df74aad9eacf288a",
     "characters/mannequin_m.json": "d2b7eb91a162f48489ef97377e9fc5dc8cb5136633b52665a0ae970e35f5e7e6",

@@ -400,7 +400,7 @@ export async function createPresenter({ kitCanvas, quality = 'high' }) {
       heroState(state);
     } else {
       const b = L.board;
-      fitCamera({ x: b.x, y: b.y, w: b.S, h: b.S }, L, L.land ? 50 : 55, 32, 0);
+      fitCamera({ x: b.x, y: b.y, w: b.S, h: b.S }, L, L.land ? 50 : 47, 32, 0);
       boardState(state);
     }
   }

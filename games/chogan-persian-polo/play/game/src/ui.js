@@ -21,27 +21,29 @@ export function setPress(ptr) {
   if (ptr.pressed) { PRESS.x = ptr.x; PRESS.y = ptr.y; PRESS.on = true; }
   if (!ptr.down) PRESS.on = false;
 }
+// wood + brass: walnut plaques with a brass edge; the ONE primary action is polished gold; the chosen option is felt green
 const BTN_FILL = {
-  disabled: ['rgba(200,205,225,0.35)', 'rgba(255,255,255,0.25)'],
-  primary: ['#e2503c', '#a8301f'],
-  active: ['#1f9d8f', '#146f65'],
-  dark: ['rgba(30,38,96,0.82)', 'rgba(255,246,228,0.35)'],
-  plain: ['#fff6e4', 'rgba(28,37,82,0.45)'],
+  disabled: [['rgba(90,70,50,0.45)', 'rgba(90,70,50,0.45)'], 'rgba(200,170,110,0.25)'],
+  primary: [['#f7d36b', '#d49a28'], '#8a5a10'],
+  active: [['#2f7a58', '#235c43'], '#d9b45a'],
+  dark: [['#52341f', '#3b2414'], '#c9a24b'],
+  plain: [['#5b3a22', '#432a18'], '#b8913f'],
 };
 export function paintButton(ctx, r, o = {}) {
   const { primary = false, active = false, disabled = false, dark = false } = o;
   const k = disabled ? 'disabled' : primary ? 'primary' : active ? 'active' : dark ? 'dark' : 'plain';
   const pressed = !disabled && PRESS.on && PRESS.x >= r.x && PRESS.x <= r.x + r.w && PRESS.y >= r.y && PRESS.y <= r.y + r.h;
-  const [fill, edge] = BTN_FILL[k];
+  const [[c0, c1], edge] = BTN_FILL[k];
   const dy = pressed ? 3 : 0;
   ctx.save();
-  if (!disabled) { roundPath(ctx, r.x, r.y + (pressed ? 2 : 5), r.w, r.h, 18); ctx.fillStyle = pressed ? 'rgba(8,10,40,0.25)' : 'rgba(8,10,40,0.34)'; ctx.fill(); }
+  if (!disabled) { roundPath(ctx, r.x, r.y + (pressed ? 2 : 5), r.w, r.h, 18); ctx.fillStyle = pressed ? 'rgba(10,6,2,0.25)' : 'rgba(10,6,2,0.38)'; ctx.fill(); }
   roundPath(ctx, r.x, r.y + dy, r.w, r.h, 18);
-  ctx.fillStyle = fill; ctx.fill();
-  if (pressed) { ctx.fillStyle = 'rgba(8,10,40,0.16)'; ctx.fill(); }
-  ctx.lineWidth = 1.5; ctx.strokeStyle = edge; ctx.stroke();
+  const g = ctx.createLinearGradient(0, r.y + dy, 0, r.y + dy + r.h); g.addColorStop(0, c0); g.addColorStop(1, c1);
+  ctx.fillStyle = g; ctx.fill();
+  if (pressed) { ctx.fillStyle = 'rgba(10,6,2,0.18)'; ctx.fill(); }
+  ctx.lineWidth = 2.5; ctx.strokeStyle = edge; ctx.stroke();
   ctx.restore();
-  return { dy, light: primary || active || dark };
+  return { dy, light: !primary, k };
 }
 
 // A flat pill. opts: primary (vermilion), active (teal), disabled, sub (small second line), size (font px)
@@ -49,7 +51,7 @@ export function drawButton(ctx, r, label, opts = {}) {
   const { disabled = false, sub = null, size = 28, icon = null } = opts;
   const { dy, light } = paintButton(ctx, r, opts);
   ctx.save();
-  ctx.fillStyle = disabled ? 'rgba(235,238,255,0.55)' : light ? '#fffaf0' : C.ink;
+  ctx.fillStyle = disabled ? 'rgba(240,225,195,0.5)' : light ? '#fff1d2' : '#3a2208';
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   let px = sub ? Math.round(size * 0.9) : size;
   const maxW = r.w - (icon ? 84 : 24);
@@ -63,7 +65,7 @@ export function drawButton(ctx, r, label, opts = {}) {
     while (ctx.measureText(sub).width > r.w - 24 && sp > MIN_FONT) { sp -= 1; ctx.font = `400 ${sp}px ${FONT}`; }
     ctx.globalAlpha = 0.85; ctx.fillText(sub, cx, r.y + dy + r.h / 2 + size * 0.5); ctx.globalAlpha = 1;
   }
-  if (icon) icon(ctx, r.x + 32, r.y + dy + r.h / 2, light && !disabled ? '#fffaf0' : C.ink);
+  if (icon) icon(ctx, r.x + 32, r.y + dy + r.h / 2, light && !disabled ? '#fff1d2' : '#3a2208');
   ctx.restore();
 }
 
@@ -220,7 +222,7 @@ function drawButtonRect(ctx, r, it, wd) {
   const { disabled = false } = wd;
   const { dy, light } = paintButton(ctx, r, wd);
   ctx.save();
-  ctx.fillStyle = disabled ? 'rgba(235,238,255,0.55)' : light ? '#fffaf0' : C.ink;
+  ctx.fillStyle = disabled ? 'rgba(240,225,195,0.5)' : light ? '#fff1d2' : '#3a2208';
   ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
   ctx.font = `700 ${it.fs}px ${FONT}`;
   const subLines = wd.sub ? (() => { ctx.font = `400 ${subFs(it.fs)}px ${FONT}`; const l = wrapLines(ctx, wd.sub, r.w - 28); ctx.font = `700 ${it.fs}px ${FONT}`; return l; })() : [];

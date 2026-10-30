@@ -4,7 +4,7 @@
   "tagline": "Swing your conker on its string and smash theirs to bits.",
   "genre": "physics dexterity / lawn game",
   "orientation": "any",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "monetization": {
     "model": "premium",
     "priceUsd": 2.99,

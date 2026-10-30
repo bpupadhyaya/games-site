@@ -14,6 +14,8 @@ import {
 } from './art.js';
 import { page as pageContent } from './content.js';
 import { LESSONS } from './lessons.js';
+import { v3, flatAlpha } from './v3.js';
+import { startBoard } from './rules.js';
 
 const GOLD = '#ffe08a', AMBER = '#ffb83a', RED = '#ff5a44', CYAN = '#6fe0f0';
 const flipOf = (state) => state.flip;
@@ -38,8 +40,64 @@ function badge(ctx, x, y, text, color) {
   ctx.fillStyle = '#2a1204'; ctx.font = `700 19px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(text, x, y + 1); ctx.restore();
 }
 
+// 3D on: the room and the board come from the presenter behind this canvas; the flat backdrop fades out in the crossfade, and a soft
+// vignette keeps the HUD readable over the lit room.
+function backdrop(ctx, state) {
+  const fa = flatAlpha();
+  if (fa > 0) { ctx.save(); ctx.globalAlpha = fa; drawBackdrop(ctx, state.theme); ctx.restore(); }
+  if (v3.on && v3.proj) {
+    const m = Math.max(W, H), vg = ctx.createRadialGradient(W / 2, H * 0.5, Math.min(W, H) * 0.4, W / 2, H * 0.5, m * 0.75);
+    vg.addColorStop(0, 'rgba(14,6,2,0)'); vg.addColorStop(1, 'rgba(14,6,2,0.55)'); ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
+  }
+}
 // ---- the board scene -----------------------------------------------------------------------------------------------------
 function drawBoardScene(ctx, state, T) {
+  if (v3.on && v3.proj) drawBoard3D(ctx, state);
+  const fa = flatAlpha();
+  if (fa <= 0) return;
+  ctx.save(); ctx.globalAlpha = fa; drawBoardFlat(ctx, state, T); ctx.restore();
+}
+function drawBoard3D(ctx, state) {
+  const flip = flipOf(state), t = state.t, pulse = 0.5 + 0.5 * Math.sin(t * 4.2), an = state.anim;
+  v3.frame = { board: state.vb, flip, anim: an, sel: state.sel, drag: state.drag, theme: state.theme, calm: false, t };
+  const M = (sq, kind, rgb, sz, al, add = false) => v3.marks.push({ sq, kind, rgb, s: sz, a: al, add });
+  if (state.trail) for (const q of [state.trail.from, state.trail.to]) M(q, 'glow', '255,190,70', 1.25, 0.5, true);
+  if (state.checkSq >= 0) M(state.checkSq, 'glow', '235,30,15', 1.8 + pulse * 0.25, 0.75 + pulse * 0.2);
+  if (state.danger && state.threatSet) for (const q of state.threatSet) M(q, 'dash', '255,90,60', 1.3, 0.8 + pulse * 0.2);
+  if (state.sel >= 0) { M(state.sel, 'glow', '255,200,90', 1.9, 0.7, true); M(state.sel, 'ring', '255,196,60', 1.42, 1); }
+  for (const tg of state.targets || []) {
+    if (tg.cap) { M(tg.to, 'ring', '225,35,25', 1.5, 0.8 + pulse * 0.2); M(tg.to, 'glow', '255,60,40', 1.3, 0.35, true); }
+    else { M(tg.to, 'glow', '255,236,170', 1.0 + pulse * 0.1, 0.5 + pulse * 0.2, true); M(tg.to, 'dot', '255,244,210', 0.42, 0.95); }
+  }
+  if (state.reveal) {
+    const rv = state.reveal;
+    for (const q of rv.movable) M(q, 'dash', '255,224,150', 1.3, 0.75);
+    M(rv.from, 'ring', '255,208,90', 1.45, 1);
+    for (const tg of rv.targets) { if (tg.to !== rv.to) M(tg.to, tg.cap ? 'ring' : 'dot', '255,240,200', tg.cap ? 1.3 : 0.4, 0.85); }
+    M(rv.to, 'glow', '255,210,90', 1.6 + pulse * 0.15, 0.7, true);
+  }
+  if (state.hint) { M(state.hint.from, 'ring', '255,208,90', 1.45, 1); M(state.hint.to, 'glow', '255,210,90', 1.6 + pulse * 0.15, 0.75, true); }
+  if (state.kb && state.cursor >= 0) M(state.cursor, 'square', '255,255,255', 1.05, 0.9);
+  const arrow = (a, b, col) => {
+    const pa = v3.proj(squareCentre(a, flip).x, squareCentre(a, flip).y, 0.4), pb = v3.proj(squareCentre(b, flip).x, squareCentre(b, flip).y, 0.4);
+    drawArrow(ctx, pa, pb, col, 8 * pa.k * 0.9, 20 * pa.k, 26 * pa.k);
+  };
+  if (state.reveal) arrow(state.reveal.from, state.reveal.to, GOLD);
+  if (state.hint) arrow(state.hint.from, state.hint.to, GOLD);
+  // file letters and rank numbers on the board's black border, as the player sees them
+  ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#f6e3b0'; ctx.strokeStyle = 'rgba(20,8,2,0.85)'; ctx.lineJoin = 'round';
+  const lab = (str, cx, cy) => { const p = v3.proj(cx, cy); ctx.font = `700 ${Math.max(11, 24 * p.k).toFixed(1)}px ${FONT}`; ctx.lineWidth = 4; ctx.strokeText(str, p.x, p.y); ctx.fillText(str, p.x, p.y); };
+  for (let i = 0; i < 8; i++) lab('abcdefgh'[flip ? 7 - i : i], GX + i * SQ + SQ / 2, GY + SQ * 8 + FRAME * 1.45);
+  for (let j = 0; j < 8; j++) lab(String(flip ? j + 1 : 8 - j), GX - FRAME * 1.4, GY + j * SQ + SQ / 2);
+  ctx.restore();
+  for (const r of state.rings) { const k = r.t / 0.55; if (k >= 1) continue; const c = v3.proj(r.x, r.y), e = v3.proj(r.x + 20 + k * 80, r.y), n = v3.proj(r.x, r.y + 20 + k * 80); ctx.save(); ctx.strokeStyle = r.c || GOLD; ctx.globalAlpha = 1 - k; ctx.lineWidth = 5 * (1 - k) + 1; ctx.beginPath(); ctx.ellipse(c.x, c.y, Math.abs(e.x - c.x), Math.abs(n.y - c.y), 0, 0, TAU); ctx.stroke(); ctx.restore(); }
+  for (const q of state.parts) { const k = q.t / q.max; if (k >= 1) continue; const c = v3.proj(q.x, q.y, 0.6 + k * 1.5); ctx.fillStyle = `rgba(${q.c},${1 - k})`; ctx.beginPath(); ctx.arc(c.x, c.y, q.size * (1 - k * 0.5) * c.k, 0, TAU); ctx.fill(); }
+  for (const f of state.floats) {
+    const k = f.t / 1.1, c = v3.proj(f.x, f.y, 3); ctx.save(); ctx.globalAlpha = 1 - k * k; ctx.font = `700 ${40 + (1 - k) * 8}px ${FONT}`; ctx.textAlign = 'center'; ctx.lineWidth = 8; ctx.strokeStyle = 'rgba(20,8,0,0.8)';
+    ctx.strokeText(f.text, c.x, c.y - k * 70); ctx.fillStyle = f.c || GOLD; ctx.fillText(f.text, c.x, c.y - k * 70); ctx.restore();
+  }
+}
+function drawBoardFlat(ctx, state, T) {
   const flip = flipOf(state), t = state.t, pulse = 0.5 + 0.5 * Math.sin(t * 5), an = state.anim, g = state.g;
   drawBoard(ctx, state.theme, BOARD.x, BOARD.y, { S: SQ, F: FRAME, labels: true, flip });
   // the promotion rank of the player (a gentle band: where a Bia turns into a Bia-ngai)
@@ -146,10 +204,9 @@ function capturedOf(state, side) {
 function plate(ctx, r, side, label, sub, active, T, state, thinking, noCaps) {
   const narrow = r.w < 520;
   ctx.save();
-  rr(ctx, r.x, r.y, r.w, r.h, 20); ctx.fillStyle = T.panel; ctx.fill();
-  ctx.lineWidth = active ? 3 : 1.6; ctx.strokeStyle = active ? GOLD : T.panelEdge;
-  if (active) { ctx.shadowColor = 'rgba(255,200,100,0.6)'; ctx.shadowBlur = 14; }
-  ctx.stroke(); ctx.shadowColor = 'transparent'; ctx.restore();
+  drawPanel(ctx, r, T, { round: 20, alpha: 0.95 });
+  if (active) { rr(ctx, r.x, r.y, r.w, r.h, 20); ctx.lineWidth = 3; ctx.strokeStyle = GOLD; ctx.shadowColor = 'rgba(255,200,100,0.6)'; ctx.shadowBlur = 14; ctx.stroke(); }
+   ctx.shadowColor = 'transparent'; ctx.restore();
   inBase(ctx, r, narrow ? 108 : 70, (q, s) => {
     ctx.fillStyle = side === WHITE ? '#f0d58a' : '#b72a33';
     const cy = narrow ? 38 : q.h / 2;
@@ -256,7 +313,7 @@ function banner(ctx, state) {
 }
 
 function renderPlay(ctx, state, T) {
-  drawBackdrop(ctx, state.theme);
+  backdrop(ctx, state);
   const g = state.g, ai = state.mode === 'ai', myTurn = state.canAct;
   header(ctx, state, T);
   plates(ctx, state, T);
@@ -318,12 +375,29 @@ function renderResult(ctx, state, T) {
 const TIPS = ['A Khon steps forward or diagonally, but never backward or sideways.', 'Push your Bia to the sixth rank: each one becomes a Bia-ngai.', 'When no Bia remain, the count begins. Check the Count strip.', 'Two Rua can force mate against a lone Khun. One Ma often cannot.', 'The Met is slow but a good guard: keep it beside your Khun.', 'A Ma jumps over pieces, so it is strongest where the board is crowded.', 'Tap Think to see a strong move and the reason for it.', 'Gold and Ruby start with their Khun and Met on opposite files.'];
 const SHOW = [KHUN, MET, KHON, MA, RUA, BIA, NGAI];
 function renderHero(ctx, state, T, Rr) {
-  const t = state.t, s = Rr.heroScale, land = Rr.land;
+  const t = state.t, s = Rr.heroScale, land = Rr.land, V3 = v3.on && !!v3.proj;
+  if (V3) {
+    // the 3D board fills the lower part of the hero; every few seconds a Bia steps forward and is put down, then steps back
+    v3.hero = { x: Rr.heroCx - 360 * s + 20 * s, y: Rr.heroTop + 352 * s, w: 680 * s, h: 290 * s };
+    const bd = startBoard(); let an = null;
+    const P = 5, c = Math.floor(t / P), ph = t - c * P, dur = 0.42;
+    const f0 = 16 + 1 + (c % 5), to = f0 + 8, pc = bd[f0];
+    const fwd = ph >= 1 && ph < 3.4, mv = (ph >= 1 && ph < 1 + dur) ? { f: f0, t: to, u: ph - 1 } : (ph >= 3.4 && ph < 3.4 + dur) ? { f: to, t: f0, u: ph - 3.4 } : null;
+    if (fwd || mv) { bd[to] = pc; bd[f0] = 0; }
+    if (mv && mv.f === to) { bd[f0] = pc; bd[to] = 0; }
+    if (mv) { bd[mv.t] = 0; bd[mv.f] = 0; an = { from: mv.f, to: mv.t, type: BIA, side: WHITE, cap: false, promo: false, t: mv.u, slide: dur, pop: 0 }; }
+    v3.frame = { board: bd, flip: false, anim: an, sel: -1, drag: null, theme: state.theme, calm: false, t };
+  }
   // the sky fills the hero's whole region; the title block is drawn in a 720-wide local space, scaled to fit it
   const sh = land ? H * 0.95 : Rr.hero.h, sw = land ? Rr.hero.w : W;
   const sky = ctx.createLinearGradient(0, 0, 0, sh);
   sky.addColorStop(0, '#07201f'); sky.addColorStop(0.62, '#0e3d3a'); sky.addColorStop(1, 'rgba(20,86,79,0)');
-  ctx.fillStyle = sky; ctx.fillRect(0, 0, sw, sh);
+  if (V3) { const fa = flatAlpha(); if (fa > 0) { ctx.save(); ctx.globalAlpha = fa; ctx.fillStyle = sky; ctx.fillRect(0, 0, sw, sh); ctx.restore(); } }
+  else { ctx.fillStyle = sky; ctx.fillRect(0, 0, sw, sh); }
+  if (V3) { // a soft shade behind the lettering keeps it clear of the lit room
+    const sd = ctx.createRadialGradient(Rr.heroCx, Rr.heroTop + 200 * s, 10, Rr.heroCx, Rr.heroTop + 200 * s, 400 * s); sd.addColorStop(0, 'rgba(12,5,2,0.78)'); sd.addColorStop(0.65, 'rgba(12,5,2,0.4)'); sd.addColorStop(1, 'rgba(12,5,2,0)');
+    ctx.fillStyle = sd; ctx.fillRect(Rr.heroCx - 460 * s, Rr.heroTop - 100, 920 * s, 520 * s);
+  }
   ctx.save(); ctx.translate(Rr.heroCx - 360 * s, Rr.heroTop); ctx.scale(s, s);
   const LW = 720;
   // a halo of gold behind the title
@@ -351,13 +425,13 @@ function renderHero(ctx, state, T, Rr) {
     ctx.save(); rr(ctx, 40, y + 4, LW - 80, 14, 7); ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fill(); rr(ctx, 40, y - 2, LW - 80, 14, 7); const g = ctx.createLinearGradient(0, y, 0, y + 12); g.addColorStop(0, '#d8a94a'); g.addColorStop(1, '#8a5f1c'); ctx.fillStyle = g; ctx.fill(); ctx.restore();
     SHOW.forEach((tp, i) => { const x = 76 + i * 94, bob = Math.max(0, Math.sin(t * 2.4 - i * 0.9 + (side > 0 ? 0 : 1.7))) * 9; drawPiece(ctx, tp, side, x, y - 2 - bob, 0.74, { lift: bob / 10 }); });
   };
-  shelf(470, WHITE); shelf(600, BLACK);
-  ctx.save(); ctx.fillStyle = 'rgba(255,238,196,0.55)'; ctx.font = `400 24px ${FONT}`; ctx.textAlign = 'center';
-  ctx.fillText('Khun · Met · Khon · Ma · Rua · Bia · Bia-ngai', LW / 2, 342); ctx.restore();
+  if (!V3) { shelf(470, WHITE); shelf(600, BLACK); }
+  if (!V3) { ctx.save(); ctx.fillStyle = 'rgba(255,238,196,0.55)'; ctx.font = `400 24px ${FONT}`; ctx.textAlign = 'center';
+  ctx.fillText('Khun · Met · Khon · Ma · Rua · Bia · Bia-ngai', LW / 2, 342); ctx.restore(); }
   ctx.restore();
 }
 function renderTitle(ctx, state, T) {
-  drawBackdrop(ctx, state.theme);
+  backdrop(ctx, state);
   const tall = state.textIdx >= 3, R = titleRows(!!state.saved, tall), sc = tall ? TEXT_SCALES[state.textIdx] : Math.min(TEXT_SCALES[state.textIdx], 1.4);
   renderHero(ctx, state, T, R);
   const cap = (base, max) => Math.round(Math.min(base * sc, tall ? max : 1e9));
@@ -512,7 +586,7 @@ function renderSettings(ctx, state, T) {
 
 // ---- Watch & Learn ----------------------------------------------------------------------------------------------------------------
 function renderAuto(ctx, state, T) {
-  drawBackdrop(ctx, state.theme);
+  backdrop(ctx, state);
   header(ctx, state, T, 'Watch & Learn');
   plates(ctx, state, T);
   drawBoardScene(ctx, state, T);
@@ -538,7 +612,7 @@ function renderAuto(ctx, state, T) {
 
 // ---- Learn --------------------------------------------------------------------------------------------------------------------------
 function renderLearn(ctx, state, T) {
-  drawBackdrop(ctx, state.theme);
+  backdrop(ctx, state);
   const L = LESSONS[state.lesson.i];
   header(ctx, state, T, 'Learn');
   const r = PLATE_TOP; drawPanel(ctx, r, T, { round: 20 });

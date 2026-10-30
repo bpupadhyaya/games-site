@@ -3,22 +3,23 @@
 import { TEXT_SCALES, THINK_STEPS, SETUP_KEYS, DUO_SETUP_KEYS, tablaGeom, cellRect, host } from './layout.js';
 import { drawLockup, drawMoreLine } from './brand.js';
 import {
-  THEMES, ptr, fontFloor, themeOf, THEME_IDS, drawBackdrop, drawCard, drawArt, drawTabla, drawMini, drawPatternThumb, drawParticles, drawBean, drawButton, roundPath, font, fitPx, fitText, wrapLines, easeOutBack, easeOutCubic, clamp01, drawFrame,
+  THEMES, ptr, fontFloor, drawPlaque, tableReady, themeOf, THEME_IDS, drawBackdrop, drawCard, drawArt, drawTabla, drawMini, drawPatternThumb, drawParticles, drawBean, drawButton, roundPath, font, fitPx, fitText, wrapLines, easeOutBack, easeOutCubic, clamp01, drawFrame,
 } from './art.js';
 import { CARDS } from './cards.js';
 import { PATTERNS, PACES, SKILLS, STYLES, CPU_NAMES, byId, needed, bestSet, isComplete, impossible, markable, setsOf, patternOf, POOL, CLASSIC_REVEAL_SECS, SCORE, HINTS_PER_ROUND } from './rules.js';
 import { t as tr } from './strings.js';
 import { ABOUT, HOWTO, RULES } from './content.js';
-import { INK } from './shapes.js';
+import { INK, mix as mixC } from './shapes.js';
 
 const PI2 = Math.PI * 2;
+const READING = new Set(['about', 'howto', 'rules', 'settings', 'demolimit']);
 
 // Everything except the three play screens is a DESIGN screen: drawn at design size inside L.d's translate + scale.
 export function render(ctx, state, pointer, L) {
   const th = themeOf(state.theme), sc = state.scene;
   const play = sc === 'play' || sc === 'duo' || sc === 'auto';
   const garland = sc === 'menu' || sc === 'demolimit' ? 'full' : play || sc === 'caller' ? 'none' : 'thin';
-  drawBackdrop(ctx, th, state.t, { garland, w: L.w, h: L.h });
+  drawBackdrop(ctx, th, state.t, { garland, w: L.w, h: L.h, dim: READING.has(sc) ? 0.34 : sc === 'setup' || sc === 'pick' ? 0.18 : 0 });
   const px = host.px || 0.6;
   if (play) {
     setPtr(pointer, null); fontFloor.u = clamp(11 / px, 10, 26);
@@ -69,9 +70,7 @@ function text(ctx, str, x, y, px, o = {}) {
   return s;
 }
 function panel(ctx, r, th, rad = 22, a = 1) {
-  ctx.save(); ctx.globalAlpha = a;
-  roundPath(ctx, r.x, r.y, r.w, r.h, rad); ctx.fillStyle = th.panel; ctx.fill();
-  ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(255,255,255,0.22)'; ctx.stroke(); ctx.restore();
+  ctx.save(); ctx.globalAlpha = a; drawPlaque(ctx, r, th, { rad, alpha: 0.9 }); ctx.restore();
 }
 function cardBack(ctx, x, y, w, h, th, t = 0) {
   ctx.save();
@@ -105,7 +104,8 @@ const nameOf = (p, lang) => (p.kind === 'cpu' ? CPU_NAMES[p.name][lang === 'es' 
 const patName = (id, lang) => patternOf(id)[lang === 'es' ? 'es' : 'en'];
 function chip(ctx, x, y, w, h, label, th, o = {}) {
   ctx.save();
-  roundPath(ctx, x, y, w, h, h / 2); ctx.fillStyle = o.fill ?? 'rgba(0,0,0,0.38)'; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = o.stroke ?? 'rgba(255,255,255,0.3)'; ctx.stroke();
+  drawPlaque(ctx, { x, y, w, h }, th, { rad: h / 2, fill: o.fill ? undefined : undefined });
+  if (o.fill) { roundPath(ctx, x, y, w, h, h / 2); ctx.fillStyle = o.fill; ctx.fill(); }
   text(ctx, label, x + w / 2, y + h / 2 + 1, o.px ?? h * 0.5, { color: o.color ?? th.text, maxW: w - 20 });
   ctx.restore();
 }
@@ -130,7 +130,8 @@ function renderMenu(ctx, s, th, L, d) {
       ctx.restore();
     }
   }
-  text(ctx, 'Lotería', m.art.cx, m.titleY, 118, { italic: true, color: th.accent, stroke: 9, shadow: true });
+  if (tableReady()) emboss(ctx, 'Lotería', m.art.cx, m.titleY, 118, th, s.t);
+  else text(ctx, 'Lotería', m.art.cx, m.titleY, 118, { italic: true, color: th.accent, stroke: 9 }); // fast first frame
   text(ctx, 'C A N T A D A', m.art.cx, m.subY, 38, { color: th.text, stroke: 6, maxW: 520 });
   const label = (k) => tr(lang, k), sr = big ? 0.68 : 0.62;
   drawButton(ctx, m.play, label('play'), th, { primary: true, sub: label('playSub'), scale: sc, subRatio: sr });
@@ -148,6 +149,23 @@ function renderMenu(ctx, s, th, L, d) {
   { const q = m.lockup, dn = s.lkDown, pad = 8;      // the themed Arcforge lockup under the menu; a tap opens the Arcforge home
     ctx.save(); ctx.fillStyle = 'rgba(20,6,36,0.62)'; roundPath(ctx, q.x - 10, q.y - 5, q.w + 20, q.h + 10, (q.h + 10) / 2); ctx.fill(); ctx.restore();
     drawLockup(ctx, dn ? R2(q.x + q.w * 0.02, q.y + 1, q.w * 0.96, q.h * 0.96) : q, dn ? 0.7 : 1); }
+}
+// Premium title lettering: deep extruded ink layers, a gold leaf gradient face, a fine light edge and a slow glint.
+function emboss(ctx, str, x, y, px, th, t) {
+  ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = font(px, 700, true); ctx.lineJoin = 'round';
+  ctx.shadowColor = 'rgba(0,0,0,0.6)'; ctx.shadowBlur = 18; ctx.shadowOffsetY = 10;
+  ctx.lineWidth = 12; ctx.strokeStyle = INK; ctx.strokeText(str, x, y + 7); ctx.shadowColor = 'transparent';
+  for (let k = 7; k > 0; k--) { ctx.fillStyle = mixC(th.accent, '#3a1404', 0.55 + k * 0.04); ctx.fillText(str, x, y + k); }
+  ctx.lineWidth = 9; ctx.strokeStyle = INK; ctx.strokeText(str, x, y);
+  const w = ctx.measureText(str).width, g = ctx.createLinearGradient(0, y - px * 0.55, 0, y + px * 0.4);
+  g.addColorStop(0, mixC(th.accent, '#ffffff', 0.55)); g.addColorStop(0.45, th.accent); g.addColorStop(0.55, mixC(th.accent, '#000000', 0.18)); g.addColorStop(1, mixC(th.accent, '#ffffff', 0.15));
+  ctx.fillStyle = g; ctx.fillText(str, x, y);
+  ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(255,250,225,0.55)'; ctx.strokeText(str, x - 1, y - 1);
+  const gx = x - w * 0.7 + ((t * 0.18) % 1.6) * w * 0.9; // glint sweeping across every few seconds
+  ctx.globalCompositeOperation = 'source-atop';
+  const gl = ctx.createLinearGradient(gx - 40, y - px, gx + 40, y + px); gl.addColorStop(0, 'rgba(255,255,255,0)'); gl.addColorStop(0.5, 'rgba(255,255,240,0.55)'); gl.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = gl; ctx.fillText(str, x, y);
+  ctx.restore();
 }
 function drawSoundButton(ctx, s, th, r) {
   drawButton(ctx, r, '', th, {});
@@ -230,11 +248,21 @@ function renderPick(ctx, s, th, d) {
 // ---- the caller's card with a flip-in -------------------------------------------------------------------------------------
 function callerCard(ctx, s, r, rect, th, showName, lang) {
   const id = r.called[r.called.length - 1];
+  // the caller's deck under the card: it gets thinner as the round goes on
+  const left = Math.max(0, (r.pool ? r.pool.length : 30) - r.called.length), layers = Math.min(4, Math.ceil(left / 7));
+  ctx.save();
+  for (let k = layers; k >= 1; k--) {
+    const ox = k * 2.2, oy = k * 3.2;
+    if (k === layers) { ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 18; ctx.shadowOffsetX = 6; ctx.shadowOffsetY = 10; }
+    roundPath(ctx, rect.x + ox, rect.y + oy, rect.w, rect.h, rect.w * 0.085); ctx.fillStyle = mixC(th.paper, '#000000', 0.08 + k * 0.05); ctx.fill();
+    ctx.shadowColor = 'transparent'; ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(60,30,20,0.55)'; ctx.stroke();
+  }
+  ctx.restore();
   if (id == null) { cardBack(ctx, rect.x, rect.y, rect.w, rect.h, th, s.t); return; }
   const p = clamp01(r.callT / 0.5), sx = Math.max(0.03, easeOutBack(p)), cx = rect.x + rect.w / 2;
   ctx.save(); ctx.translate(cx, rect.y + rect.h / 2); ctx.scale(sx, 1); ctx.rotate((1 - p) * 0.08); ctx.translate(-cx, -(rect.y + rect.h / 2));
   if (p < 0.35) cardBack(ctx, rect.x, rect.y, rect.w, rect.h, th, s.t);
-  else drawCard(ctx, id, rect.x, rect.y, rect.w, rect.h, { lang, theme: s.theme, shadow: 22, name: showName ? undefined : '?' });
+  else drawCard(ctx, id, rect.x, rect.y, rect.w, rect.h, { lang, theme: s.theme, shadow: 16 + (1 - p) * 26, name: showName ? undefined : '?' });
   ctx.restore();
 }
 function nameVisible(r) {
@@ -270,7 +298,7 @@ function renderPlay(ctx, s, th, L) {
   // header
   chip(ctx, hd.score.x, hd.score.y, hd.score.w, hd.score.h, auto ? tr(lang, 'watch') : `${tr(lang, 'score')} ${liveScore(s)}`, th, { px: auto ? 22 : 26 });
   const pat = patternOf(r.pattern), pr = hd.pat;
-  roundPath(ctx, pr.x, pr.y, pr.w, pr.h, 27); ctx.fillStyle = 'rgba(0,0,0,0.38)'; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.stroke();
+  drawPlaque(ctx, pr, th, { rad: Math.min(27, pr.h / 2) });
   const need = needed(me.marks, me.dead, r.pattern);
   text(ctx, `${tr(lang, 'round')} ${r.num} · ${pat[lang === 'es' ? 'es' : 'en']}`, pr.x + pr.w / 2, pr.y + 19, 23, { maxW: pr.w - 30, color: th.text });
   text(ctx, need === Infinity ? tr(lang, 'lost') : need === 0 ? tr(lang, 'done') : tr(lang, 'needsMore', { n: need }), pr.x + pr.w / 2, pr.y + 41, 17, { maxW: pr.w - 30, color: need === 1 ? th.accent : th.sub, weight: 400, italic: true });

@@ -42,7 +42,7 @@ export function board(n, reg) {
     const x0 = cav.x + (cav.w - tw * inRow) / 2, y0 = cav.y + (cav.h - th * rows) / 2;
     tiles.push(R(x0 + c * tw, y0 + r * th, tw, th));
   }
-  return { box, cav, tiles, tw, th };
+  return { box, cav, tiles, tw, th, cols, rows };
 }
 
 function build(w, h, ins) {

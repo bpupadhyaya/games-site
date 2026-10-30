@@ -13,7 +13,7 @@ import { render, playGeo, squareAt, exitBadge, yardRect, slotXY } from './view.j
 // Fluid viewport (kit 1.7.1): the short side is always 720 units, the long side follows the screen; the kit updates width/height live.
 export const meta = { width: 720, height: 1560, fluid: { short: 720 } };
 
-const VERSION = '1.1.0';
+const VERSION = '1.2.0';
 const STEP = 1 / 60;
 const WIN_NOTES = [523, 659, 784, 1047, 1319];
 const AUTO_LV = ['master', 'expert'];
@@ -170,7 +170,7 @@ export async function createGame(env) {
   }
 
   // Screen position (virtual units) of a mat point.
-  const matXY = (x, y) => { const m = playGeo(S, S.match).lay.mat; return [m.x + x * m.w, m.y + y * m.h]; };
+  const matXY = (x, y) => { const m = playGeo(S, S.match).lay.mat; return m.at ? m.at(x, y) : [m.x + x * m.w, m.y + y * m.h]; };
 
   function handleEvents(M) {
     for (const e of M.events) {

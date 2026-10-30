@@ -14,6 +14,8 @@ const raw = (x, y, z) => {
   return { sx: (F * x) / d, sy: (-F * vy) / d, s: F / d };
 };
 const SY0 = raw(0, 0, 0).sy;
+// constants for the optional 3D presenter: it builds a perspective camera that matches project() exactly (taps and 2D overlays line up)
+export const CAM = { CB, CH, COS, SIN, F, SY0 };
 
 export let W = 720, H = 1280, CX = 360, CY = 950 - SY0;
 let stageKey = '720x1280@950';

@@ -6,6 +6,7 @@ import { settingsItems } from './settings.js';
 import { VARIANTS, NAMES, geo, progress, pegsHome } from './rules.js';
 import { LEVELS } from './ai.js';
 import { drawLockup, drawMoreLine, drawBadgeStack, edgeStroke } from './brand.js';
+import { v3, PROFILE } from './v3.js';
 
 const FONT = '"Fredoka", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 const UI = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
@@ -24,6 +25,10 @@ export function render(ctx, state, L) {
   const scene = state.scene, scale = TEXT_SCALES[state.textScaleIdx] ?? 1, big = scale > 1, g = state.game, a = state.anim, B = L.board, G = geo(g.variant);
   const minU = Math.max(12, 11 / (host.px || 0.6));
   const boardKey = state.board, style = state.style;
+  const use3 = v3.on && (scene === 'title' || scene === 'play' || scene === 'over' || scene === 'lesson');
+  v3.frame = null; v3.wantSnap = false;
+  // 3D: a board cell's centre, and where it is on the screen through the tilted view (flat layout otherwise)
+  const nB = G.n, cellPt = (q) => (use3 && v3.toScreen ? v3.toScreen((q % nB) + 0.5, ((q / nB) | 0) + 0.5, 0.05) : L.sq(q));
 
   // ---------------------------------------------------------------- helpers
   const text = (str, x, y, size, color = CREAM, font = UI, weight = 700, align = 'center') => { ctx.textAlign = align; ctx.font = `${weight} ${size}px ${font}`; ctx.fillStyle = color; ctx.fillText(str, x, y); };
@@ -44,6 +49,7 @@ export function render(ctx, state, L) {
     return ls.length;
   };
   const panel = (r, rad = 18, fill = 'rgba(5,28,32,0.66)', stroke = 'rgba(246,215,124,0.22)', brand = true) => {
+    if (use3) { fill = fill.includes('40,36,14') ? 'rgba(92,58,20,0.94)' : 'rgba(44,26,10,0.9)'; stroke = fill.includes('92,58') ? stroke : 'rgba(226,182,84,0.85)'; }          // 3D: dark walnut plaques with a brass edge
     ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, rad); ctx.fillStyle = fill; ctx.fill(); ctx.strokeStyle = stroke; ctx.lineWidth = 2; ctx.stroke();
     if (brand) edgeStroke(ctx, r, rad, 0.38);
   };
@@ -53,7 +59,7 @@ export function render(ctx, state, L) {
     const rad = Math.min(18, r.h / 3);
     ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.beginPath(); ctx.roundRect(r.x + 2, r.y + 5, r.w, r.h, rad); ctx.fill();
     const gr = ctx.createLinearGradient(0, r.y, 0, r.y + r.h);
-    if (o.primary) { gr.addColorStop(0, '#fbc649'); gr.addColorStop(1, '#d9820f'); } else if (o.on) { gr.addColorStop(0, '#3f8f8a'); gr.addColorStop(1, '#215a58'); } else { gr.addColorStop(0, '#23595d'); gr.addColorStop(1, '#10353a'); }
+    if (o.primary) { gr.addColorStop(0, '#fbc649'); gr.addColorStop(1, '#d9820f'); } else if (o.on) { gr.addColorStop(0, '#3f8f8a'); gr.addColorStop(1, '#215a58'); } else if (use3) { gr.addColorStop(0, '#7a4a22'); gr.addColorStop(1, '#43260f'); } else { gr.addColorStop(0, '#23595d'); gr.addColorStop(1, '#10353a'); }
     ctx.fillStyle = gr; ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, rad); ctx.fill();
     ctx.strokeStyle = o.primary ? 'rgba(255,236,170,0.9)' : 'rgba(246,215,124,0.5)'; ctx.lineWidth = 2; ctx.stroke();
     const size = o.size ?? 28, maxW = r.w - 20, col = o.primary ? '#2d1800' : GOLD, cy = r.y + r.h / 2;
@@ -75,8 +81,7 @@ export function render(ctx, state, L) {
   };
 
   // ---------------------------------------------------------------- scenes
-  drawTable(ctx, L, state.t);
-  if (!state.calm) motes(ctx, L, state.t);
+  if (!use3) { drawTable(ctx, L, state.t); if (!state.calm) motes(ctx, L, state.t); }
 
   if (scene === 'title' || scene === 'demo-limit') drawTitle();
   else if (scene === 'doc') drawDocument();
@@ -123,7 +128,11 @@ export function render(ctx, state, L) {
     ctx.fillStyle = pg; ctx.beginPath(); ctx.roundRect(cx - pw / 2, py, pw, sub * 1.8, sub * 0.9); ctx.fill(); ctx.restore();
     fitText('HOP  ·  LEAP  ·  RACE', cx, py + sub * 1.3, sub, pw - 20, '#2b1500', FONT, 700);
     const top = py + sub * 1.8 + ts * 0.18, room = r.y + r.h - top;
-    if (room > 90) heroBoard(R(r.x, top + 6, r.w, Math.min(room - 22, boardH + 30)));
+    if (use3) {                                          // the 3D board itself is the hero: a Quick board in its opening position, turning slowly under the title block
+      v3.t = state.t; v3.marks = []; const G0 = geo('quick'); v3.pieces = [];
+      for (let s2 = 1; s2 <= 2; s2++) for (const q of G0.camps[[3, 1][s2 - 1]]) v3.pieces.push({ x: (q % 10) + 0.5, y: ((q / 10) | 0) + 0.5, seat: s2, lift: 0 });
+      v3.frame = { mode: 'title', variant: 'quick', boardKey, rect: L.land ? { x: r.x + 6, y: r.y + ts * 1.5 + 50, w: r.w - 12, h: Math.max(160, r.h - ts * 1.5 - 60) } : { x: 4, y: top + 4, w: L.w - 8, h: Math.max(160, room + 6) } };
+    } else if (room > 90) heroBoard(R(r.x, top + 6, r.w, Math.min(room - 22, boardH + 30)));
   }
 
   function heroBoard(r) {
@@ -185,6 +194,7 @@ export function render(ctx, state, L) {
     if (L.land) { if (L.leftCard) panel(L.leftCard, 18); panel(L.rightCard, 18); }
     const pulse = state.calm ? 0.6 : 0.5 + 0.5 * Math.sin(state.t * 5);
     ctx.save();
+    if (use3) fill3(); else {
     drawBoard(ctx, B, boardKey, g.variant);
     // the last move: its route, until the next move
     const last = a ? null : g.last;
@@ -244,6 +254,7 @@ export function render(ctx, state, L) {
     }
     if (dragging) drawPeg(ctx, g.board[state.sel] || g.turn, style, state.drag.x, state.drag.y - cell * 0.15, cell, { lift: 0.9, glow: 0.9 });
     if (state.kb && !over) { const p = L.sq(state.cursor); ctx.strokeStyle = '#7dff9a'; ctx.lineWidth = 4; ctx.strokeRect(p.x - cell / 2 + 3, p.y - cell / 2 + 3, cell - 6, cell - 6); }
+    }
     ctx.restore();
     if (state.loupe && !over && !isLesson) loupe(state.loupe, cell);
     if (isLesson) lessonBox(); else chips();
@@ -252,8 +263,69 @@ export function render(ctx, state, L) {
     void n;
   }
 
+  // 3D hand-off: pegs and marks in cell units; the presenter draws them on the tilted board. The flat overlays (route trails, hop counts) go through the projection.
+  function fill3() {
+    const isLesson = scene === 'lesson', over = scene === 'over', n = G.n, pulse = state.calm ? 0.6 : 0.5 + 0.5 * Math.sin(state.t * 5);
+    v3.t = state.t; v3.frame = { mode: 'play', variant: g.variant, boardKey, rect: isLesson && L.rect3Lesson ? L.rect3Lesson : L.rect3 };
+    const cc = (q) => ({ x: (q % n) + 0.5, y: ((q / n) | 0) + 0.5 }), pcs = [], mks = [], mk = (q, kind, al, sc) => { const c = cc(q); mks.push({ x: c.x, y: c.y, kind, a: al, sc }); };
+    const o0 = v3.toScreen(0, 0), o1 = v3.toScreen(1, 0), cpx = Math.max(16, Math.hypot(o1.x - o0.x, o1.y - o0.y)), last = a ? null : g.last;
+    if (last && !isLesson && last.path.length > 1) { for (const q of last.path) mk(q, 'last', 0.3); trail(last.path, 0.5, cpx); }
+    const goalSeat = state.autoMode ? 0 : state.two ? g.turn : 1;
+    if (state.marks && goalSeat && !over) for (const q of G.camps[G.targetC[goalSeat]]) if (!g.board[q]) mk(q, 'star', 0.55 + pulse * 0.2);
+    if (isLesson && LESSONS[state.lesson.i].target !== undefined && !state.lesson.done) mk(LESSONS[state.lesson.i].target, 'lesson', 0.6 + 0.4 * pulse);
+    if (state.sel >= 0 && !a && !over) {
+      mk(state.sel, 'sel', 0.5 + pulse * 0.25);
+      for (const m of state.selMoves) {
+        if (m.hops) { mk(m.to, 'hop', 0.85 + pulse * 0.15); if (cpx >= 20) { const c = cc(m.to), p = v3.toScreen(c.x + 0.3, c.y - 0.3, 0.1), s2 = Math.round(Math.max(13, cpx * 0.32)); ctx.fillStyle = '#c96a08'; ctx.beginPath(); ctx.arc(p.x, p.y, s2 * 0.62, 0, TAU); ctx.fill(); ctx.strokeStyle = '#fff3d0'; ctx.lineWidth = 1.5; ctx.stroke(); text(String(m.hops), p.x, p.y + s2 * 0.26, s2 * 0.8, '#fff', UI, 800); } }
+        else mk(m.to, 'dest', 0.7 + pulse * 0.25);
+      }
+    }
+    if (state.hint && !a) { for (const q of [state.hint.from, state.hint.to]) mk(q, 'hint', 0.6 + pulse * 0.35); if (state.hint.path) trail([state.hint.from, ...state.hint.path], 1, cpx, '90,230,150'); }
+    if (state.kb && !over) mk(state.cursor, 'cursor', 0.9);
+    const movingTo = a ? a.path[a.path.length - 1] : -1, dragging = state.drag && state.sel >= 0;
+    for (let i = 0; i < g.board.length; i++) {
+      const k = g.board[i]; if (!k || i === movingTo || (dragging && i === state.sel)) continue;
+      const c = cc(i), sel = state.sel === i; pcs.push({ x: c.x, y: c.y, seat: k, lift: sel ? 0.5 + (state.calm ? 0 : Math.sin(state.t * 3) * 0.08) : 0 });
+    }
+    if (a) {
+      let acc = 0, k = 0;
+      while (k < a.segs.length - 1 && a.t >= acc + a.segs[k].d) { acc += a.segs[k].d; k++; }
+      const sg = a.segs[k], f = clamp((a.t - acc) / sg.d, 0, 1), done = a.t >= a.dur - 0.16, reached = done ? a.segs.length : k;
+      trail(a.path.slice(0, Math.min(a.path.length, reached + 2)), 1, cpx, null, done ? 1 : f, a.path.length - 1);
+      acc = 0;
+      for (let q = 0; q < a.segs.length; q++) { acc += a.segs[q].d; const since = a.t - acc; if (since >= 0 && since < 0.45 && !state.calm) { const c = cc(a.path[q + 1]), ff = since / 0.45; mks.push({ x: c.x, y: c.y, kind: 'ripple', a: 0.8 * (1 - ff), sc: 0.5 + 0.9 * ff }); } }
+      const pa = cc(a.path[Math.min(k, a.path.length - 1)]), pb = cc(a.path[Math.min(k + 1, a.path.length - 1)]), e = done ? 1 : ease(f);
+      const lift = done ? Math.max(0, 0.2 * (1 - (a.t - (a.dur - 0.16)) / 0.16)) : Math.sin(Math.PI * f) * (sg.hop ? 2.4 : 0.8) + 0.2;
+      pcs.push({ x: pa.x + (pb.x - pa.x) * e, y: pa.y + (pb.y - pa.y) * e, seat: a.seat, lift });
+      if (done && a.hops >= 2 && !state.calm) { const ff = (a.t - (a.dur - 0.16)) / 0.16, c = cc(movingTo), p1 = v3.toScreen(c.x, c.y, 0.2), fs = Math.round(Math.max(26, cpx * 0.9)); ctx.save(); ctx.globalAlpha = Math.min(1, (1 - ff * 0.6) * 1.5); ctx.lineWidth = fs * 0.14; ctx.strokeStyle = 'rgba(40,16,4,0.9)'; ctx.lineJoin = 'round'; ctx.font = `700 ${fs}px ${FONT}`; ctx.textAlign = 'center'; ctx.strokeText(`${a.hops} hops!`, p1.x, p1.y - cpx * 1.1); ctx.fillStyle = '#ffd24a'; ctx.fillText(`${a.hops} hops!`, p1.x, p1.y - cpx * 1.1); ctx.restore(); }
+    }
+    if (dragging && v3.cellAt) { const c = v3.cellAt(state.drag.x, state.drag.y); if (c) pcs.push({ x: c.x, y: c.y, seat: g.board[state.sel] || g.turn, lift: 1.0 }); }
+    v3.pieces = pcs; v3.marks = mks;
+  }
+  // the turned peg as a flat icon (seat chips while the 3D board is on): same silhouette as the 3D lathe
+  function pawnIcon(x, y, size, seat, glow, lift = 0) {
+    const P = SEAT[seat], h = size * 0.98, sc = h, x0 = x, y0 = y + size * 0.5 - lift * size * 0.12;
+    ctx.save(); if (glow) { ctx.shadowColor = `rgba(${P.tint},0.9)`; ctx.shadowBlur = size * 0.35; }
+    ctx.beginPath(); PROFILE.forEach(([r, yy], i) => { const px = x0 + r * sc, py = y0 - yy * sc; i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); }); for (let i = PROFILE.length - 1; i >= 0; i--) ctx.lineTo(x0 - PROFILE[i][0] * sc, y0 - PROFILE[i][1] * sc); ctx.closePath();
+    const g2 = ctx.createLinearGradient(x0 - sc * 0.4, 0, x0 + sc * 0.4, 0); g2.addColorStop(0, P.lo); g2.addColorStop(0.35, P.hi); g2.addColorStop(0.55, P.mid); g2.addColorStop(1, P.lo); ctx.fillStyle = g2; ctx.fill(); ctx.shadowBlur = 0;
+    ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.lineWidth = 1.5; ctx.stroke(); ctx.strokeStyle = '#f3e3b6'; ctx.lineWidth = Math.max(2, sc * 0.07); ctx.beginPath(); ctx.moveTo(x0 - sc * 0.2, y0 - 0.575 * sc); ctx.lineTo(x0 + sc * 0.2, y0 - 0.575 * sc); ctx.stroke();
+    ctx.restore();
+  }
   // finger magnifier for tiny cells: a zoomed copy of the board around the finger, shown above it, with a crosshair on the square that would be chosen
+  function loupe3(f, cell) {                           // 3D: the magnifier shows the presenter's last frame (pegs, marks and all) around the finger
+    const sn = v3.snap; v3.wantSnap = true; if (!sn || !v3.vToSnap) return;
+    const rad = cell * 2.9, src = cell * 1.55, vw = L.w, vh = L.h;
+    let cx = clamp(f.x, rad + 6, vw - rad - 6), cy = f.y - rad * 1.25 - cell * 0.6; if (cy < rad + 6) cy = Math.min(f.y + rad * 1.25 + cell * 0.6, vh - rad - 6);
+    const o = v3.vToSnap(f.x - src, f.y - src), sw = src * 2 * sn.k;
+    ctx.save(); ctx.beginPath(); ctx.arc(cx, cy, rad, 0, TAU); ctx.clip(); ctx.fillStyle = '#2a1a0e'; ctx.fillRect(cx - rad, cy - rad, rad * 2, rad * 2);
+    ctx.drawImage(sn.canvas, o.x, o.y, sw, sw, cx - rad, cy - rad, rad * 2, rad * 2);
+    const c = v3.cellAt(f.x, f.y), mag = rad / src;
+    if (c && c.x >= 0 && c.y >= 0 && c.x < nB && c.y < nB) { const q = v3.toScreen(Math.floor(c.x) + 0.5, Math.floor(c.y) + 0.5, 0.05), bx = cx + (q.x - f.x) * mag, by = cy + (q.y - f.y) * mag; ctx.strokeStyle = '#7dff9a'; ctx.lineWidth = 4; ctx.strokeRect(bx - cell * mag / 2, by - cell * mag * 0.45, cell * mag, cell * mag * 0.9); }
+    ctx.restore();
+    ctx.save(); ctx.strokeStyle = GOLD; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(cx, cy, rad, 0, TAU); ctx.stroke(); ctx.restore();
+  }
   function loupe(f, cell) {
+    if (use3) return loupe3(f, cell);
     if (!ctx.getTransform || !ctx.canvas) return;
     const tr = ctx.getTransform?.(); if (!tr || !tr.a) return;
     const k = tr.a, rad = cell * 2.9, src = cell * 1.55, vw = ctx.canvas.width / k;
@@ -277,7 +349,7 @@ export function render(ctx, state, L) {
       else { ctx.strokeStyle = `rgba(${col},${0.92 * alpha})`; ctx.lineWidth = Math.max(3, cell * 0.1); ctx.setLineDash([cell * 0.16, cell * 0.12]); }
       for (let k = 0; k + 1 < path.length; k++) {
         const f = k + 2 === path.length && path.length - 1 < tot + 1 && part < 1 ? part : 1;
-        const p0 = L.sq(path[k]), p1 = L.sq(path[k + 1]), hop = Math.hypot(p1.x - p0.x, p1.y - p0.y) > cell * 1.6, mx = (p0.x + p1.x) / 2, my = (p0.y + p1.y) / 2 - (hop ? cell * 0.5 : cell * 0.15);
+        const p0 = cellPt(path[k]), p1 = cellPt(path[k + 1]), hop = Math.hypot(p1.x - p0.x, p1.y - p0.y) > cell * 1.6, mx = (p0.x + p1.x) / 2, my = (p0.y + p1.y) / 2 - (hop ? cell * 0.5 : cell * 0.15);
         ctx.beginPath(); const nn = 14;
         for (let q = 0; q <= nn * f; q++) { const u = q / nn, x = (1 - u) * (1 - u) * p0.x + 2 * u * (1 - u) * mx + u * u * p1.x, y = (1 - u) * (1 - u) * p0.y + 2 * u * (1 - u) * my + u * u * p1.y; q ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
         ctx.stroke();
@@ -301,7 +373,7 @@ export function render(ctx, state, L) {
     const status = turn && a ? 'Moving' : turn ? (state.autoMode ? (state.autoPaused ? 'Paused' : state.autoPhase === 'reveal' ? 'The move' : 'Thinking' + dots) : state.two ? 'To move' : human ? 'Your move' : (state.thinking || state.think > 0 ? 'Thinking' + dots : 'Moving')) : role;
     const pr = progress(g, seat, G), home = pegsHome(g, seat, G);
     const ic = clamp(Math.min(r.h * (tight ? 0.5 : 0.46), r.w * 0.26), 30, 88), ix = r.x + 12 + ic * 0.5, iy = r.y + 10 + ic * 0.58;
-    drawPeg(ctx, seat, style, ix, iy, ic, { glow: turn ? 0.7 : 0, lift: turn && !state.calm ? 0.12 + Math.sin(state.t * 3) * 0.05 : 0 });
+    if (use3) pawnIcon(ix, iy - ic * 0.05, ic * 0.95, seat, turn ? 1 : 0, turn && !state.calm ? 0.12 + Math.sin(state.t * 3) * 0.05 : 0); else drawPeg(ctx, seat, style, ix, iy, ic, { glow: turn ? 0.7 : 0, lift: turn && !state.calm ? 0.12 + Math.sin(state.t * 3) * 0.05 : 0 });
     const tx = r.x + 12 + ic + 6, tw = r.x + r.w - 10 - tx, ns = clamp(r.h * (tight ? 0.2 : 0.2), 17, 36);
     fitText(NAMES[seat], tx, r.y + 10 + ns * 0.9, ns, tw, CREAM, FONT, 600, 'left');
     fitText(status, tx, r.y + 10 + ns * 0.9 + ns * 0.82, Math.round(ns * 0.7), tw, turn ? GOLD : DIM, UI, 600, 'left');

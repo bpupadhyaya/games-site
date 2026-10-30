@@ -6,6 +6,7 @@ import { renderPlay, renderFree, renderCalib } from './playview.js';
 import { ABOUT, HOWTO, RULES } from './content.js';
 import { PIECES, TUNINGS, SPEEDS, TIMING, barDur, partHits, lanesOf, STEPS } from './music.js';
 import { drawCredit, drawMoreLine, edgeStroke, drawLockup } from './brand.js';
+import { v3, flatAlpha } from './v3.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
@@ -47,7 +48,9 @@ export function render(ctx, st, L, view, meta, pauseItems) {
   if (sc === 'free') { renderFree(ctx, st, L, meta); drawToast(ctx, st, L); return; }
   if (sc === 'calib') { renderCalib(ctx, st, L); return; }
   meta.previewBadge = null;
-  drawBackdrop(ctx, w + 20, h + 20, st.t, 0);
+  const fa = flatAlpha();
+  if (fa > 0) { ctx.save(); ctx.globalAlpha = fa; drawBackdrop(ctx, w + 20, h + 20, st.t, 0); ctx.restore(); }
+  if (v3.on && sc !== 'title') { ctx.fillStyle = `rgba(12,5,4,${0.5 * (1 - fa)})`; ctx.fillRect(-10, -10, w + 20, h + 20); }   // the 3D hall stays behind, dimmed for reading
   if (sc === 'title') renderTitle(ctx, st, L);
   else if (sc === 'songs') renderSongs(ctx, st, L);
   else if (sc === 'piece') renderPiece(ctx, st, L);
@@ -90,11 +93,16 @@ function settingsBlocks(st) {
 // ---- title ---------------------------------------------------------------------------------------------------------------------------------------------
 function renderTitle(ctx, st, L) {
   const T = L.title, S = L.S, t = st.t, wide = L.mode === 'wide';
-  drawFloor(ctx, L.w, L.h, T.hero.y + T.hero.r * 0.7, T.hero.x, 0.3);
-  const lampR = wide ? 34 : 30;
-  drawLamp(ctx, S.x + (wide ? 70 : 52), T.hero.y - T.hero.r * 1.5, lampR, t, 0.5);
-  drawLamp(ctx, wide ? T.col.x - 60 : S.x + S.w - 52, T.hero.y - T.hero.r * 1.4, lampR * 0.9, t + 1.7, 0.5);
-  hero(ctx, st, T.hero.x, T.hero.y, T.hero.r);
+  const fa = flatAlpha();
+  if (fa > 0) {                                                                    // the flat hero; the 3D presenter draws the real instrument behind
+    ctx.save(); ctx.globalAlpha = fa;
+    drawFloor(ctx, L.w, L.h, T.hero.y + T.hero.r * 0.7, T.hero.x, 0.3);
+    const lampR = wide ? 34 : 30;
+    drawLamp(ctx, S.x + (wide ? 70 : 52), T.hero.y - T.hero.r * 1.5, lampR, t, 0.5);
+    drawLamp(ctx, wide ? T.col.x - 60 : S.x + S.w - 52, T.hero.y - T.hero.r * 1.4, lampR * 0.9, t + 1.7, 0.5);
+    hero(ctx, st, T.hero.x, T.hero.y, T.hero.r);
+    ctx.restore();
+  }
   const tcx = wide ? T.hero.x : S.x + S.w / 2, size = T.size;
   titleText(ctx, tcx, T.titleY, size, 'GAMELAN', null);
   titleText(ctx, tcx, T.titleY + size * 0.9, size * 0.34, 'BRONZE BARS AND GONGS', null);

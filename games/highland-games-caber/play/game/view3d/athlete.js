@@ -2,14 +2,16 @@
 // weight swing. Hands are put on the props with per-frame reach targets, so the picture always agrees with the simulation.
 import { addKilt } from './props.js';
 
-export async function loadAthlete(V3, { character = 'athlete_m', lod = 0 } = {}) {
+export async function loadAthlete(V3, { character = 'athlete_m' } = {}) {
+  // full detail ALWAYS (no LOD sets, no tier swaps in the simplified hands/shoulders) and a long top (no tank armhole edge): the athlete is seen close up.
   const { loadHuman, buildClip, THREE } = V3;
   const female = character === 'athlete_f';
   const h = await loadHuman({
     character,
     kit: female ? { top: '#e6dfcc', bottoms: '#2a2c33', socks: '#d9d2bf' } : { top: '#e7e1cf', bottoms: '#2a2c33', socks: '#cfc7b3' },
-    skin: female ? 'light' : 'tan', hair: female ? 'brown' : 'ginger', lod,
+    skin: female ? 'light' : 'tan', hair: female ? 'brown' : 'ginger', top: 'long',
   });
+  h.lodAuto = false;
   h.groundClamp = 'auto'; h.footPlanting = true;
   const kilt = addKilt(THREE, h);
   const A = { h, kilt, THREE, ready: true, clips: {} };
@@ -38,7 +40,7 @@ export async function loadAthlete(V3, { character = 'athlete_m', lod = 0 } = {})
     name: 'a_put', duration: 1.2, base: { clip: 'ready_stance', time: 0.6 },
     keys: [
       { t: 0, pose: ready },
-      { t: 0.4, ease: 'inOut', pose: { Pelvis: { pos: [0, -0.22, -0.05], twist: -30 }, Spine: { twist: -16, flex: 6 }, Spine1: { twist: -32, flex: 10 }, Head: { twist: 34 }, L_Thigh: { flex: 40, abduct: 20 }, R_Thigh: { flex: 52, abduct: 16 }, L_Calf: { flex: 70 }, R_Calf: { flex: 86 } } },
+      { t: 0.4, ease: 'inOut', pose: { Pelvis: { pos: [0, -0.13, -0.04], twist: -30 }, Spine: { twist: -16, flex: 8 }, Spine1: { twist: -32, flex: 12 }, Head: { twist: 34 }, L_Thigh: { flex: 26, abduct: 18 }, R_Thigh: { flex: 34, abduct: 14 }, L_Calf: { flex: 46 }, R_Calf: { flex: 58 } } },
       { t: 0.62, ease: 'in', pose: { Pelvis: { pos: [0, 0.0, 0.1], twist: 14 }, Spine: { twist: 10, flex: -4 }, Spine1: { twist: 26, flex: -12 }, Head: { twist: -18 }, L_Thigh: { flex: 10, abduct: 16 }, R_Thigh: { flex: 4, abduct: 12 }, L_Calf: { flex: 14 }, R_Calf: { flex: 8 } } },
       { t: 1.2, ease: 'out', pose: { Pelvis: { pos: [0, -0.04, 0.12], twist: 20 }, Spine1: { twist: 30, flex: 6 }, Head: { twist: -10 }, L_Thigh: { flex: 20, abduct: 14 }, R_Thigh: { flex: 18, abduct: 12 }, L_Calf: { flex: 30 }, R_Calf: { flex: 26 } } },
     ],

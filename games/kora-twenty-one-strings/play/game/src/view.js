@@ -6,6 +6,7 @@ import { renderPlay, renderFree, renderCalib } from './playview.js';
 import { ABOUT, HOWTO, RULES } from './content.js';
 import { PIECES, SPEEDS, TIMING, barDur, handOf, stringName } from './music.js';
 import { drawCredit, drawMoreLine, edgeStroke, drawLockup } from './brand.js';
+import { use3d, flatAlpha } from './v3.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
@@ -23,7 +24,7 @@ function titleText(ctx, cx, y, size, label, sub) {
 
 // A gentle arpeggio the hero kora plays by itself (no sound): which strings are ringing at time t.
 const ARP = [4, 5, 7, 8, 9, 11, 12, 14, 12, 11, 9, 8];
-function heroVib(t) {
+export function heroVib(t) {
   const out = new Array(21).fill(0), step = 0.34, k = Math.floor(t / step);
   for (let j = k; j > k - 8 && j >= 0; j--) { const i = ARP[j % ARP.length] + (Math.floor(j / ARP.length) % 2) * 0, a = Math.exp(-(t - j * step) * 2.4); out[i] = Math.max(out[i], a); }
   return out;
@@ -35,7 +36,9 @@ export function render(ctx, st, L, view, meta, pauseItems) {
   if (sc === 'free') { renderFree(ctx, st, L, meta); drawToast(ctx, st, L); return; }
   if (sc === 'calib') { renderCalib(ctx, st, L); return; }
   meta.previewBadge = null;
-  drawBackdrop(ctx, w + 20, h + 20, st.t, 0);
+  const fa = flatAlpha(sc);
+  if (fa > 0) { ctx.save(); ctx.globalAlpha = fa; drawBackdrop(ctx, w + 20, h + 20, st.t, 0); ctx.restore(); }
+  if (use3d(sc) && sc !== 'title') { ctx.fillStyle = `rgba(14,6,14,${0.34 * (1 - fa)})`; ctx.fillRect(0, 0, w, h); }   // the 3D courtyard stays behind text, a little dimmed
   if (sc === 'title') renderTitle(ctx, st, L);
   else if (sc === 'songs') renderSongs(ctx, st, L);
   else if (sc === 'piece') renderPiece(ctx, st, L);
@@ -79,14 +82,14 @@ function settingsBlocks(st) {
 function renderTitle(ctx, st, L) {
   const T = L.title, S = L.S, t = st.t;
   const wide = L.mode === 'wide';
-  drawMat(ctx, L.w, L.h, T.hero.y + T.hero.r * 0.9, T.hero.x, 0.2);
-  drawKoraHero(ctx, T.hero.x, T.hero.y, T.hero.r, t, heroVib(t), { glow: 0.25 });
+  const fa = flatAlpha(st.scene);
+  if (fa > 0) { ctx.save(); ctx.globalAlpha = fa; drawMat(ctx, L.w, L.h, T.hero.y + T.hero.r * 0.9, T.hero.x, 0.2); drawKoraHero(ctx, T.hero.x, T.hero.y, T.hero.r, t, heroVib(t), { glow: 0.25 }); ctx.restore(); }
   const tcx = wide ? T.hero.x : S.x + S.w / 2, size = T.size;
   titleText(ctx, tcx, T.titleY, size * 1.25, 'KORA', null);
   txt(ctx, 'TWENTY-ONE STRINGS', tcx, T.titleY + size * 0.98, Math.max(22, size * 0.27), PAL.gold, { align: 'center', font: DISPLAY, weight: 700, stroke: 6, maxW: (wide ? T.col.x - S.x : S.w) - 60 });
   txt(ctx, 'Pluck the strings. Play the pattern.', tcx, T.titleY + size * 1.5, Math.max(24, size * 0.2), PAL.text, { align: 'center', weight: 600, stroke: 5, maxW: (wide ? T.col.x - S.x : S.w) - 40 });
   button(ctx, T.play, 'Play', { kind: 'primary', size: 44, icon: 'play' });
-  button(ctx, T.free, 'Free Play', { kind: 'quiet', size: 32, icon: 'strings' });
+  button(ctx, T.free, 'Free Play', { kind: 'ghost', size: 30, icon: 'strings' });
   button(ctx, T.auto, 'Watch and Learn', { kind: 'ghost', size: 30, icon: 'ear' });
   button(ctx, T.how, 'How to Play', { kind: 'ghost', size: 26 });
   button(ctx, T.rules, 'Rules', { kind: 'ghost', size: 26 });

@@ -59,21 +59,24 @@ function portrait(z, watch) {
 }
 
 function landscape(z, watch) {
+  // One compact strip on top (pause | score | gauge | think); the field takes the full width and everything below the strip.
   const hz = Math.min(z, 1.6), mf = minFs(), fs = fontsFor(hz, mf), g = 10;
   const U = { x0: host.l, x1: W - host.r, y0: host.t, y1: H - host.b }; U.w = U.x1 - U.x0; U.h = U.y1 - U.y0;
-  const pw = Math.round(clamp(U.w * 0.36 * (1 + (hz - 1) * 0.3), 360, 560)), px0 = U.x1 - pw - 14;
-  const topPad = Math.max(host.t + 12, 12);
-  const scoreH = Math.round(Math.max(120, fs.big * 1.1 + fs.small * 1.5 + 18));
-  const gaugeH = Math.round(Math.max(76, fs.gauge * 3.5));
-  const btnH = tap(Math.round(Math.max(70, fs.btn * 2.3)));
-  const bottom = U.y1 - 10;
-  const pause = R(px0, bottom - btnH, (pw - g) / 2, btnH), think = R(px0 + (pw + g) / 2, bottom - btnH, (pw - g) / 2, btnH);
-  const score = R(px0, topPad, pw, scoreH), gauge = R(px0, topPad + scoreH + g, pw, gaugeH);
+  const top = Math.max(host.t + 10, 10), M = 14;
+  const sideW = tap(Math.round(Math.max(92, fs.btn * 3.2)));
+  const hudH = Math.round(Math.max(sideW, fs.big * 1.05 + fs.small * 1.4 + 12));
+  const x0 = Math.max(U.x0 + M, host.back ? host.l + host.back + 10 : 0), x1 = U.x1 - M;
+  const pause = R(x0, top, sideW, hudH), think = R(x1 - sideW, top, sideW, hudH);
+  const scoreW = Math.round(clamp(U.w * 0.3, 300, 420));
+  const score = R(pause.x + sideW + g, top, scoreW, hudH);
+  const gx = score.x + scoreW + g, gauge = R(gx, top, think.x - g - gx, hudH);
   const dB = tap(Math.round(Math.max(60, fs.btn * 2.1)));
-  const dTop = bottom - (3 * dB + 2 * g);
-  const demo = { pause: R(px0, dTop, pw, dB), dec: R(px0, dTop + dB + g, (pw - g) / 2, dB), inc: R(px0 + (pw + g) / 2, dTop + dB + g, (pw - g) / 2, dB), exit: R(px0, dTop + 2 * (dB + g), pw, dB) };
-  const stage = R(0, 0, px0 - 6, H);
-  return { land: true, z, hz, fs, M: 0, pause, think, score, gauge, demo, stage, px0, pw, backClear: host.back ? host.l + host.back + 10 : 0, watch };
+  const barH = watch ? dB + 2 * g : 0, yBar = U.y1 - 8 - barH;
+  const dw = Math.min(U.w - 2 * M - 3 * g, 4 * 260) / 4, dx = (W - (4 * dw + 3 * g)) / 2;
+  const demo = { dec: R(dx, yBar + g, dw, dB), pause: R(dx + dw + g, yBar + g, dw, dB), inc: R(dx + 2 * (dw + g), yBar + g, dw, dB), exit: R(dx + 3 * (dw + g), yBar + g, dw, dB) };
+  const sTop = top + hudH + g;
+  const stage = R(0, sTop, W, (watch ? yBar : H - 4) - sTop);
+  return { land: true, z, hz, fs, M, pause, think, score, gauge, demo, stage, watch };
 }
 
 // ---- reference pages (About / How to play / Rules) --------------------------------------------------------------------

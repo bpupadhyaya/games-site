@@ -15,7 +15,7 @@ const R = (x, y, w, h) => ({ x, y, w, h });
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 // Safe areas and the host's floating back button, in virtual units. main.js keeps this current (browsers: all zero).
-export const host = { t: 0, r: 0, b: 0, l: 0, back: 0, px: 0.6 };   // px: css pixels per virtual unit (type never below ~11 css px)
+export const host = { t: 0, r: 0, b: 0, l: 0, back: 0, px: 0.6, c3: false };   // px: css pixels per virtual unit (type never below ~11 css px); c3: the 3D scene is on (compact wood plaques, the board gets the room)
 
 // ---- the board, canonical (the approved art is painted once in these coordinates and drawn scaled) -----------------------
 export function geom(n) {
@@ -67,7 +67,7 @@ export function flow(items, top, avail, gap = 10, maxGap = 36) {
 const cache = new Map();
 export function layoutFor(w, h) {
   w = Math.round(w); h = Math.round(h);
-  const key = `${w}x${h}|${Math.round(host.t)},${Math.round(host.r)},${Math.round(host.b)},${Math.round(host.l)},${Math.round(host.back)}|${Math.round(host.px * 100)}`;
+  const key = `${w}x${h}|${Math.round(host.t)},${Math.round(host.r)},${Math.round(host.b)},${Math.round(host.l)},${Math.round(host.back)}|${Math.round(host.px * 100)}|${host.c3 ? 3 : 2}`;
   let L = cache.get(key);
   if (!L) { L = build(w, h, { ...host }); L.key = key; cache.set(key, L); if (cache.size > 40) cache.delete(cache.keys().next().value); }
   return L;
@@ -136,7 +136,7 @@ function boardPortrait(L, n, teach) {
     y += v.nameRow + v.tray + v.g + eg;
   } else { B.card = R(x, y, fw, v.card); y += v.card + v.g + eg; }
   const bx = U.x0 + (U.w - BB.w * s) / 2;
-  B.g = liveGeom(n, bx, y, s); y += BB.h * s + v.g + eg;
+  B.g = liveGeom(n, bx, y, s); B.view3 = R(U.x0 + 4, y - 4, U.w - 8, BB.h * s + 8); y += BB.h * s + v.g + eg;
   B.nameBot = { x: x + 14, y: y + v.nameRow - 6, size: nsz, dotX: x - 2 };
   B.bot = makeStand(R(x, y + v.nameRow, fw, v.tray), 7, 1, sps, false);
   y += v.nameRow + v.tray + v.g + eg;
@@ -155,7 +155,7 @@ function boardWide(L, n, teach) {
   const top = L.U.y0 + 8, bottom = U.y1 - 8;
   const ly = L.ins.back > 0 && x0 < L.backBox.x + L.backBox.w + 4 ? Math.max(top, L.backBox.y + L.backBox.h + 2) : top;
   const gy = U.y0 + (U.h - BB.h * s) / 2;
-  B.g = liveGeom(n, bxx, gy, s);
+  B.g = liveGeom(n, bxx, gy, s); B.view3 = R(bxx - 14, gy - 8, bw + 28, BB.h * s + 16);
   // stands: 2 columns x 4 rows in a narrow card, 4 x 2 in a wide one
   const cols = pw >= 330 ? 4 : 2, rows = Math.ceil(8 / cols), pitchX = cols === 4 ? 72 : 66, pitchY = 66;
   const tw = Math.min(pw - 4, cols * pitchX + 32), th = rows * pitchY + 28;
@@ -191,7 +191,17 @@ export function lockHit(L, T) {
 function titleLayout(L, saved) {
   const { U, w } = L, rows = saved ? 7 : 6;      // button rows (half-width pairs count as one); then the Language label and Auto Play
   const T = { rows };
-  if (!L.land) {
+  if (!L.land && L.ins.c3) {
+    // 3D title: the name on top, the 3D board in the middle (as big as the width allows), ONE tall gold Play button and a tight list under it
+    const credit = 80, lab = 30, statsH = 28, fixed = credit + lab + statsH + 8, nr = rows + 1.2 + 0.45;
+    const p = clamp((U.h - fixed - 600) / nr, 56, 78), listH = nr * p, A = U.h - fixed - listH;
+    const tk = clamp((A * 0.3 - 40) / 300, 0.5, 0.85);
+    T.roomy = false; T.c3 = true; T.cx = L.cx; T.pitch = p; T.bh = p - 10; T.fullW = Math.min(600, U.w - 60); T.playH = Math.round(p * 1.5);
+    T.markSize = 190 * tk; T.markY = U.y0 + 24 + 0.78 * T.markSize; T.shogiSize = 104 * tk; T.shogiY = T.markY + 100 * tk; T.tagSize = Math.max(24, 29 * tk); T.tagY = T.shogiY + 52 * tk;
+    T.parade = null; T.lanterns = [];
+    T.v3 = R(U.x0 + 4, T.tagY + 16, U.w - 8, Math.max(200, U.y0 + A - (T.tagY + 16)));
+    T.listY = U.y0 + A + 4; T.x = T.cx - T.fullW / 2;
+  } else if (!L.land) {
     // Art block on top, list below. Phone height: the full art with the floating koma; shorter: a compact mark; spare height goes to the art.
     const credit = 88, lab = 34, statsH = 30, fixed = credit + lab + statsH + 10, nr = rows + 1.25;
     let A = 620, p = (U.h - A - fixed) / nr;
@@ -218,6 +228,11 @@ function titleLayout(L, saved) {
     T.tagY = ay + 80 * ak; T.tagSize = 27 * ak;
     T.parade = U.h >= 600 ? { y: ay + 190 * ak, dx: Math.min(190, leftW * 0.3), s: 0.7 * ak } : null;
     T.lanterns = [{ x: U.x0 + leftW * 0.2, y: U.y0 - 4, s: 0.9, ph: 0 }, { x: U.x0 + leftW * 0.84, y: U.y0 + 10, s: 0.8, ph: 1.7 }];
+    if (L.ins.c3) {      // 3D: a compact name block on top and the 3D board under it
+      T.c3 = true; T.playH = Math.round(p * 1.4); T.parade = null; T.lanterns = [];
+      T.markSize = 110 * ak; T.markY = U.y0 + 20 + 0.78 * T.markSize; T.shogiSize = 64 * ak; T.shogiY = T.markY + 66 * ak; T.tagY = T.shogiY + 36 * ak; T.tagSize = 24 * ak;
+      T.v3 = R(U.x0 + 6, T.tagY + 14, leftW - 12, Math.max(160, U.y1 - 12 - (T.tagY + 14)));
+    }
     T.split = U.x0 + leftW;
   }
   // brand lockup (themed AF + ARCFORGE + WORLD HERITAGE GAMES): under the art on the left, or at the foot of the list in portrait

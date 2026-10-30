@@ -17,6 +17,11 @@ export const inRect = (r, x, y) => !!r && x >= r.x && x <= r.x + r.w && y >= r.y
 
 // Safe areas and the host's floating back button, in virtual units. main.js keeps this current (browsers: all zero).
 export const host = { t: 0, r: 0, b: 0, l: 0, back: 0, px: 0.6 };   // px: css pixels per virtual unit (text never shrinks below ~11 css px)
+// The 3D presenter (web/view3d) fills these in when a WebGL scene is on screen: `pick` maps a tap to a board point through the tilted
+// camera, `pt` projects a point back to the screen. Off (no WebGL, tests, ?flat=1): the flat board's own geometry is used.
+export const v3 = { on: false, fade: 1, pick: null, pt: null, penLabel: null };
+export const boardPick = (B, x, y) => (v3.on && v3.pick ? v3.pick(x, y) : B.pointNear(x, y));
+export const boardPt = (B, i) => (v3.on && v3.pt ? v3.pt(i) : B.pointAt(i));
 
 const CX = 360, D = 93, K = 0.032, HGT = 3200, Y_NEAR = 1070, Y_H = Y_NEAR - HGT;
 export function project(u, v) { const z = 1 + K * (3 - v); return { x: CX + (u * D) / z, y: Y_H + HGT / z, s: 1 / z }; }
@@ -107,8 +112,10 @@ function stackScene(L, kind) {
   const board = boardAt(bs, w / 2, boardTop + (Y_NEAR - BB.top) * bs);
   pens.bottom = rowPen(px, boardTop + BH * bs + V.gB, penW, V.ph);
   const msgY = pens.bottom.rect.y + V.ph + V.gC;
+  // the 3D stage: the board and both herds, leaving a band at the top and bottom for the herd name plaques
+  const stage = R(Math.max(0, (w - 700) / 2), penTop + 44, Math.min(w, 700), pens.bottom.rect.y + V.ph - 44 - (penTop + 44));
   const S = { kind, mode: L.mode, board, pens, title: V.title, titleY: 92 + hdrDy + shift + (ins.t > 0 ? 27 : 0),   // below the kit's preview badge
-    bs, card: null, barY };
+    bs, card: null, barY, stage };
   S.hdr = V.title ? R(ox, 150 + hdrDy + shift, 720, 200) : R(ox, top + 8, 720, HDR[kind]);
   S.msg = R(px, msgY, penW, Math.max(msgH, Math.min(msgMax, barY - V.gD - msgY)));
   const bw = (penW - 4 - 28) / 3, bx0 = px + 2, bh = V.bar;
@@ -147,6 +154,8 @@ function wideScene(L, kind) {
   S.pens = pens;
   const bwid = Math.min(pw, 300), bx = right.x + (right.w - bwid) / 2, sl = (i) => R(bx, y + i * (bh + 10), bwid, bh);
   S.BTN = { menu: sl(0), undo: sl(1), hint: sl(2), next: sl(1), share: sl(1), auto: { exit: sl(0), pause: sl(1), skip: sl(2) } };
+  S.stage = R(left.x + left.w + 6, U.y0 + 44, right.x - 6 - (left.x + left.w + 6), U.h - 50);
+  S.btnCard = R(right.x, y - 14, right.w, 3 * bh + 20 + 28);
   // left card: header block on top, message (or Auto Play's think stepper) at the bottom
   const msgH = kind === 'lesson' ? 150 : kind === 'puzzle' ? 130 : 160;
   S.hdr = R(left.x + 6, left.y + 8, left.w - 12, left.h - msgH - 16);
@@ -158,8 +167,6 @@ function wideScene(L, kind) {
 }
 
 // ---- title -----------------------------------------------------------------------------------------------------------------
-// Title art ("hero") is drawn in canonical coordinates through translate(hx, hy) + scale(sc): title y 90-240, cows and a little board ~450-650.
-const HERO_H = 560, HERO_TOP = 90;
 const LOCK_AR = 327 / 1200;
 function lockRect(cx, y, maxW) { const lw = Math.min(260, maxW), lh = lw * LOCK_AR; return R(cx - lw / 2, y, lw, lh); }
 // Tap zone of the title lockup: >= 44 css px each way, extended sideways and downward only (never into the buttons above).
@@ -169,60 +176,58 @@ export function lockHit(L, T) {
   return R(x, y, w, Math.max(r.h + 2, Math.min(m, L.h - y)));
 }
 
+// The menu: the title lettering on top, the live 3D scene (hero) in the middle, ONE dominant Play button, a grid of icon buttons,
+// a one-line record, the Arcforge lockup. Settings (computer level, sound, warnings, motion, text) live in a sheet over the menu.
+// rows.dark is the Play button (or, with a saved game, the slim "New game" under Continue = rows.resume).
+export const GRID = ['learn', 'light', 'two', 'daily', 'auto', 'settings', 'howto', 'rules', 'about'];
+function buildSheet(L) {
+  const { U } = L, pw = Math.min(U.w - 40, 600), rh = 74, gap = 12, ph = 92 + 5 * (rh + gap) + 8 + 84;
+  const px = U.x0 + (U.w - pw) / 2, py = U.y0 + Math.max(8, (U.h - ph) / 2), sheet = { panel: R(px, py, pw, ph) };
+  ['level', 'sound', 'marks', 'calm', 'big'].forEach((id, i) => { sheet[id] = R(px + 24, py + 92 + i * (rh + gap), pw - 48, rh); });
+  sheet.close = R(px + pw / 2 - 150, py + ph - 84 - 8, 300, 80);
+  return sheet;
+}
 function buildTitle(L, hasSave) {
-  const { w, h, U, ins, ox } = L, T = { hero: null, rows: {}, stats: null, msg: null, card: null, mode: L.mode };
-  if (L.mode === 'tall') {
-    // the approved single column; rows squeeze a little only when the home indicator / a saved game need the room
-    const list = (hasSave ? ['resume'] : []).concat(['learn', 'pair-dl', 'two', 'daily']);
-    const hy = Math.max(0, ins.t - 50), base = 740 + hy;
-    const need = list.reduce((a, id) => a + (id === 'pair-dl' ? 68 : 76), 0) + 6 + 68 * 4 + 100;
-    const lk = lockRect(w / 2, 0, 300), lockY = h - Math.max(10, ins.b) - lk.h - 6, avail = lockY - 8 - base, f = Math.min(1, avail / need), P = (n) => n * f;
-    T.lock = { ...lk, y: lockY };
-    let y = base;
-    for (const id of list) {
-      if (id === 'pair-dl') { T.rows.dark = R(ox + 80, y, 272, P(60)); T.rows.light = R(ox + 368, y, 272, P(60)); y += P(68); }
-      else { T.rows[id] = R(ox + 80, y, 560, P(66)); y += P(76); }
-    }
-    y += P(6);
-    const pair = (a, b) => { T.rows[a] = R(ox + 80, y, 272, P(60)); T.rows[b] = R(ox + 368, y, 272, P(60)); y += P(68); };
-    pair('level', 'sound'); pair('marks', 'calm'); pair('big', 'howto');
-    const gap = 14, cw = (560 - gap * 2) / 3;
-    T.rows.about = R(ox + 80, y, cw, P(60)); T.rows.rules = R(ox + 80 + cw + gap, y, cw, P(60)); T.rows.auto = R(ox + 80 + 2 * (cw + gap), y, cw, P(60)); y += P(68);
-    T.stats = R(ox + 80, y + P(14), 560, 80);
-    T.hero = { sc: 1, hx: ox, hy };
-    T.msg = R(ox + 60, 640 + hy, 600, 46);
-    return T;
-  }
-  // compact + wide: a two-column grid of buttons
-  const rowsDef = (hasSave ? [['resume']] : []).concat([['learn'], ['dark', 'light'], ['two', 'daily'], ['level', 'sound'], ['marks', 'calm'], ['big', 'howto'], ['about', 'rules', 'auto']]);
-  const place = (x0, aw, y0, pitch, bh) => rowsDef.forEach((row, i) => {
-    const y = y0 + i * pitch, gp = 12, cw = (aw - gp * (row.length - 1)) / row.length;
-    row.forEach((id, k) => { T.rows[id] = R(x0 + k * (cw + gp), y, cw, bh); });
+  const { w, h, U, ins } = L, T = { rows: {}, mode: L.mode, sheet: buildSheet(L) };
+  const grid = (x0, aw, y0, cols, gh, gap = 12) => GRID.forEach((id, i) => {
+    const r = Math.floor(i / cols), c = i % cols, inRow = Math.min(cols, GRID.length - r * cols), cw = (aw - gap * (cols - 1)) / cols;
+    const off = (aw - (inRow * cw + (inRow - 1) * gap)) / 2;
+    T.rows[id] = R(x0 + off + c * (cw + gap), y0 + r * (gh + gap), cw, gh);
   });
-  const n = rowsDef.length;
-  if (L.mode === 'compact') {
-    const lk = lockRect(w / 2, 0, 300), pad = Math.max(16, ins.b + 8) + lk.h + 6, topPad = Math.max(10, ins.t + 6), aw = Math.min(U.w - 48, 640), x0 = (w - aw) / 2;
-    let pitch = 68;
-    for (; pitch > 50; pitch -= 2) { const zone = h - pad - 76 - n * pitch - 60 - topPad; if (zone / HERO_H >= 0.78) break; }
-    const bh = pitch - 10, rowsH = n * pitch, y0 = h - pad - 76 - rowsH;
-    place(x0, aw, y0, pitch, bh);
-    T.stats = R(x0, y0 + rowsH + 2, aw, 72); T.lock = { ...lk, y: h - Math.max(10, ins.b) - lk.h - 4 };
-    const zone = y0 - 56 - topPad, sc = clamp(zone / HERO_H, 0.35, 1);
-    T.hero = { sc, hx: w / 2 - 360 * sc, hy: topPad + (zone - HERO_H * sc) / 2 - HERO_TOP * sc };
-    T.msg = R(x0, y0 - 52, aw, 44);
+  if (!L.wide) {
+    const topPad = Math.max(ins.t, 0), lk = lockRect(w / 2, 0, 280), lockY = h - Math.max(10, ins.b) - lk.h - 6;
+    T.lock = { ...lk, y: lockY };
+    const aw = Math.min(U.w - 48, 640), x0 = (w - aw) / 2, cols = h < 1150 ? 5 : 3, rowsN = Math.ceil(GRID.length / cols), gh = h < 1150 ? 84 : 96;
+    T.stats = R(x0, lockY - 50, aw, 40);
+    const gridH = rowsN * gh + (rowsN - 1) * 12, gy = T.stats.y - 10 - gridH;
+    grid(x0, aw, gy, cols, gh);
+    let y = gy - 16;
+    if (hasSave) { T.rows.dark = R(x0 + aw * 0.2, y - 58, aw * 0.6, 58); y -= 58 + 10; }
+    const play = R(x0, y - 112, aw, 112); y = play.y;
+    if (hasSave) T.rows.resume = play; else T.rows.dark = play;
+    T.play = play;
+    T.titleText = { x: w / 2, y: topPad + Math.max(96, ins.back ? 112 : 96), size: 92 };
+    const heroTop = T.titleText.y + 98;
+    T.heroRect = R(U.x0 + 8, heroTop, U.w - 16, Math.max(160, y - 18 - heroTop));
+    T.msg = R(x0, T.heroRect.y + T.heroRect.h - 52, aw, 46);
     return T;
   }
-  // wide: art on the left, a card of buttons on the right
-  const aw = clamp(w * 0.46, 500, 700), ax = U.x1 - aw - 16, lk = lockRect(0, 0, 300), rowsAvail = U.h - 24 - 84 - lk.h - 10;
-  const pitch = Math.min(72, rowsAvail / n), bh = pitch - 10, rowsH = n * pitch, cardH = rowsH + 84 + 24;
-  const cardY = U.y0 + (U.h - cardH - lk.h - 10) / 2, y0 = cardY + 16;
-  place(ax + 20, aw - 40, y0, pitch, bh);
-  T.stats = R(ax + 20, y0 + rowsH + 2, aw - 40, 72);
-  T.card = R(ax, cardY, aw, cardH); T.lock = lockRect(ax + aw / 2, cardY + cardH + 8, aw - 40);
-  const leftW = ax - U.x0 - 8, lcx = U.x0 + leftW / 2;
-  const sc = clamp(Math.min((leftW - 30) / 540, (U.h - 130) / HERO_H), 0.3, 1.2);
-  T.hero = { sc, hx: lcx - 360 * sc, hy: U.y0 + (U.h - HERO_H * sc) / 2 - HERO_TOP * sc - 10 };
-  T.msg = R(U.x0 + 16, U.y1 - 62, leftW - 16, 44);
+  // landscape: title + live scene on the left, a card with Play and the grid on the right
+  const aw = clamp(w * 0.4, 440, 620), ax = U.x1 - aw - 14, lk = lockRect(0, 0, 260);
+  const avail = U.h - 24 - lk.h - 10, fixed = 18 + 100 + 14 + (hasSave ? 64 : 0) + 10 + 40 + 16, gh = clamp((avail - fixed - 24) / 3, 64, 96);
+  const cardH = fixed + gh * 3 + 24, cardY = U.y0 + Math.max(8, (U.h - cardH - lk.h - 10) / 2);
+  T.card = R(ax, cardY, aw, cardH);
+  let y = cardY + 18;
+  const play = R(ax + 20, y, aw - 40, 100); y += 100 + 14;
+  if (hasSave) { T.rows.resume = play; T.rows.dark = R(ax + aw * 0.22, y, aw * 0.56, 54); y += 64; } else T.rows.dark = play;
+  T.play = play;
+  grid(ax + 20, aw - 40, y, 3, gh); y += gh * 3 + 24 + 10;
+  T.stats = R(ax + 20, y, aw - 40, 40);
+  T.lock = lockRect(ax + aw / 2, cardY + cardH + 8, aw - 40);
+  const lx0 = U.x0 + 12, lw = ax - 16 - lx0;
+  T.titleText = { x: lx0 + lw / 2, y: U.y0 + 92, size: clamp(lw / 6.2, 60, 92) };
+  T.heroRect = R(lx0, U.y0 + 168, lw, U.h - 168 - 12);
+  T.msg = R(lx0 + 16, U.y1 - 62, lw - 32, 44);
   return T;
 }
 
@@ -245,13 +250,8 @@ function buildOver(L) {
 
 // ---- misc full screens (preparing the puzzle, demo limit) -----------------------------------------------------------------
 function buildMisc(L) {
-  const { w, h, U } = L;
-  if (!L.wide) {
-    const hero = L.title(false).hero, y = Math.min(Math.max(hero.hy + 700 * hero.sc, h * 0.55), h - 260);
-    return { cx: w / 2, y, menu: R(w / 2 - 120, y + 130, 240, 72) };
-  }
-  const aw = clamp(w * 0.46, 500, 700), cx = U.x1 - aw / 2 - 16;
-  return { cx, y: h / 2 - 30, menu: R(cx - 120, h / 2 + 90, 240, 72) };
+  const T = L.title(false), hr = T.heroRect, cx = hr.x + hr.w / 2, y = clamp(hr.y + hr.h * 0.62, hr.y + 60, L.h - 260);
+  return { cx, y, menu: R(cx - 120, y + 130, 240, 72) };
 }
 
 // ---- Rules / About / How to play -------------------------------------------------------------------------------------------
@@ -276,6 +276,7 @@ function buildInfo(L) {
 const PHONE = layoutFor(720, 1560);
 export const pointAt = (i) => PHONE.scene('play').board.pointAt(i);
 export const titleRows = (hasSave) => PHONE.title(hasSave).rows;
+export const sheetRows = () => PHONE.title(false).sheet;
 export const BTN = { ...PHONE.scene('play').BTN, again: PHONE.over.again, back: PHONE.over.back };
 export const TEXT_STEPPER = { dec: PHONE.info.header.textDec, inc: PHONE.info.header.textInc };
 export const infoFooterRects = (hasBack, hasNext) => PHONE.info.footer(hasBack, hasNext);

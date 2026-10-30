@@ -12,11 +12,12 @@ export function groundH(x, z) {
   const ridge = 0.5 + 0.5 * Math.sin(a * 3 + 0.7) * Math.cos(a * 2 - 0.3);
   const n = Math.sin(x * 0.045 + 1.3) * Math.cos(z * 0.05 + 0.4) + 0.5 * Math.sin(x * 0.11 + z * 0.09) + 0.25 * Math.sin(x * 0.27 - z * 0.23);
   let h = t * t * (6 + 9 * ridge) + n * 1.3 * t;
-  const far = Math.max(0, (r - 80) / 60);
-  h += far * far * (14 + 15 * (0.55 + 0.45 * Math.sin(a * 4 + 1.1) * Math.cos(a * 7)) + 5 * Math.sin(x * 0.02) * Math.cos(z * 0.025));
+  // far hills: a smooth rise (no cliff walls) to rounded Highland ridges
+  const far = Math.max(0, (r - 78) / 85);
+  h += Math.pow(far, 1.6) * (24 + 20 * (0.55 + 0.45 * Math.sin(a * 4 + 1.1) * Math.cos(a * 7)) + 6 * Math.sin(x * 0.02) * Math.cos(z * 0.025));
   // the loch: a hollow to the left of the field (x > 0 is the athlete's left)
   const lx = x - 62, lz = z - 38, ld = Math.hypot(lx / 26, lz / 17);
-  if (ld < 1.3) h = Math.min(h, -0.6 + Math.max(0, ld - 0.95) * 14);
+  if (ld < 1.9) { const u = Math.min(1, Math.max(0, (ld - 0.95) / 0.95)), w = u * u * (3 - 2 * u); h = -0.6 * (1 - w) + h * w; }   // gentle banks, no cliff
   return h;
 }
 
@@ -32,7 +33,7 @@ export function terrainH(x, z) {
 }
 function texCanvas(doc, w, h, draw) { const c = doc.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h); return c; }
 
-export function buildGlen(V3, stage) {
+export function buildGlen(V3, stage, opts = {}) {
   const { THREE } = V3;
   const doc = globalThis.document;
   const R = rnd(20261007);
@@ -42,19 +43,24 @@ export function buildGlen(V3, stage) {
   const std = (c, r = 0.85, m = 0, o = {}) => new THREE.MeshStandardMaterial({ color: c, roughness: r, metalness: m, ...o });
   const out = { root, spectators: null, flags: [], clock: null, trig: null, bar: null, markers: null, sheep: null };
 
-  // ---- sky: a gradient that follows the screen, plus sun glow and soft clouds
-  const skyTex = new THREE.CanvasTexture(texCanvas(doc, 4, 256, (g, w, h) => { const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#5f9be0'); gr.addColorStop(0.45, '#9cc6ee'); gr.addColorStop(0.8, '#d7e6ef'); gr.addColorStop(1, '#eef0e6'); g.fillStyle = gr; g.fillRect(0, 0, w, h); }));
+  // ---- sky: a deep Highland blue to a pale warm horizon with a sun glow, and banks of shaded cumulus (lit tops, grey bellies)
+  const skyTex = new THREE.CanvasTexture(texCanvas(doc, 8, 512, (g, w, h) => { const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#3f78c4'); gr.addColorStop(0.35, '#77a8dc'); gr.addColorStop(0.62, '#b7d2e8'); gr.addColorStop(0.82, '#e3e7e2'); gr.addColorStop(1, '#f2ead8'); g.fillStyle = gr; g.fillRect(0, 0, w, h); }));
   skyTex.colorSpace = THREE.SRGBColorSpace;
   stage.scene.background = skyTex;
-  stage.scene.fog = new THREE.Fog(0xc9d9e4, 40, 190);
-  const cloudTex = new THREE.CanvasTexture(texCanvas(doc, 128, 64, (g, w, h) => { for (let i = 0; i < 9; i++) { const x = w * (0.2 + 0.6 * R()), y = h * (0.35 + 0.3 * R()), r = h * (0.25 + 0.25 * R()); const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, 'rgba(255,255,255,0.85)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, h); } }));
-  cloudTex.colorSpace = THREE.SRGBColorSpace;
-  for (let i = 0; i < 14; i++) {
-    const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: cloudTex, transparent: true, depthWrite: false, fog: false, opacity: 0.85 }));
-    const a = R() * Math.PI * 2, d = 190 + R() * 40;
-    m.position.set(Math.cos(a) * d, 70 + R() * 50, Math.sin(a) * d); m.scale.set(90 + R() * 70, 34 + R() * 20, 1); root.add(m);
+  stage.scene.fog = new THREE.Fog(0xcfdbe2, 45, 230);
+  const cloudTex = (seed) => { const r2 = rnd(seed); const t = new THREE.CanvasTexture(texCanvas(doc, 256, 128, (g, w, h) => {
+    const puffs = []; for (let i = 0; i < 22; i++) { const u = r2(); puffs.push({ x: w * (0.12 + 0.76 * r2()), y: h * (0.62 - 0.38 * Math.sin(Math.PI * u) * r2()), r: h * (0.14 + 0.2 * r2()) }); }
+    for (const p of puffs) { const gr = g.createRadialGradient(p.x, p.y + p.r * 0.35, 0, p.x, p.y + p.r * 0.35, p.r * 1.1); gr.addColorStop(0, 'rgba(150,162,178,0.75)'); gr.addColorStop(1, 'rgba(150,162,178,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, h); }
+    for (const p of puffs) { const gr = g.createRadialGradient(p.x - p.r * 0.2, p.y - p.r * 0.3, 0, p.x, p.y, p.r); gr.addColorStop(0, 'rgba(255,255,252,0.95)'); gr.addColorStop(0.6, 'rgba(244,246,248,0.7)'); gr.addColorStop(1, 'rgba(230,236,242,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, h); }
+    g.globalCompositeOperation = 'destination-in'; const fade = g.createLinearGradient(0, 0, 0, h); fade.addColorStop(0, 'rgba(0,0,0,1)'); fade.addColorStop(0.8, 'rgba(0,0,0,1)'); fade.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = fade; g.fillRect(0, 0, w, h);
+  })); t.colorSpace = THREE.SRGBColorSpace; return t; };
+  const cloudTexs = [cloudTex(11), cloudTex(23), cloudTex(37)];
+  out.clouds = [];
+  for (let i = 0; i < 16; i++) {
+    const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: cloudTexs[i % 3], transparent: true, depthWrite: false, fog: false, opacity: 0.85 }));
+    const a = R() * Math.PI * 2, d = 200 + R() * 40;
+    m.position.set(Math.cos(a) * d, 60 + R() * 70, Math.sin(a) * d); const s = 46 + R() * 50; m.scale.set(s, s * 0.5, 1); root.add(m); out.clouds.push({ m, a, d, y: m.position.y });
   }
-
   // ---- terrain
   {
     const N = 190, size = 330;
@@ -73,11 +79,11 @@ export function buildGlen(V3, stage) {
       const slope = 1 - nrm.getY(i);
       const patch = Math.sin(x * 0.19 + 2) * Math.cos(z * 0.23 - 1) + Math.sin(x * 0.07 - z * 0.11) * 0.8;
       if (h < -0.2) c.set('#1f3b47');
-      else if (r < FIELD_R + 1.5) c.set('#4c8a3d');
-      else if (slope > 0.4 || h > 40) c.set(h > 52 ? '#8f8f90' : '#76705f');
-      else if (patch > 1.0 && h > 3) c.set('#7b5a86');          // heather
-      else if (patch < -0.7 && h > 3) c.set('#8f7440');          // bracken
-      else c.set(h > 30 ? '#6d7f4d' : '#547f3f');
+      else if (r < FIELD_R + 1.5) c.set('#467f37');
+      else if ((slope > 0.45 && patch > -0.2) || h > 46) c.set(h > 56 ? '#8a8c8e' : patch > 0.6 ? '#6e5f6e' : '#6a6656');
+      else if (patch > 1.0 && h > 3) c.set('#715a78');          // heather
+      else if (patch < -0.7 && h > 3) c.set('#6f6840');          // bracken
+      else c.set(h > 30 ? '#62724a' : patch > 0.3 ? '#4d7438' : '#46703a');
       const shade = 0.9 + 0.1 * Math.sin(x * 0.9) * Math.sin(z * 0.8);
       col[i * 3] = c.r * shade; col[i * 3 + 1] = c.g * shade; col[i * 3 + 2] = c.b * shade;
     }
@@ -92,13 +98,16 @@ export function buildGlen(V3, stage) {
   // ---- the games field: mown stripes
   {
     const tex = new THREE.CanvasTexture(texCanvas(doc, 512, 512, (g, w, h) => {
-      for (let i = 0; i < 16; i++) { g.fillStyle = i % 2 ? '#5e9d49' : '#68a851'; g.fillRect(0, (i * h) / 16, w, h / 16 + 1); }
+      for (let i = 0; i < 16; i++) { g.fillStyle = i % 2 ? '#4f8c3c' : '#5c9a46'; g.fillRect(0, (i * h) / 16, w, h / 16 + 1); }
       const img = g.getImageData(0, 0, w, h); let s = 99;
       for (let i = 0; i < img.data.length; i += 4) { s = (s * 1664525 + 1013904223) >>> 0; const n = ((s >>> 24) - 128) * 0.1; img.data[i] += n; img.data[i + 1] += n; img.data[i + 2] += n * 0.7; }
       g.putImageData(img, 0, 0);
+      // clover and darker tufts: large soft blotches so the lawn is not one flat colour
+      let r2 = 7; const rr = () => { r2 = (r2 * 1664525 + 1013904223) >>> 0; return r2 / 4294967296; };
+      for (let i = 0; i < 70; i++) { const x = rr() * w, y = rr() * h, r = 8 + rr() * 40; const gr = g.createRadialGradient(x, y, 0, x, y, r); const dk = rr() < 0.6; gr.addColorStop(0, dk ? 'rgba(40,80,30,0.16)' : 'rgba(150,170,80,0.12)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(x - r, y - r, 2 * r, 2 * r); }
     }));
     tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(3, 3); tex.anisotropy = 4;
-    const f = new THREE.Mesh(new THREE.CircleGeometry(FIELD_R, 72), std(0xffffff, 0.95, 0, { map: tex }));
+    const f = new THREE.Mesh(new THREE.CircleGeometry(FIELD_R, 72), std(0xe2e8dc, 0.95, 0, { map: tex }));
     f.rotation.x = -Math.PI / 2; f.position.y = 0.012; f.receiveShadow = true; root.add(f);
     out.field = f;
   }
@@ -169,90 +178,75 @@ export function buildGlen(V3, stage) {
     out.barRig = g; root.add(g);
   }
 
-  // ---- spectators: two instanced meshes (bodies, heads) on arcs outside the rope; gentle cheering bob
+  // ---- spectators: the shared realistic crowd (view3d crowd3d): a Scottish village audience three deep behind the rope, cheering at good throws
   {
-    const bodyGeo = new THREE.CylinderGeometry(0.24, 0.2, 0.72, 8); bodyGeo.translate(0, 1.0, 0);
-    const legGeo = new THREE.CylinderGeometry(0.19, 0.17, 0.66, 8); legGeo.translate(0, 0.33, 0);
-    const headGeo = new THREE.SphereGeometry(0.15, 8, 6); headGeo.translate(0, 1.5, 0);
-    const N = 190;
-    const armGeo = new THREE.CylinderGeometry(0.055, 0.05, 0.62, 6); armGeo.translate(0, -0.31, 0);
-    const arms = new THREE.InstancedMesh(armGeo, std(0xffffff, 0.8), N * 2);
-    const legs = new THREE.InstancedMesh(legGeo, std(0x2a2d36, 0.9), N), bodies = new THREE.InstancedMesh(bodyGeo, std(0xffffff, 0.9), N), heads = new THREE.InstancedMesh(headGeo, std(0xffffff, 0.8), N);
-    const cols = ['#5d6a8f', '#a85a4c', '#4f7d5e', '#c9a85c', '#7a4f7c', '#3d5a73', '#b8b4a4', '#8c4a32', '#2f4f46', '#d0c6b0'];
-    const skin = ['#e8c3a2', '#d9a982', '#b98563', '#8f5f43', '#f1d3b8'];
-    const c = new THREE.Color();
-    const base = [];
-    for (let i = 0; i < N; i++) {
-      // three arcs: behind the thrower, to the sides, and a thin row far ahead
-      const arc = R();
-      const ang = arc < 0.45 ? Math.PI * (1.05 + 0.9 * R()) : arc < 0.85 ? (R() < 0.5 ? 1 : -1) * (0.55 + 0.9 * R()) * 1.2 + (R() < 0.5 ? 0 : Math.PI * 0) : Math.PI * 0.5 + (R() - 0.5) * 1.0;
-      const rad = FIELD_R + 1.3 + R() * 2.6;
-      const x = Math.cos(ang) * rad, z = Math.sin(ang) * rad;
-      base.push({ x, z, ph: R() * 6.28, sc: 0.9 + R() * 0.2, rot: Math.atan2(-x, -z) });
-      bodies.setColorAt(i, c.set(cols[(R() * cols.length) | 0])); heads.setColorAt(i, c.set(skin[(R() * skin.length) | 0]));
-    }
-    for (const m of [legs, bodies, heads, arms]) { m.frustumCulled = false; m.castShadow = false; root.add(m); }
-    for (let i = 0; i < N; i++) { arms.setColorAt(i * 2, c.set(skin[(i * 3) % skin.length])); arms.setColorAt(i * 2 + 1, c.set(skin[(i * 3) % skin.length])); }
-    const mtx = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), sc = new THREE.Vector3(), ps = new THREE.Vector3(), ps2 = new THREE.Vector3();
+    const q = opts.quality === 'high' ? 'high' : opts.quality === 'low' ? 'low' : 'medium';
+    const crowd = V3.createCrowd3d(stage, {
+      ring: { center: [0, 0, 0], radius: FIELD_R + 1.6, rows: 3, rowGap: 0.85, count: q === 'low' ? 220 : 560, arc: [0.25, Math.PI * 2 - 0.25], face: 'in' },
+      seed: 1007, culture: ['european_village', 'nordic'], quality: q, props: { flag: 0.03, phone: 0.06, child: 0.05 }, flagColors: ['#1f4a9a', '#ffffff'], excitement: 0.25,
+    });
+    let cheerLast = 0;
+    out.crowd = crowd;
     out.spectators = {
-      cheer: 0, t: 0,
       update(dt, cheer) {
-        this.t += dt; this.cheer += (cheer - this.cheer) * Math.min(1, dt * 4);
-        for (let i = 0; i < N; i++) {
-          const b = base[i];
-          const bob = Math.abs(Math.sin(this.t * (2.2 + (i % 5) * 0.2) + b.ph)) * (0.03 + 0.28 * this.cheer);
-          e.set(0, b.rot, 0); q.setFromEuler(e); sc.set(b.sc, b.sc * (1 + this.cheer * 0.03), b.sc); ps.set(b.x, terrainH(b.x, b.z) + bob, b.z);
-          mtx.compose(ps, q, sc); bodies.setMatrixAt(i, mtx); heads.setMatrixAt(i, mtx); legs.setMatrixAt(i, mtx);
-          // arms: hang down, or go up and wave while the crowd cheers
-          for (let k2 = 0; k2 < 2; k2++) {
-            const side = k2 ? 1 : -1, lift = this.cheer * (2.2 + Math.sin(this.t * 7 + b.ph + k2) * 0.5);
-            e.set(0, b.rot, side * (0.12 + lift)); q.setFromEuler(e); e.set(0, b.rot, 0);
-            const off = new THREE.Vector3(side * 0.27 * b.sc, 1.3 * b.sc, 0).applyEuler(e);
-            mtx.compose(ps2.set(ps.x + off.x, ps.y + off.y, ps.z + off.z), q, sc); arms.setMatrixAt(i * 2 + k2, mtx);
-          }
-        }
-        bodies.instanceMatrix.needsUpdate = true; heads.instanceMatrix.needsUpdate = true; legs.instanceMatrix.needsUpdate = true; arms.instanceMatrix.needsUpdate = true;
+        if (cheer > 0.5 && cheerLast <= 0.5) crowd.react('cheer', { origin: [0, 0, 8], radius: 80, intensity: 1 });
+        cheerLast = cheer; crowd.setExcitement(0.2 + 0.6 * cheer); crowd.update(dt, stage.camera);
       },
     };
-    out.spectators.update(0, 0);
     // the rope: a ring of posts and one thin torus
-    const rope = new THREE.Mesh(new THREE.TorusGeometry(FIELD_R, 0.025, 4, 160), std(0xe8e0c8, 0.7)); rope.rotation.x = Math.PI / 2; rope.position.y = 0.95; root.add(rope);
-    const posts = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.05, 0.06, 1.0, 6), std(0x8a6a44, 0.8), 64); posts.frustumCulled = false;
-    for (let i = 0; i < 64; i++) { const a = (i / 64) * Math.PI * 2; mtx.compose(ps.set(Math.cos(a) * FIELD_R, 0.5, Math.sin(a) * FIELD_R), q.identity(), sc.set(1, 1, 1)); posts.setMatrixAt(i, mtx); }
+    const mtx = new THREE.Matrix4(), q4 = new THREE.Quaternion(), sc = new THREE.Vector3(), ps = new THREE.Vector3();
+    const rope = new THREE.Mesh(new THREE.TorusGeometry(FIELD_R, 0.022, 5, 200), std(0xe8e0c8, 0.7)); rope.rotation.x = Math.PI / 2; rope.position.y = 0.92; root.add(rope);
+    const posts = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.045, 0.055, 1.0, 8), std(0x7a5a3a, 0.8), 64); posts.frustumCulled = false; posts.castShadow = true;
+    for (let i = 0; i < 64; i++) { const a = (i / 64) * Math.PI * 2; mtx.compose(ps.set(Math.cos(a) * FIELD_R, 0.5, Math.sin(a) * FIELD_R), q4.identity(), sc.set(1, 1, 1)); posts.setMatrixAt(i, mtx); }
     root.add(posts);
   }
 
-  // ---- trees (pines: three stacked cones on a trunk), boulders, sheep, a dry stone wall
+  // ---- trees: Caledonian forest. Sitka/Norway spruce (layered drooping tiers), Scots pine (tall orange trunk, flat clumped crown) and
+  // broadleaf rowan/birch clumps near the field. Each species is ONE merged, vertex-coloured geometry drawn instanced.
   {
+    const noise3 = (x, y, z) => Math.sin(x * 3.1 + y * 1.7) * 0.5 + Math.sin(y * 4.3 - z * 2.9) * 0.3 + Math.sin(z * 5.7 + x * 2.3) * 0.2;
+    const paint = (geo, top, bot, y0, y1) => { const p = geo.attributes.position, col = new Float32Array(p.count * 3), a = new THREE.Color(top), b = new THREE.Color(bot), c = new THREE.Color(); for (let i = 0; i < p.count; i++) { const t = Math.min(1, Math.max(0, (p.getY(i) - y0) / Math.max(1e-3, y1 - y0))); c.copy(b).lerp(a, t); const n = 0.88 + 0.12 * noise3(p.getX(i) * 2, p.getY(i) * 2, p.getZ(i) * 2); col[i * 3] = c.r * n; col[i * 3 + 1] = c.g * n; col[i * 3 + 2] = c.b * n; } geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); return geo; };
+    const merge = (geos) => { const parts = geos.map((g) => (g.index ? g.toNonIndexed() : g)); let n = 0; for (const g of parts) n += g.attributes.position.count; const P = new Float32Array(n * 3), N = new Float32Array(n * 3), C = new Float32Array(n * 3); let o = 0; for (const g of parts) { P.set(g.attributes.position.array, o * 3); N.set(g.attributes.normal.array, o * 3); C.set(g.attributes.color.array, o * 3); o += g.attributes.position.count; } const m = new THREE.BufferGeometry(); m.setAttribute('position', new THREE.BufferAttribute(P, 3)); m.setAttribute('normal', new THREE.BufferAttribute(N, 3)); m.setAttribute('color', new THREE.BufferAttribute(C, 3)); return m; };
+    const blob = (r, sx, sy, sz, x, y, z, seed, top, bot) => { const g = new THREE.SphereGeometry(r, 10, 7); const p = g.attributes.position; for (let i = 0; i < p.count; i++) { const vx = p.getX(i), vy = p.getY(i), vz = p.getZ(i); const k = 1 + 0.28 * noise3(vx * 2.2 + seed, vy * 2.2, vz * 2.2 - seed); p.setXYZ(i, vx * k * sx + x, vy * k * sy + y, vz * k * sz + z); } g.computeVertexNormals(); return paint(g, top, bot, y - r * sy, y + r * sy); };
+    // spruce: trunk + 8 tiers, each a cone whose rim droops and is ragged
+    const spruceParts = [paint(new THREE.CylinderGeometry(0.1, 0.2, 2.2, 7).translate(0, 1.1, 0), '#4a3626', '#3a2a1e', 0, 2.2)];
+    for (let i = 0; i < 8; i++) {
+      const u = i / 7, r = 2.3 * (1 - u) + 0.35, y = 1.4 + u * 7.4, hh = 1.7 - u * 0.5;
+      const g = new THREE.CylinderGeometry(0.05, r, hh, 11, 2, false); const p = g.attributes.position;
+      for (let k = 0; k < p.count; k++) { const vx = p.getX(k), vy = p.getY(k), vz = p.getZ(k); const rim = vy < 0 ? 1 : vy < 0.01 ? 0.5 : 0; const ang = Math.atan2(vz, vx); const j = 1 + 0.22 * Math.sin(ang * 5 + i * 1.3) * rim + 0.12 * Math.sin(ang * 11 + i) * rim; p.setXYZ(k, vx * j, vy - rim * 0.25 * (0.6 + 0.4 * Math.sin(ang * 3 + i)) + y, vz * j); }
+      g.computeVertexNormals(); spruceParts.push(paint(g, '#1d3a26', '#3c6a40', y - hh / 2 - 0.3, y + hh / 2));
+    }
+    const spruceGeo = merge(spruceParts);
+    // Scots pine: tall, slightly leaning orange-brown trunk, a few flat clumps at the top
+    const pineParts = [paint(new THREE.CylinderGeometry(0.13, 0.24, 8.4, 7).translate(0, 4.2, 0), '#b0683c', '#5a4030', 2, 8.4)];
+    [[0, 8.6, 0, 1.9], [1.3, 8.0, 0.5, 1.4], [-1.2, 8.2, -0.4, 1.5], [0.3, 9.4, -0.8, 1.3], [-0.5, 7.6, 1.1, 1.2]].forEach(([x, y, z, r], i) => pineParts.push(blob(r, 1.25, 0.55, 1.25, x, y, z, i * 3.1, '#3c6440', '#1c3424')));
+    const pineGeo = merge(pineParts);
+    // broadleaf (rowan / birch clump): pale trunk, three lumpy crowns
+    const broadParts = [paint(new THREE.CylinderGeometry(0.08, 0.13, 4.0, 7).translate(0, 2.0, 0), '#e4ded0', '#8f8a80', 0, 4)];
+    [[0, 4.6, 0, 1.6], [1.0, 4.0, 0.6, 1.2], [-0.9, 4.2, -0.5, 1.25], [0.2, 5.5, -0.3, 1.1]].forEach(([x, y, z, r], i) => broadParts.push(blob(r, 1, 0.9, 1, x, y, z, i * 2.3 + 7, '#8fb35a', '#3f6430')));
+    const broadGeo = merge(broadParts);
+    const treeMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92, metalness: 0 });
     const place = (n, minR, maxR, hmin, hmax, f) => { let k = 0, tries = 0; while (k < n && tries++ < n * 40) { const a = R() * Math.PI * 2, r = minR + R() * (maxR - minR), x = Math.cos(a) * r, z = Math.sin(a) * r, h = terrainH(x, z); if (h < hmin || h > hmax) continue; if (Math.hypot(x - 62, z - 38) < 30) continue; f(x, h, z, k++); } };
     const mtx = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), sc = new THREE.Vector3(), ps = new THREE.Vector3(), c = new THREE.Color();
-    const NT = 260;
-    const trunk = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.18, 0.28, 3, 6), std(0x4a3828, 0.9), NT);
-    const cone = (r, h, y) => { const g = new THREE.CylinderGeometry(0.02, r, h, 8); g.translate(0, y, 0); return g; };
-    const crowns = [new THREE.InstancedMesh(cone(2.0, 3.2, 3.6), std(0xffffff, 0.9), NT), new THREE.InstancedMesh(cone(1.6, 2.8, 5.2), std(0xffffff, 0.9), NT), new THREE.InstancedMesh(cone(1.1, 2.4, 6.7), std(0xffffff, 0.9), NT)];
-    let used = 0;
-    place(NT, FIELD_R + 6, 130, 0.5, 52, (x, h, z, k) => {
-      const s = 0.7 + R() * 0.9; e.set(0, R() * 6, 0); q.setFromEuler(e); mtx.compose(ps.set(x, h, z), q, sc.set(s, s, s));
-      trunk.setMatrixAt(k, mtx); const g = 0.75 + R() * 0.25; c.setRGB(0.1 * g, 0.28 * g, 0.16 * g);
-      for (const m of crowns) { m.setMatrixAt(k, mtx); m.setColorAt(k, c); } used = k + 1;
-    });
-    for (const m of [trunk, ...crowns]) { m.count = used; m.castShadow = false; m.frustumCulled = false; root.add(m); }
-    // a few birches near the field edge (white trunks, round light crowns)
-    const NB = 24;
-    const bt = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.07, 0.1, 4.2, 6), std(0xe6e2d6, 0.8), NB), bc = new THREE.InstancedMesh(new THREE.SphereGeometry(1.5, 8, 6), std(0x7fa24a, 0.9), NB);
-    place(NB, FIELD_R + 4, 60, 0, 8, (x, h, z, k) => { const s = 0.8 + R() * 0.6; mtx.compose(ps.set(x, h + 2.1 * s, z), q.identity(), sc.set(s, s, s)); bt.setMatrixAt(k, mtx); mtx.compose(ps.set(x, h + 4.6 * s, z), q.identity(), sc.set(s, s * 0.85, s)); bc.setMatrixAt(k, mtx); });
-    for (const m of [bt, bc]) { m.frustumCulled = false; root.add(m); }
+    const forest = (geo, n, minR, maxR, hmin, hmax, s0, s1, tint) => {
+      const m = new THREE.InstancedMesh(geo, treeMat, n); let used = 0;
+      place(n, minR, maxR, hmin, hmax, (x, h, z, k) => { const s = s0 + R() * (s1 - s0); e.set((R() - 0.5) * 0.06, R() * 6.28, (R() - 0.5) * 0.06); q.setFromEuler(e); mtx.compose(ps.set(x, h - 0.1, z), q, sc.set(s * (0.9 + R() * 0.2), s, s * (0.9 + R() * 0.2))); m.setMatrixAt(k, mtx); const g = tint[0] + R() * tint[1]; m.setColorAt(k, c.setRGB(g, g * (0.97 + R() * 0.06), g)); used = k + 1; });
+      m.count = used; m.castShadow = false; m.receiveShadow = false; m.frustumCulled = false; root.add(m); return m;
+    };
+    forest(spruceGeo, 230, FIELD_R + 9, 135, 0.5, 52, 0.75, 1.5, [0.8, 0.3]);
+    forest(pineGeo, 70, FIELD_R + 8, 110, 0.3, 40, 0.8, 1.15, [0.85, 0.25]);
+    forest(broadGeo, 28, FIELD_R + 5, 58, 0, 8, 0.8, 1.2, [0.85, 0.25]);
     // boulders
-    const NR = 90, rocks = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 6, 5), std(0x8a877d, 0.95), NR);
+    const rockGeo = new THREE.SphereGeometry(1, 9, 7); { const p = rockGeo.attributes.position; for (let i = 0; i < p.count; i++) { const k = 1 + 0.22 * noise3(p.getX(i) * 1.7, p.getY(i) * 1.7, p.getZ(i) * 1.7); p.setXYZ(i, p.getX(i) * k, p.getY(i) * k, p.getZ(i) * k); } rockGeo.computeVertexNormals(); paint(rockGeo, '#a29f95', '#6c6a62', -1, 1); }
+    const NR = 90, rocks = new THREE.InstancedMesh(rockGeo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95 }), NR);
     let ru = 0;
-    place(NR, FIELD_R + 3, 120, 0, 60, (x, h, z, k) => { const s = 0.4 + R() * 1.6; e.set(R() * 3, R() * 3, R() * 3); q.setFromEuler(e); mtx.compose(ps.set(x, h + s * 0.3, z), q, sc.set(s * (1 + R() * 0.5), s * 0.6, s)); rocks.setMatrixAt(k, mtx); ru = k + 1; });
+    place(NR, FIELD_R + 3, 120, 0, 60, (x, h, z, k) => { const s = 0.4 + R() * 1.6; e.set(R() * 3, R() * 3, R() * 3); q.setFromEuler(e); mtx.compose(ps.set(x, h + s * 0.2, z), q, sc.set(s * (1 + R() * 0.5), s * 0.6, s)); rocks.setMatrixAt(k, mtx); ru = k + 1; });
     rocks.count = ru; rocks.frustumCulled = false; root.add(rocks);
     // dry stone wall: stacked boxes along an arc outside the field
     const NW = 140, wall = new THREE.InstancedMesh(new THREE.BoxGeometry(1.1, 0.55, 0.5), std(0x8f8b80, 0.95), NW);
     for (let i = 0; i < NW; i++) { const a = Math.PI * (0.15 + 0.9 * (i / NW)) * 1.0 + 0.9, r = FIELD_R + 9 + Math.sin(a * 3) * 1.5; const x = Math.cos(a) * r, z = Math.sin(a) * r; e.set(0, -a + Math.PI / 2, 0); q.setFromEuler(e); mtx.compose(ps.set(x, terrainH(x, z) + 0.28 + (i % 2) * 0.5, z), q, sc.set(1, 1, 1)); wall.setMatrixAt(i, mtx); }
     wall.frustumCulled = false; root.add(wall);
   }
-
   // ---- tents and a judges' gazebo
   {
     const tent = (x, z, ry, stripe) => {

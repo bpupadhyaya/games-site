@@ -11,6 +11,7 @@ import { LADDER, pickMove, bestMoves, hintReason, stubborn } from './ai.js';
 import { LESSONS, boardOf } from './lessons.js';
 import { puzzleFor, movesToWin } from './puzzles.js';
 import { render } from './view.js';
+import { v3 } from './v3.js';
 
 // Fluid viewport (kit 1.7): the short side is always 720 units and the long side follows the screen, in portrait and in landscape.
 // `meta.width/height` are updated live by the kit on every resize; every position comes from layoutFor(meta.width, meta.height).
@@ -56,7 +57,7 @@ export function createGame(env) {
   const lay = () => layoutFor(meta.width, meta.height);
   const kindOf = () => { const sc = state.scene; return sc === 'auto' ? (state.auto && state.auto.phase === 'over' ? 'autoover' : 'auto') : sc === 'over' ? 'over' : sc === 'lesson' ? 'lesson' : sc === 'puzzle' ? 'puzzle' : 'play'; };
   const P = () => lay().play(kindOf());                       // the placement of the current board scene
-  const pos = (i) => { const B = P().board; return pointPos(i, B.cx, B.cy, B.k); };
+  const pos = (i) => { if (v3.on && v3.pt) return v3.pt(i); const B = P().board; return pointPos(i, B.cx, B.cy, B.k); };
   const dur = (d) => (state.calm ? d * 0.6 : d);
   const say = (text, hold = 5) => { state.msg = { text, t: 0, hold }; };
   // Auto Play plays itself continuously with no player to hear it for - silent by design, regardless

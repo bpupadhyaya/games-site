@@ -4,7 +4,7 @@
   "tagline": "The card game of the fool",
   "genre": "card game (attack and defence)",
   "orientation": "any",
-  "version": "1.1.6",
+  "version": "1.2.0",
   "monetization": {
     "model": "premium",
     "priceUsd": 2.99,

@@ -87,7 +87,7 @@ export async function loadCrew({ boat, hue, quality, count = 20, seed = 1, withH
   const rnd = () => { rs = (rs * 1664525 + 1013904223) >>> 0; return rs / 4294967296; };
   const proto = {};
   const make = async (character, i) => {
-    const h = await loadHuman({ character, lod: 'auto', quality, kit: kitCol(i), skin: SKINS[i % SKINS.length], hair: HAIRS[(i * 3) % HAIRS.length], castShadow: quality !== 'low' && shadows });
+    const h = await loadHuman({ character, top: 'long', lod: 'auto', quality, kit: kitCol(i), skin: SKINS[i % SKINS.length], hair: HAIRS[(i * 3) % HAIRS.length], castShadow: quality !== 'low' && shadows });
     h.lodAuto = false;
     h.groundClamp = 'off'; h.footPlanting = false;
     return h;

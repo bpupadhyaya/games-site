@@ -37,11 +37,14 @@ export function paintButton(ctx, r, o = {}) {
   ctx.save();
   if (!disabled) { roundPath(ctx, r.x, r.y + (pressed ? 2 : 5), r.w, r.h, 18); ctx.fillStyle = pressed ? 'rgba(20,10,4,0.25)' : 'rgba(20,10,4,0.34)'; ctx.fill(); }
   roundPath(ctx, r.x, r.y + dy, r.w, r.h, 18);
-  ctx.fillStyle = fill; ctx.fill();
+  if (k === 'primary') { const g = ctx.createLinearGradient(0, r.y, 0, r.y + r.h); g.addColorStop(0, '#ffd966'); g.addColorStop(0.55, '#f2b632'); g.addColorStop(1, '#c98a14'); ctx.fillStyle = g; }
+  else if (k === 'dark') { const g = ctx.createLinearGradient(0, r.y, 0, r.y + r.h); g.addColorStop(0, '#5a3d27'); g.addColorStop(1, '#2e1c10'); ctx.fillStyle = g; }
+  else ctx.fillStyle = fill;
+  ctx.fill();
   if (pressed) { ctx.fillStyle = 'rgba(20,10,4,0.16)'; ctx.fill(); }
-  ctx.lineWidth = 1.5; ctx.strokeStyle = edge; ctx.stroke();
+  ctx.lineWidth = k === 'primary' ? 2 : 1.5; ctx.strokeStyle = k === 'primary' ? '#8a5a0c' : k === 'dark' ? '#d9a441' : edge; ctx.stroke();
   ctx.restore();
-  return { dy, light: primary || active || dark };
+  return { dy, light: active || dark, ink: primary };
 }
 
 // A flat pill. opts: primary (vermilion), active (teal), disabled, sub (small second line), size (font px)
@@ -80,8 +83,10 @@ export function panel(ctx, x, y, w, h, opts = {}) {
   ctx.save();
   if (shadow) { roundPath(ctx, x, y + 6, w, h, r); ctx.fillStyle = 'rgba(20,10,4,0.38)'; ctx.fill(); }
   roundPath(ctx, x, y, w, h, r);
-  ctx.fillStyle = fill; ctx.fill();
-  ctx.lineWidth = 2.5; ctx.strokeStyle = stroke; ctx.stroke();
+  const wood = typeof fill === 'string' && fill.startsWith('rgba(42,24,12');
+  if (wood) { const g = ctx.createLinearGradient(0, y, 0, y + h); g.addColorStop(0, '#5b3d27'); g.addColorStop(1, '#2f1c10'); ctx.fillStyle = g; } else ctx.fillStyle = fill;
+  ctx.fill();
+  ctx.lineWidth = 2.5; ctx.strokeStyle = wood ? '#c9962f' : stroke; ctx.stroke();
   ctx.restore();
 }
 

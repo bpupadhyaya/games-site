@@ -4,8 +4,9 @@
 // Three shapes (see layout.js): tall / compact portrait (scoreboard on top, controls at the bottom) and wide landscape (scoreboard and
 // status on the left, the lane in the middle, every control on the right).
 import { W, SW, SH, syncSize, isWide, host, minUnits, tapUnits, backBox, TEXT_SCALES, COMPACT, SCENE_Y0, sceneLayout, trayGeom, toScene } from './layout.js';
-import { FONT, NUM, C, roundPath, drawButton, paintButton, panel, wrapLines, textShadow, ease } from './ui.js';
-import { sceneInfo, drawRoom, drawLane, drawActors, drawPath, drawTarget, drawParts, proj, scaleAt, pipCam, interpSim, TAU } from './scene.js';
+import { FONT, NUM, C, roundPath, drawButton, paintButton, panel, plaque, wrapLines, textShadow, ease } from './ui.js';
+import { sceneInfo, drawRoom, drawLane, drawActors, drawPath, drawTarget, drawParts, proj, scaleAt, pipCam, interpSim, setForce2D, TAU } from './scene.js';
+import { v3, flatAlpha } from './v3.js';
 import { PROFILES } from './ai.js';
 import { POWERS, pathPoints, PIN_Z0 } from './phys.js';
 import { totals, phaseName, throwNo } from './engine.js';
@@ -271,7 +272,7 @@ function fitFont(ctx, text, size, maxW, weight = 700, family = FONT) {
 }
 
 function drawCardRaw(ctx, x, y, w, h, z, name, score, sub, active) {
-  panel(ctx, x, y, w, h, { r: 18, fill: active ? 'rgba(48,32,18,0.9)' : 'rgba(22,15,10,0.82)', stroke: active ? 'rgba(240,200,100,0.95)' : 'rgba(217,174,82,0.35)', lw: active ? 3 : 2, shadow: true });
+  plaque(ctx, x, y, w, h, { r: 18, active, shadow: true });
   ctx.textBaseline = 'alphabetic';
   fitFont(ctx, String(score), 46 * z, w * 0.4, 800, NUM);
   ctx.textAlign = 'right'; ctx.fillStyle = '#ffe7a8'; ctx.fillText(String(score), x + w - 14, y + h * 0.62);
@@ -283,7 +284,7 @@ function drawCardRaw(ctx, x, y, w, h, z, name, score, sub, active) {
 }
 // The landscape scoreboard card: the name and the big score on top, the two part scores stacked below.
 function drawCardWide(ctx, r, z, name, score, subs, active) {
-  panel(ctx, r.x, r.y, r.w, r.h, { r: 16, fill: active ? 'rgba(48,32,18,0.92)' : 'rgba(22,15,10,0.86)', stroke: active ? 'rgba(240,200,100,0.95)' : 'rgba(217,174,82,0.35)', lw: active ? 3 : 2, shadow: false });
+  plaque(ctx, r.x, r.y, r.w, r.h, { r: 16, active, shadow: false });
   ctx.textBaseline = 'alphabetic';
   fitFont(ctx, String(score), 46 * z, r.w * 0.42, 800, NUM);
   ctx.textAlign = 'right'; ctx.fillStyle = '#ffe7a8'; ctx.fillText(String(score), r.x + r.w - 12, r.y + 14 + 46 * z * 0.85);
@@ -318,41 +319,64 @@ function drawHookBtn(ctx, r, i, active) {
   ctx.restore();
 }
 
-export function drawLaneScene(ctx, S, pipX = 22) {
+export function drawLaneScene(ctx, S, pipX = 22, lay = null) {
   const cam = S.cam, t = S.t;
-  drawRoom(ctx, cam, t);
-  drawLane(ctx, cam, t);
+  const replaying = !!S.final;   // while the replay inset plays, the main view keeps showing the finished throw
+  const iv = replaying ? null : interpSim(S.sim, S.alpha);
+  const pins = replaying ? S.final.pins : iv.pins, ball = replaying ? null : (S.ballShow === S.sim.ball ? iv.ball : S.ballShow);
+  const alphaOf = (p) => (S.fade && p.st >= 0 && (p.st > 0 || Math.abs(p.x) > 0.67) ? Math.max(0, 1 - S.fade) : 1);
+  const dropOf = (p) => (S.drops ? Math.max(0, S.drops[p.id] ?? 0) : 0);
+  // The 3D alley draws the room, lane, pins and ball; the flat art below is the fallback (and fades out over it when the 3D scene arrives).
+  const d3 = v3.on && lay && v3.prepare;
+  if (d3) {
+    const pinFx = []; for (const p of pins) pinFx[p.id] = { alpha: alphaOf(p), lift: dropOf(p) };
+    const want = { kind: 'play', rect: lay.sceneRect, pins, ball: ball && ball.on !== false ? ball : null, ballOpts: S.ballOpts, pinFx, inset: null };
+    if (replaying) { const iv2 = interpSim(S.sim, S.alpha); want.inset = { rect: { x: lay.vx + pipX * lay.s, y: lay.vy + (PIP.y - SCENE_Y0) * lay.s, w: PIP.w * lay.s, h: PIP.h * lay.s }, pins: iv2.pins, ball: iv2.ball }; }
+    v3.want = want; v3.xf = { vx: lay.vx, vy: lay.vy - SCENE_Y0 * lay.s, s: lay.s }; v3.prepare(want);
+    v3.map.skip = Object.values(lay.rects || {});
+    v3.map.active = S.ph === 'aim' && !!S.humanTurn && !S.sheet && !S.why && !S.pauseMenu && S.m.cfg.mode !== 'watch';
+  }
+  const fa = d3 ? flatAlpha() : 1;
   const ov = S.overlay;
-  if (ov) {
+  const overlays = () => {
+    if (!ov) return;
     if (ov.last) drawPath(ctx, cam, ov.last, 'rgba(130,190,255,0.8)', t, 0.03, 0.8);
     if (ov.hint) { drawPath(ctx, cam, ov.hint.pts, '#7de8ff', t, 0.04, 0.95); drawTarget(ctx, cam, ov.hint.aimX, PIN_Z0, '#7de8ff', t, ''); }
     if (ov.plan) { drawPath(ctx, cam, ov.plan.pts, ov.plan.col ?? '#ffe08a', t, 0.05, 1); drawTarget(ctx, cam, ov.plan.aimX, PIN_Z0, ov.plan.col ?? '#ffe08a', t, ov.plan.label); }
+  };
+  if (fa > 0.01) {
+    setForce2D(!!d3);
+    ctx.save(); ctx.globalAlpha = fa;
+    drawRoom(ctx, cam, t);
+    drawLane(ctx, cam, t);
+    if (!d3) overlays();
+    drawActors(ctx, cam, pins, ball, { alphaOf, dropOf, ballOpts: S.ballOpts });
+    ctx.restore();
+    setForce2D(false);
   }
-  const replaying = !!S.final;   // while the replay inset plays, the main view keeps showing the finished throw
-  const iv = replaying ? null : interpSim(S.sim, S.alpha);
-  drawActors(ctx, cam, replaying ? S.final.pins : iv.pins, replaying ? null : (S.ballShow === S.sim.ball ? iv.ball : S.ballShow), {
-    alphaOf: (p) => (S.fade && p.st >= 0 && (p.st > 0 || Math.abs(p.x) > 0.67) ? Math.max(0, 1 - S.fade) : 1),
-    dropOf: (p) => (S.drops ? Math.max(0, S.drops[p.id] ?? 0) : 0),
-    ballOpts: S.ballOpts,
-  });
+  if (d3) overlays();
   drawParts(ctx, cam, S.parts);
-  if (replaying) drawReplayInset(ctx, S, pipX);
+  if (replaying) drawReplayInset(ctx, S, pipX, d3);
 }
 
 // Replay as a small picture-in-picture: a static close-up of the pin deck, in the wall space above the lane (it never covers the
 // lane). The main view does not move.
 const PIP = { x: 22, y: 192, w: 196, h: 150 };
-function drawReplayInset(ctx, S, pipX) {
+function drawReplayInset(ctx, S, pipX, d3 = false) {
   const { y, w, h } = PIP, x = pipX, cam = pipCam();
-  ctx.save();
-  roundPath(ctx, x, y, w, h, 14); ctx.clip();
-  ctx.fillStyle = '#120a06'; ctx.fillRect(x, y, w, h);
-  ctx.translate(x + w / 2, y + h / 2); ctx.scale(0.5, 0.5); ctx.translate(-360, -500);
-  drawLane(ctx, cam, S.t);
-  const iv = interpSim(S.sim, S.alpha);
-  drawActors(ctx, cam, iv.pins, iv.ball.on ? iv.ball : null, { pinK: 1 });
-  drawParts(ctx, cam, S.pipParts);
-  ctx.restore();
+  if (!d3 || flatAlpha() > 0.01) {
+    setForce2D(!!d3);
+    ctx.save();
+    roundPath(ctx, x, y, w, h, 14); ctx.clip();
+    ctx.fillStyle = '#120a06'; ctx.fillRect(x, y, w, h);
+    ctx.translate(x + w / 2, y + h / 2); ctx.scale(0.5, 0.5); ctx.translate(-360, -500);
+    drawLane(ctx, cam, S.t);
+    const iv = interpSim(S.sim, S.alpha);
+    drawActors(ctx, cam, iv.pins, iv.ball.on ? iv.ball : null, { pinK: 1 });
+    drawParts(ctx, cam, S.pipParts);
+    ctx.restore();
+    setForce2D(false);
+  }
   roundPath(ctx, x, y, w, h, 14); ctx.strokeStyle = '#e9c15f'; ctx.lineWidth = 3; ctx.stroke();
   const rfs = Math.max(20, sceneInfo.minU / sceneInfo.s);
   ctx.font = `700 ${rfs}px ${FONT}`; ctx.textAlign = 'left'; ctx.textBaseline = "bottom";
@@ -499,11 +523,11 @@ function drawWideSides(ctx, S, lay) {
 // Whole play screen.
 export function renderPlay(ctx, S) {
   const lay = computeLayout(S, ctx);
-  ctx.fillStyle = '#0b0705'; ctx.fillRect(0, 0, SW, SH);
+  if (v3.on) { ctx.save(); ctx.globalAlpha = flatAlpha(); ctx.fillStyle = '#0b0705'; ctx.fillRect(0, 0, SW, SH); ctx.restore(); } else { ctx.fillStyle = '#0b0705'; ctx.fillRect(0, 0, SW, SH); }
   ctx.save();
   ctx.translate(lay.vx, lay.vy - SCENE_Y0 * lay.s); ctx.scale(lay.s, lay.s);
   sceneInfo.s = lay.s; sceneInfo.minU = minUnits(11);
-  drawLaneScene(ctx, S, lay.wide ? 262 : 22);
+  drawLaneScene(ctx, S, lay.wide ? 262 : 22, lay);
   ctx.restore();
   // vignette for focus
   const vx = lay.cx, vy = SH * 0.44, vr = Math.max(SW, SH) * 0.64;

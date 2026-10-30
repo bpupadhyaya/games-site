@@ -4,6 +4,7 @@
 import { layoutLineRows, TEXT_SCALES, AUTO_THINK_STEPS } from './layout.js';
 import { drawCredit, drawMoreLine, drawLockup } from './brand.js';
 import { legalPlays } from './rules.js';
+import { v3 } from './v3.js';
 
 // Live screen size in virtual units (the short side is always 720); set at the top of every render().
 let W = 720, H = 1560;
@@ -73,7 +74,7 @@ function roundRect(ctx, x, y, w, h, r) {
   ctx.roundRect(x, y, w, h, r);
 }
 
-function panel(ctx, x, y, w, h, fill = 'rgba(24,12,8,0.92)') {
+function panel(ctx, x, y, w, h, fill = 'rgba(24,12,8,0.97)') {
   ctx.save();
   ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 30; ctx.shadowOffsetY = 12;
   ctx.fillStyle = fill;
@@ -85,19 +86,30 @@ function panel(ctx, x, y, w, h, fill = 'rgba(24,12,8,0.92)') {
 
 function button(ctx, rect, label, opts = {}) {
   ctx.save();
-  if (opts.disabled) ctx.globalAlpha = 0.35;
+  if (opts.disabled) ctx.globalAlpha = 0.4;
+  const plaque = v3.on;     // on the 3D table the buttons are walnut plaques with a brass edge and a routed groove
   if (opts.primary) {
     const g = ctx.createLinearGradient(rect.x, rect.y, rect.x, rect.y + rect.h);
-    g.addColorStop(0, '#f3cf7c'); g.addColorStop(1, '#c9963a');
+    g.addColorStop(0, '#f6d482'); g.addColorStop(1, '#c9963a');
+    ctx.fillStyle = g;
+  } else if (plaque) {
+    const g = ctx.createLinearGradient(rect.x, rect.y, rect.x, rect.y + rect.h);
+    if (opts.active) { g.addColorStop(0, '#2f9a86'); g.addColorStop(1, '#17594f'); } else { g.addColorStop(0, '#5b3a22'); g.addColorStop(1, '#2c180c'); }
     ctx.fillStyle = g;
   } else {
     ctx.fillStyle = opts.active ? 'rgba(63,191,160,0.9)' : 'rgba(24,12,8,0.55)';
   }
-  ctx.shadowColor = 'rgba(0,0,0,0.4)'; ctx.shadowBlur = 10; ctx.shadowOffsetY = 3;
+  ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = plaque ? 16 : 10; ctx.shadowOffsetY = plaque ? 6 : 3;
   roundRect(ctx, rect.x, rect.y, rect.w, rect.h, 14); ctx.fill();
-  ctx.shadowBlur = 0;
-  ctx.strokeStyle = 'rgba(199,204,209,0.6)'; ctx.lineWidth = 2;
+  ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+  ctx.strokeStyle = plaque ? (opts.primary ? '#fff0b8' : '#d3a64a') : 'rgba(199,204,209,0.6)'; ctx.lineWidth = plaque ? 2.5 : 2;
   roundRect(ctx, rect.x, rect.y, rect.w, rect.h, 14); ctx.stroke();
+  if (plaque) {
+    ctx.strokeStyle = opts.primary ? 'rgba(90,56,14,0.55)' : 'rgba(0,0,0,0.5)'; ctx.lineWidth = 1.5;
+    roundRect(ctx, rect.x + 6, rect.y + 6, rect.w - 12, rect.h - 12, 9); ctx.stroke();
+    ctx.strokeStyle = opts.primary ? 'rgba(255,255,255,0.45)' : 'rgba(255,214,150,0.22)'; ctx.lineWidth = 1;
+    roundRect(ctx, rect.x + 7.5, rect.y + 7.5, rect.w - 15, rect.h - 15, 8); ctx.stroke();
+  }
   let size = opts.size ?? 18;
   ctx.font = `${opts.weight ?? 700} ${size}px ${opts.font ?? UI}`;
   while (size > 14 && ctx.measureText(label).width > rect.w - 20) { size -= 1; ctx.font = `${opts.weight ?? 700} ${size}px ${opts.font ?? UI}`; }
@@ -229,6 +241,15 @@ function drawTile(ctx, x, y, w, h, a, b, opts = {}) {
   ctx.restore();
 }
 
+// With the 3D table alive a domino is handed to the presenter (layout rectangle + face) instead of being painted; otherwise it is drawn flat.
+const tkey = (a, b) => `t${Math.min(a, b)}-${Math.max(a, b)}`;
+function tile3(ctx, key, x, y, w, h, a, b, opts = {}) {
+  if (!v3.on) { drawTile(ctx, x, y, w, h, a, b, opts); return; }
+  v3.tiles.push({ key, a, b, x, y, w, h, down: Boolean(opts.faceDown), lift: Boolean(opts.lift), hl: Boolean(opts.highlight), drag: Boolean(opts.drag), from: opts.from, seat: opts.seat });
+}
+// Text that belongs to a spot on the table follows the tilted view.
+const at = (x, y) => (v3.on && v3.proj ? v3.proj(x, y) : [x, y]);
+
 // A tier's "badge" for the lobby: a small ivory domino-end (same pip motif as the tiles) with an
 // accent-colored ring, so difficulty visually reads as pip count (1/2/3) rather than plain text.
 function drawTierBadge(ctx, cx, cy, radius, n, accent, selected) {
@@ -350,14 +371,15 @@ function drawSeats(ctx, state, L) {
     const seat = Number(seatStr);
     const S = P.seats[seat];
     const count = state.hands[seat]?.length ?? 0;
-    const trim = seat === 2 ? GOLD : SAND;
-    text(ctx, seatLabel(seat), S.labelX, S.labelY, P.labelSize, trim, UI, 700);
+    const trim = seat === 2 ? GOLD : v3.on ? '#f3e6c8' : SAND;
+    { const [lx, ly] = at(S.labelX, v3.on && seat === 2 ? S.y + S.th / 2 + P.labelSize + 8 : S.labelY); text(ctx, seatLabel(seat), lx, ly, P.labelSize, trim, UI, 700); }
     for (let i = 0; i < count; i++) {
       const x = S.vertical ? S.x - S.tw / 2 : S.x - (count * (S.tw + S.gap)) / 2 + i * (S.tw + S.gap);
       const y = S.vertical ? S.y - (count * (S.th + S.gap)) / 2 + i * (S.th + S.gap) : S.y - S.th / 2;
-      drawTile(ctx, x, y, S.tw, S.th, 0, 0, { faceDown: true, flat: true });
+      tile3(ctx, `d${seat}-${i}`, x, y, S.tw, S.th, 0, 0, { faceDown: true, flat: true, seat });
     }
-    if (state.turn === seat && state.scene === 'playing' && !state.handResult) {
+    if (state.turn === seat && v3.on && !state.handResult) v3.marks.push({ x: S.x, y: S.y, r: P.ringR, kind: 'turn' });
+    else if (state.turn === seat && state.scene === 'playing' && !state.handResult) {
       ctx.save();
       ctx.strokeStyle = SILVER; ctx.lineWidth = 2; ctx.globalAlpha = 0.7 + Math.sin(state.t * 6) * 0.25;
       ctx.beginPath(); ctx.arc(S.x, S.y, P.ringR, 0, Math.PI * 2); ctx.stroke();
@@ -381,14 +403,15 @@ function drawLine(ctx, state, L) {
     const y = topY + r * (h + rowGap);
     for (let c = 0; c < thisRowCount; c++) {
       const t = line[idx];
-      drawTile(ctx, x, y, w, h, t.leftFace, t.rightFace, { flat: w < 30 });
+      tile3(ctx, tkey(t.a, t.b), x, y, w, h, t.leftFace, t.rightFace, { flat: w < 30, from: t.seat });
       x += w + gap;
       idx++;
     }
   }
   if (!state.handResult && state.ends) {
     for (const [i, n] of [[0, state.ends.left], [1, state.ends.right]]) {
-      text(ctx, String(n), bounds.x + bounds.w * (i ? 0.75 : 0.25), P.endNumY, P.endNumSize, 'rgba(245,236,216,0.7)', UI, 700);
+      const [nx, ny] = at(bounds.x + bounds.w * (i ? 0.75 : 0.25), P.endNumY);
+      text(ctx, String(n), nx, ny, P.endNumSize, 'rgba(245,236,216,0.7)', UI, 700);
     }
   }
 }
@@ -402,19 +425,19 @@ function drawRack(ctx, state, L) {
     const r = L.play.rackRect(i, hand.length);
     const canPlay = state.turn === 0 && legalIdx.has(i);
     const hinted = state.hint && state.hint.index === i;
-    drawTile(ctx, r.x, r.y, r.w, r.h, hand[i].a, hand[i].b, { highlight: hinted, lift: canPlay });
+    tile3(ctx, tkey(hand[i].a, hand[i].b), r.x, r.y, r.w, r.h, hand[i].a, hand[i].b, { highlight: hinted, lift: canPlay });
   }
   if (state.drag) {
     const r = L.play.rackRect(state.drag.index, hand.length);
     const tile = hand[state.drag.index];
-    if (tile) drawTile(ctx, state.drag.x - r.w / 2, state.drag.y - r.h / 2, r.w, r.h, tile.a, tile.b, { lift: true });
+    if (tile) tile3(ctx, tkey(tile.a, tile.b), state.drag.x - r.w / 2, state.drag.y - r.h / 2, r.w, r.h, tile.a, tile.b, { lift: true, drag: true });
   }
 }
 
 function drawScoreAndStatus(ctx, state, L, statusText, statusColor) {
   const P = L.play;
-  text(ctx, `A ${state.matchScore.A}`, P.scoreCx - 16, P.scoreY, P.scoreSize, '#ffe08a', DISPLAY, 800, 'right');
-  text(ctx, `B ${state.matchScore.B}`, P.scoreCx + 16, P.scoreY, P.scoreSize, PEACH, DISPLAY, 800, 'left');
+  text(ctx, `A ${state.matchScore.A}`, P.scoreCx - 16, P.scoreY, P.scoreSize, '#ffe08a', UI, 800, 'right');
+  text(ctx, `B ${state.matchScore.B}`, P.scoreCx + 16, P.scoreY, P.scoreSize, PEACH, UI, 800, 'left');
   const maxW = L.land ? (P.memory.x - (P.back.x + P.back.w)) - 24 : L.C.w;
   const cx = L.land ? P.scoreCx : W / 2;
   const size = state.toastT > 0 && state.scene === 'playing' ? P.toastSize : P.statusSize;
@@ -539,6 +562,16 @@ function drawMatchResult(ctx, state, L) {
 
 function drawTitle(ctx, state, manifest, L) {
   const T = L.title;
+  if (v3.on) {
+    // a hanging signboard behind the name keeps the gold lettering readable on the lit table
+    const sw = Math.min(L.land ? W / 2 - L.C.x0 - 10 : L.C.w + 20, 700), sx = T.titleX - sw / 2, sy = T.titleY1 - T.titleSize - 22, sh = Math.min(T.tagline.y + 2 * T.tagline.lh - sy + 18, T.tiles.y - 14 - sy);
+    ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 24; ctx.shadowOffsetY = 8;
+    const g = ctx.createLinearGradient(0, sy, 0, sy + sh); g.addColorStop(0, 'rgba(34,16,12,0.9)'); g.addColorStop(1, 'rgba(22,9,8,0.82)');
+    ctx.fillStyle = g; roundRect(ctx, sx, sy, sw, sh, 22); ctx.fill(); ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+    ctx.strokeStyle = 'rgba(211,166,74,0.85)'; ctx.lineWidth = 2.5; roundRect(ctx, sx, sy, sw, sh, 22); ctx.stroke();
+    ctx.strokeStyle = 'rgba(211,166,74,0.35)'; ctx.lineWidth = 1.2; roundRect(ctx, sx + 7, sy + 7, sw - 14, sh - 14, 16); ctx.stroke();
+    ctx.restore();
+  }
   const parts = manifest.title.toUpperCase().split(':').map((s) => s.trim());
   const maxW = L.land ? (W / 2 - L.C.x0 - 40) : L.C.w;
   if (parts.length > 1) {
@@ -550,7 +583,7 @@ function drawTitle(ctx, state, manifest, L) {
   const { dw, dh, gap: dgap } = T.tiles, dTotal = dw * 3 + dgap * 2, dStart = T.tiles.cx - dTotal / 2;
   demo.forEach(([a, b], i) => {
     const isNine = a === 9 && b === 9;
-    drawTile(ctx, dStart + i * (dw + dgap), T.tiles.y + Math.sin(state.t * 1.2 + i) * 6, dw, dh, a, b, { lift: true, highlight: isNine });
+    tile3(ctx, `title${i}`, dStart + i * (dw + dgap), T.tiles.y + Math.sin(state.t * 1.2 + i) * 6, dw, dh, a, b, { lift: true, highlight: isNine });
   });
   button(ctx, T.play, 'Play', { primary: true, size: T.fonts[0] });
   button(ctx, T.howto, 'How to Play', { size: T.fonts[1] });
@@ -762,7 +795,14 @@ function drawDemoLimit(ctx, manifest, L) {
 
 export function render(ctx, state, manifest, helpers, L) {
   W = L.w; H = L.h;
-  backdrop(ctx, L);
+  if (!v3.on) backdrop(ctx, L);
+  else {
+    if (v3.fade < 1) { ctx.save(); ctx.globalAlpha = 1 - v3.fade; backdrop(ctx, L); ctx.restore(); }
+    // a soft dusk vignette over the 3D table keeps the lettering readable and pulls the eye to the middle
+    const vg = ctx.createRadialGradient(W / 2, H * 0.5, Math.min(W, H) * 0.35, W / 2, H * 0.5, Math.max(W, H) * 0.75);
+    vg.addColorStop(0, 'rgba(14,5,8,0)'); vg.addColorStop(1, 'rgba(14,5,8,0.62)');
+    ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
+  }
   if (state.scene === 'title') drawTitle(ctx, state, manifest, L);
   else if (state.scene === 'howto') drawHowto(ctx, state, helpers, L);
   else if (state.scene === 'rules') drawRules(ctx, state, helpers, L);

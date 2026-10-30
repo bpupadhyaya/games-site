@@ -1,6 +1,8 @@
 // Drawing helpers: themes, the painted wooden board, lit stones, panels, flat buttons, icons.
 // Plain canvas 2D, no images, nothing here changes game state.
 
+import { v3 } from './v3.js';
+
 export const W = 720, H = 1560;
 // The live screen size (virtual units): layout.js setSize() keeps it current, background() fills all of it.
 export const VIEW = { w: 720, h: 1560 };
@@ -65,6 +67,16 @@ const FLECKS = Array.from({ length: 30 }, (_, i) => [((i * 97) % 211) / 211 * W,
 
 export function background(ctx, th, t, glowY = 700) {
   const w = VIEW.w, h = VIEW.h, sx = w / W, sh = Math.hypot(w, h) / Math.hypot(W, H);
+  if (v3.on) {
+    // the 3D scene shows through: only a soft shade at the top and bottom (so the HUD reads) and a vignette
+    const g3 = ctx.createLinearGradient(0, 0, 0, h);
+    g3.addColorStop(0, 'rgba(22,9,2,0.78)'); g3.addColorStop(0.12, 'rgba(22,9,2,0.6)'); g3.addColorStop(0.3, 'rgba(22,9,2,0.1)'); g3.addColorStop(0.72, 'rgba(22,9,2,0.08)'); g3.addColorStop(1, 'rgba(22,9,2,0.66)');
+    ctx.fillStyle = g3; ctx.fillRect(0, 0, w, h);
+    const v = ctx.createRadialGradient(w / 2, h / 2, 520 * sh, w / 2, h / 2, 1020 * sh); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(10,4,0,0.45)');
+    ctx.fillStyle = v; ctx.fillRect(0, 0, w, h);
+    if (v3.scrim > 0) { ctx.fillStyle = `rgba(24,10,3,${v3.scrim})`; ctx.fillRect(0, 0, w, h); }
+    return;
+  }
   const g = ctx.createLinearGradient(0, 0, 0, h);
   g.addColorStop(0, th.bg[0]); g.addColorStop(0.5, th.bg[1]); g.addColorStop(1, th.bg[2]);
   ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
@@ -85,6 +97,7 @@ export function background(ctx, th, t, glowY = 700) {
 
 // ---------------------------------------------------------------------------------------------------- panels and buttons
 export function panel(ctx, th, x, y, w, h, o = {}) {
+  if (v3.on) { plaque(ctx, th, x, y, w, h, o.r ?? 26, { strong: true }); return; }
   ctx.save();
   ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = o.blur ?? 26; ctx.shadowOffsetY = 10;
   const g = ctx.createLinearGradient(x, y, x, y + h);
@@ -92,6 +105,27 @@ export function panel(ctx, th, x, y, w, h, o = {}) {
   ctx.fillStyle = g; rr(ctx, x, y, w, h, o.r ?? 26); ctx.fill();
   ctx.restore();
   ctx.strokeStyle = th.stroke; ctx.lineWidth = 2; rr(ctx, x, y, w, h, o.r ?? 26); ctx.stroke();
+}
+
+// Carved clay plaque used for panels, plates and buttons while the 3D scene is behind the UI: dark fired clay, a light slip rule
+// inset from the edge, a lit top edge and a soft drop shadow. kind: 'face' | 'primary' | 'active'.
+export function plaque(ctx, th, x, y, w, h, r, o = {}) {
+  ctx.save();
+  if (!o.flat) { ctx.shadowColor = 'rgba(8,2,0,0.55)'; ctx.shadowBlur = o.strong ? 24 : 12; ctx.shadowOffsetY = o.strong ? 10 : 5; }
+  const g = ctx.createLinearGradient(0, y, 0, y + h);
+  const cols = o.kind === 'primary' ? ['#f6dfa6', '#d9a655'] : o.kind === 'on' ? th.btnOn : o.strong ? ['rgba(58,24,12,0.95)', 'rgba(34,13,7,0.97)'] : ['rgba(70,30,16,0.88)', 'rgba(44,18,10,0.92)'];
+  g.addColorStop(0, cols[0]); g.addColorStop(1, cols[1]);
+  ctx.fillStyle = g; rr(ctx, x, y, w, h, r); ctx.fill();
+  ctx.restore();
+  ctx.save(); rr(ctx, x, y, w, h, r); ctx.clip();
+  const hl = ctx.createLinearGradient(0, y, 0, y + Math.min(h, 40)); hl.addColorStop(0, o.kind === 'primary' ? 'rgba(255,255,255,0.35)' : 'rgba(255,214,160,0.16)'); hl.addColorStop(1, 'rgba(255,214,160,0)');
+  ctx.fillStyle = hl; ctx.fillRect(x, y, w, Math.min(h, 40));
+  ctx.restore();
+  ctx.strokeStyle = o.kind === 'primary' ? 'rgba(120,70,20,0.7)' : 'rgba(0,0,0,0.55)'; ctx.lineWidth = 2; rr(ctx, x, y, w, h, r); ctx.stroke();
+  const ins = Math.min(5, h * 0.12);
+  ctx.strokeStyle = o.kind === 'primary' ? 'rgba(255,248,220,0.55)' : o.active ? th.accent : 'rgba(236,206,146,0.34)'; ctx.lineWidth = o.active ? 2.5 : 1.3;
+  rr(ctx, x + ins, y + ins, w - ins * 2, h - ins * 2, Math.max(2, r - ins)); ctx.stroke();
+  ctx.restore();
 }
 
 // The small second line of a button: 62 percent of the label, but never under ~22 units (readable on a small phone).
@@ -105,6 +139,16 @@ export function button(ctx, th, r, lines, kind = 'normal', o = {}) {
   const press = o.pressed ? 2 : 0;
   const y = r.y + press;
   const rad = o.radius ?? 18;
+  if (v3.on) {
+    plaque(ctx, th, r.x, y, r.w, r.h, rad, { kind, flat: Boolean(press) });
+    const color3 = kind === 'primary' ? th.primaryInk : th.ink;
+    const size3 = o.size ?? 28, line3 = o.line ?? size3 * 1.22, subs3 = o.sub ?? [], ss3 = subSize(size3);
+    const total3 = lines.length * line3 + (subs3.length ? subs3.length * ss3 * 1.26 + 4 : 0);
+    let ty3 = y + (r.h - total3) / 2 + size3 * 0.9;
+    for (const ln of lines) { text(ctx, ln, r.x + r.w / 2, ty3, size3, color3, { weight: 700 }); ty3 += line3; }
+    for (const ln of subs3) { ty3 += size3 * 0.04; text(ctx, ln, r.x + r.w / 2, ty3, ss3, kind === 'primary' ? alpha(th.primaryInk, 0.78) : 'rgba(246,236,214,0.72)', { weight: 500 }); ty3 += ss3 * 1.26; }
+    ctx.restore(); return;
+  }
   const col = kind === 'primary' ? th.primary : kind === 'on' ? th.btnOn : kind === 'danger' ? ['#c9503f', '#8e2b27'] : kind === 'ghost' ? ['rgba(255,255,255,0.05)', 'rgba(255,255,255,0.05)'] : th.btn;
   if (!press) { ctx.fillStyle = 'rgba(0,0,0,0.38)'; rr(ctx, r.x, r.y + 4, r.w, r.h, rad); ctx.fill(); }
   ctx.fillStyle = press ? col[1] : col[0];
@@ -229,7 +273,8 @@ export function slotPos(cell, k, hasQ) {
   let sx = 1, sy = r.mand ? 1.7 : 1.3;
   if (hasQ) { rad = 44 + 10.5 * Math.sqrt(k); if (rad > 62) rad = 62 + (rad - 62) * 0.3; sx = 0.7; sy = 1.6; }
   else if (r.mand) { rad = 12 * Math.sqrt(k); if (rad > 52) rad = 52 + (rad - 52) * 0.3; sx = 1.0; sy = 1.75; }
-  return [r.cx + Math.cos(ang) * rad * sx, r.cy + Math.sin(ang) * rad * sy * 0.8];
+  const sp = v3.on ? 1.12 : 1;      // the 3D pits take a slightly looser heap (real stones have thickness)
+  return [r.cx + Math.cos(ang) * rad * sx * sp, r.cy + Math.sin(ang) * rad * sy * 0.8 * sp];
 }
 
 // ---- one small stone (dan): a lit pebble. seed picks its tone, size and tilt so no two look alike.

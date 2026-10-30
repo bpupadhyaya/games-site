@@ -36,7 +36,7 @@ export function rrect(ctx, r, rad) { ctx.beginPath(); ctx.roundRect(r.x, r.y, r.
 
 // Lacquered buttons with depth: a lit vertical gradient, a dark under-edge (the button stands on the plate), a thin light bevel on top.
 // kind: primary (sun orange), ghost (outline), quiet (soft fill), on (green), gold, danger, disabled, moon (cobalt).
-const LACQ = { primary: ['#ff9a3a', '#f27a0c', '#c85a00'], on: ['#5cd091', '#3fae74', '#2a8556'], danger: ['#e9565f', '#c8353f', '#8f1f2a'], gold: ['#ffe27a', '#ffd23f', '#d9a31a'], sel: ['#ffe27a', '#ffd23f', '#d9a31a'], moon: ['#5d8bff', '#2f66ff', '#1c3fb8'] };
+const LACQ = { primary: ['#ffe27a', '#ffc83a', '#c98a0e'], on: ['#5cd091', '#3fae74', '#2a8556'], danger: ['#e9565f', '#c8353f', '#8f1f2a'], gold: ['#ffe27a', '#ffd23f', '#d9a31a'], sel: ['#ffe27a', '#ffd23f', '#d9a31a'], moon: ['#5d8bff', '#2f66ff', '#1c3fb8'] };
 export function button(ctx, r, label, o = {}) {
   const kind = o.kind ?? 'ghost', rad = o.rad ?? Math.min(22, r.h * 0.3), size = o.size ?? Math.min(34, r.h * 0.4);
   ctx.save();
@@ -56,7 +56,7 @@ export function button(ctx, r, label, o = {}) {
     ctx.lineWidth = 2; ctx.strokeStyle = kind === 'disabled' ? 'rgba(255,210,63,0.22)' : 'rgba(255,210,63,0.55)'; rrect(ctx, r, rad); ctx.stroke();
     ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(255,255,255,0.18)'; ctx.beginPath(); ctx.roundRect(r.x + 3, r.y + 3, r.w - 6, r.h - 6, Math.max(2, rad - 3)); ctx.stroke();
   }
-  const dark = kind === 'gold' || kind === 'sel';
+  const dark = kind === 'gold' || kind === 'sel' || kind === 'primary';
   const col = kind === 'disabled' ? 'rgba(255,248,236,0.38)' : dark ? '#2a1a00' : kind === 'ghost' || kind === 'quiet' ? PAL.text : '#fff';
   const hasSub = !!o.sub, pad = o.icon ? r.h * 0.9 : 14;
   if (o.icon) icon(ctx, o.icon, r.x + r.h * 0.5, r.y + r.h / 2, r.h * 0.4, col);
@@ -71,7 +71,7 @@ export function panel(ctx, r, o = {}) {
   ctx.save();
   const rad = o.rad ?? 24;
   ctx.fillStyle = 'rgba(0,0,0,0.35)'; rrect(ctx, { x: r.x, y: r.y + 4, w: r.w, h: r.h }, rad); ctx.fill();
-  ctx.fillStyle = o.fill ?? 'rgba(14,22,44,0.86)'; rrect(ctx, r, rad); ctx.fill();
+  ctx.fillStyle = o.fill ?? 'rgba(36,24,18,0.88)'; rrect(ctx, r, rad); ctx.fill();
   const g = ctx.createLinearGradient(0, r.y, 0, r.y + Math.min(r.h, 60)); g.addColorStop(0, 'rgba(255,255,255,0.10)'); g.addColorStop(1, 'rgba(255,255,255,0)');
   ctx.fillStyle = g; rrect(ctx, r, rad); ctx.fill();
   ctx.lineWidth = 3; ctx.strokeStyle = o.stroke ?? 'rgba(90,62,18,0.9)'; rrect(ctx, r, rad); ctx.stroke();

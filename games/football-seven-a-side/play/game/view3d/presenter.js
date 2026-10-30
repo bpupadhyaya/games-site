@@ -9,7 +9,7 @@ import { createDriver } from './anim.js';
 const LIB = '../vendor3d/index.js';
 export const BALL_SCALE = (() => { try { const m = /[?&]bs=([0-9.]+)/.exec(globalThis.location.search); if (m) return +m[1]; } catch { /* ignore */ } return 1.3; })();   // visual ball radius = 0.11 * scale: a real ball is about 3 px on screen, unreadable
 export const BALL_R = BR * BALL_SCALE;
-export const PLAYER_SCALE = (() => { try { const m = /[?&]ps=([0-9.]+)/.exec(globalThis.location.search); if (m) return +m[1]; } catch { /* ignore */ } return 1.35; })();   // stylised players drawn a little larger so they read on a phone
+export const PLAYER_SCALE = (() => { try { const m = /[?&]ps=([0-9.]+)/.exec(globalThis.location.search); if (m) return +m[1]; } catch { /* ignore */ } return 1.6; })();   // stylised players drawn a little larger so they read on a phone
 const SKINS = ['peach', 'clay', 'wood', 'ivory', 'tan', 'brown', 'deep'];
 const HAIRS = ['black', 'brown', 'blond', 'ginger', 'grey', 'black', 'brown'];
 const KITS = [
@@ -184,7 +184,7 @@ export async function createPresenter({ kitCanvas, quality = pickQuality(), manu
     layoutCamera();
     const ballI = { x: lerp(prev.ball.x, cur.ball.x, alpha), y: lerp(prev.ball.y, cur.ball.y, alpha), z: lerp(prev.ball.z, cur.ball.z, alpha), rx: lerp(prev.ball.rx, cur.ball.rx, alpha), rz: lerp(prev.ball.rz, cur.ball.rz, alpha) };
     const pl = cur.pl.map((c, i) => { const p0 = prev.pl[i]; return { x: lerp(p0.x, c.x, alpha), z: lerp(p0.z, c.z, alpha), vx: lerp(p0.vx, c.vx, alpha), vz: lerp(p0.vz, c.vz, alpha), face: lerpAng(p0.face, c.face, alpha), jy: lerp(p0.jy, c.jy, alpha) }; });
-    if (quality === 'high') for (let i = 0; i < 14; i++) { const want = i === s.human ? 0 : 1; if (P.humans[i].lod !== want) P.humans[i].setLOD(want); }
+    if (quality !== 'low') for (let i = 0; i < 14; i++) { const want = i === s.human ? 0 : 1; if (P.humans[i].lod !== want) P.humans[i].setLOD(want); }
     const t0 = performance.now();
     P.drv.step({ s, T, dt, ballI, pl, prev, cur, alpha });
     P.stats.driveMs = performance.now() - t0;

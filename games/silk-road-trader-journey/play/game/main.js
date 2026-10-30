@@ -2,6 +2,7 @@ import { boot } from './kit/index.js';
 import { createGame, meta } from './src/game.js';
 import { host } from './src/layout.js';
 import { setLogo, setLockup } from './src/brand.js';
+import { v3 } from './src/v3.js';
 
 const canvas = document.getElementById('game');
 let game = null;
@@ -35,6 +36,14 @@ const SHOT_SCENES = {
 };
 const create = async (env) => {
   game = await createGame(env);
+  // The lit 3D road (web/view3d) draws behind this canvas once it is ready; until then, and without WebGL2, the flat painting shows.
+  const render2d = game.render; let last = performance.now();
+  game.render = (ctx, view) => {
+    v3.scene = null; render2d(ctx, view);
+    v3.vw = meta.width; v3.vh = meta.height; v3.cssPerUnit = meta.cssPerUnit;
+    const now = performance.now(), dt = (now - last) / 1000; last = now;
+    if (presenter) presenter.draw(dt);
+  };
   if (q.has('shot') && !q.has('scene') && SHOT_SCENES[Number(q.get('seed'))]) game.dev.jump(SHOT_SCENES[Number(q.get('seed'))]);
   if (env.config.dev) {
     window.__srt = game;
@@ -46,4 +55,23 @@ const create = async (env) => {
 const af = new Image(); af.onload = () => setLogo(af); af.src = './brand/arcforge-af.png';
 const lock = new Image(); lock.onload = () => setLockup(lock); lock.src = './brand/arcforge-lockup.png';
 
-boot({ createGame: create, meta, canvas, background: '#140e0a' });
+v3.kitCanvas = canvas;
+let presenter = null;
+boot({ createGame: create, meta, canvas, background: 'rgba(0,0,0,0)' });
+// Boot on the flat painting; build the 3D layer after the first painted frames, then cross-fade (v3.fade) into it.
+if (!q.has('flat') && typeof requestAnimationFrame === 'function') {
+  let frames = 0;
+  const later = () => { if (++frames < 4) { requestAnimationFrame(later); return; }
+    import('./view3d/presenter.js').then((m) => m.createPresenter({ kitCanvas: canvas, getState: () => game?.getState() ?? {} }))
+      .then((p) => { if (p) { presenter = p; v3.on = true; v3.fade = 0; if (q.has('dev')) window.__srt3d = p; if (q.has('dev') && q.has('icon')) iconMode(); } })
+      .catch((e) => console.warn('3D layer unavailable, keeping the painted scenes', e)); };
+  requestAnimationFrame(later);
+}
+
+// Offline only (dev builds): ?dev=1&icon=1 renders the store icon composition from the game's own 3D scene (polish/make-icon.mjs).
+function iconMode() {
+  let t = 0;
+  game.render = (ctx) => { t += 1 / 60; ctx.clearRect(0, 0, meta.width, meta.height); v3.vw = meta.width; v3.vh = meta.height; v3.cssPerUnit = meta.cssPerUnit; v3.fade = 1;
+    v3.scene = { rect: { x: 0, y: 0, w: meta.width, h: meta.height }, spec: { icon: true, biome: 'dunes', time: 'dusk', seed: 11, caravan: { n: 2, dir: -1, still: true, kind: 'bactrian', loads: [['silk', 'silk'], ['spice', 'glass']] } }, t: 20 + t };
+    presenter.draw(1 / 60); };
+}

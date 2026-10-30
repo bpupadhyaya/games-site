@@ -20,12 +20,12 @@ export const trayPos = (p) => ({ x: 360, y: p === 0 ? TRAY.bottom.y + 45 : TRAY.
 export const inRect = (r, x, y) => !!r && x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
 
 // Safe areas and the host's floating back button, in virtual units. main.js keeps this current (browsers: all zero).
-export const host = { t: 0, r: 0, b: 0, l: 0, back: 0, px: 0.6 };   // px: css pixels per virtual unit (text never below ~11 css px)
+export const host = { t: 0, r: 0, b: 0, l: 0, back: 0, px: 0.6, c3: false };   // px: css pixels per virtual unit (text never below ~11 css px)
 
 const cache = new Map();
 export function layoutFor(w, h) {
   w = Math.round(w); h = Math.round(h);
-  const key = `${w}x${h}|${Math.round(host.t)},${Math.round(host.r)},${Math.round(host.b)},${Math.round(host.l)},${Math.round(host.back)}`;
+  const key = `${w}x${h}|${Math.round(host.t)},${Math.round(host.r)},${Math.round(host.b)},${Math.round(host.l)},${Math.round(host.back)}|${host.c3 ? 3 : 2}`;
   let L = cache.get(key);
   if (!L) { L = build(w, h, { ...host }); L.key = key; cache.set(key, L); if (cache.size > 40) cache.delete(cache.keys().next().value); }
   return L;
@@ -108,8 +108,10 @@ function playLayout(L) {
   } else {
     // wide: left card (status + message), board, right card (buttons)
     const g = 14, Lmin = 190, tb = L.bands.tb, tt = L.bands.tt;
-    const sH = (h - tb - tt - 20) / BOARD_H, sW = (U.w - 2 * Lmin - 2 * g - 8) / BOARD_W;
-    const s = clamp(Math.min(sH, sW, 1.08), 0.4, 1.08), bw = BOARD_W * s;
+    const wk = ins.c3 ? 1.4 : 1;          // the tilted 3D board is wider than tall on screen
+    const sH = (h - tb - tt - 20) / BOARD_H, sW = (U.w - 2 * Lmin - 2 * g - 8) / (BOARD_W * wk);
+    const s = clamp(Math.min(sH, sW, 1.08), 0.4, 1.08), bw = BOARD_W * s * wk;
+    L.wk = wk;
     const sym = Math.min(400, (U.w - bw) / 2 - g - 4);
     board.s = s; board.cx = U.x0 + U.w / 2; board.cy = h / 2;
     const cardTop = Math.max(tt + 8, ins.back ? L.backBox.y + L.backBox.h + 4 : 0, U.y0 + 6), cardBot = Math.min(h - tb - 8, U.y1 - 6), cardH = cardBot - cardTop;

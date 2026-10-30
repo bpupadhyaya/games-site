@@ -3,7 +3,7 @@
 import { W, H, TEXT_SCALES, TEXT_DEC, TEXT_INC, REF_BACK, REF_NEXT, THINK_STEPS, SETUP_PINS, LY, READ, host } from './layout.js';
 import { drawLockup, drawCredit, drawMoreLine } from './brand.js';
 import { FONT, NUM, C, roundPath, drawButton, panel, wrapLines, textShadow, flowLayout, drawFlow, flowHit } from './ui.js';
-import { drawDiagram, drawField, fieldMap, drawDot, TEAM_COL } from './art.js';
+import { drawDiagram, drawRoutes3d, drawField, fieldMap, drawDot, TEAM_COL } from './art.js';
 import { LEVELS, ROLES, QUARTER_NAME, FIELD } from './consts.js';
 import { OFF_PLAYS, DEF_CALLS } from './plays.js';
 import { ABOUT, HOWTO, RULES, LESSONS, ROLE_TEXT } from './content.js';
@@ -105,14 +105,68 @@ function scrim(ctx, a = 0.55) {
 
 // The title hero (lockup, "SEVEN ON SEVEN", AMERICAN FOOTBALL, the play diagram) is designed on a 560 x 610 sheet and scaled to the box it gets.
 const HERO_W = 560, HERO_H = 610;
+let BASE = null;
+export const beginFrame = (ctx) => { try { BASE = ctx.getTransform(); } catch { BASE = null; } };
+const TAG_COL = { QB: '#ffffff', RB: '#ffb86a', WA: '#ffe27a', WB: '#9fe8ff', TE: '#b9f2a1', C: '#d8d8d8', G: '#d8d8d8' };
+const TAG_LBL = { QB: 'Q', RB: 'R', TE: 'T', C: 'C', G: 'G', WA: 'W', WB: 'W', S: 'S', CB1: 'C', CB2: 'C', LB1: 'L', LB2: 'L', DL1: 'D', DL2: 'D' };
+// THE formation view: one 3D picture of the real stadium and the fourteen players (view3d/presenter.js draws it behind the kit canvas into the rectangle recorded in state.fv).
+// Used by the title, Call your play and Watch & Learn. Without WebGL (or after a lost context) the flat diagram is drawn instead.
+function formationView(ctx, state, w, h, o) {
+  const bleed = o.bleed || 0;
+  if (BASE) {
+    const inv = BASE.inverse().multiply(ctx.getTransform());
+    const p0 = inv.transformPoint(new DOMPoint(-bleed, 0)), p1 = inv.transformPoint(new DOMPoint(w + bleed, h));
+    const r = { x: Math.min(p0.x, p1.x), y: Math.min(p0.y, p1.y), w: Math.abs(p1.x - p0.x), h: Math.abs(p1.y - p0.y) };
+    const y0 = Math.max(r.y, LAID.top), y1 = Math.min(r.y + r.h, LAID.bottom);
+    if (y1 - y0 > 24) {
+      state.fv = { rect: { x: r.x, y: y0, w: r.w, h: y1 - y0 }, full: r, mode: o.mode, off: o.off, def: o.def, offTeam: o.offTeam | 0, showOff: o.showOff !== false, showDef: o.showDef !== false };
+      if (state.fv3d) {
+        const f = state.fv.rect;
+        ctx.save(); ctx.setTransform(BASE); ctx.globalCompositeOperation = 'destination-out'; ctx.fillStyle = '#000';
+        if (o.mode === 'title') ctx.fillRect(f.x, f.y, f.w, f.h); else { roundPath(ctx, f.x, f.y, f.w, f.h, 16); ctx.fill(); }
+        ctx.globalCompositeOperation = 'source-over';
+        if (o.mode !== 'title') { roundPath(ctx, f.x, f.y, f.w, f.h, 16); ctx.strokeStyle = 'rgba(255,233,191,0.35)'; ctx.lineWidth = 2; ctx.stroke(); }
+        ctx.restore();
+        return true;
+      }
+    }
+  }
+  return false;
+}
+// position tags (the old dot letters and colours) above the real players, and the play's routes / zones on the grass
+export function drawFormationTags(ctx, state, proj) {
+  const fv = state.fv; if (!fv || fv.mode === 'title') return;
+  ctx.save(); ctx.beginPath(); ctx.rect(fv.rect.x, fv.rect.y, fv.rect.w, fv.rect.h); ctx.clip();
+  drawRoutes3d(ctx, { offId: fv.off, defId: fv.def, showOff: fv.showOff, showDef: fv.showDef }, proj.pt);
+  const sc = Math.max(11, Math.min(22, proj.pt(10, 0).s * 0.8));
+  for (const a of proj.ids) {
+    if (a.off ? !fv.showOff : !fv.showDef) continue;
+    const hd = proj.head(a.id); if (!hd) continue;
+    drawDot(ctx, hd.x, hd.y - sc * 0.7, sc, a.team, { label: TAG_LBL[a.slot] || '?', ring: a.off ? (TAG_COL[a.slot] || undefined) : undefined });
+  }
+  ctx.restore();
+}
+function hero3d(ctx, state, w, h) {
+  formationView(ctx, state, w, h, { mode: 'title', bleed: LY.land ? 0 : LY.col.x, off: state.heroPlay || 'quick', def: state.heroDef || 'zone' });
+  if (!state.fv3d || !state.fv) return false;
+  const bleed = LY.land ? 0 : LY.col.x;
+  ctx.save();
+  let g = ctx.createLinearGradient(0, 0, 0, h * 0.62); g.addColorStop(0, 'rgba(6,12,10,0.78)'); g.addColorStop(1, 'rgba(6,12,10,0)');
+  ctx.fillStyle = g; ctx.fillRect(-bleed, 0, w + 2 * bleed, h * 0.62);
+  g = ctx.createLinearGradient(0, h * 0.8, 0, h); g.addColorStop(0, 'rgba(8,18,14,0)'); g.addColorStop(1, 'rgba(8,18,14,0.92)');
+  ctx.fillStyle = g; ctx.fillRect(-bleed, h * 0.8, w + 2 * bleed, h * 0.2 + 1);
+  ctx.restore();
+  return true;
+}
 export function drawHero(ctx, state, w, h) {
+  const t3 = hero3d(ctx, state, w, h);
   const k = Math.max(0.3, Math.min(w / HERO_W, h / HERO_H, 1.3)), cx = w / 2;
   ctx.save(); ctx.translate(cx, Math.max(0, (h - HERO_H * k) / 2)); ctx.scale(k, k);
   ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
   ctx.font = `700 24px ${FONT}`; ctx.fillStyle = 'rgba(255,200,120,0.95)'; spaced(ctx, 'SEVEN ON SEVEN', 0, 110, 6);
   ctx.font = `800 104px ${NUM}`; textShadow(ctx, 'AMERICAN', 0, 210, '#fff4d6', 14);
   ctx.font = `800 104px ${NUM}`; textShadow(ctx, 'FOOTBALL', 0, 302, '#ffb26a', 14);
-  drawDiagram(ctx, { x: -230, y: 332, w: 460, h: 270 }, { offId: state.heroPlay || 'quick', defId: state.heroDef || 'zone', team: 0 });
+  if (!t3) drawDiagram(ctx, { x: -230, y: 332, w: 460, h: 270 }, { offId: state.heroPlay || 'quick', defId: state.heroDef || 'zone', team: 0 });
   ctx.restore();
 }
 let titleLockTap = null, lockDownNow = false;
@@ -125,7 +179,7 @@ const lockupArt = () => ({ t: 'art', brand: true, h: Math.round(LOCK_CAP * 327 /
   ctx.save(); ctx.fillStyle = lockDownNow ? 'rgba(255,226,122,0.5)' : 'rgba(6,10,14,0.55)'; roundPath(ctx, w / 2 - lw / 2 - 12, 20 - 6, lw + 24, lh + 12, (lh + 12) / 2); ctx.fill(); ctx.restore();
   drawLockup(ctx, w / 2, 20, lw, 1);
 } });
-function heroArt(state) { return { t: 'art', h: LY.title.heroH || 560, draw(ctx, w, h) { ctx.save(); drawHero(ctx, state, w, h); ctx.restore(); } }; }
+function heroArt(state) { const k3 = state.fv3d && !LY.land ? (LY.h >= 1400 ? 1.5 : LY.h >= 1250 ? 1.2 : 1) : 1; return { t: 'art', h: Math.min(Math.round((LY.title.heroH || 560) * k3), 800), draw(ctx, w, h) { ctx.save(); drawHero(ctx, state, w, h); ctx.restore(); } }; }
 export function titleWidgets(state, land = false) {
   const wd = land ? [] : [heroArt(state)];
   if (state.resume) wd.push({ t: 'btn', id: 'continue', label: 'Continue game', sub: `${state.resume.score[0]} to ${state.resume.score[1]}, quarter ${state.resume.q}`, primary: true, h: 92 }, { t: 'btn', id: 'play', label: 'New game vs Computer', h: 80 });
@@ -223,8 +277,12 @@ export function demoLimitWidgets() {
 
 // ---- the play-call screens ------------------------------------------------------------------------------------------------------------------------------------
 const sitLine = (E) => { const M = E.m; const own = M.yl <= 20 ? `own ${M.yl}` : `opponent ${FIELD.LEN - M.yl}`; return `${['1st', '2nd', '3rd', '4th'][M.down - 1]} & ${M.toGo}, ball on the ${own}`; };
-function diagramArt(sel, off, h = 330) {
-  return { t: 'art', h, draw(ctx, w, hh) { drawDiagram(ctx, { x: 0, y: 0, w, h: hh }, off ? { offId: sel, defId: null, showDef: false, team: 0 } : { offId: 'quick', defId: sel, showOff: false, team: 0 }); } };
+function diagramArt(state, sel, off, h = 330) {
+  const offTeam = off ? (state.E.need.team | 0) : 1 - (state.E.need.team | 0);
+  return { t: 'art', h: state.fv3d ? h : Math.min(h, 330), draw(ctx, w, hh) {
+    const o = { offId: off ? sel : 'quick', defId: off ? 'zone' : sel, showOff: off, showDef: !off, team: 0 };
+    if (!formationView(ctx, state, w, hh, { ...o, mode: 'call', off: o.offId, def: o.defId, offTeam })) drawDiagram(ctx, { x: 0, y: 0, w, h: hh }, { ...o, defId: off ? null : sel });
+  } };
 }
 export function callWidgets(state, mode = false) {
   const E = state.E, need = E.need;
@@ -234,7 +292,7 @@ export function callWidgets(state, mode = false) {
   const cur = list.find((p) => p.id === sel);
   const M = E.m;
   const head = [{ t: 'gap', h: 4 }, { t: 'h', label: off ? 'Call your play' : 'Call your defence', size: 40 }, { t: 'p', label: `${sitLine(E)}  ·  ${M.score[0]}–${M.score[1]}  ·  Q${M.q}  ${Math.floor(M.clock / 60)}:${String(Math.floor(M.clock % 60)).padStart(2, '0')}`, size: 22, color: '#ffe9bf', cap: 2 }];
-  const info = [diagramArt(sel, off, mode === 'left' ? 260 : LY.h < 1150 ? 210 : 300),
+  const info = [diagramArt(state, sel, off, mode === 'left' ? 260 : LY.h < 1150 ? 210 : LY.h >= 1400 ? 440 : 300),
     { t: 'p', label: cur.name + ': ' + cur.short, bold: true, size: 26, color: '#fff3d6' },
     { t: 'p', label: cur.desc, size: 22, color: 'rgba(255,243,214,0.9)', cap: 3 },
     { t: 'p', label: matrixNote(off ? 'off' : 'def', cur.id), size: 22, color: '#9fe8ff', cap: 3 }];
@@ -260,7 +318,7 @@ export function watchWidgets(state) {
   const kind = need.kind === 'offcall' ? 'Offence' : need.kind === 'defcall' ? 'Defence' : need.kind === 'fourth' ? 'Fourth down' : 'Try';
   const team = need.team === 0 ? 'Blue' : 'Red';
   const wd = [{ t: 'gap', h: 60 }, { t: 'h', label: `${team}: ${kind}`, size: 44 }, { t: 'p', label: sitLine(E), size: 24, color: '#ffe9bf' }];
-  if (need.kind === 'offcall' || need.kind === 'defcall') wd.push(diagramArt(w && w.phase === 'reveal' ? need.pick.value : (need.kind === 'offcall' ? 'quick' : 'zone'), need.kind === 'offcall', 280));
+  if (need.kind === 'offcall' || need.kind === 'defcall') wd.push(diagramArt(state, w && w.phase === 'reveal' ? need.pick.value : (need.kind === 'offcall' ? 'quick' : 'zone'), need.kind === 'offcall', LY.land ? 250 : Math.max(260, Math.min(700, LY.watchPause.y - 8 - (w && w.phase === 'reveal' ? 520 : 400)))));
   if (w && w.phase === 'think') wd.push({ t: 'p', label: `Thinking...  ${Math.max(0, Math.ceil(w.dur - w.t))} s`, size: 28, bold: true, color: '#9fe8ff' });
   else if (w) { wd.push({ t: 'p', label: `Call: ${need.kind === 'fourth' ? ({ go: 'Go for it', punt: 'Punt', fg: 'Field goal' })[need.pick.value] : need.kind === 'try' ? (need.pick.value === 'two' ? 'Go for two' : 'Kick') : callName(need.pick.value)}`, size: 30, bold: true, color: '#ffd97a' }); need.pick.why.forEach((l) => wd.push({ t: 'p', label: l, size: 22, cap: 3, color: 'rgba(255,243,214,0.95)' })); }
   return wd;

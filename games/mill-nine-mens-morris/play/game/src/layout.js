@@ -7,6 +7,7 @@
 //   compact  portrait, shorter than a phone (small phones, tablets): a smaller fixed HUD, the stage scaled to fit
 //   wide     landscape: a side panel (status + buttons) and the stage beside it, men racks beside the board when there is room
 // layoutFor() is cached per size + safe insets, so a frame never recomputes it.
+import { v3 } from './v3.js';
 export const W = 720, H = 1560;
 const CX = 360, D = 96, K = 0.03, Y_NEAR = 1262, HGT = 3200, Y_H = Y_NEAR - HGT;
 export const UNIT = D / 106;
@@ -14,7 +15,8 @@ export function project(u, v) { const z = 1 + K * (6 - v); return { x: CX + (u *
 // point i -> board coordinates
 export const PT = [];
 for (let r = 0; r < 3; r++) { const s = 3 - r; [[-s, -s], [0, -s], [s, -s], [s, 0], [s, s], [0, s], [-s, s], [-s, 0]].forEach(([u, v]) => PT.push([u, v + 3])); }
-export const pointAt = (i) => project(PT[i][0], PT[i][1]);
+// With the 3D layer on, the board is the lit 3D board: its points sit where the live camera puts them (v3.at), in the same stage units.
+export const pointAt = (i) => (v3.on && v3.at ? v3.at(i) : project(PT[i][0], PT[i][1]));
 export const PIECE_R = 39 * UNIT;
 export const inRect = (r, x, y) => !!r && x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
 
@@ -85,13 +87,17 @@ function build(w, h, ins) {
     };
     Object.assign(BTN, bar);
     if (tall) {
+      // phone portrait: a slim HUD plaque on top, the camera's play rect (the board + both trays) takes everything between it and the buttons
+      const top = ins.back ? backBottom + 4 : Math.max(44, ins.t + 10), Hs = 184;
       stage = { kind: 'h', s: 1, tx: (w - 720) / 2, ty: Math.min((h - 1560) / 2, barY - 8 - SB.h.y1) };
-      L.hud = { style: 'big', x: 24, y: Math.max(120, ins.back ? backBottom + 8 : 0), w: w - 48 };
-      L.think = { dec: R(50, L.hud.y + 28, 120, 56), inc: R(w - 170, L.hud.y + 28, 120, 56) };
-    } else {
-      const top = ins.back ? backBottom + 4 : Math.max(14, ins.t + 10), Hs = 214;
       L.hud = { style: 'small', x: 24, y: top, w: w - 48, h: Hs, rect: R(24, top, w - 48, Hs) };
       L.think = { dec: R(40, top + 10, 112, 48), inc: R(w - 152, top + 10, 112, 48) };
+      L.play = R(U.x0 + 4, top + Hs + 6, U.w - 8, barY - 8 - (top + Hs + 6));
+    } else {
+      const top = ins.back ? backBottom + 4 : Math.max(14, ins.t + 10), Hs = 190;
+      L.hud = { style: 'small', x: 24, y: top, w: w - 48, h: Hs, rect: R(24, top, w - 48, Hs) };
+      L.think = { dec: R(40, top + 10, 112, 48), inc: R(w - 152, top + 10, 112, 48) };
+      L.play = R(U.x0 + 4, top + Hs + 6, U.w - 8, barY - 8 - (top + Hs + 6));
       stage = fitStage('h', R(U.x0 + 6, top + Hs + 8, U.w - 12, barY - 10 - (top + Hs + 8)), 1);
     }
   } else {
@@ -101,6 +107,7 @@ function build(w, h, ins) {
     const areaX = panel.x + panel.w + g, area = R(areaX, U.y0 + 6, U.x1 - 8 - areaX, U.h - 12);
     const sh = fitStage('h', area, 1.2), sv = fitStage('v', area, 1.2);
     stage = sv.s > sh.s * 1.08 ? sv : sh;
+    L.play = area;
     // buttons: a stack at the bottom of the panel (three slots), the status text above it
     const bh = clamp(Math.round(panel.h * 0.11), 54, 72), bgap = 10, bw = panel.w - 32, bx = panel.x + 16, stackH = 3 * bh + 2 * bgap;
     const slot = (i) => R(bx, panel.y + panel.h - 16 - stackH + i * (bh + bgap), bw, bh);
@@ -109,6 +116,7 @@ function build(w, h, ins) {
     L.think = { dec: R(panel.x + 14, panel.y + 12, 104, 46), inc: R(panel.x + panel.w - 118, panel.y + 12, 104, 46) };
   }
   L.stage = stage; L.racks = stage.kind;
+  { const b = SB[stage.kind]; L.stageRect = R(b.x0 * stage.s + stage.tx, b.y0 * stage.s + stage.ty, (b.x1 - b.x0) * stage.s, (b.y1 - b.y0) * stage.s); }
   const { s, tx, ty } = stage;
   L.toScreen = (x, y) => ({ x: x * s + tx, y: y * s + ty });
   L.toStage = (x, y) => ({ x: (x - tx) / s, y: (y - ty) / s });
@@ -118,14 +126,14 @@ function build(w, h, ins) {
   L.candles = [{ x: 74, y: 720 }, { x: 646, y: 720 }].map((c) => ({ ...L.toScreen(c.x, c.y), s: s * 0.95 }));
   // men racks (stage coordinates)
   if (stage.kind === 'h') {
-    L.rackPos = (which, k) => ({ x: 360 + (k - 4) * 56, y: RACK_Y[which], s: 0.9 });
+    L.rackPos = (which, k) => (v3.on && v3.rack ? v3.rack(which, k, 'h') : { x: 360 + (k - 4) * 56, y: RACK_Y[which], s: 0.9 });
     L.rackBox = (which) => R(112, RACK_Y[which] - 36, 496, 72);
-    L.rackLabel = (which) => ({ x: 360, y: which === 'top' ? RACK_Y.top - 46 : RACK_Y.bottom + 62, two: false });
+    L.rackLabel = (which) => (v3.on && v3.label ? v3.label(which, 'h') : { x: 360, y: which === 'top' ? RACK_Y.top - 46 : RACK_Y.bottom + 62, two: false });
   } else {
     const col = (which) => (which === 'top' ? -52 : 772), y0 = 1040 - 4 * 54;
-    L.rackPos = (which, k) => ({ x: col(which), y: y0 + k * 54, s: 0.9 });
+    L.rackPos = (which, k) => (v3.on && v3.rack ? v3.rack(which, k, 'v') : { x: col(which), y: y0 + k * 54, s: 0.9 });
     L.rackBox = (which) => R(col(which) - 36, y0 - 33, 72, 8 * 54 + 66);
-    L.rackLabel = (which) => ({ x: col(which), y: y0 - 33 - 30, two: true });
+    L.rackLabel = (which) => (v3.on && v3.label ? v3.label(which, 'v') : { x: col(which), y: y0 - 33 - 30, two: true });
   }
 
   // ---- other screens ------------------------------------------------------------------------------------------------------

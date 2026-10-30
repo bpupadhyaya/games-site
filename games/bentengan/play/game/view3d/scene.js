@@ -47,7 +47,7 @@ function mergeColored(THREE, items) {
 function paintField(g, k) {   // k = pixels per court unit
   g.save(); g.scale(k, k);
   const r = (() => { let s = 31; return () => ((s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296); })();
-  const lawn = g.createLinearGradient(0, 0, 0, COURT.h); lawn.addColorStop(0, '#68b948'); lawn.addColorStop(0.5, '#77c653'); lawn.addColorStop(1, '#62b241');
+  const lawn = g.createLinearGradient(0, 0, 0, COURT.h); lawn.addColorStop(0, '#4fa83b'); lawn.addColorStop(0.5, '#5db747'); lawn.addColorStop(1, '#4a9d37');
   g.fillStyle = lawn; g.fillRect(0, 0, COURT.w, COURT.h);
   for (let i = 0; i < 12; i++) { g.fillStyle = i % 2 ? 'rgba(255,255,170,0.07)' : 'rgba(10,70,20,0.08)'; g.fillRect(0, i * 80, COURT.w, 80); }
   for (let i = 0; i < 5200; i++) { const light = r() > 0.45; g.fillStyle = light ? `rgba(220,255,150,${0.05 + r() * 0.12})` : `rgba(10,80,20,${0.05 + r() * 0.1})`; g.beginPath(); g.ellipse(r() * COURT.w, r() * COURT.h, 0.5 + r() * 1.4, 0.6 + r() * 3.2, r() * 3, 0, TAU); g.fill(); }

@@ -6,9 +6,11 @@
 // Feet are IK-planted at fixed character-space points, so nothing skates: the planted foot is the same point for the whole stride.
 export const P_READY = 0, P_WIND = 0.3, P_REL = 0.62, P_FOLLOW = 0.74;
 
-export async function loadPitcher(V3, { character = 'athlete_m', kit, skin = 'tan', hair = 'brown', lod = 0, left = false } = {}) {
+export async function loadPitcher(V3, { character = 'athlete_m', kit, skin = 'tan', hair = 'brown', left = false } = {}) {
   const { loadHuman, buildClip } = V3;
-  const h = await loadHuman({ character, kit, skin, hair, lod });
+  // full detail ALWAYS (no LOD sets, no tier swaps in the simplified hands/shoulders) and a long top (no tank armhole edge): the athlete is seen close up.
+  const h = await loadHuman({ character, kit, skin, hair, top: 'long' });
+  h.lodAuto = false;
   h.groundClamp = 'off'; h.footPlanting = false;
   const A = { h, ready: true, p: 0, pv: 0 };
   // mirror for a left-hander is not needed: both rivals throw right-handed

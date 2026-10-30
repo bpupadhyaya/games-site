@@ -57,6 +57,7 @@ export async function createPresenter({ kitCanvas, quality = 'high', room = null
   await tick();
   M = makeMats();
   const carpetTile = 620;
+  M.carpet.color.set('#7a6663'); M.carpet.bumpScale = 0.8;
   const carpet = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), M.carpet);
   carpet.receiveShadow = true; scene.add(carpet);
   const wallDark = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0 }));
@@ -88,7 +89,7 @@ export async function createPresenter({ kitCanvas, quality = 'high', room = null
   const motes = new THREE.Points(moteGeo, new THREE.PointsMaterial({ map: tex(blobCanvas('255,226,170', 0.9, 32)), size: 22, transparent: true, opacity: 0.5, depthWrite: false, blending: THREE.AdditiveBlending, fog: false, sizeAttenuation: true }));
   motes.frustumCulled = false; motes.renderOrder = 9; scene.add(motes);
   const vigC = cv(256), vx = vigC.getContext('2d'), vg = vx.createRadialGradient(128, 128, 70, 128, 128, 190);
-  vg.addColorStop(0, 'rgba(6,2,2,0)'); vg.addColorStop(1, 'rgba(6,2,2,0.7)'); vx.fillStyle = vg; vx.fillRect(0, 0, 256, 256);
+  vg.addColorStop(0, 'rgba(6,2,2,0)'); vg.addColorStop(0.45, 'rgba(6,2,2,0.2)'); vg.addColorStop(1, 'rgba(6,2,2,0.88)'); vx.fillStyle = vg; vx.fillRect(0, 0, 256, 256);
   const vig = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: tex(vigC), transparent: true, depthWrite: false, depthTest: false }));
   vig.renderOrder = 100; scene.add(vig);
   const scrim = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ color: 0x040a0c, transparent: true, opacity: 0, depthWrite: false }));
@@ -109,7 +110,7 @@ export async function createPresenter({ kitCanvas, quality = 'high', room = null
   const innerDeep = new THREE.MeshPhysicalMaterial({ map: leatherT, color: '#55666a', roughness: 0.85, envMapIntensity: 0.2 });
   const phys = (color, o = {}) => new THREE.MeshPhysicalMaterial({ color, roughness: 0.32, clearcoat: 1, clearcoatRoughness: 0.12, ...o });
   const BTN = {
-    primary: phys('#d65f1a', { emissive: '#5a1c04', emissiveIntensity: 0.45 }), quiet: phys('#5a3620', { clearcoat: 0.7 }), ghost: phys('#2c1c14', { clearcoat: 0.6 }),
+    primary: phys('#e8ae38', { emissive: '#6a4206', emissiveIntensity: 0.4, metalness: 0.35, roughness: 0.32 }), quiet: phys('#5a3620', { clearcoat: 0.7 }), ghost: phys('#2c1c14', { clearcoat: 0.6 }),
     on: phys('#1f9c8c', { emissive: '#06362f', emissiveIntensity: 0.4 }), gold: phys('#eab649', { metalness: 0.6, roughness: 0.3 }), danger: phys('#a82a40'),
     disabled: phys('#2a2220', { clearcoat: 0.15, roughness: 0.8 }),
   };

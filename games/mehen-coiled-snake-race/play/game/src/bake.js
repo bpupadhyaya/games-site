@@ -34,7 +34,7 @@ const ELL = CELL_LEN;
 const S_END = sOf(END_TH);
 
 // Height (0..1) and gold mask at unit coordinates. Writes into out[0] (height) and out[1] (gold 0..1).
-function field(u, v, out) {
+export function field(u, v, out, frame = true) {
   const dx = u - 0.5, dy = v - 0.5, r = Math.hypot(dx, dy);
   let H = 0.4 + 0.012 * lowNoise[((v * (LOWN - 1)) | 0) * LOWN + ((u * (LOWN - 1)) | 0)];
   let gold = 0;
@@ -108,7 +108,7 @@ function field(u, v, out) {
   }
   // the frame
   const e = Math.min(u, v, 1 - u, 1 - v);
-  if (e < 0.04) {
+  if (frame && e < 0.04) {
     const k = 1 - sm(0.024, 0.032, e);
     H = H + (0.84 - H) * k;
     if (e > 0.0075 && e < 0.0155) { const zz = Math.abs(((u + v) * 52) % 1 - 0.5) + Math.abs(((u - v) * 52) % 1 - 0.5); H -= 0.05 * (1 - sm(0.4, 0.8, zz)); }

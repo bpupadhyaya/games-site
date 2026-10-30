@@ -8,7 +8,7 @@ const norm = (a) => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] 
 
 // Poses: eye position and look-at target. 'tall' looks down on the table more (portrait), 'wide' sits lower and nearer (landscape).
 export const POSES = {
-  tall: { eye: [0, 3.2, 4.5], at: [0, 0.45, -0.15] },
+  tall: { eye: [0, 4.6, 3.9], at: [0, 0.4, -0.1] },
   mid: { eye: [0, 2.75, 4.3], at: [0, 0.5, -0.15] },
   wide: { eye: [0, 2.15, 4.0], at: [0, 0.6, -0.1] },
   title: { eye: [0.5, 1.9, 3.9], at: [0, 0.65, -0.2] },

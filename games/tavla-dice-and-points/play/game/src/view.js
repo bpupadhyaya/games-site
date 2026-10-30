@@ -2,7 +2,8 @@
 // range, which the page measures while drawing). Every rectangle comes from the current layout `L` (layout.js), so the same code
 // draws portrait, landscape and tablet shapes. The heavy art (table, board, checkers, dice faces) lives in cached sprites
 // (art.js, sprites.js), so a frame is only a few dozen drawImage calls.
-import { L, S, R, CH, SLOT, TRAYC, host, minText, stackPos, barPos, offPos, landing, toScreen, trayRect, barCenter, pointPoly, pointNumPos, TEXT_SCALES, THINK_STEPS } from './layout.js';
+import { L, S, R, CH, SLOT, TRAYC, host, minText, stackPos, barPos, offPos, landing, toScreen, toCanon, trayRect, barCenter, pointPoly, pointNumPos, TEXT_SCALES, THINK_STEPS, cStack, cBar, cOff, cLanding } from './layout.js';
+import { v3 } from './v3.js';
 import { BAR, OFF, pips, own } from './rules.js';
 import { drawStatic } from './art.js';
 import { drawChecker, drawChip, drawDie, SET_NAMES } from './sprites.js';
@@ -21,10 +22,12 @@ const M = (p) => toScreen(p.x, p.y);                  // a canonical position (a
 
 export function render(ctx, st) {
   const c = ctx, sc = st.scene, t = st.t, big = st.big, calm = st.calm, mt = minText();
-  drawStatic(c, L);
+  v3.rec = null; v3.tray = null; v3.hero = null;
+  if (v3.on) { render3dHud(c, st); }
+  else drawStatic(c, L);
   // the lamp flickers a little (steady when motion is reduced)
-  if (!calm) { c.fillStyle = `rgba(255,190,110,${0.03 + 0.015 * Math.sin(t * 1.7) + 0.01 * Math.sin(t * 5.3)})`; c.fillRect(0, 0, L.w, Math.min(520, L.h)); }
-  if (L.coffee) steam(c, st);
+  if (!calm && !v3.on) { c.fillStyle = `rgba(255,190,110,${0.03 + 0.015 * Math.sin(t * 1.7) + 0.01 * Math.sin(t * 5.3)})`; c.fillRect(0, 0, L.w, Math.min(520, L.h)); }
+  if (L.coffee && !v3.on) steam(c, st);
 
   const text = (s, x, y, size, color = '#f6e3b4', font = UI, weight = 700, align = 'center', shadow = false) => {
     if (size < mt) size = mt;
@@ -53,8 +56,11 @@ export function render(ctx, st) {
     if (o.primary) { g.addColorStop(0, '#f7d98a'); g.addColorStop(0.5, '#d9a441'); g.addColorStop(1, '#a8741f'); } else { g.addColorStop(0, '#8b5630'); g.addColorStop(0.5, '#62371b'); g.addColorStop(1, '#3f2210'); }
     c.fillStyle = g; rrect(c, r.x, r.y + dn, r.w, r.h, rad); c.fill();
     c.strokeStyle = o.primary ? 'rgba(255,240,190,0.9)' : 'rgba(255,225,160,0.55)'; c.lineWidth = 2; c.stroke();
+    // a line icon on the left of the big menu rows (only where there is room for it)
+    const ic = o.icon && r.w >= 240 ? Math.min(r.h * 0.4, 30) : 0;
+    if (ic) lineIcon(c, o.icon, r.x + 18 + ic / 2, r.y + dn + r.h / 2, ic, o.primary ? '#3a1f08' : '#f1d08a');
     // shrink the label to fit narrow buttons; never below the readable minimum
-    let size = Math.min(o.size ?? 28, r.h * 0.5); const maxW = r.w - 20;
+    let size = Math.min(o.size ?? 28, r.h * 0.5); const maxW = r.w - 20 - (ic ? 2 * (ic + 14) : 0);
     c.font = `700 ${size}px ${UI}`;
     while (c.measureText(label).width > maxW && size > mt) { size -= 1; c.font = `700 ${size}px ${UI}`; }
     let sub = o.sub, subSize = Math.max(mt, Math.min(19, r.h * 0.28));
@@ -99,31 +105,27 @@ const chk = (c, set, side, x, y, k = 1, lift = 0) => drawChecker(c, set, side, x
 // ---- title ------------------------------------------------------------------------------------------------------------
 function drawTitle(c, st, U) {
   const T = L.title(!!st.saved), RC = T.rects, lv = LEVELS[st.level];
-  for (let i = 0; i < 24; i++) { const v = st.g.board[i], n = Math.abs(v); for (let k = 0; k < n; k++) { const p = stackPos(i, k, n); chk(c, st.set, v > 0 ? 0 : 1, p.x, p.y, 1); } }
-  c.fillStyle = 'rgba(14,7,3,0.86)'; c.fillRect(0, 0, L.w, L.h);
-  const g = c.createRadialGradient(T.titleX, T.titleY - 40, 20, T.titleX, T.titleY, 520); g.addColorStop(0, 'rgba(255,190,110,0.22)'); g.addColorStop(1, 'rgba(255,190,110,0)'); c.fillStyle = g; c.fillRect(0, 0, L.w, Math.max(700, T.titleY + 300));
-  U.text('Tavla', T.titleX + 2, T.titleY + 4, T.titleSize, 'rgba(0,0,0,0.55)', FONT, 700);
-  U.text('Tavla', T.titleX, T.titleY, T.titleSize, '#f6dfae', FONT, 700);
-  U.fitText('The dice game of the coffeehouse', T.titleX, T.tagY, 32, (T.wide ? T.lw : L.U.w) - 40, '#e8c88a', FONT, 700);
-  // hero: two dice that tumble now and then
-  const cyc = (st.t % 6) / 6, tum = cyc < 0.16 ? cyc / 0.16 : 1;
-  for (let i = 0; i < 2; i++) {
-    const rest = T.diceX + i * 120, xs = rest - 130 + i * 40;
-    const u = tum, x = Math.max(L.U.x0 + 40, xs + (rest - xs) * (1 - (1 - u) * (1 - u))), lift = Math.abs(Math.sin(u * Math.PI * 3)) * (1 - u) * 60;
-    const face = u < 0.85 ? 1 + Math.floor(hash(Math.floor(st.t * 14) + i * 7) * 6) : [5, 3][i];
-    drawDie(c, face, x, T.diceY, { rot: (1 - u) * (5 + i * 2) + (i ? -0.12 : 0.1), sq: 1, lift, ivory: i === 0 });
+  if (v3.on) titleScene3d(c, st, T);
+  else {
+    for (let i = 0; i < 24; i++) { const v = st.g.board[i], n = Math.abs(v); for (let k = 0; k < n; k++) { const p = stackPos(i, k, n); chk(c, st.set, v > 0 ? 0 : 1, p.x, p.y, 1); } }
+    c.fillStyle = 'rgba(14,7,3,0.86)'; c.fillRect(0, 0, L.w, L.h);
+    const g = c.createRadialGradient(T.titleX, T.titleY - 40, 20, T.titleX, T.titleY, 520); g.addColorStop(0, 'rgba(255,190,110,0.22)'); g.addColorStop(1, 'rgba(255,190,110,0)'); c.fillStyle = g; c.fillRect(0, 0, L.w, Math.max(700, T.titleY + 300));
   }
+  titleLettering(c, T.titleX, T.titleY, T.titleSize);
+  U.fitText('The dice game of the coffeehouse', T.titleX, T.tagY, 32, (T.wide ? T.lw : L.U.w) - 40, '#f0d39a', FONT, 700, 'center', v3.on);
+  // hero: two dice that tumble now and then (the 3D scene has its own dice on the kilim)
+  if (!v3.on) heroDice(c, st, T);
   // discreet Arcforge credit: the themed lockup, small and quiet (the plain credit line until it has loaded)
   const lh = T.lock ? drawLockup(c, T.lock.cx, T.lock.y, T.lock.w, 0.9, (st.afFlash || 0) > 0) : 0;
   if (T.lock && !lh) drawCredit(c, T.lock.cx, T.lock.y + 22, 15, { dim: 0.85 });
 
   const sub = (txt, r, short) => (r.w < 330 && short ? short : txt);
-  if (RC.resume) U.button(RC.resume, 'Resume game', { primary: true, size: 30 });
-  U.button(RC.play, 'Play the computer', { primary: !RC.resume, size: 30, sub: `${lv.name}${st.cube.on ? ' · cube' : ''}` });
-  U.button(RC.learn, 'Learn to play', { size: 30, sub: st.learned ? 'Nine hands-on lessons · done' : 'Nine hands-on lessons' });
-  U.button(RC.two, 'Two players', { size: 30, sub: 'Pass the phone' });
-  U.button(RC.daily, 'Daily puzzle', { size: 30, sub: st.daily.streak ? `Streak ${st.daily.streak} day${st.daily.streak === 1 ? '' : 's'}` : 'Find the best move' });
-  U.button(RC.auto, 'Auto Play', { size: 30, sub: sub('Watch & Learn - both sides computer-played', RC.auto, 'Watch & Learn') });
+  if (RC.resume) U.button(RC.resume, 'Resume game', { primary: true, size: 30, icon: 'resume' });
+  U.button(RC.play, 'Play the computer', { primary: !RC.resume, size: 30, sub: `${lv.name}${st.cube.on ? ' · cube' : ''}`, icon: 'play' });
+  U.button(RC.learn, 'Learn to play', { size: 30, sub: st.learned ? 'Nine hands-on lessons · done' : 'Nine hands-on lessons', icon: 'book' });
+  U.button(RC.two, 'Two players', { size: 30, sub: 'Pass the phone', icon: 'two' });
+  U.button(RC.daily, 'Daily puzzle', { size: 30, sub: st.daily.streak ? `Streak ${st.daily.streak} day${st.daily.streak === 1 ? '' : 's'}` : 'Find the best move', icon: 'star' });
+  U.button(RC.auto, 'Auto Play', { size: 30, sub: sub('Watch & Learn - both sides computer-played', RC.auto, 'Watch & Learn'), icon: 'eye' });
   const lvFull = `Level: ${lv.name}`;
   U.button(RC.level, lvFull, { size: 24 });
   U.button(RC.cube, `Cube: ${st.cube.on ? 'On' : 'Off'}`, { size: 24 });
@@ -137,6 +139,55 @@ function drawTitle(c, st, U) {
   let y = X.y + 22 + n * (st.big ? 30 : 26) + 6;
   if (st.stats.games) { U.text(`Games played ${st.stats.games}  ·  won ${st.stats.wins}`, cx, y, 21, 'rgba(232,200,140,0.75)', UI, 600); y += 28; }
   if (st.msg) U.wrap(st.msg.text, cx, y, 24, X.w - 10, '#ffe9b0', 28);
+}
+
+// small line icons for the menu rows
+function lineIcon(c, name, x, y, s, col) {
+  c.save(); c.translate(x, y); c.strokeStyle = col; c.fillStyle = col; c.lineWidth = Math.max(2, s * 0.09); c.lineCap = 'round'; c.lineJoin = 'round';
+  const h = s / 2;
+  if (name === 'play') { c.beginPath(); c.moveTo(-h * 0.55, -h * 0.75); c.lineTo(h * 0.8, 0); c.lineTo(-h * 0.55, h * 0.75); c.closePath(); c.fill(); }
+  else if (name === 'resume') { c.beginPath(); c.arc(0, 0, h * 0.8, -0.3, Math.PI * 1.5); c.stroke(); c.beginPath(); c.moveTo(h * 0.15, -h * 1.05); c.lineTo(h * 0.6, -h * 0.8); c.lineTo(h * 0.1, -h * 0.45); c.stroke(); }
+  else if (name === 'book') { c.beginPath(); c.moveTo(0, -h * 0.6); c.quadraticCurveTo(-h * 0.5, -h * 0.85, -h, -h * 0.6); c.lineTo(-h, h * 0.75); c.quadraticCurveTo(-h * 0.5, h * 0.5, 0, h * 0.75); c.quadraticCurveTo(h * 0.5, h * 0.5, h, h * 0.75); c.lineTo(h, -h * 0.6); c.quadraticCurveTo(h * 0.5, -h * 0.85, 0, -h * 0.6); c.lineTo(0, h * 0.75); c.stroke(); }
+  else if (name === 'two') { c.beginPath(); c.arc(-h * 0.42, 0, h * 0.5, 0, TAU); c.stroke(); c.beginPath(); c.arc(h * 0.42, 0, h * 0.5, 0, TAU); c.fill(); }
+  else if (name === 'star') { c.beginPath(); for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? h * 0.42 : h; c.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); } c.closePath(); c.stroke(); }
+  else if (name === 'eye') { c.beginPath(); c.moveTo(-h, 0); c.quadraticCurveTo(0, -h * 0.95, h, 0); c.quadraticCurveTo(0, h * 0.95, -h, 0); c.stroke(); c.beginPath(); c.arc(0, 0, h * 0.32, 0, TAU); c.fill(); }
+  c.restore();
+}
+function heroDice(c, st, T) {
+  const cyc = (st.t % 6) / 6, tum = cyc < 0.16 ? cyc / 0.16 : 1;
+  for (let i = 0; i < 2; i++) {
+    const rest = T.diceX + i * 120, xs = rest - 130 + i * 40;
+    const u = tum, x = Math.max(L.U.x0 + 40, xs + (rest - xs) * (1 - (1 - u) * (1 - u))), lift = Math.abs(Math.sin(u * Math.PI * 3)) * (1 - u) * 60;
+    const face = u < 0.85 ? 1 + Math.floor(hash(Math.floor(st.t * 14) + i * 7) * 6) : [5, 3][i];
+    drawDie(c, face, x, T.diceY, { rot: (1 - u) * (5 + i * 2) + (i ? -0.12 : 0.1), sq: 1, lift, ivory: i === 0 });
+  }
+}
+// The title lettering: warm cast-brass letters with a dark bevel shadow and a soft glow (the same on the flat art and over 3D).
+function titleLettering(c, x, y, size) {
+  c.save(); c.textAlign = 'center'; c.font = `700 ${size}px ${FONT}`;
+  c.fillStyle = 'rgba(0,0,0,0.6)'; c.fillText('Tavla', x + 2, y + 5);
+  c.shadowColor = 'rgba(255,170,70,0.35)'; c.shadowBlur = size * 0.25;
+  const g = c.createLinearGradient(0, y - size * 0.75, 0, y + size * 0.1);
+  g.addColorStop(0, '#fff3cf'); g.addColorStop(0.45, '#f1c66c'); g.addColorStop(0.55, '#c88f2e'); g.addColorStop(1, '#f6d58a');
+  c.fillStyle = g; c.fillText('Tavla', x, y);
+  c.shadowBlur = 0; c.lineWidth = Math.max(1, size * 0.012); c.strokeStyle = 'rgba(90,50,10,0.6)'; c.strokeText('Tavla', x, y);
+  c.restore();
+}
+// 3D title: the live board on the table behind; a scrim under the menu so the buttons read. Records the board for the presenter.
+function titleScene3d(c, st, T) {
+  const U = L.U, RC = T.rects, first = Math.min(...Object.values(RC).map((r) => r.y));
+  const rec = newRec(st); recordBoard(rec, st, null); v3.rec = rec;
+  if (T.wide) {
+    const x0 = Math.min(...Object.values(RC).map((r) => r.x)) - 30;
+    const g = c.createLinearGradient(x0 - 80, 0, x0 + 40, 0); g.addColorStop(0, 'rgba(14,7,3,0)'); g.addColorStop(1, 'rgba(14,7,3,0.78)'); c.fillStyle = g; c.fillRect(x0 - 80, 0, L.w - x0 + 80, L.h);
+    const t2 = c.createLinearGradient(0, T.titleY - T.titleSize, 0, T.tagY + 60); t2.addColorStop(0, 'rgba(14,7,3,0.55)'); t2.addColorStop(1, 'rgba(14,7,3,0)'); c.fillStyle = t2; c.fillRect(0, 0, x0 - 80, T.tagY + 60);
+    v3.hero = { x: U.x0, y: T.tagY + 24, w: x0 - 70 - U.x0, h: U.y1 - T.tagY - 30 };
+  } else {
+    const g = c.createLinearGradient(0, first - 50, 0, first + 40); g.addColorStop(0, 'rgba(14,7,3,0)'); g.addColorStop(1, 'rgba(14,7,3,0.82)'); c.fillStyle = g; c.fillRect(0, first - 50, L.w, L.h - first + 50);
+    const t2 = c.createLinearGradient(0, 0, 0, T.tagY + 30); t2.addColorStop(0, 'rgba(14,7,3,0.4)'); t2.addColorStop(1, 'rgba(14,7,3,0)'); c.fillStyle = t2; c.fillRect(0, 0, L.w, T.tagY + 30);
+    // the board sits behind the title and tagline and fills the space above the menu
+    v3.hero = { x: U.x0, y: U.y0 + Math.max(20, (T.titleY - T.titleSize) * 0.6), w: U.w, h: Math.max(200, first - 10 - U.y0 - Math.max(20, (T.titleY - T.titleSize) * 0.6)) };
+  }
 }
 
 // ---- About, How to play and Rules: one reference-page renderer --------------------------------------------------------------------
@@ -260,9 +311,12 @@ function drawBoardScene(c, st, U) {
   const g = st.g, set = st.set, sc = st.scene, t = st.t, calm = st.calm, a = st.anim, mt = U.mt;
   const pulse = calm ? 0.5 : 0.5 + 0.5 * Math.sin(t * 5);
   const HD = L.head;
+  // 3D: the board, checkers, glows and the mover are RECORDED for the presenter; this layer keeps only the HUD and the labels
+  const R3 = v3.on ? (v3.rec = newRec(st)) : null;
+  if (R3) recordBoard(R3, st, a);
 
   // ---- header ----------------------------------------------------------------------------------------------------------
-  U.text('Tavla', HD.title.x, HD.title.y, HD.title.size, '#f6dfae', FONT, 700, 'center', true);
+  titleLettering(c, HD.title.x, HD.title.y, HD.title.size);
   if (sc !== 'lesson') {
     const twoUp = (st.two || st.autoMode) && sc === 'play', n1 = `${twoUp ? 'Player 1' : 'You'}  ${pips(g, 0)}`, n2 = `${twoUp ? 'Player 2' : 'Rival'}  ${pips(g, 1)}`;
     if (HD.pips.stacked) {
@@ -293,7 +347,7 @@ function drawBoardScene(c, st, U) {
   const vertical = L.orient === 'h';
   for (let s = 0; s < 2; s++) {
     let n = g.off[s]; if (a && a.hide && a.hide.kind === 'off' && a.hide.side === s && !a.done) n -= 1;
-    for (let k = 0; k < n; k++) { const p = offPos(s, k); drawChip(c, set, s, p.x, p.y, S); }
+    if (!R3) for (let k = 0; k < n; k++) { const p = offPos(s, k); drawChip(c, set, s, p.x, p.y, S); }
     const T = trayRect(s), cx = T.x + T.w / 2, cy = T.y + T.h / 2;
     const label = (str, size, color, weight = 700, shadow = false, off = 0) => {
       c.save();
@@ -307,8 +361,9 @@ function drawBoardScene(c, st, U) {
     }
   }
   if (st.dests.some((d) => d.to === OFF)) {
-    const T = trayRect(0); c.fillStyle = `rgba(255,220,110,${0.16 + pulse * 0.2})`; rrect(c, T.x - 4, T.y - 4, T.w + 8, T.h + 8, 12); c.fill();
-    c.strokeStyle = `rgba(255,230,140,${0.6 + pulse * 0.4})`; c.lineWidth = 2.5; c.stroke();
+    const T = trayRect(0);
+    if (R3) R3.trayGlow = 0.5 + pulse * 0.5;
+    else { c.fillStyle = `rgba(255,220,110,${0.16 + pulse * 0.2})`; rrect(c, T.x - 4, T.y - 4, T.w + 8, T.h + 8, 12); c.fill(); c.strokeStyle = `rgba(255,230,140,${0.6 + pulse * 0.4})`; c.lineWidth = 2.5; c.stroke(); }
     if (g.off[0] < 12) {
       c.save(); const cx = T.x + T.w / 2, cy = T.y + T.h / 2;
       if (vertical) { c.translate(cx, cy); c.rotate(-Math.PI / 2); U.text('BEAR OFF HERE', 0, 8, Math.max(22, mt), 'rgba(255,240,200,0.95)', UI, 800, 'center', true); } else U.text('BEAR OFF HERE', cx, cy + 8, Math.max(22, mt), 'rgba(255,240,200,0.95)', UI, 800, 'center', true);
@@ -322,7 +377,7 @@ function drawBoardScene(c, st, U) {
     c.textBaseline = 'alphabetic'; }
 
   // ---- highlights on the points ----------------------------------------------------------------------------------------------
-  for (const d of st.dests) if (d.to < 24) {
+  for (const d of st.dests) if (d.to < 24 && !R3) {
     const q = pointPoly(d.to); c.beginPath(); c.moveTo(q[0].x, q[0].y); for (let i = 1; i < 4; i++) c.lineTo(q[i].x, q[i].y); c.closePath();
     c.fillStyle = `rgba(255,222,120,${0.2 + pulse * 0.22})`; c.fill(); c.strokeStyle = `rgba(255,236,150,${0.55 + pulse * 0.4})`; c.lineWidth = 2; c.stroke();
   }
@@ -340,6 +395,7 @@ function drawBoardScene(c, st, U) {
       if (dragFrom === idx && k === n - 1) continue;
       const p = stackPos(idx, k, n), top = k === n - 1;
       const lift = top && st.sel === idx ? 12 : 0;
+      if (R3) { if (top && n > 5) { const q = R3.labelAt(cStack(idx, k, n), k, n); badge(c, q.x, q.y, n, mt); } continue; }
       chk(c, set, side, p.x, p.y, 1, lift);
       if (top && n > 5) badge(c, p.x, p.y, n, mt);
       if (top && sources.has(idx) && st.sel !== idx && !calm && !st.drag?.on) { c.strokeStyle = `rgba(255,232,140,${0.25 + pulse * 0.5})`; c.lineWidth = 2.5; c.beginPath(); c.arc(p.x, p.y, Rr(3), 0, TAU); c.stroke(); }
@@ -348,12 +404,13 @@ function drawBoardScene(c, st, U) {
   };
   for (let i = 0; i < 24; i++) drawStack(i);
   // ghost of a checker being hit: it is still on the point while the hitter lands
-  if (a && !a.done && a.ghost && a.t < a.dur) { const gp = M(a.ghost.pos); chk(c, set, a.ghost.side, gp.x, gp.y, 1); }
+  if (a && !a.done && a.ghost && a.t < a.dur && !R3) { const gp = M(a.ghost.pos); chk(c, set, a.ghost.side, gp.x, gp.y, 1); }
   for (let s = 0; s < 2; s++) {
     let n = g.bar[s]; const hideOne = a && !a.done && a.hit && a.hit.side === s ? 1 : 0;
     for (let k = 0; k < n - hideOne; k++) {
       if (st.drag?.on && dragFrom === BAR && s === 0 && k === n - 1) continue;
       const p = barPos(s, k, n), top = k === n - 1;
+      if (R3) { if (top && n > 5) badge(c, p.x, p.y, n, mt); continue; }
       chk(c, set, s, p.x, p.y, 1, top && st.sel === BAR && s === 0 ? 12 : 0);
       if (top && n > 5) badge(c, p.x, p.y, n, mt);
       if (top && s === 0 && sources.has(BAR)) { c.strokeStyle = `rgba(255,232,140,${0.4 + pulse * 0.5})`; c.lineWidth = 3; c.beginPath(); c.arc(p.x, p.y - (st.sel === BAR ? 12 * S : 0), Rr(3), 0, TAU); c.stroke(); }
@@ -363,6 +420,7 @@ function drawBoardScene(c, st, U) {
   // landing markers
   for (const d of st.dests) if (d.to < 24) {
     const n = Math.abs(g.board[d.to]); const p = stackPos(d.to, n === 0 || own(g, 0, d.to) < 0 ? 0 : n, n + 1);
+    if (R3) { if (own(g, 0, d.to) < 0) U.text('HIT', p.x, p.y + 5, 17, 'rgba(255,120,90,0.98)', UI, 800, 'center', true); continue; }
     c.strokeStyle = `rgba(255,240,170,${0.6 + pulse * 0.4})`; c.lineWidth = 3; c.setLineDash([7, 6]); c.beginPath(); c.arc(p.x, p.y, Rr(-2), 0, TAU); c.stroke(); c.setLineDash([]);
     if (own(g, 0, d.to) < 0) U.text('HIT', p.x, p.y + 5, 15, 'rgba(255,90,60,0.95)', UI, 800);
   }
@@ -374,13 +432,15 @@ function drawBoardScene(c, st, U) {
     c.setLineDash([10, 8]); c.beginPath(); c.moveTo(f.x, f.y); c.lineTo(to.x, to.y); c.stroke(); c.setLineDash([]);
     c.fillStyle = `rgba(125,255,176,${0.25 + pulse * 0.3})`; c.beginPath(); c.arc(to.x, to.y, Rr(4), 0, TAU); c.fill(); c.strokeStyle = '#7dffb0'; c.beginPath(); c.arc(to.x, to.y, Rr(4), 0, TAU); c.stroke();
   };
-  if (st.autoReveal) for (const h of st.autoReveal.steps) ringMove(st.autoReveal.side, h);
-  if (st.hint) ringMove(0, st.hint);
-  // a piece being dragged
-  if (st.drag && st.drag.on) chk(c, set, 0, st.drag.x, st.drag.y, 1.14, 16);
-  // the moving checker
-  if (a && !a.done) drawMover(c, st, a, set, Rr);
-  if (st.cursorOn && st.cursor != null) { const p = cursorPos(st.cursor, g); c.strokeStyle = '#7de0ff'; c.lineWidth = 3.5; c.setLineDash([6, 5]); c.beginPath(); c.arc(p.x, p.y, Rr(8), 0, TAU); c.stroke(); c.setLineDash([]); }
+  if (!R3) {
+    if (st.autoReveal) for (const h of st.autoReveal.steps) ringMove(st.autoReveal.side, h);
+    if (st.hint) ringMove(0, st.hint);
+    // a piece being dragged
+    if (st.drag && st.drag.on) chk(c, set, 0, st.drag.x, st.drag.y, 1.14, 16);
+    // the moving checker
+    if (a && !a.done) drawMover(c, st, a, set, Rr);
+  }
+  if (st.cursorOn && st.cursor != null && !R3) { const p = cursorPos(st.cursor, g); c.strokeStyle = '#7de0ff'; c.lineWidth = 3.5; c.setLineDash([6, 5]); c.beginPath(); c.arc(p.x, p.y, Rr(8), 0, TAU); c.stroke(); c.setLineDash([]); }
 
   // ---- dice, cube, buttons -----------------------------------------------------------------------------------------------------
   drawDice(c, st, U, pulse);
@@ -441,12 +501,19 @@ const refuseCurve = (f) => { const out = f < 0.4 ? f / 0.4 : f < 0.6 ? 1 : 1 - (
 
 // ---- dice ---------------------------------------------------------------------------------------------------------------
 function drawDice(c, st, U, pulse) {
-  const d = st.dice, DI = L.dice;
+  const d = st.dice, DI = L.dice, D3 = v3.on;
+  if (D3) v3.tray = { rect: { x: DI.x - 10, y: DI.y - 10, w: DI.w + 20, h: DI.h + 20 }, DI, ready: st.phase === 'roll' && st.scene !== 'over' && (st.g.turn === 0 || st.two), pulse };
+  if (D3) {                                                     // the walnut rim of the leather tray (the leather and dice are 3D)
+    c.save(); rrect(c, DI.x - 6, DI.y - 6, DI.w + 12, DI.h + 12, 16); c.lineWidth = 12; c.strokeStyle = '#4a2914'; c.stroke();
+    c.lineWidth = 1.6; c.strokeStyle = 'rgba(232,196,106,0.75)'; rrect(c, DI.x + 1, DI.y + 1, DI.w - 2, DI.h - 2, 11); c.stroke();
+    c.strokeStyle = 'rgba(255,225,170,0.35)'; rrect(c, DI.x - 12, DI.y - 12, DI.w + 24, DI.h + 24, 20); c.stroke(); c.restore();
+  }
   if (!d.vals) {
     // waiting to be rolled: two resting dice and a call to action
-    for (let i = 0; i < 2; i++) drawDie(c, [4, 2][i], DI.rest[i], DI.cy, { rot: i ? 0.12 : -0.1, ivory: st.g.turn === 0 || st.two });
+    if (!D3) for (let i = 0; i < 2; i++) drawDie(c, [4, 2][i], DI.rest[i], DI.cy, { rot: i ? 0.12 : -0.1, ivory: st.g.turn === 0 || st.two });
+    else v3.tray.dice = [0, 1].map((i) => ({ v: [4, 2][i], x: DI.rest[i], y: DI.cy, rot: i ? 0.12 : -0.1, ivory: st.g.turn === 0 || st.two, lift: 0, f: 1 }));
     if (st.phase === 'roll' && (st.scene !== 'over')) {
-      c.fillStyle = `rgba(255,225,130,${0.14 + pulse * 0.16})`; rrect(c, DI.x + 12, DI.y + 12, DI.w - 24, DI.h - 24, 10); c.fill();
+      if (!D3) { c.fillStyle = `rgba(255,225,130,${0.14 + pulse * 0.16})`; rrect(c, DI.x + 12, DI.y + 12, DI.w - 24, DI.h - 24, 10); c.fill(); }
       const k = DI.rollTxt, maxW = k.align === 'center' ? DI.w - 24 : DI.x + DI.w - 14 - k.x;
       U.fitText(st.g.turn === 0 || st.two ? 'TAP THE DICE TO ROLL' : '', k.x, k.y, 22, maxW, '#ffe9a8', UI, 800, k.align);
       U.fitText(st.two ? (st.g.turn === 0 ? 'Player 1' : 'Player 2') : 'or press Space', k.x, k.y2, 17, maxW, 'rgba(255,233,168,0.8)', UI, 600, k.align);
@@ -454,6 +521,7 @@ function drawDice(c, st, U, pulse) {
     return;
   }
   const roll = d.roll, vals = d.vals;
+  if (D3) v3.tray.dice = [];
   for (let i = 0; i < 2; i++) {
     const rest = DI.rest[i];
     let x = rest, y = DI.cy, rot = i ? 0.1 : -0.08, sq = 1, lift = 0, face = vals[i];
@@ -465,13 +533,16 @@ function drawDice(c, st, U, pulse) {
       if (u < 0.82) face = 1 + Math.floor(hash(Math.floor(u * 22) * 3 + i) * 6);
     }
     const used = st.left && st.phase !== 'rolling' && !st.left.includes(vals[i]) && vals[0] !== vals[1];
-    drawDie(c, face, x, y, { rot, sq, lift, dim: !!used, ivory: d.side === 0 });
+    if (D3) v3.tray.dice.push({ v: vals[i], x, y, rot, lift, dim: !!used, ivory: d.side === 0, f: roll && roll.t < roll.dur ? roll.t / roll.dur : 1, i });
+    else drawDie(c, face, x, y, { rot, sq, lift, dim: !!used, ivory: d.side === 0 });
   }
   if (vals[0] === vals[1] && st.left && !(roll && roll.t < roll.dur)) U.text(`× ${st.left.length}`, DI.mult.x, DI.mult.y, 30, '#ffe9a8', UI, 800, 'left', true);
 }
 function drawCube(c, st, U, pulse) {
   const cb = st.cube; if (!cb.on) return;
   const { x, y, s } = L.cube, can = st.phase === 'roll' && st.canDouble;
+  if (v3.on && v3.tray) v3.tray.cube = { x, y, s, v: cb.owner === -1 ? 64 : cb.v, owner: cb.owner, can, pulse };
+  else {
   c.save(); c.translate(x, y);
   c.fillStyle = 'rgba(0,0,0,0.4)'; rrect(c, -s / 2 + 4, -s / 2 + 8, s, s, 10); c.fill();
   const g = c.createLinearGradient(-s / 2, -s / 2, s / 2, s / 2); g.addColorStop(0, '#fffaea'); g.addColorStop(1, '#d6bd86'); c.fillStyle = g; rrect(c, -s / 2, -s / 2, s, s, 10); c.fill();
@@ -479,6 +550,7 @@ function drawCube(c, st, U, pulse) {
   const v = cb.owner === -1 ? 64 : cb.v;
   c.font = `800 ${v >= 10 ? 26 : 32}px ${FONT}`; c.textAlign = 'center'; c.fillStyle = '#5a1219'; c.fillText(String(v), 0, 11);
   c.restore();
+  }
   const narrow = L.narrowDice;
   U.text(cb.owner === -1 ? 'Cube' : cb.owner === 0 ? 'Yours' : 'Rival’s', x, narrow ? y + s / 2 + 22 : y + 52, 15, 'rgba(255,233,168,0.85)', UI, 700);
   if (can) U.text('TAP to double', x + 12, y - 42, 15, '#ffe9a8', UI, 800, narrow ? 'left' : 'center');
@@ -503,4 +575,71 @@ function drawOver(c, st, U) {
   U.button(O.menu, 'Menu', { size: 26 });
   U.button(O.share, 'Share', { size: 26 });
   drawMoreLine(c, O.cx, O.moreY, Math.max(15, U.mt));
+}
+
+// ---- 3D recording -------------------------------------------------------------------------------------------------------------
+// Everything is in CANONICAL board units (layout.js), so the presenter places it on the lit board whatever the screen shape.
+function newRec(st) {
+  return { pieces: [], dests: [], rings: [], moves: [], mover: null, hitMover: null, drag: null, trayGlow: 0, set: st.set, t: st.t, calm: st.calm,
+    labelAt: (p) => toScreen(p.x, p.y) };
+}
+// level in a crowded row: from the fourth checker on a point (the 2D art overlaps them) each rests shingled on the one before
+const lvlOf = (k, n, limit) => (n > limit ? k : 0);
+function recordBoard(R, st, a) {
+  const g = st.g, sources = new Set(st.sources || []), dragFrom = st.drag && st.drag.on ? st.drag.from : -9;
+  const hidden = (kind, idx, side, k, n) => a && !a.done && a.hide && a.hide.kind === kind && a.hide.idx === idx && a.hide.side === side && k === n - 1;
+  for (let idx = 0; idx < 24; idx++) {
+    const v = g.board[idx]; if (!v) continue;
+    const side = v > 0 ? 0 : 1, n = Math.abs(v);
+    for (let k = 0; k < n; k++) {
+      if (hidden('pt', idx, side, k, n) || (dragFrom === idx && k === n - 1)) continue;
+      const p = cStack(idx, k, n), top = k === n - 1;
+      R.pieces.push({ s: side, x: p.x, y: p.y, lvl: lvlOf(k, n, 3), dir: idx < 12 ? 1 : -1, lift: top && st.sel === idx ? 12 : 0, sel: top && st.sel === idx, src: top && sources.has(idx) && st.sel !== idx && !st.drag?.on, key: idx * 16 + k });
+    }
+  }
+  for (let s = 0; s < 2; s++) {
+    const n = g.bar[s], hideOne = a && !a.done && a.hit && a.hit.side === s ? 1 : 0;
+    for (let k = 0; k < n - hideOne; k++) {
+      if (st.drag?.on && dragFrom === BAR && s === 0 && k === n - 1) continue;
+      const p = cBar(s, k, n), top = k === n - 1;
+      R.pieces.push({ s, x: p.x, y: p.y, lvl: lvlOf(k, n, 5), dir: s ? -1 : 1, bar: true, lift: top && st.sel === BAR && s === 0 ? 12 : 0, sel: top && st.sel === BAR && s === 0, src: top && s === 0 && sources.has(BAR), key: 400 + s * 16 + k });
+    }
+    let m = g.off[s]; if (a && a.hide && a.hide.kind === 'off' && a.hide.side === s && !a.done) m -= 1;
+    for (let k = 0; k < m; k++) { const p = cOff(s, k); R.pieces.push({ s, x: p.x, y: p.y, off: true, k, key: 500 + s * 16 + k }); }
+  }
+  if (a && !a.done && a.ghost && a.t < a.dur) R.pieces.push({ s: a.ghost.side, x: a.ghost.pos.x, y: a.ghost.pos.y, lvl: 0, key: 600 });
+  for (const d of st.dests) {
+    if (d.to < 24) {
+      R.dests.push(d.to);
+      const n = Math.abs(g.board[d.to]), k = n === 0 || own(g, 0, d.to) < 0 ? 0 : n, p = cStack(d.to, k, n + 1);
+      R.rings.push({ x: p.x, y: p.y, kind: 'land', hit: own(g, 0, d.to) < 0 });
+    }
+  }
+  const ringMove = (side, h) => {
+    const nf = h.from === BAR ? g.bar[side] : Math.abs(g.board[h.from]) || 1;
+    const f = h.from === BAR ? cBar(side, Math.max(0, nf - 1), Math.max(1, nf)) : cStack(h.from, Math.max(0, nf - 1), nf);
+    const to = cLanding(h.to, h.to === OFF ? g.off[side] : h.to === BAR ? 0 : Math.abs(g.board[h.to]) && own(g, side, h.to) > 0 ? Math.abs(g.board[h.to]) : 0, side);
+    R.moves.push({ from: f, to });
+  };
+  if (st.autoReveal) for (const h of st.autoReveal.steps) ringMove(st.autoReveal.side, h);
+  if (st.hint) ringMove(0, st.hint);
+  if (st.drag && st.drag.on) { const q = toCanon(st.drag.x, st.drag.y); R.drag = { s: 0, x: q.x, y: q.y }; }
+  if (a && !a.done) {
+    if (a.t < a.dur) {
+      const f = Math.min(1, a.t / a.dur), e = a.kind === 'refuse' ? refuseCurve(f) : ease(f);
+      const shake = a.kind === 'refuse' && !st.calm && f > 0.36 && f < 0.64 ? Math.sin(f * 90) * 5 : 0;
+      const nTo = a.kind === 'move' && a.hide && a.hide.kind === 'pt' ? Math.abs(g.board[a.hide.idx]) : 0;
+      R.mover = { s: a.side, x: a.from.x + (a.to.x - a.from.x) * e + shake, y: a.from.y + (a.to.y - a.from.y) * e, from: a.from, to: a.to, e, f,
+        arc: Math.sin(Math.PI * f) * (a.kind === 'refuse' ? 14 : 34), lvlTo: a.kind === 'move' ? lvlOf(nTo - 1, nTo, 3) : 0, dir: a.hide && a.hide.idx < 12 ? 1 : -1, off: a.hide && a.hide.kind === 'off', key: 700, refuse: a.kind === 'refuse' };
+    } else if (a.hit) {
+      const f = Math.min(1, (a.t - a.dur) / a.hitDur), e = ease(f), h = a.hit;
+      R.hitMover = { s: h.side, x: h.from.x + (h.to.x - h.from.x) * e, y: h.from.y + (h.to.y - h.from.y) * e, from: h.from, to: h.to, e, f, arc: Math.sin(Math.PI * f) * 70, key: 701 };
+    }
+  }
+  if (st.cursorOn && st.cursor != null) { const cu = st.cursor; const p = cu === BAR ? cBar(0, 0, 1) : cu === OFF ? { x: 360, y: TRAYC.me.y + TRAYC.me.h / 2 } : cStack(cu, Math.max(0, Math.abs(g.board[cu]) - 1), Math.max(1, Math.abs(g.board[cu]))); R.rings.push({ x: p.x, y: p.y, kind: 'cursor' }); }
+}
+// over the 3D scene the screen chrome needs no table art: only a soft darkening behind the header and the bottom rail
+function render3dHud(c, st) {
+  void st;
+  const g = c.createLinearGradient(0, 0, 0, Math.min(260, L.h * 0.2)); g.addColorStop(0, 'rgba(10,5,2,0.55)'); g.addColorStop(1, 'rgba(10,5,2,0)'); c.fillStyle = g; c.fillRect(0, 0, L.w, Math.min(260, L.h * 0.2));
 }

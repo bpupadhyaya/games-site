@@ -4,6 +4,7 @@ import { skyline } from './skyline.js';
 import { camel, horse, walker, caravan } from './figures.js';
 import { drawGood, cached } from './icons.js';
 import { CITIES, GOODS, LEGS } from './data.js';
+import { v3 } from './v3.js';
 
 const TAU = Math.PI * 2;
 const ell = (ctx, x, y, rx, ry) => { ctx.beginPath(); ctx.ellipse(x, y, rx, ry, 0, 0, TAU); };
@@ -131,6 +132,16 @@ const PROP_WEATHER = ['storm', 'snow'];
 
 // spec: { biome, time, scroll, horizon, seed, city, cityScale, caravan: {n,dir,still,x,loads,kind}, props: [] }
 export function paintScene(ctx, rect, spec, t = 0) {
+  if (v3.on && ctx.canvas === v3.kitCanvas) {
+    // The lit 3D scene draws this painting behind the kit canvas; keep only the grade (and the flat art while it fades out).
+    v3.scene = { rect: { ...rect }, spec, t };
+    if (v3.fade < 1) { ctx.save(); ctx.globalAlpha = 1 - v3.fade; paintFlat(ctx, rect, spec, t); ctx.restore(); }
+    ctx.save(); ctx.globalAlpha = v3.fade; finish(ctx, rect, spec.time ?? 'day', { dust: (spec.props ?? []).includes('storm') ? 0.05 : 0, t, soft: true }); ctx.restore();
+    return null;
+  }
+  return paintFlat(ctx, rect, spec, t);
+}
+function paintFlat(ctx, rect, spec, t = 0) {
   ctx.save(); ctx.beginPath(); ctx.rect(rect.x, rect.y, rect.w, rect.h); ctx.clip();
   const time = spec.time ?? 'day', props = spec.props ?? [];
   const lay = landscape(ctx, rect, spec.biome ?? 'dunes', time, spec.scroll ?? 0, t, { horizon: spec.horizon ?? 0.5, seed: spec.seed ?? 3, road: spec.road });

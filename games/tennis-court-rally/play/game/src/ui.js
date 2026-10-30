@@ -22,9 +22,9 @@ export function setPress(ptr) {
 }
 const BTN_FILL = {
   disabled: ['rgba(200,205,225,0.35)', 'rgba(255,255,255,0.25)'],
-  primary: ['#2f8a52', '#1c5c34'],
+  primary: ['#e8b93f', '#8a6414'],
   active: ['#c9663d', '#8f3f1f'],
-  dark: ['rgba(18,44,30,0.84)', 'rgba(251,250,242,0.35)'],
+  dark: ['rgba(44,29,17,0.92)', 'rgba(214,174,86,0.85)'],
   plain: ['#fbfaf2', 'rgba(20,50,34,0.45)'],
 };
 export function paintButton(ctx, r, o = {}) {
@@ -36,11 +36,12 @@ export function paintButton(ctx, r, o = {}) {
   ctx.save();
   if (!disabled) { roundPath(ctx, r.x, r.y + (pressed ? 2 : 5), r.w, r.h, 18); ctx.fillStyle = pressed ? 'rgba(8,10,40,0.25)' : 'rgba(8,10,40,0.34)'; ctx.fill(); }
   roundPath(ctx, r.x, r.y + dy, r.w, r.h, 18);
-  ctx.fillStyle = fill; ctx.fill();
+  if (k === 'primary') { const gg = ctx.createLinearGradient(0, r.y, 0, r.y + r.h); gg.addColorStop(0, '#f6d067'); gg.addColorStop(1, '#d19a26'); ctx.fillStyle = gg; } else ctx.fillStyle = fill;
+  ctx.fill();
   if (pressed) { ctx.fillStyle = 'rgba(8,10,40,0.16)'; ctx.fill(); }
-  ctx.lineWidth = 1.5; ctx.strokeStyle = edge; ctx.stroke();
+  ctx.lineWidth = k === 'dark' ? 2 : 1.5; ctx.strokeStyle = edge; ctx.stroke();
   ctx.restore();
-  return { dy, light: primary || active || dark };
+  return { dy, light: !primary && (active || dark) };
 }
 
 // A flat pill. opts: primary (vermilion), active (teal), disabled, sub (small second line), size (font px)

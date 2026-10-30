@@ -81,7 +81,7 @@ export async function createBand(scene, camera, { quality = 'medium' } = {}) {
   scene.add(harmonium);
 
   const mk = async (character, kit, skin, hair, pos, yaw, o = {}) => {
-    const h = await loadHuman({ character, kit, skin, hair, lod: 'auto', quality, castShadow: hi });
+    const h = await loadHuman({ character, kit, skin, hair, lod: 'auto', quality, castShadow: hi, top: 'long' });
     h.lodAuto = false; h.groundClamp = 'off'; h.footPlanting = false; h.turnRate = 0;
     h._seatOpts = o;
     h.addClip(seatClips(h, o));
@@ -139,7 +139,7 @@ export async function createBand(scene, camera, { quality = 'medium' } = {}) {
   const extra = quality === 'low' ? 0 : quality === 'medium' ? 14 : 26;
   for (let i = 0; i < extra; i++) { const side = i % 2 ? 1 : -1; place(side * (4.8 + (i >> 1) * 0.55 + r() * 0.3), 0.28, -4.0 - (i % 3) * 0.45, false); }
   try {
-    B_.crowd = createCrowd3d({ scene, camera }, { points: pts, count: pts.length, seed: 5, culture: 'south_asian', quality: quality === 'low' ? 'low' : quality, props: { flag: 0, phone: 0.12, child: 0.08 }, excitement: 0.25, blobShadows: true });
+    B_.crowd = createCrowd3d({ scene, camera }, { points: pts, count: pts.length, seed: 5, culture: 'south_asian', quality: quality === 'low' ? 'low' : quality, props: { flag: 0, phone: 0.12, child: 0.08 }, excitement: 0.25, blobShadows: true, look: 'natural' });
   } catch (e) { console.warn('crowd3d unavailable', e); B_.crowd = null; }
 
   // the icon shows one subject: hide everyone but the dancer

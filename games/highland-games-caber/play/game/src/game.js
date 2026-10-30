@@ -186,6 +186,8 @@ export function createGame(env) {
     else if (id === 'settings') go('settings');
     else if (id === 'sound') { G.settings.sound = !G.settings.sound; audio.setMuted?.(!G.settings.sound); saveAll(); }
   }
+  // dev only (?dev=1): lets the measurement harness start a Watch & Learn festival without tapping through the menus
+  if (config.dev && globalThis.location && /[?&]dev/.test(globalThis.location.search)) globalThis.__hgWatch = (ev = 'all') => { G.setup.watch = true; G.setup.single = false; G.setup.ev = ev; startRun('watch'); };
   function tryStart() {
     if (demo && G.record.demoThrows >= DEMO_THROWS && !G.setup.watch) { go('demolimit'); return; }
     startRun(G.setup.watch ? 'watch' : G.setup.single ? 'single' : 'festival');

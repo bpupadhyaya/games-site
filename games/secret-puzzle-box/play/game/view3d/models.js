@@ -434,15 +434,32 @@ export function buildDesk(look, T, { lanternLight = true } = {}) {
   const seeds = Array.from({ length: 44 }, (_, i) => ({ x: (rnd(i + 1)() - 0.5) * 16, y: rnd(i + 90)() * 5, z: (rnd(i + 200)() - 0.5) * 16, p: rnd(i + 7)() * TAU, s: 0.08 + rnd(i + 31)() * 0.15 }));
   const _m = new THREE.Matrix4(), _p = new THREE.Vector3(), _q = new THREE.Quaternion(), _s = new THREE.Vector3();
 
+  // Tall phone screens show a lot of desk above and below the box: bring the props in next to it (portrait) so the scene is full and lit
+  // where the player looks; landscape keeps the original spread.
+  const anchors = props.children.map((o) => ({ o, x: o.position.x, z: o.position.z }));
+  const lampBase = lamp ? { x: lamp.position.x, z: lamp.position.z } : null;
+  let arranged = '';
+  const arrange = (halfW, halfD, portrait) => {
+    const key = portrait ? `${halfW.toFixed(2)}|${halfD.toFixed(2)}` : '';
+    if (key === arranged) return; arranged = key;
+    for (const a of anchors) {
+      if (!portrait) { a.o.position.x = a.x; a.o.position.z = a.z; continue; }
+      const front = a.z > 0;
+      a.o.position.z = front ? halfD + 1.5 + (a.z - 5.6) * 0.42 : -(halfD + 2.1);
+      a.o.position.x = Math.max(-halfW - 0.4, Math.min(halfW + 0.4, a.x * 0.85));
+    }
+    if (lamp) { lamp.position.x = portrait ? anchors.find((a) => a.z < 0).o.position.x : lampBase.x; lamp.position.z = portrait ? anchors.find((a) => a.z < 0).o.position.z + 0.4 : lampBase.z; }
+  };
+
   return {
-    group, lamp, paperMat: paperM,
+    group, lamp, paperMat: paperM, arrange,
     update(t, camera, calm) {
       const flick = calm ? 1 : 1 + Math.sin(t * 7.3) * 0.03 + Math.sin(t * 3.1) * 0.04;
       if (lamp) lamp.intensity = 60 * flick;
       paperM.emissiveIntensity = 1.35 * flick;
       for (let i = 0; i < steam.length; i++) {
         const k = ((t * 0.28 + i / steam.length) % 1), m = steam[i];
-        m.position.set(4.1 + Math.sin(t * 0.8 + i) * 0.12 + k * 0.1, y0 + 0.6 + k * 1.6, 8.6 + Math.cos(t * 0.6 + i) * 0.1);
+        m.position.set(cup.position.x + Math.sin(t * 0.8 + i) * 0.12 + k * 0.1, y0 + 0.6 + k * 1.6, cup.position.z + Math.cos(t * 0.6 + i) * 0.1);
         m.scale.setScalar(0.5 + k * 1.4); m.material.opacity = calm ? 0 : Math.sin(k * Math.PI) * 0.2;
         if (camera) m.quaternion.copy(camera.quaternion);
       }

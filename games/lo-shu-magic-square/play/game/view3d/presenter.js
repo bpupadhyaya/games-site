@@ -299,7 +299,7 @@ export async function createPresenter({ kitCanvas, quality = 'high' }) {
     corners = []; for (const sx of [-1, 1]) for (const sz of [-1, 1]) for (const y of [0, 0.62]) corners.push(new THREE.Vector3(sx * (d.fw / 2 + 0.2), y, sz * (d.fd / 2 + 0.2)));
     if (sb.scene === 'play' || sb.scene === 'over') {
       rect = { x: sb.b.x, y: sb.b.y, w: sb.b.w, h: sb.b.h };
-      fitCamera(rect, L.land ? 54 : 60, 28, 0, 1);
+      fitCamera(rect, L.land ? 48 : 50, 28, 0, 1.1);   // the frame fills its box (the pedestal may run to the screen edge)
     } else if (sb.scene === 'title') {
       rect = { x: sb.b.x - sb.b.w * 0.04, y: sb.b.y + sb.b.h * 0.5, w: sb.b.w * 1.08, h: sb.b.h * 0.5 };
       fitCamera(rect, L.land ? 24 : 21, 28, calm ? 0 : Math.sin(clock * 0.22) * 4, 1, 0.9);

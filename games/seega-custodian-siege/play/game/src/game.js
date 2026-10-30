@@ -11,6 +11,7 @@ import { RULE_COUNT, HOWTO_COUNT, tr, cellWords, sideLabel, lvName, stonesText, 
 import { setLang, getLang } from './lang.js';
 import { boardGeo, themeById, THEMES } from './art.js';
 import { render } from './view.js';
+import { v3 } from './v3.js';
 
 // Fluid viewport (kit 1.7): the short side is always 720 units, the long side follows the screen; the kit updates width / height live.
 export const meta = { width: SCREEN.width, height: SCREEN.height, fluid: { short: 720 } };
@@ -95,6 +96,7 @@ export async function createGame(env) {
   const geoNow = () => { const l = lay(); return boardGeo(l.board.x, l.board.y, l.board.side); };
   const chainOpen = (M) => Boolean(M && !M.over && !M.auto && M.st.chain >= 0 && humanTurn(M));
   const cellAt = (x, y) => {
+    if (v3.on && v3.pick) return v3.pick(x, y);          // the tilted 3D board: a ray onto its face
     const g = geoNow(), r = g.cell / 2 + 3;
     for (let i = 0; i < NN; i++) { const [cx, cy] = g.centers[i]; if (Math.abs(x - cx) <= r && Math.abs(y - cy) <= r) return i; }
     return -1;
@@ -325,6 +327,7 @@ export async function createGame(env) {
     else if (n === 11) { S.themeId = 'oasis'; const M = mk(); ff(M, 16, 'casual', 3); settle(M, 1); }
     else if (n === 12) { S.themeId = 'basalt'; S.scene = 'title'; S.t = 0.5; }
     else if (n === 13) { S.themeId = 'oasis'; S.scene = 'title'; S.t = 0.5; }
+    else if (n === 81) { const M = mk(); ff(M, 24, 'casual', 29); M.over = { winner: 1, why: 'captured' }; onEnd(M, { winner: 1, why: 'captured' }); S.overlay = 'end'; S.ovT = 1; }   // result card at 100% (polish evidence)
     else if (n >= 14 && n <= 50) { // text-zoom and screen checks (QA only)
       S.textIdx = 4;
       if (n === 14) S.scene = 'title';
@@ -386,7 +389,7 @@ export async function createGame(env) {
   }
   const wantsShot = typeof location !== 'undefined' && /[?&]shot=1/.test(location.search);
   const sd = config?.seed ?? 0;
-  const shotSeed = wantsShot && ((sd >= 900001 && sd <= 900080) || (sd >= 901001 && sd <= 901030) || (sd >= 902001 && sd <= 902030) || (sd >= 903001 && sd <= 903030) || (sd >= 904001 && sd <= 904030)) ? sd - 900000 : 0;
+  const shotSeed = wantsShot && ((sd >= 900001 && sd <= 900081) || (sd >= 901001 && sd <= 901030) || (sd >= 902001 && sd <= 902030) || (sd >= 903001 && sd <= 903030) || (sd >= 904001 && sd <= 904030)) ? sd - 900000 : 0;
   if (shotSeed) stageShot(shotSeed);
 
   // ------------------------------------------------------------------------------ ui plumbing

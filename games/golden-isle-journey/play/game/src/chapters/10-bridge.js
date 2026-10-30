@@ -4,6 +4,7 @@
 import { FR, W, H, PAL, INK, GOLD, clamp, lerp, smooth, hash, sky, sun, clouds, sea, skyline, light, motes, finish, shakeOffset, treeline } from '../stage.js';
 import { figure, poses, stridePose, boulder } from '../puppets.js';
 import { meter, label, caption } from '../ui.js';
+import { island, painted } from '../v3.js';
 
 // Landscape: the window shows y 400..1250: the carriers' hops are squeezed into it (Yc) and the deck sits near the bottom.
 export const LAND_Y1 = 1250;
@@ -124,12 +125,14 @@ export function create(env, shared) {
     clouds(ctx, { y: 240, h: 420, scroll: s.cam * 0.08 + t * 6, color: 'rgba(90,60,130,0.45)', n: 7, seed: 4, scale: 1.2 });
     clouds(ctx, { y: 600, h: 220, scroll: s.cam * 0.16 + t * 10, color: 'rgba(255,190,150,0.22)', n: 5, seed: 11 });
     // the far fortress grows as the bridge does
-    const sc = 0.45 + prog * 0.75;
-    ctx.save(); ctx.translate(FR.x1 - 250 - prog * 140 - s.cam * 0.04, HORIZON + 10); ctx.scale(sc, sc);
+    const sc = 0.45 + prog * 0.75, ix = FR.x1 - 250 - prog * 140 - s.cam * 0.04;
+    painted(ctx, island(ctx, ix + 200 * sc, HORIZON + 4, 840 * sc, 0.6 + prog * 0.4), () => {
+    ctx.save(); ctx.translate(ix, HORIZON + 10); ctx.scale(sc, sc);
     light(ctx, 160, -120, 460, '255,190,110', 0.4);
     ctx.fillStyle = '#2a1e50'; ctx.beginPath(); ctx.moveTo(-220, 8); ctx.quadraticCurveTo(170, -90, 620, 8); ctx.fill();
     skyline(ctx, { base: -30, scroll: 0, color: '#3a2860', seed: 5, h: 190, gap: 105, kind: 'lanka', lit: '255,220,150', t });
     ctx.restore();
+    });
     sea(ctx, { y: HORIZON, t, scroll: s.cam, colors: ['#4a4a8e', '#38387a', '#2a2a64', '#1c1c4c', '#101034'], crest: '255,220,190' });
 
     // the incoming swell, behind the bridge

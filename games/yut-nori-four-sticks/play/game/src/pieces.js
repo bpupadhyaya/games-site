@@ -21,7 +21,7 @@ export const TEAMS = [
   { name: 'Blue', top: ['#5b7fd0', '#2c4a9a', '#182a63'], side: ['#1b2b66', '#0d1638'], rim: '#efd07a', inlay: '#f4e3a8', rgb: '90,140,255' },
   { name: 'Red', top: ['#ee6a4e', '#c23a26', '#7c1a12'], side: ['#8a2214', '#4a0d08'], rim: '#efd07a', inlay: '#f7dfae', rgb: '255,110,80' },
 ];
-function horse(ctx) {
+export function horse(ctx) {
   ctx.beginPath();
   ctx.moveTo(26, 88);
   ctx.bezierCurveTo(30, 66, 30, 50, 38, 36);

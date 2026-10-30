@@ -71,12 +71,15 @@ export function createStage(opts = {}) {
   camera.position.set(0, 1.6, 5);
   stage.camera = camera;
 
-  if (q.env) {
+  // Environment (PMREM) is a GPU render target: it must be rebuilt after webglcontextrestored (see handler below).
+  const buildEnvironment = () => {
+    if (!q.env) return;
     const pm = new THREE.PMREMGenerator(renderer);
     scene.environment = pm.fromScene(new THREE.RoomEnvironment(), 0.04).texture;
     scene.environmentIntensity = 0.35;
     pm.dispose();
-  }
+  };
+  buildEnvironment();
 
   const hemi = new THREE.HemisphereLight(0xffffff, 0x444444, 1);
   const key = new THREE.DirectionalLight(0xffffff, 3);
@@ -234,7 +237,7 @@ export function createStage(opts = {}) {
 
   // ------------------------------------------------------------ context loss
   canvas.addEventListener('webglcontextlost', (e) => { e.preventDefault(); stage.contextLost = true; for (const f of stage.callbacks.contextLost) f(); });
-  canvas.addEventListener('webglcontextrestored', () => { stage.contextLost = false; stage.invalidate(); for (const f of stage.callbacks.contextRestored) f(); });
+  canvas.addEventListener('webglcontextrestored', () => { stage.contextLost = false; try { buildEnvironment(); } catch { /* keep going without IBL */ } stage.invalidate(); for (const f of stage.callbacks.contextRestored) f(); });
   stage.onContextLost = (f) => { stage.callbacks.contextLost.push(f); return stage; };
   stage.onContextRestored = (f) => { stage.callbacks.contextRestored.push(f); return stage; };
   let loseExt = null;   // getExtension returns null while the context is lost, so keep the object

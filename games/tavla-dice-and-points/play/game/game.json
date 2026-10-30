@@ -4,7 +4,7 @@
   "tagline": "The dice game of the coffeehouse",
   "genre": "backgammon board game",
   "orientation": "any",
-  "version": "0.10.3",
+  "version": "0.11.0",
   "monetization": {
     "model": "premium",
     "priceUsd": 2.99,

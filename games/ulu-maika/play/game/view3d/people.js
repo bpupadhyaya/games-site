@@ -35,7 +35,8 @@ export async function createThrower(V3, stage, { character = 'athlete_m', skin =
   const SKIN_HEX = { tan: '#c68e63', brown: '#8f5c3c', deep: '#5a3a2a', light: '#e3b48f' };
   const TOP_HEX = { tan: '#c98f63', brown: '#946040', deep: '#5e402f', light: '#e3b48f' };
   const kit = { top: TOP_HEX[skin] || top, bottoms: '#3a2416', socks: SKIN_HEX[skin] || skin, shoes: '#2a1c12', trim: '#f0e4c4' };
-  const h = await loadHuman({ character, kit, skin, hair, lod: quality === 'low' ? 2 : 1, quality });
+  const h = await loadHuman({ character, kit, skin, hair, lod: 0, quality, body: 'anatomic', top: 'bare' });
+  h.lodAuto = false;                               // close-up players: full-detail hands and legs on every tier
   h.groundClamp = 'auto'; h.footPlanting = true; h.groundY = -0.05; stage.add(h); stage.track(h);
   const sgn = left ? -1 : 1;                       // +1 right-hander (right hand rolls)
   const HS = left ? 'L' : 'R', OS = left ? 'R' : 'L';
@@ -203,9 +204,9 @@ export async function createThrower(V3, stage, { character = 'athlete_m', skin =
   
   const mkPanel = (w, hh) => { const g = new THREE.PlaneGeometry(w, hh, 1, 4); g.translate(0, -hh / 2, 0); const m = new THREE.Mesh(g, smallMat); m.castShadow = true; return m; };
   const front = mkPanel(0.15, 0.34), back = mkPanel(0.15, 0.3);
-  const sashGeo = new THREE.TorusGeometry(0.155, 0.02, 8, 30); sashGeo.rotateX(Math.PI / 2);
+  const sashGeo = new THREE.TorusGeometry(0.168, 0.024, 8, 36); sashGeo.rotateX(Math.PI / 2);
   const sash = new THREE.Mesh(sashGeo, new THREE.MeshStandardMaterial({ color: new THREE.Color(accent), roughness: 0.85 }));
-  sash.scale.set(1, 1, 0.78);
+  sash.scale.set(1, 1, 0.82);
   const band = new THREE.Mesh(new THREE.TorusGeometry(0.094, 0.011, 6, 22), new THREE.MeshStandardMaterial({ color: new THREE.Color(accent), roughness: 0.8 }));
   band.rotation.x = Math.PI / 2;
   const beads = (() => {
@@ -297,7 +298,7 @@ export async function createThrower(V3, stage, { character = 'athlete_m', skin =
       };
       place(front, 0.155, -0.05, -clamp(V.frontAng, -0.9, 1.1) - 0.1);
       place(back, -0.14, -0.05, clamp(V.backAng, -0.9, 1.1) * -1 + 0.08);
-      { const sp2 = h.bonePosition('Spine1', _hp2); _ax.copy(sp2).sub(pel).normalize(); sash.quaternion.setFromUnitVectors(_up, _ax).multiply(_q.setFromAxisAngle(_up, yaw)); sash.position.copy(pel).addScaledVector(_ax, 0.04); }
+      { const sp2 = h.bonePosition('Spine1', _hp2); _ax.copy(sp2).sub(pel).normalize(); sash.quaternion.setFromUnitVectors(_up, _ax).multiply(_q.setFromAxisAngle(_up, yaw)); sash.position.copy(pel).addScaledVector(_ax, 0.02); }
       // headband and lei from the head / spine
       const head = h.bonePosition('Head', _p);
       band.position.set(head.x, head.y + 0.065, head.z); band.rotation.set(Math.PI / 2, 0, yaw);

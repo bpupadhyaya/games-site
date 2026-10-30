@@ -7,9 +7,12 @@ export const P_READY = 0, P_WIND = 0.3, P_REL = 0.62, P_FOLLOW = 0.74;
 const TAU = Math.PI * 2;
 const mat = (THREE, c, r = 0.9, m = 0) => new THREE.MeshStandardMaterial({ color: c, roughness: r, metalness: m });
 
-export async function loadThrower(V3, { character = 'athlete_m', kit, skin = 'light', hair = 'brown', lod = 0 } = {}) {
+export async function loadThrower(V3, { character = 'athlete_m', kit, skin = 'light', hair = 'brown' } = {}) {
   const { loadHuman, buildClip } = V3;
-  const h = await loadHuman({ character, kit, skin, hair, lod });
+  // full detail ALWAYS (no LOD sets are built, so no tier can swap in the simplified hands/shoulders): the thrower is seen from behind, close up.
+  // top 'long': the trunk and arms are dressed to a cuff at the wrist, so no tank-top armhole edge shows.
+  const h = await loadHuman({ character, kit, skin, hair, top: 'long' });
+  h.lodAuto = false;
   h.groundClamp = 'off'; h.footPlanting = false;
   const A = { h, p: 0 };
   const arm = (R, L) => ({
@@ -60,14 +63,15 @@ function basisOf(THREE, human, name) {
   const x = new THREE.Vector3(1, 0, 0).applyQuaternion(rel), y = new THREE.Vector3(0, 1, 0).applyQuaternion(rel), z = new THREE.Vector3(0, 0, 1).applyQuaternion(rel);
   return new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(x, y, z));
 }
+let CAPS = null;   // V3.limbCapsuleGeometry: closed tapered capsules (open DoubleSide cylinders showed slits and z-fight shards)
 function tube(THREE, h, boneName, childName, r0, r1, material, { cap = 0, over = 0.0 } = {}) {
   const b = h.bones[`Bip01_${boneName}`], c = h.bones[`Bip01_${childName}`];
   if (!b || !c) return null;
   const dir = c.position.clone(), len = dir.length(); dir.normalize();
-  const geo = new THREE.CylinderGeometry(r1, r0, len + over, 22, 1, true);
-  const m = new THREE.Mesh(geo, material); m.material.side = THREE.DoubleSide;
+  const geo = CAPS(r0, r1, len + over);
+  const m = new THREE.Mesh(geo, material);
   m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
-  m.position.copy(dir).multiplyScalar((len + over) * 0.5 - over * 0.25);
+  m.position.copy(dir).multiplyScalar(-over * 0.25);
   m.castShadow = true;
   const g = new THREE.Group(); g.add(m);
   if (cap) { const s = new THREE.Mesh(new THREE.SphereGeometry(cap, 18, 12), material); s.castShadow = true; g.add(s); }
@@ -78,19 +82,13 @@ function tube(THREE, h, boneName, childName, r0, r1, material, { cap = 0, over =
 // look: { top, bottoms, hat: 'cap' | 'sunhat' | 'none', hatColor, trousers: true|false, sleeves: color|null }
 export function dressSummer(V3, h, look = {}) {
   const { THREE } = V3;
+  CAPS = V3.limbCapsuleGeometry;
   const parts = [];
   const top = look.top ?? '#e9eef2', bottoms = look.bottoms ?? '#4a6384', socks = look.socks ?? '#f2f2f2';
   h.setKit({ top, bottoms, socks, shoes: look.shoes ?? '#d8d4c8' });
   if (look.trousers !== false) {
-    try {
-      const tm = mat(THREE, bottoms, 0.92);
-      for (const sd of ['L', 'R']) {
-        for (const t of [
-          tube(THREE, h, `${sd}_Thigh`, `${sd}_Calf`, 0.106, 0.082, tm, { cap: 0.104, over: 0.04 }),
-          tube(THREE, h, `${sd}_Calf`, `${sd}_Foot`, 0.082, 0.062, tm, { cap: 0.082, over: 0.02 }),
-        ]) if (t) parts.push(t);
-      }
-    } catch (e) { console.warn('gear: trousers', e); }
+    // view3d's own closed-capsule trousers over the shorts-wearing athlete_m (no-op for athlete_f, who already wears trousers); setKit ran above
+    try { parts.push(V3.addWhites(h, { color: bottoms, fit: 1.1 })); } catch (e) { console.warn('gear: trousers', e); }
   }
   if (look.sleeves) {
     try {

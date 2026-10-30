@@ -8,6 +8,7 @@
 //            The host's floating back button sits top-left (only when host.back > 0), so the left column starts clear of it.
 // Grid offsets (x right, y down) are measured in squares from the centre square.
 import { A, R, T, END } from './rules.js';
+import { v3 } from './v3.js';
 
 export const host = { t: 0, r: 0, b: 0, l: 0, back: 0, px: 0.6 };   // safe areas + back button in virtual units (main.js keeps it current)
 
@@ -39,7 +40,8 @@ export const homeOffset = (arm, row) => rot(0, row + 1, arm);
 // the cárcel sits in the corner next to the arm's salida (bottom-right for the bottom arm, turning anticlockwise)
 export const jailOffset = (arm) => { const d = R / 2 + 1.75; return rot(d, d, arm); };
 export const jailSlot = (arm, k) => { const [x, y] = jailOffset(arm), s = 1.2, o = [[-s, -s], [s, -s], [-s, s], [s, s]][k % 4]; return [x + o[0], y + o[1]]; };
-export const coronaSlot = (arm, k) => { const [x, y] = rot(-0.34 + (k % 2) * 0.68, 0.7 + Math.floor(k / 2) * 0.0, arm); return [x, y]; };
+// home pieces: 3D lays them in a 2 x 2 cluster on the corona's wedge toward their own arm (the 2D sprites may overlap)
+export const coronaSlot = (arm, k) => { const [x, y] = v3.on ? rot(((k % 2) - 0.5) * 0.55, 0.85 + Math.floor(k / 2) * 0.5, arm) : rot(-0.34 + (k % 2) * 0.68, 0.7 + Math.floor(k / 2) * 0.0, arm); return [x, y]; };
 
 // where a piece (player pl, piece i) stands at position p (screen point of its foot)
 export function posXY(g, pl, i, p) {

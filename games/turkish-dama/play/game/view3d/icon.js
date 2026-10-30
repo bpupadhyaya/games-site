@@ -17,7 +17,7 @@ renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadow
 
 const scene = new THREE.Scene();
 const rig = B.lightingRig(scene, 'warmIndoor', { renderer, shadow: 4096, extent: 6, target: [0, 0.4, 0.4], fog: { near: 12, far: 40 },
-  overrides: { bg: 0x120a06, fog: 0x150b06, key: 0xffd7a0, keyI: 2.9, keyPos: [-4, 8, 5], hemi: 0.18, fillI: 0.18, fill: 0xffe0b8, fillPos: [6, 3, 6], rim: 0xffb070, rimI: 3.0, rimPos: [6, 4, -6], rim2: 0x7fe6dc, rim2I: 1.4, exposure: 0.8, env: 0.16 } });
+  overrides: { bg: 0x120a06, fog: 0x150b06, key: 0xffd7a0, keyI: 3.4, keyPos: [-4, 8, 5], hemi: 0.08, fillI: 0.18, fill: 0xffe0b8, fillPos: [6, 3, 6], rim: 0xffb070, rimI: 3.0, rimPos: [6, 4, -6], rim2: 0x7fe6dc, rim2I: 1.4, exposure: 0.5, env: 0.1 } });
 B.createEnvironment(renderer, scene, { intensity: 0.16 });
 
 scene.add(buildTable());
@@ -28,8 +28,8 @@ const KX = 0.5, KZ = 0.5;
 put(1, true, KX, KZ, { ry: 0.4 });
 put(2, false, -2.0, 1.1, { y: TOP + 1.1, rx: 0.9, rz: -0.7, ry: 0.4, s: 0.9 });
 put(2, false, -4.9, 2.7, { y: 0.0, rx: 1.45, rz: 0.3, ry: 0.8 });
-for (const [x, z] of [[-0.5, -1.5], [1.5, -1.5], [2.5, -0.5], [-1.5, -0.5], [0.5, -2.5], [-2.5, -1.5], [2.5, -2.5], [-1.5, -3.5], [1.5, -3.5]]) put(2, false, x, z);
-for (const [x, z] of [[-1.5, 2.5], [2.5, 1.5], [0.5, 3.5], [3.5, 3.5]]) put(1, false, x, z);
+for (const [x, z] of [[-0.5, -1.5], [2.5, -0.5], [-1.5, -0.5]]) put(2, false, x, z);
+
 // brass sparks hanging in the air above the king
 const sparkG = new THREE.SphereGeometry(0.03, 8, 6), sparkM = new THREE.MeshBasicMaterial({ color: 0xffe9a0 });
 for (let i = 0; i < 26; i++) { const m = new THREE.Mesh(sparkG, sparkM), a = i * 2.4, r = 0.5 + (i % 7) * 0.12; m.position.set(KX + Math.cos(a) * r, TOP + 0.9 + (i % 9) * 0.12, KZ + Math.sin(a) * r * 0.7); m.scale.setScalar(0.35 + (i % 4) * 0.3); scene.add(m); }
@@ -40,8 +40,8 @@ const glow = (x, y, z, s, col, op) => { const c = document.createElement('canvas
 glow(KX, 1.2, KZ, 2.4, 0xffd070, 0.3); glow(-3.0, 0.5, -7.5, 9, 0xff9a50, 0.5); glow(7.0, 0.8, -4.0, 8, 0x70e0ff, 0.35);
 
 const cam = new THREE.PerspectiveCamera(Number(q.get('fov') || 26), 1, 0.5, 200);
-const pitch = (Number(q.get('pitch') || 31) * Math.PI) / 180, yaw = (Number(q.get('yaw') || -18) * Math.PI) / 180, dist = Number(q.get('dist') || 6.3);
-const tgt = new THREE.Vector3(Number(q.get('tx') || 1.0), Number(q.get('ty') || 0.62), Number(q.get('tz') || -0.45));
+const pitch = (Number(q.get('pitch') || 27) * Math.PI) / 180, yaw = (Number(q.get('yaw') || -18) * Math.PI) / 180, dist = Number(q.get('dist') || 5.7);
+const tgt = new THREE.Vector3(Number(q.get('tx') || 0.55), Number(q.get('ty') || 0.75), Number(q.get('tz') || 0.35));
 cam.position.set(tgt.x + Math.sin(yaw) * Math.cos(pitch) * dist, tgt.y + Math.sin(pitch) * dist, tgt.z + Math.cos(yaw) * Math.cos(pitch) * dist); cam.lookAt(tgt);
 
 renderer.render(scene, cam);
@@ -57,7 +57,7 @@ ctx.filter = `blur(${SIZE * 0.011}px)`; ctx.drawImage(snap, -SIZE * 0.02, -SIZE 
   sx.fillStyle = m; sx.fillRect(0, 0, SIZE, SIZE); ctx.drawImage(sharp, 0, 0);
 }
 ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.filter = `blur(${SIZE * 0.016}px)`; ctx.globalAlpha = 0.12; ctx.drawImage(snap, 0, 0); ctx.restore();
-const v = ctx.createRadialGradient(SIZE / 2, SIZE * 0.52, SIZE * 0.34, SIZE / 2, SIZE / 2, SIZE * 0.78); v.addColorStop(0, 'rgba(10,4,0,0)'); v.addColorStop(1, 'rgba(10,4,0,0.62)'); ctx.fillStyle = v; ctx.fillRect(0, 0, SIZE, SIZE);
+const v = ctx.createRadialGradient(SIZE / 2, SIZE * 0.52, SIZE * 0.26, SIZE / 2, SIZE / 2, SIZE * 0.72); v.addColorStop(0, 'rgba(10,4,0,0)'); v.addColorStop(1, 'rgba(6,2,0,0.8)'); ctx.fillStyle = v; ctx.fillRect(0, 0, SIZE, SIZE);
 const star = (x, y, r, a) => { ctx.save(); ctx.translate(x * SIZE, y * SIZE); ctx.globalAlpha = a; ctx.fillStyle = '#fff4d0'; ctx.beginPath(); for (let k = 0; k < 8; k++) { const ang = (k / 8) * Math.PI * 2 - Math.PI / 2, rr = k % 2 ? r * 0.16 : r; ctx.lineTo(Math.cos(ang) * rr, Math.sin(ang) * rr); } ctx.closePath(); ctx.fill(); ctx.restore(); };
 star(0.55, 0.3, SIZE * 0.032, 0.95); star(0.3, 0.2, SIZE * 0.018, 0.7); star(0.78, 0.5, SIZE * 0.016, 0.6);
 

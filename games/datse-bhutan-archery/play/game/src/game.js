@@ -404,7 +404,7 @@ export function createGame(env) {
       meta.previewBadge = { x: LY.U.x1 - 10, y: PLAY.sb.y + PLAY.sb.h + 14 + (LY.land ? 0 : 0), align: 'right' };
     }
     state.layoutW = LY.w; state.layoutH = LY.h;
-    state.viewRect = state.scene === 'play' || !LY.land ? viewRegion() : { x: LY.U.x0, y: Math.round(LY.U.y0 + LY.U.h * 0.38), w: Math.round(LY.U.w * 0.5), h: Math.round(LY.U.h * 0.62) }; const l = PLAY.lens; state.lensRect = { x: l.x, y: l.y, w: l.w, h: l.h };
+    state.viewRect = state.scene === 'title' && !LY.land && LY.title.region ? LY.title.region : state.scene === 'play' || !LY.land ? viewRegion() : { x: LY.U.x0, y: Math.round(LY.U.y0 + LY.U.h * 0.38), w: Math.round(LY.U.w * 0.5), h: Math.round(LY.U.h * 0.62) }; const l = PLAY.lens; state.lensRect = { x: l.x, y: l.y, w: l.w, h: l.h };
   }
   const game = {
     scrollBy(dy) { if (['rules', 'howto', 'about'].includes(state.scene)) state.wheel = (state.wheel || 0) + dy; else { const mt = flowMeta(); const max = mt && mt.lay ? Math.max(0, mt.lay.contentH - (mt.bottom - mt.top)) : 0; state.ui.scroll = clamp(state.ui.scroll + dy, 0, max); } },

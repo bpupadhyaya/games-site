@@ -184,6 +184,14 @@ export async function createPresenter({ kitCanvas, quality = 'high' }) {
   const ray = new THREE.Vector3(), orig = new THREE.Vector3(), hitV = new THREE.Vector3();
   v3.pick = (vx, vy) => {
     if (!L_) return -1;
+    // the square under the finger on the board plane; a tap right at a square's centre always means that square (a tall piece in front must not steal it)
+    orig.copy(camera.position); ray.set((vx / L_.w) * 2 - 1, 1 - (vy / L_.h) * 2, 0.5).unproject(camera).sub(orig).normalize();
+    let ground = -1;
+    if (Math.abs(ray.y) > 1e-5) {
+      const t = (TOP - orig.y) / ray.y;
+      if (t >= 0) { hitV.copy(orig).addScaledVector(ray, t); const cc = Math.floor(hitV.x + 4), rr = Math.floor(hitV.z + 4); if (cc >= 0 && cc <= 7 && rr >= 0 && rr <= 7) ground = (L_.flip ? 7 - rr : rr) * 8 + (L_.flip ? 7 - cc : cc); }
+    }
+    if (ground >= 0) { const g = v3.sq(ground); if (Math.hypot(vx - g.x, vy - g.y) < g.s * 0.3) return ground; }
     let best = -1, bd = 1e9;
     for (const q of v3.pieces) {
       if (q.cell === undefined || q.cell < 0 || q.drag) continue;
@@ -193,14 +201,7 @@ export async function createPresenter({ kitCanvas, quality = 'high' }) {
       const dx = (vx - base.x) / rx, dy = (vy - cy) / ry, dd = dx * dx + dy * dy;
       if (dd <= 1 && dd < bd) { bd = dd; best = q.cell; }
     }
-    if (best >= 0) return best;
-    orig.copy(camera.position); ray.set((vx / L_.w) * 2 - 1, 1 - (vy / L_.h) * 2, 0.5).unproject(camera).sub(orig).normalize();
-    if (Math.abs(ray.y) < 1e-5) return -1;
-    const t = (TOP - orig.y) / ray.y; if (t < 0) return -1;
-    hitV.copy(orig).addScaledVector(ray, t);
-    const cc = Math.floor(hitV.x + 4), rr = Math.floor(hitV.z + 4);
-    if (cc < 0 || cc > 7 || rr < 0 || rr > 7) return -1;
-    return (L_.flip ? 7 - rr : rr) * 8 + (L_.flip ? 7 - cc : cc);
+    return best >= 0 ? best : ground;
   };
   // virtual -> world on the board plane (the flat layout the 2D logic works in, centred on the board)
   let bcx = 0, bcy = 0, bcell = 1;
@@ -331,7 +332,7 @@ export async function createPresenter({ kitCanvas, quality = 'high' }) {
     } else if (sc === 'doc') {
       fitCamera({ x: L.w * 0.04, y: L.h * 0.12, w: L.w * 0.92, h: L.h * 0.76 }, 40, 30, state.calm ? 0 : Math.sin(clock * 0.15) * 6, 0.9);
     } else {
-      fitCamera({ x: B_.x, y: B_.y, w: B_.S, h: B_.S + B_.thick }, L.land ? 54 : 58, 28, 0, 1);
+      if (L.stage) fitCamera({ x: B_.x, y: L.stage.y + 6, w: B_.S, h: L.stage.h - 12 }, 38, 36, 0, 1); else fitCamera({ x: B_.x, y: B_.y, w: B_.S, h: B_.S + B_.thick }, L.land ? 54 : 58, 28, 0, 1);
     }
   }
 

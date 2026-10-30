@@ -4,7 +4,7 @@
   "tagline": "A string, a spin and a steady hand.",
   "genre": "skill toy / spinning string toys",
   "orientation": "any",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "monetization": {
     "model": "premium",
     "priceUsd": 2.99,

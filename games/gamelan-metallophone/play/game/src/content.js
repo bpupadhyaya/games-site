@@ -10,7 +10,7 @@ export const ABOUT = [
   { h: 'Gamelan' },
   { p: 'A rhythm and music game for the bronze bars and hanging gongs of the gamelan ensembles of Java and Bali in Indonesia. Strike the tuned bars in time, listen to the shimmer of the metal, and keep the cycle with a computer ensemble that grows as you play cleanly.' },
   { h: 'The instruments' },
-  { p: 'A gamelan is an ensemble of tuned metal percussion. In this game you play the saron-style bronze bars, struck with a round mallet, and the gongs that mark the cycle: the kenong, the kempul and the big gong. The ensemble also plays a low set of bars (slenthem), a high set (peking) and a small pot (kethuk).' },
+  { p: 'A gamelan is an ensemble of tuned metal percussion. In this game you play tuned bronze bars hung over brass tube resonators in a carved frame, struck with a padded mallet, and the gongs that mark the cycle: the kenong, the kempul and the big gong. The ensemble also plays a low set of bars (slenthem), a high set (peking) and a small pot (kethuk).' },
   { h: 'Two tunings' },
   { p: 'Slendro has five bars to the octave, almost evenly spaced. Pelog has seven bars with uneven steps, a darker and sweeter colour. The two are tuned differently, so the same number sounds different in each. Real ensembles are each tuned a little differently; the game uses typical values.' },
   { h: 'How it sounds' },
@@ -49,7 +49,7 @@ export const RULES = [
     blocks: [
       { p: 'A gamelan is an ensemble of tuned bronze percussion from Java and Bali. This game uses a small ensemble. The ones you meet on screen:' },
       { fig: 'ensemble', hh: 170 },
-      { li: 'Bars (saron): the row you play most of the time. Tuned bronze bars lying on a carved wooden frame, struck with a mallet. Each bar has a number.' },
+      { li: 'Bars: the row you play most of the time. Tuned bronze bars hung over brass tube resonators in a carved wooden frame, struck with a padded mallet. Each bar has a number.' },
       ...INSTRUMENTS.map((d) => ({ li: `${d.name}: ${d.blurb}` })),
       { p: 'A piece asks you to play either the bars or the gongs. What you play has a lane above it; the rest is played by the ensemble, and you see those instruments light up.' },
     ],

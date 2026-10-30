@@ -25,7 +25,8 @@ const rgrad = (ctx, x, y, r0, r1, stops) => { const g = ctx.createRadialGradient
 // scene = { x, w, floorY, top }.  z = 0 wide view of the whole room, 1 close on the target (fx, fy = the point to look at).
 export function cameraFor(scene, sc, z, focus) {
   const hAvail = Math.max(160, scene.floorY - scene.top), my = (scene.top + scene.floorY) / 2;
-  const xl = -135, xr = sc.maxX + 16;
+  const por = !!scene.por;
+  const xl = por ? -118 : -135, xr = sc.maxX + (por ? 8 : 16);
   const sWide = Math.min(scene.w / (xr - xl), hAvail / (sc.maxY + 44));
   const sFocus = Math.min((scene.w * 0.94) / 120, hAvail / 130);
   const e = smooth(z), s = Math.exp(lerp(Math.log(sWide), Math.log(Math.max(sWide, sFocus)), e));

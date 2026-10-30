@@ -2,6 +2,7 @@ import { boot } from './kit/index.js';
 import { createGame, meta, wheelInput } from './src/game.js';
 import { host } from './src/ui/frame.js';
 import { setLogo, setLockup } from './src/ui/brand.js';
+import { v3 } from './src/v3.js';
 
 const canvas = document.getElementById('game');
 const short = () => Math.max(1, Math.min(window.innerWidth, window.innerHeight));
@@ -48,4 +49,33 @@ const create = async (env) => {
   return game;
 };
 
-boot({ createGame: create, meta, canvas, background: '#070b1c' });
+// 3D presenter (a night plateau of wind-towers behind the kit canvas, lit element constructs and the spirit bow, view3d/presenter.js). The
+// game boots at once on the flat 2D art (styled title in the first frame); three.js is fetched and the scene built in small slices after
+// that, then it crossfades in. No WebGL or a lost context: the flat art stays. The presenter only reads game state.
+let presenter = null, inner = null;
+const bg = { toString: () => (v3.on ? 'rgba(0,0,0,0)' : '#070b1c') };   // read by the kit every frame, so the switch is instant
+const wrap = (g) => Object.assign(Object.create(g), g, {
+  render(ctx, view) {
+    if (v3.on && presenter) {
+      // the kit fills its background each frame; a transparent fill erases nothing, so clear the 2D layer here
+      ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height); ctx.restore();
+      presenter.pre();
+    }
+    g.render(ctx, view);
+    if (v3.on && presenter) presenter.post();
+  },
+});
+boot({ createGame: async (env) => (inner = wrap(await create(env))), meta, canvas, background: bg });
+const start = () => import('./view3d/presenter.js').then((m) => m.createPresenter({ kitCanvas: canvas })).then((p) => {
+  if (!p.ok) return;
+  const go = () => { if (!inner) return setTimeout(go, 30); presenter = p; p.attach(inner); };
+  go();
+}).catch((e) => console.warn('3D presenter unavailable; flat art stays', e));
+// let the flat title paint and become interactive first
+requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(start, 30)));
+
+// Credits for the 3D layer (three.js, view3d), shown at the end of About.
+fetch('./vendor3d/LICENSES.md').then((r) => (r.ok ? r.text() : '')).then((md) => {
+  if (!md) return;
+  v3.credits = md.split(/\n\s*\n/).map((t) => t.trim()).filter((t) => t && !t.startsWith('#')).map((t) => t.replace(/\s*\n\s*/g, ' ').replace(/[`*]/g, '')).join(' ');
+}).catch(() => {});

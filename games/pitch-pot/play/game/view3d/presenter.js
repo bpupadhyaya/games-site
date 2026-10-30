@@ -221,7 +221,7 @@ export async function createPresenter({ kitCanvas, quality = 'high' }) {
     } else {
       const hr = (s.scene === 'title' && s.hero) || { x: 0, y: FR.h * 0.01, w: FR.w, h: FR.h * (FR.land ? 0.8 : 0.34) };
       const land = hr.w > hr.h * 1.15;
-      const sH = Math.max(1.4, Math.min(hr.h / 96, hr.w / (land ? 112 : 118)));
+      const sH = Math.max(1.4, Math.min(hr.h / 96, hr.w / (land ? 112 : 118))) * (land ? 1 : 1.2);
       const drift = Math.sin(t * 0.22) * 0.08;
       placeCamera({ ox: hr.x + hr.w * (land ? 0.6 : 0.64), cx: D - 6, s: sH, floorY: hr.y + hr.h * 0.9 }, { yaw: 0.34 + drift, pitch: 0.14 });
     }

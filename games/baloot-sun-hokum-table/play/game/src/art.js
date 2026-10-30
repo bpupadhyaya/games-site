@@ -2,6 +2,7 @@
 // Static art is painted ONCE into cached layers; a frame only draws them. The geometric ornament is decoration only.
 import { W, H, CW, CH, TABLE } from './layout.js';
 import { suitOf, rankOf, RANK_LABEL } from './rules.js';
+import { v3 } from './v3.js';
 
 export const FONT = '"Cormorant Garamond", Georgia, "Times New Roman", serif';
 export const UI = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
@@ -257,7 +258,7 @@ export function button(ctx, r, label, o = {}) {
   const press = o.pulse ? Math.sin(o.pulse * 6) * 0.5 + 0.5 : 0;
   ctx.fillStyle = 'rgba(0,0,0,0.4)'; rr(ctx, r.x + 3, r.y + 7, r.w, r.h, 20); ctx.fill();
   const g = ctx.createLinearGradient(0, r.y, 0, r.y + r.h);
-  if (o.primary) { g.addColorStop(0, '#f6d47f'); g.addColorStop(1, '#c48a2a'); } else if (o.danger) { g.addColorStop(0, '#8b2a2a'); g.addColorStop(1, '#4d1414'); } else { g.addColorStop(0, '#6e2a35'); g.addColorStop(1, '#3d1119'); }
+  if (o.primary) { g.addColorStop(0, '#f6d47f'); g.addColorStop(1, '#c48a2a'); } else if (o.danger) { g.addColorStop(0, '#8b2a2a'); g.addColorStop(1, '#4d1414'); } else if (v3.on) { g.addColorStop(0, '#2a3d7c'); g.addColorStop(1, '#111b45'); } else { g.addColorStop(0, '#6e2a35'); g.addColorStop(1, '#3d1119'); }
   ctx.fillStyle = g; rr(ctx, r.x, r.y, r.w, r.h, 20); ctx.fill();
   ctx.strokeStyle = o.glow ? `rgba(255,236,150,${0.6 + 0.4 * press})` : 'rgba(255,214,140,0.6)'; ctx.lineWidth = o.glow ? 5 : 2.5; if (o.glow) { ctx.shadowColor = '#ffe08a'; ctx.shadowBlur = 16 * (0.5 + press); } rr(ctx, r.x, r.y, r.w, r.h, 20); ctx.stroke();
   ctx.shadowBlur = 0;
@@ -269,6 +270,6 @@ export function button(ctx, r, label, o = {}) {
   ctx.restore();
 }
 export function plaque(ctx, r, alpha = 0.72) {
-  ctx.save(); ctx.fillStyle = `rgba(22,8,10,${alpha})`; rr(ctx, r.x, r.y, r.w, r.h, 16); ctx.fill(); ctx.strokeStyle = 'rgba(224,178,90,0.75)'; ctx.lineWidth = 2; ctx.stroke(); ctx.restore();
+  ctx.save(); ctx.fillStyle = v3.on ? `rgba(8,13,36,${alpha})` : `rgba(22,8,10,${alpha})`; rr(ctx, r.x, r.y, r.w, r.h, 16); ctx.fill(); ctx.strokeStyle = 'rgba(224,178,90,0.75)'; ctx.lineWidth = 2; ctx.stroke(); ctx.restore();
 }
 export { star8 as ornamentStar, rosette };

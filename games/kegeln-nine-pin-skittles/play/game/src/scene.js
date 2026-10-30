@@ -2,6 +2,7 @@
 // the polished wood, the lights, the turned-wood pins and the ball. Everything here is vector drawing every frame, no pre-baked
 // images, so the first frame is instant. World units are metres: x across the lane, y up, z down the lane from the foul line.
 import { PIN_POS, PIN_Z0, PIN_H, BALL_R, LANE_HALF, BOARD_X, BACK_Z, KING } from './phys.js';
+import { v3 } from './v3.js';
 
 export const TAU = Math.PI * 2;
 export const ROOM_X = 1.32, ROOM_H = 3.6, WALL_Z = 24.6;
@@ -29,7 +30,12 @@ export const makeCam = fixedCam;
 // The on-screen scale of the lane picture (set by the play screen before it draws): in-scene text stays about 11 css px at any text size.
 export const sceneInfo = { s: 1, minU: 20 };
 export const scaleAt = (cam, z) => cam.f / Math.max(0.35, U(z) - cam.uc);
+// While the 3D alley is drawn, everything that is still drawn in 2D on top of it (aim path, target ring, dust) is projected through the 3D camera.
+// The flat art (the fallback, and its fade-out) is drawn with force2D set, so it keeps the old pinhole camera.
+let force2D = false;
+export const setForce2D = (b) => { force2D = !!b; };
 export function proj(cam, x, y, z) {
+  if (v3.on && !force2D && v3.project && v3.xf) { const p = v3.project(x, y, z), f = v3.xf; return { x: (p.x - f.vx) / f.s, y: (p.y - f.vy) / f.s, s: p.s / f.s }; }
   const s = scaleAt(cam, z);
   return { x: 360 + (x - cam.x) * s, y: cam.yh + (cam.H - y) * s, s };
 }
@@ -355,4 +361,11 @@ export function interpSim(s, a) {
   const pins = s.pins.map((p, i) => { const q = pv.p[i]; return { ...p, x: L(q.x, p.x), z: L(q.z, p.z), th: L(q.th, p.th), ph: L(q.ph, p.ph), wob: L(q.wob, p.wob) }; });
   const b = s.ball;
   return { pins, ball: { ...b, x: L(pv.bx, b.x), z: L(pv.bz, b.z) } };
+}
+
+// Where a point on the lane lands in the FLAT layout (scene units), so the 2D input code can be fed 3D-mapped pointers. x uses the scale at `zref`
+// (the ball line for a ball drag, the pin line for an aim drag) so a drag moves the ball / aim ring by the same lane distance the finger covered.
+export function flatPoint(x, z, zref) {
+  const cam = fixedCam(), s0 = scaleAt(cam, zref), c = cam.yh + cam.H * scaleAt(cam, z);
+  return { x: 360 + x * s0, y: c };
 }

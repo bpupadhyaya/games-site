@@ -52,6 +52,6 @@ const pg = new THREE.CircleGeometry(0.14, 8); pg.scale(1, 1.5, 1);
 for (const [x, y, z, rx, ry] of [[3.7, 0.3, 1.8, 0.7, 0.5], [-3.9, 0.5, -1.9, 1.1, 0.3], [2.6, 0.9, 2.9, 0.4, 1.2], [-2.7, 1.2, 1.5, 0.9, 0.8], [1.0, 1.6, -0.3, 0.6, 0.1]]) { const m = new THREE.Mesh(pg, petalM); m.position.set(x, y, z); m.rotation.set(rx, ry, 0.4); scene.add(m); }
 
 const camera = new THREE.PerspectiveCamera(36, 1, 0.1, 120);
-camera.position.set(0.0, 6.4, 8.4); camera.lookAt(0.0, 0.2, -0.3);
-B.renderIcon({ scene, camera, size: SIZE, renderer, exposure: 0.95, background: '#2a1a3a', bloom: 0.38, vignette: 0.62 });
+camera.position.set(0.0, 6.0, 7.3); camera.lookAt(0.0, 0.2, -0.3);
+B.renderIcon({ scene, camera, size: SIZE, renderer, exposure: 0.82, background: '#1a0f26', bloom: 0.34, vignette: 0.85 });
 document.title = 'READY';

@@ -53,7 +53,7 @@ export function buildHall(stage, { quality = 'high' } = {}) {
   const X0 = -11.3, X1 = 11.3, Z0 = -4.6, Z1 = 16.0, CWm = X1 - X0, CLm = Z1 - Z0;
   const TW = quality === 'low' ? 1024 : 2048, TH = Math.round(TW * CLm / CWm);
   const PALS = [
-    { wood: '#d9a66a', key: '#2f5f9e', ft: '#3b72b8', sur: '#1a3350', pl: [150, 100, 50] },     // maple
+    { flat: true, wood: '#c4573a', key: '#1d7f88', ft: '#2a9aa2', sur: '#34424d', pl: [150, 60, 40] },     // terracotta court, teal key (outdoor)
     { wood: '#3f6aa0', key: '#d46a2a', ft: '#e07b36', sur: '#14243a', pl: [40, 70, 120] },     // blue floor
     { wood: '#7b7f86', key: '#b0463a', ft: '#c4574a', sur: '#1b2230', pl: [100, 104, 110] },    // street
   ];
@@ -66,7 +66,8 @@ export function buildHall(stage, { quality = 'high' } = {}) {
     const r = rngf(11);
     c.fillStyle = pal.wood; c.fillRect(X(-HW), Z(ZB), 2 * HW * S, (ZH - ZB) * S);
     // planks
-    for (let i = 0; i < 90; i++) {
+    if (pal.flat) { for (let i = 0; i < 26000; i++) { c.fillStyle = r() < 0.5 ? 'rgba(255,200,160,0.07)' : 'rgba(60,20,10,0.10)'; c.fillRect(X(-HW) + r() * 2 * HW * S, Z(ZB) + r() * (ZH - ZB) * S, 2.2, 2.2); } }
+    else for (let i = 0; i < 90; i++) {
       const x = X(-HW) + (i / 90) * 2 * HW * S;
       c.fillStyle = `rgba(${pal.pl[0] + r() * 30},${pal.pl[1] + r() * 20},${pal.pl[2] + r() * 15},${0.08 + r() * 0.1})`;
       c.fillRect(x, Z(ZB), (2 * HW * S) / 90, (ZH - ZB) * S);
@@ -173,25 +174,49 @@ export function buildHall(stage, { quality = 'high' } = {}) {
     },
   };
 
-  // ---- backdrop: far wall with banners and a crowd, plus dark side walls
-  const wall = canvasTex(1024, 256, (c, w, h) => {
-    const r = rngf(5);
-    c.fillStyle = '#0e1a2a'; c.fillRect(0, 0, w, h);
-    const cols = ['#c45a4a', '#e0b84c', '#3f86c9', '#e8e8ea', '#52a37a', '#8f5ec2', '#d98b3a', '#6fb7c9'];
-    for (let row = 0; row < 7; row++) for (let i = 0; i < 120; i++) { c.fillStyle = cols[Math.floor(r() * cols.length)]; c.globalAlpha = 0.5; c.beginPath(); c.arc(i * 8.7 + r() * 4, 100 + row * 20 + r() * 4, 3.4 + r() * 1.6, 0, 6.3); c.fill(); }
-    c.globalAlpha = 1;
-    const gr = c.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, 'rgba(8,14,24,0.9)'); gr.addColorStop(0.45, 'rgba(8,14,24,0.1)'); gr.addColorStop(1, 'rgba(8,14,24,0.5)');
+  // ---- backdrop: an evening neighbourhood behind a chain-link fence (outdoor street court)
+  const skyline = canvasTex(2048, 512, (c, w, h) => {
+    const r = rngf(9);
+    const gr = c.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#4d6fa8'); gr.addColorStop(0.45, '#e59a7a'); gr.addColorStop(0.62, '#f7c98e'); gr.addColorStop(1, '#f7c98e');
     c.fillStyle = gr; c.fillRect(0, 0, w, h);
-    // ad boards (generic bands)
-    const bands = ['#2f5f9e', '#e0b84c', '#c45a4a', '#52a37a'];
-    for (let i = 0; i < 12; i++) { c.fillStyle = bands[i % 4]; c.fillRect(i * (w / 12) + 3, 62, w / 12 - 6, 26); }
+    // soft clouds
+    for (let i = 0; i < 14; i++) { c.fillStyle = 'rgba(255,225,200,0.22)'; c.beginPath(); c.ellipse(r() * w, 60 + r() * 130, 90 + r() * 120, 12 + r() * 10, 0, 0, 6.3); c.fill(); }
+    const ground = h * 0.86;
+    // far towers
+    let x = -20;
+    while (x < w) { const bw = 60 + r() * 110, bh = 90 + r() * 170; c.fillStyle = `rgb(${120 + r() * 20 | 0},${105 + r() * 15 | 0},${130 + r() * 15 | 0})`; c.fillRect(x, ground - bh, bw, bh); x += bw + 4 + r() * 10; }
+    // near apartment blocks with lit windows
+    x = -30;
+    const brick = ['#8d4a3b', '#a65d44', '#7b5a52', '#b07a58', '#6d4a45'];
+    while (x < w) {
+      const bw = 140 + r() * 130, bh = 130 + r() * 110; c.fillStyle = brick[r() * brick.length | 0]; c.fillRect(x, ground - bh, bw, bh);
+      c.fillStyle = 'rgba(30,20,30,0.25)'; c.fillRect(x, ground - bh, 6, bh);
+      for (let wy = ground - bh + 16; wy < ground - 24; wy += 26) for (let wx = x + 14; wx < x + bw - 18; wx += 24) { c.fillStyle = r() < 0.4 ? '#ffd88a' : 'rgba(40,50,70,0.75)'; c.fillRect(wx, wy, 11, 15); }
+      x += bw + 6 + r() * 16;
+    }
+    // trees
+    for (let i = 0; i < 26; i++) { const tx = r() * w, th = 50 + r() * 50; c.fillStyle = `rgba(${40 + r() * 20 | 0},${90 + r() * 40 | 0},${50 + r() * 20 | 0},0.95)`; c.beginPath(); c.arc(tx, ground - th * 0.5, th * 0.55, 0, 6.3); c.fill(); c.fillRect(tx - 3, ground - th * 0.4, 6, th * 0.4); }
+    c.fillStyle = '#3a4650'; c.fillRect(0, ground, w, h - ground);
   });
-  const wallGeo = mergeGeos([
-    place(new THREE.PlaneGeometry(46, 9), 0, 4.5, 17.5, '#ffffff', 0, Math.PI),
-    place(new THREE.PlaneGeometry(30, 9), -13.5, 4.5, 6, '#ffffff', 0, Math.PI / 2),
-    place(new THREE.PlaneGeometry(30, 9), 13.5, 4.5, 6, '#ffffff', 0, -Math.PI / 2),
-  ]);
-  g.add(new THREE.Mesh(wallGeo, new THREE.MeshStandardMaterial({ map: wall, roughness: 1 })));
+  const sk = new THREE.MeshBasicMaterial({ map: skyline, fog: false, side: THREE.DoubleSide });
+  const mkWall = (w, hh, x, y, z, ry) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, hh), sk); m.position.set(x, y, z); m.rotation.y = ry; g.add(m); return m; };
+  mkWall(90, 22.5, -26, 8.5, 6, Math.PI / 2);        // far side (what the camera looks at)
+  mkWall(90, 22.5, 6, 8.5, 26, Math.PI);             // behind the hoop line
+  mkWall(90, 22.5, 6, 8.5, -22, 0);
+  // chain-link fence: transparent diamond mesh and posts
+  const fenceTex = canvasTex(512, 256, (c, w, h) => {
+    c.clearRect(0, 0, w, h); c.strokeStyle = 'rgba(210,218,224,0.55)'; c.lineWidth = 1.6;
+    for (let i = -h; i < w + h; i += 16) { c.beginPath(); c.moveTo(i, 0); c.lineTo(i + h, h); c.stroke(); c.beginPath(); c.moveTo(i + h, 0); c.lineTo(i, h); c.stroke(); }
+    c.fillStyle = 'rgba(190,198,205,0.9)'; c.fillRect(0, 0, w, 5);
+  }, { repeat: [6, 1] });
+  const fmat = new THREE.MeshBasicMaterial({ map: fenceTex, transparent: true, depthWrite: false, side: THREE.DoubleSide, fog: false });
+  const fenceFar = new THREE.Mesh(new THREE.PlaneGeometry(22, 4.2), fmat); fenceFar.position.set(-11.4, 2.1, 4.7); fenceFar.rotation.y = Math.PI / 2; g.add(fenceFar);
+  const fenceBack = new THREE.Mesh(new THREE.PlaneGeometry(22, 4.2), fmat); fenceBack.position.set(0, 2.1, 12.6); g.add(fenceBack);
+  const posts = mergeGeos([-5, -1, 3, 7, 11].map((z) => place(new THREE.CylinderGeometry(0.06, 0.06, 4.2, 8), -11.4, 2.1, z + 1, '#9aa3ab')).concat([-9, -5, -1, 3, 7, 11].map((x) => place(new THREE.CylinderGeometry(0.06, 0.06, 4.2, 8), x, 2.1, 12.6, '#9aa3ab'))));
+  g.add(new THREE.Mesh(posts, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, metalness: 0.4 })));
+  // asphalt apron beyond the painted surround
+  const apron = new THREE.Mesh(new THREE.PlaneGeometry(120, 120), new THREE.MeshStandardMaterial({ color: '#3a4650', roughness: 0.95 }));
+  apron.rotation.x = -Math.PI / 2; apron.position.set(0, -0.02, 6); g.add(apron);
   stage.add(g);
   const setCourt = (i) => { const t = drawFloor(PALS[Math.max(0, Math.min(PALS.length - 1, i | 0))]); floor.material.map.dispose(); floor.material.map = t; floor.material.needsUpdate = true; };
   return { group: g, net: netApi, board, floor, setCourt };

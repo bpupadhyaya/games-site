@@ -18,7 +18,7 @@ renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadow
 
 const scene = new THREE.Scene();
 const rig = B.lightingRig(scene, 'duskOutdoor', { renderer, shadow: 4096, extent: 7, target: [0, 0.4, 0], fog: { near: 9, far: 34 },
-  overrides: { bg: 0x241532, fog: 0x2c1a36, hemiSky: 0x9a8ac8, hemiGround: 0x3a2620, hemi: 0.34, key: 0xffb464, keyI: 3.0, keyPos: [-4.5, 5.5, 4.5], fill: 0x6a7ed8, fillI: 0.32, fillPos: [6, 3, 6], rim: 0xffa050, rimI: 3.2, rimPos: [6, 3.2, -6], rim2: 0xff7ac0, rim2I: 1.0, exposure: 0.78, env: 0.26 } });
+  overrides: { bg: 0x0c0714, fog: 0x2c1a36, hemiSky: 0x9a8ac8, hemiGround: 0x3a2620, hemi: 0.34, key: 0xffb464, keyI: 2.6, keyPos: [-4.5, 5.5, 4.5], fill: 0x6a7ed8, fillI: 0.32, fillPos: [6, 3, 6], rim: 0xffa050, rimI: 3.2, rimPos: [6, 3.2, -6], rim2: 0xff7ac0, rim2I: 1.0, exposure: 0.5, env: 0.26 } });
 B.createEnvironment(renderer, scene, { intensity: 0.3 });
 
 const world = buildWorld({ fx: true }); scene.add(world.group); world.update(2.4, false, true); world.warm.forEach((l) => { l.intensity = 1.2; });
@@ -26,13 +26,11 @@ const root = new THREE.Group(); scene.add(root); root.add(buildMat());
 const board = buildBoard('clay'); root.add(board);
 const put = (side, x, z, o = {}) => { const g = makePiece(side, false, 'classic'); g.position.set(x, o.y ?? TOP, z); g.rotation.set(o.rx || 0, o.ry || 0, o.rz || 0); g.scale.setScalar(o.s || 1); scene.add(g); return g; };
 // the hero: an ivory pebble at the top of a jump over an indigo stone; one indigo stone flicked off, spinning in the air; the army blurred behind
-put(1, 0.3, -0.35, { y: TOP + 1.0, ry: 0.5, rz: 0.14, rx: 0.1, s: 1.0 });
-put(2, -0.2, 0.2, { ry: 0.3, s: 1.0 });
-put(2, 1.7, -1.4, { y: TOP + 0.7, rx: 0.9, rz: -0.6, ry: 0.4, s: 1.0 });
-put(2, -1.1, -0.9, { ry: 0.2 }); put(2, 0.5, -2.1, { ry: 0.9 }); put(2, -2.1, -2.0, {});
-put(1, -1.4, 2.1, {}); put(1, 1.6, 1.7, {});
+put(2, 0.0, -0.1, { y: TOP + 0.75, ry: 0.4, rx: 0.5, rz: 0.1, s: 1.3 });   // the ONE subject: an indigo flower stone at the top of its leap
+put(1, -0.9, 0.7, { ry: 0.5, s: 1.0 });   // the stone it has just jumped, small and low
+put(2, 1.5, -1.6, { ry: 0.2 }); put(1, -2.0, -1.2, {});
 // shadow of the jumper on the board and dust where the first stone was lifted
-const blob = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 1.3), new THREE.MeshBasicMaterial({ map: softTex('0,0,0', 0.9), transparent: true, depthWrite: false })); blob.rotation.x = -Math.PI / 2; blob.position.set(0.5, TOP + 0.03, -0.1); scene.add(blob);
+const blob = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 1.3), new THREE.MeshBasicMaterial({ map: softTex('0,0,0', 0.9), transparent: true, depthWrite: false })); blob.rotation.x = -Math.PI / 2; blob.position.set(0.0, TOP + 0.03, 0.0); scene.add(blob);
 const puffM = (x, y, z, s, o) => { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: softTex('255,246,230', 1, 128), transparent: true, opacity: o, depthWrite: false })); sp.position.set(x, y, z); sp.scale.setScalar(s); scene.add(sp); };
 puffM(-0.5, TOP + 0.1, 0.55, 0.9, 0.5); puffM(-0.2, TOP + 0.18, 0.45, 0.6, 0.4); puffM(-0.75, TOP + 0.16, 0.4, 0.55, 0.35);
 const sparkG = new THREE.SphereGeometry(0.014, 8, 6), sparkM = new THREE.MeshBasicMaterial({ color: 0xffe9a0 });
@@ -52,8 +50,8 @@ try { await sc.ready; } catch (e) { console.warn('scenery', e); }
 sc.update(0, null);
 
 const cam = new THREE.PerspectiveCamera(Number(q.get('fov') || 22), 1, 0.5, 260);
-const pitch = (Number(q.get('pitch') || 24) * Math.PI) / 180, yaw = (Number(q.get('yaw') || -14) * Math.PI) / 180, dist = Number(q.get('dist') || 7.0);
-const tgt = new THREE.Vector3(Number(q.get('tx') || 0.2), Number(q.get('ty') || 0.85), Number(q.get('tz') || -0.2));
+const pitch = (Number(q.get('pitch') || 22) * Math.PI) / 180, yaw = (Number(q.get('yaw') || -14) * Math.PI) / 180, dist = Number(q.get('dist') || 6.2);
+const tgt = new THREE.Vector3(Number(q.get('tx') || 0.0), Number(q.get('ty') || 0.55), Number(q.get('tz') || -0.1));
 cam.position.set(tgt.x + Math.sin(yaw) * Math.cos(pitch) * dist, tgt.y + Math.sin(pitch) * dist, tgt.z + Math.cos(yaw) * Math.cos(pitch) * dist); cam.lookAt(tgt);
 sc.update(0, cam);
 
@@ -61,7 +59,7 @@ renderer.render(scene, cam);
 const snap = document.createElement('canvas'); snap.width = snap.height = SIZE; snap.getContext('2d').drawImage(gl, 0, 0);
 
 // ---- composite: tilt-shift depth of field (blurred copy under, sharp copy masked to a horizontal band), bloom, vignette, glints
-ctx.fillStyle = '#1a0c08'; ctx.fillRect(0, 0, SIZE, SIZE);
+ctx.fillStyle = '#06030a'; ctx.fillRect(0, 0, SIZE, SIZE);
 ctx.filter = `blur(${SIZE * 0.012}px)`; ctx.drawImage(snap, -SIZE * 0.02, -SIZE * 0.02, SIZE * 1.04, SIZE * 1.04); ctx.filter = 'none';
 {
   const sharp = document.createElement('canvas'); sharp.width = sharp.height = SIZE; const sx = sharp.getContext('2d');
@@ -70,9 +68,10 @@ ctx.filter = `blur(${SIZE * 0.012}px)`; ctx.drawImage(snap, -SIZE * 0.02, -SIZE 
   sx.fillStyle = m; sx.fillRect(0, 0, SIZE, SIZE); ctx.drawImage(sharp, 0, 0);
 }
 ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.filter = `blur(${SIZE * 0.016}px)`; ctx.globalAlpha = 0.14; ctx.drawImage(snap, 0, 0); ctx.restore();
-const v = ctx.createRadialGradient(SIZE / 2, SIZE * 0.5, SIZE * 0.34, SIZE / 2, SIZE / 2, SIZE * 0.78); v.addColorStop(0, 'rgba(14,4,0,0)'); v.addColorStop(1, 'rgba(14,4,0,0.55)'); ctx.fillStyle = v; ctx.fillRect(0, 0, SIZE, SIZE);
+const v = ctx.createRadialGradient(SIZE / 2, SIZE * 0.5, SIZE * 0.34, SIZE / 2, SIZE / 2, SIZE * 0.78); v.addColorStop(0, 'rgba(4,2,8,0)'); v.addColorStop(0.55, 'rgba(4,2,8,0.35)'); v.addColorStop(1, 'rgba(4,2,8,0.86)'); ctx.fillStyle = v; ctx.fillRect(0, 0, SIZE, SIZE);
+{ const sp = ctx.createRadialGradient(SIZE * 0.5, SIZE * 0.3, SIZE * 0.12, SIZE * 0.5, SIZE * 0.36, SIZE * 0.62); sp.addColorStop(0, 'rgba(3,1,8,0)'); sp.addColorStop(0.5, 'rgba(3,1,8,0.5)'); sp.addColorStop(1, 'rgba(3,1,8,0.9)'); ctx.fillStyle = sp; ctx.fillRect(0, 0, SIZE, SIZE); }   // dark ground, light only on the hero
 const star = (x, y, r, a) => { ctx.save(); ctx.translate(x * SIZE, y * SIZE); ctx.globalAlpha = a; ctx.fillStyle = '#fff4d0'; ctx.beginPath(); for (let k = 0; k < 8; k++) { const ang = (k / 8) * Math.PI * 2 - Math.PI / 2, rr = k % 2 ? r * 0.16 : r; ctx.lineTo(Math.cos(ang) * rr, Math.sin(ang) * rr); } ctx.closePath(); ctx.fill(); ctx.restore(); };
-star(0.5, 0.36, SIZE * 0.03, 0.9); star(0.34, 0.5, SIZE * 0.016, 0.6); star(0.72, 0.58, SIZE * 0.014, 0.5);
+star(0.58, 0.3, SIZE * 0.026, 0.85);
 
 const small = document.createElement('canvas'); small.width = small.height = 1024; const sm = small.getContext('2d'); sm.imageSmoothingQuality = 'high'; sm.drawImage(out, 0, 0, 1024, 1024);
 window.__icon = () => small.toDataURL('image/png'); window.__iconJpeg = () => small.toDataURL('image/jpeg', 0.93);

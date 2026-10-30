@@ -13,14 +13,16 @@ const cache = new Map();
 const R = (x, y, w, h) => ({ x, y, w, h });
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
-export function layoutFor(w, h) {
-  const key = `${Math.round(w)}x${Math.round(h)}|${Math.round(host.t)},${Math.round(host.r)},${Math.round(host.b)},${Math.round(host.l)},${Math.round(host.back)},${host.px.toFixed(2)}`;
+// k (0..1) is how much of the glaze chip rows the portrait panel makes room for: 0 = slim panel (the pot gets the space), 1 = full glaze panel.
+export function layoutFor(w, h, k = 1) {
+  k = Math.round(Math.max(0, Math.min(1, k)) * 12) / 12;
+  const key = `${k}|${Math.round(w)}x${Math.round(h)}|${Math.round(host.t)},${Math.round(host.r)},${Math.round(host.b)},${Math.round(host.l)},${Math.round(host.back)},${host.px.toFixed(2)}`;
   let L = cache.get(key);
-  if (!L) { L = build(w, h); if (cache.size > 8) cache.clear(); cache.set(key, L); }
+  if (!L) { L = build(w, h, k); if (cache.size > 60) cache.clear(); cache.set(key, L); }
   return L;
 }
 
-function build(w, h) {
+function build(w, h, k) {
   const mode = w >= h * 1.2 ? 'wide' : h >= w * 1.5 ? 'tall' : 'compact';
   const S = R(host.l, host.t, w - host.l - host.r, h - host.t - host.b);
   const mb = minBtn();
@@ -46,7 +48,9 @@ function build(w, h) {
       P.body = R(P.inner.x, P.inner.y, P.inner.w, P.undo.y - 10 - P.inner.y);
     } else {
       const need = 3 * mb + 16 + bh + 32;     // the glaze station needs three rows of finger-sized chips above the buttons
-      const ph = mode === 'tall' ? Math.max(clamp(S.h * 0.2, 270, 300), Math.min(need, S.h * 0.32)) : clamp(S.h * 0.3, 270, 300);
+      const phFull = mode === 'tall' ? Math.max(clamp(S.h * 0.2, 270, 300), Math.min(need, S.h * 0.32)) : clamp(S.h * 0.3, 270, 300);
+      const phMin = mode === 'tall' ? Math.min(phFull, bh + 150) : phFull;
+      const ph = phMin + (phFull - phMin) * k;
       P.bar = R(S.x + 12 + backPad, S.y + 10, S.w - 24 - backPad - bh - 10, barH);
       P.pause = R(S.x + S.w - 12 - bh, S.y + 8, bh, bh);
       P.panel = R(S.x + 8, S.y + S.h - 8 - ph, S.w - 16, ph);

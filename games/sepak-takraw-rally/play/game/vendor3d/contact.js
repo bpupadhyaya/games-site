@@ -9,15 +9,7 @@ const UP = V(0, 1, 0);
 
 // ------------------------------------------------------------------ ball-foot contact
 // Foot sole frame (rest pose, in the FOOT bone's local space): fwd = toes, up = top of the foot, left = the avatar's left.
-function soleFrame(h, s) {
-  h._sole ||= {};
-  if (h._sole[s]) return h._sole[s];
-  const f = h.bones[`Bip01_${s}_Foot`], t = h.bones[`Bip01_${s}_Toe0`];
-  const rq = h._restQ[`${s}_Foot`].clone().invert();
-  const fwdW = t.getWorldPosition(V()).sub(f.getWorldPosition(V())); fwdW.y = 0; fwdW.normalize();   // toes, flat (rest pose is world-aligned)
-  const fwd = fwdW.applyQuaternion(rq), up = V(0, 1, 0).applyQuaternion(rq), left = V(1, 0, 0).applyQuaternion(rq);
-  return (h._sole[s] = { fwd, up, left });
-}
+function soleFrame(h, s) { return h._sole[s]; }   // captured from the rest pose when the human is built: independent of the root's orientation
 // surface point of a foot face relative to the ankle, in sole axes (metres), and the face's outward direction in sole axes
 function faceGeom(side, face) {
   const sgn = side === 'R' ? 1 : -1;
@@ -42,7 +34,7 @@ export function footQuat(h, side, n, fwd, face = 'instep') {
   if (a2.lengthSq() < 1e-6) a2.copy(S.up).addScaledVector(loc, -S.up.dot(loc));
   return basisQ(nn, f2).multiply(basisQ(loc, a2.normalize()).invert());
 }
-const faceOffsetLocal = (h, side, face) => { const S = soleFrame(h, side), g = faceGeom(side, face); return S.fwd.clone().multiplyScalar(g.s[0]).addScaledVector(S.up, g.s[1]).addScaledVector(S.left, g.s[2]); };
+const faceOffsetLocal = (h, side, face) => { const S = soleFrame(h, side), g = faceGeom(side, face); return S.fwd.clone().multiplyScalar(g.s[0] * (h.scale || 1)).addScaledVector(S.up, g.s[1] * (h.scale || 1)).addScaledVector(S.left, g.s[2] * (h.scale || 1)); };
 
 /** World position of the contact surface of a foot face (for verification, or to pick the face closest to the ball). */
 export function footContactPoint(h, side, face = 'instep') {
@@ -171,4 +163,63 @@ export function rotateBody(h, o) {
   h.root.position.set(0, 0, 0); h.root.updateMatrixWorld(true);
   const pw = h.bonePosition('Pelvis', V());
   h.root.position.copy(o.pelvis).sub(pw); h.root.updateMatrixWorld(true);
+}
+
+// ------------------------------------------------------------------ palms, forearms and reach (hands: volleyball, basketball, pelota, handball ...)
+// Hand frame (from the finger rig, hand-local): fingerDir = wrist -> fingertips, palmDir = out of the palm. Palm surface = the middle of the palm pushed out by the palm thickness.
+const palmThick = (h) => (h.info.kind === 'mannequin' ? 0.03 : 0.021);
+const PALM_FRAC = 0.5;                                                   // palm centre = this fraction of the way from the wrist to the index knuckle
+export const FOREARM_R = { mannequin: 0.043, athlete: 0.036 };
+
+/** World position of the palm surface point (the point that touches a ball). */
+export function palmPoint(h, side) {
+  const fr = h.fingers[side], hand = h.bones[`Bip01_${side}_Hand`]; hand.updateWorldMatrix(true, false);
+  return hand.localToWorld(fr.knuckle.clone().multiplyScalar(PALM_FRAC).addScaledVector(fr.palmDir, palmThick(h)));
+}
+/** World direction out of the palm, and along the fingers. */
+export function palmFrame(h, side) {
+  const fr = h.fingers[side], q = h.bones[`Bip01_${side}_Hand`].getWorldQuaternion(Q());
+  return { n: fr.palmDir.clone().applyQuaternion(q), f: fr.fingerDir.clone().applyQuaternion(q) };
+}
+/** World point on the SURFACE of the forearm, `frac` of the way from the wrist to the elbow, on the side facing world direction n. */
+export function forearmPoint(h, side, n, frac = 0.42) {
+  const w = h.bonePosition(`${side}_Hand`, V()), e = h.bonePosition(`${side}_Forearm`, V()), nn = n.clone().normalize();
+  const ax = e.clone().sub(w).normalize(); const perp = nn.addScaledVector(ax, -nn.dot(ax)).normalize();
+  return w.lerp(e, frac).addScaledVector(perp, (h.info.kind === 'mannequin' ? FOREARM_R.mannequin : FOREARM_R.athlete) * (h.scale || 1));
+}
+/** Hand orientation (world quaternion of the hand bone) so the palm faces along n with the fingers along fx. */
+export function handQuat(h, side, n, fx) {
+  const fr = h.fingers[side], nn = n.clone().normalize();
+  const f = fx.clone().addScaledVector(nn, -fx.dot(nn)); if (f.lengthSq() < 1e-6) f.set(0, 1, 0).addScaledVector(nn, -nn.y); f.normalize();
+  const bas = (a, b) => { const x = a.clone().normalize(), z = new THREE.Vector3().crossVectors(x, b).normalize(), y = new THREE.Vector3().crossVectors(z, x); return new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(x, y, z)); };
+  const local = bas(fr.fingerDir, fr.palmDir), world = bas(f, nn);
+  return world.multiply(local.invert());
+}
+/**
+ * Where the WRIST (hand bone) must be, and how the hand must be oriented, so the palm surface touches a ball of `radius` centred at C with the palm facing along n
+ * (the ball sits on the palm's outer side) and the fingers along fx. Feed it to human.setReach(side, wrist, { weight, quat }) around the contact tick.
+ * Returns { wrist, quat, point, reachable } (point = the ball surface point the palm touches; reachable = the exact wrist target is within the arm's reach from where the human stands now: if false, move the player or pick another palm normal).
+ */
+export function solvePalmBall(h, side, C, n, fx, radius = 0.105) {
+  const nn = n.clone().normalize(), quat = handQuat(h, side, nn, fx), fr = h.fingers[side];
+  const q = quat.clone();
+  const off = fr.knuckle.clone().multiplyScalar(PALM_FRAC).addScaledVector(fr.palmDir, palmThick(h)).multiplyScalar(h.scale || 1).applyQuaternion(q);
+  const point = C.clone().addScaledVector(nn, -radius);
+  const wrist = point.clone().sub(off);
+  const sh = h.bonePosition(`${side}_UpperArm`, V()), el = h.bonePosition(`${side}_Forearm`, V()), wr0 = h.bonePosition(`${side}_Hand`, V());
+  const arm = sh.distanceTo(el) + el.distanceTo(wr0), d = sh.distanceTo(wrist);
+  return { wrist, quat, point, reachable: d <= arm * 0.985 && d >= 0.1 * (h.scale || 1), shoulderDistance: d, armLength: arm };   // reachable: the WRIST target is within the arm's length from this shoulder
+}
+/**
+ * Reach envelope of one arm for a stand spot: { shoulder, radius, minRadius, canReach(point, { ballRadius }) }. radius = arm length + palm reach: a palm can touch a ball
+ * centred closer than radius + ballRadius to the shoulder. `at` (Vector3): ask as if the human stood there (same facing) instead of where it is now; `lift`: extra shoulder height (a jump).
+ */
+export function reachEnvelope(h, side, { at = null, lift = 0 } = {}) {
+  const sh = h.bonePosition(`${side}_UpperArm`, V()), el = h.bonePosition(`${side}_Forearm`, V()), wr = h.bonePosition(`${side}_Hand`, V());
+  const arm = sh.distanceTo(el) + el.distanceTo(wr);
+  const fr = h.fingers[side];
+  const palm = fr.knuckle.clone().multiplyScalar(PALM_FRAC).length() * (h.scale || 1) + palmThick(h) * (h.scale || 1);
+  const shoulder = sh.clone(); if (at) shoulder.add(at.clone().sub(h.root.position)); shoulder.y += lift;
+  const radius = (arm + palm) * 0.985, minRadius = 0.12 * (h.scale || 1);
+  return { shoulder, radius, minRadius, armLength: arm, canReach: (p, { ballRadius = 0.105 } = {}) => { const d = shoulder.distanceTo(p); return d <= radius + ballRadius * 0.9 && d >= minRadius; } };
 }

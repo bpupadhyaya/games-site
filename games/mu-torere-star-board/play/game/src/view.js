@@ -8,6 +8,7 @@ import { rate } from './solver.js';
 import { LESSONS } from './lessons.js';
 import { ABOUT, HOWTO, RULES } from './content.js';
 import { movesToWin } from './puzzles.js';
+import { v3, flatAlpha } from './v3.js';
 
 const TAU = Math.PI * 2;
 const CREAM = '#f3e6c8', GOLD = '#e8c777', MINT = '#8fe0b8';
@@ -63,7 +64,18 @@ export function render(ctx, st, L) {
     for (let k = 5; k < r.h; k += 7) { ctx.beginPath(); ctx.moveTo(r.x, r.y + k); ctx.bezierCurveTo(r.x + r.w * 0.3, r.y + k - 3, r.x + r.w * 0.6, r.y + k + 3, r.x + r.w, r.y + k); ctx.stroke(); }
     ctx.restore();
     ctx.strokeStyle = o.primary ? 'rgba(220,255,236,0.7)' : 'rgba(143,224,184,0.55)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, 18); ctx.stroke();
-    text(label, r.x + r.w / 2, r.y + r.h / 2 + (o.size ?? 30) * 0.34, o.size ?? 30, o.primary ? '#0b2a1f' : CREAM, UI, 700);
+    if (o.icon) glyph(o.icon, r.x + 34, r.y + r.h / 2, Math.min(15, r.h * 0.24), o.primary ? '#0b2a1f' : GOLD);
+    text(label, r.x + r.w / 2 + (o.icon ? 14 : 0), r.y + r.h / 2 + (o.size ?? 30) * 0.34, o.size ?? 30, o.primary ? '#0b2a1f' : CREAM, UI, 700);
+    ctx.restore();
+  };
+  // Small line icons for the main menu rows (drawn, no image files).
+  const glyph = (k, x, y, r, col) => {
+    ctx.save(); ctx.translate(x, y); ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath();
+    if (k === 'play') { ctx.moveTo(-r * 0.6, -r); ctx.lineTo(r, 0); ctx.lineTo(-r * 0.6, r); ctx.closePath(); ctx.fill(); }
+    else if (k === 'learn') { ctx.moveTo(-r, -r * 0.7); ctx.lineTo(0, -r * 0.4); ctx.lineTo(r, -r * 0.7); ctx.lineTo(r, r * 0.8); ctx.lineTo(0, r * 0.5); ctx.lineTo(-r, r * 0.8); ctx.closePath(); ctx.moveTo(0, -r * 0.4); ctx.lineTo(0, r * 0.5); ctx.stroke(); }
+    else if (k === 'ladder') { ctx.moveTo(-r * 0.55, -r); ctx.lineTo(-r * 0.55, r); ctx.moveTo(r * 0.55, -r); ctx.lineTo(r * 0.55, r); for (const yy of [-0.5, 0, 0.5]) { ctx.moveTo(-r * 0.55, r * yy); ctx.lineTo(r * 0.55, r * yy); } ctx.stroke(); }
+    else if (k === 'two') { for (const sx of [-0.5, 0.5]) { ctx.moveTo(r * sx + r * 0.32, -r * 0.45); ctx.arc(r * sx, -r * 0.45, r * 0.32, 0, TAU); ctx.moveTo(r * sx - r * 0.5, r); ctx.quadraticCurveTo(r * sx, -r * 0.1, r * sx + r * 0.5, r); } ctx.stroke(); }
+    else if (k === 'daily') { ctx.roundRect(-r, -r * 0.8, r * 2, r * 1.8, 3); ctx.moveTo(-r, -r * 0.3); ctx.lineTo(r, -r * 0.3); ctx.moveTo(-r * 0.45, -r * 1.05); ctx.lineTo(-r * 0.45, -r * 0.6); ctx.moveTo(r * 0.45, -r * 1.05); ctx.lineTo(r * 0.45, -r * 0.6); ctx.stroke(); ctx.beginPath(); ctx.arc(0, r * 0.35, r * 0.25, 0, TAU); ctx.fill(); }
     ctx.restore();
   };
   // Draw with a section's transform: inside, coordinates are the original 720-wide design coordinates.
@@ -73,8 +85,25 @@ export function render(ctx, st, L) {
   const ring = (p, r, color, w = 4, a = 1) => { ctx.save(); ctx.globalAlpha = a; ctx.strokeStyle = color; ctx.lineWidth = w; ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, TAU); ctx.stroke(); ctx.restore(); };
   const glowDot = (p, r, rgb, a) => { const g = ctx.createRadialGradient(p.x, p.y, 2, p.x, p.y, r); g.addColorStop(0, `rgba(${rgb},${a})`); g.addColorStop(1, `rgba(${rgb},0)`); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, TAU); ctx.fill(); };
   const pulse = (k = 3) => (st.calm ? 0.7 : 0.5 + 0.5 * Math.sin(st.t * k));
+  // Title lettering: warm gold with a lit top edge, a carved dark under-edge and a soft shadow, so it reads over the 3D sky.
+  const gilded = (s, x, y, size) => {
+    ctx.save(); ctx.textAlign = 'center'; ctx.font = `700 ${size}px ${FONT}`;
+    ctx.shadowColor = 'rgba(0,8,12,0.75)'; ctx.shadowBlur = size * 0.22; ctx.shadowOffsetY = size * 0.05;
+    ctx.fillStyle = '#3a2208'; ctx.fillText(s, x, y + size * 0.035); ctx.shadowColor = 'transparent';
+    const g = ctx.createLinearGradient(0, y - size * 0.8, 0, y + size * 0.1);
+    g.addColorStop(0, '#fff6dc'); g.addColorStop(0.42, '#f2cf86'); g.addColorStop(0.62, '#c99442'); g.addColorStop(1, '#f6dc9a');
+    ctx.fillStyle = g; ctx.fillText(s, x, y);
+    ctx.restore();
+  };
 
-  drawBackground(ctx, t, st.calm, L.w, L.h);
+  // With the 3D scene on, the headland, board and stones are drawn by the presenter behind this canvas; the flat art fades out over it.
+  const fa = flatAlpha(); v3.hero = null;
+  if (fa > 0) { ctx.save(); ctx.globalAlpha = fa; drawBackground(ctx, t, st.calm, L.w, L.h); ctx.restore(); }
+  if (v3.on) {             // a soft lens vignette over the 3D scene keeps the eye on the board and the panels readable
+    const vg = ctx.createRadialGradient(L.w / 2, L.h * 0.52, Math.min(L.w, L.h) * 0.4, L.w / 2, L.h * 0.52, Math.hypot(L.w, L.h) * 0.62);
+    vg.addColorStop(0, 'rgba(4,14,18,0)'); vg.addColorStop(1, `rgba(4,14,18,${0.5 * v3.fade})`); ctx.fillStyle = vg; ctx.fillRect(0, 0, L.w, L.h);
+    if (st.scene !== 'title' && st.scene !== 'play' && st.scene !== 'over' && st.scene !== 'lesson' && st.scene !== 'auto' && st.scene !== 'puzzle') { ctx.fillStyle = `rgba(6,20,24,${0.45 * v3.fade})`; ctx.fillRect(0, 0, L.w, L.h); }
+  }
   const sc = st.scene;
   if (sc === 'title') return title();
   if (sc === 'about') return page('About Mū Tōrere', ABOUT);
@@ -100,16 +129,21 @@ export function render(ctx, st, L) {
   // ---------------------------------------------------------------- title
   function title() {
     const T = L.title(!!st.saved), bob = st.calm ? 0 : Math.sin(t * 0.9) * 4;
+    { const A = T.art; v3.hero = { x: A.ox + 110 * A.s, y: A.oy + 290 * A.s, w: 500 * A.s, h: 400 * A.s }; }
     within(T.art, () => {
+      if (fa > 0) {
+      ctx.save(); ctx.globalAlpha = fa;
       // faint sun glow behind the star
       glowDot({ x: 360, y: 470 }, 330, '255,220,160', 0.16 + 0.04 * Math.sin(t * 0.7));
       drawBoard(ctx, 360, 470 + bob, 0.66);
       const s = 0.66;
       const board = [1, 1, 1, 1, 2, 2, 2, 2, 0];
       for (let i = 0; i < 9; i++) if (board[i]) { const p = pointPos(i, 360, 470 + bob, s); const br = st.calm ? 0 : Math.sin(t * 1.3 + i * 0.8) * 1.2; drawStone(ctx, board[i], p.x, p.y + br, STONE_R * s * 0.98); }
+      ctx.restore();
+      }
       // a slow sweep of light over the carving
-      if (!st.calm) { const x = ((t * 60) % 1000) - 200; ctx.save(); ctx.globalCompositeOperation = 'lighter'; const g = ctx.createLinearGradient(x, 200, x + 120, 700); g.addColorStop(0, 'rgba(255,240,200,0)'); g.addColorStop(0.5, 'rgba(255,240,200,0.06)'); g.addColorStop(1, 'rgba(255,240,200,0)'); ctx.fillStyle = g; ctx.fillRect(0, 200, W, 520); ctx.restore(); }
-      text('Mū Tōrere', 360, 150, 104, '#f7e8c4', FONT, 700);
+      if (!st.calm && fa > 0.5) { const x = ((t * 60) % 1000) - 200; ctx.save(); ctx.globalCompositeOperation = 'lighter'; const g = ctx.createLinearGradient(x, 200, x + 120, 700); g.addColorStop(0, 'rgba(255,240,200,0)'); g.addColorStop(0.5, 'rgba(255,240,200,0.06)'); g.addColorStop(1, 'rgba(255,240,200,0)'); ctx.fillStyle = g; ctx.fillRect(0, 200, W, 520); ctx.restore(); }
+      gilded('Mū Tōrere', 360, 150, 104);
       { // the tagline stays clear of the host back button
         const A = T.art, bb = L.backBox, tag = 'The eight-pointed star game of Aotearoa'; let sz = 34;
         if (bb && bb.h && A.oy + 230 * A.s > bb.y && A.oy + 170 * A.s < bb.y + bb.h) sz = fitSize(tag, 2 * (360 - ((bb.x + bb.w - A.ox) / A.s + 14)), 34, FONT, 700, 18);
@@ -118,11 +152,11 @@ export function render(ctx, st, L) {
       band(ctx, 130, 590, 240, 15, 'rgba(143,224,184,0.6)', 2.6);
     });
     const R = T.rows;
-    if (R.resume) button(R.resume, 'Resume your game', { primary: true });
-    button(R.learn, 'Learn to play', { primary: !R.resume });
-    button(R.ladder, `The Ladder  ·  rung ${st.ladder.top} of 12`);
-    button(R.two, 'Two players, one phone');
-    button(R.daily, st.daily.solvedDay === st.daily.day ? 'Daily puzzle  ·  solved' : 'Daily puzzle');
+    if (R.resume) button(R.resume, 'Resume your game', { primary: true, icon: 'play' });
+    button(R.learn, 'Learn to play', { primary: !R.resume, icon: 'learn' });
+    button(R.ladder, `The Ladder  ·  rung ${st.ladder.top} of 12`, { icon: 'ladder' });
+    button(R.two, 'Two players, one phone', { icon: 'two' });
+    button(R.daily, st.daily.solvedDay === st.daily.day ? 'Daily puzzle  ·  solved' : 'Daily puzzle', { icon: 'daily' });
     button(R.about, 'About', { size: 22 });
     button(R.howto, 'How to play', { size: 20 });
     button(R.rules, 'Rules', { size: 22 });
@@ -256,8 +290,11 @@ export function render(ctx, st, L) {
     const PL = L.play(auto ? (D.phase === 'over' ? 'autoover' : 'auto') : sc === 'over' ? 'over' : sc === 'lesson' ? 'lesson' : sc === 'puzzle' ? 'puzzle' : 'play'), B = PL.board;
     // The star and everything on it is drawn in its own design space (centre BX, BY), moved and scaled onto the screen placement B.
     ctx.save(); ctx.translate(B.cx - BX * B.k, B.cy - BY * B.k); ctx.scale(B.k, B.k);
-    glowDot({ x: BX, y: BY }, 420, '255,226,176', 0.1 + 0.03 * Math.sin(t * 0.8));
-    drawBoard(ctx, BX, BY, 1);
+    ctx.globalAlpha = fa;
+    if (fa > 0) { glowDot({ x: BX, y: BY }, 420, '255,226,176', 0.1 + 0.03 * Math.sin(t * 0.8)); drawBoard(ctx, BX, BY, 1); }
+    // marks for the 3D board (light lying in the hollows); the flat art draws its own rings below
+    const M = (i, rgb, r, al) => { if (v3.on) v3.marks.push({ sq: i, rgb, r, a: al }); };
+    const labels3 = [];
     const me = st.two || sc === 'lesson' || sc === 'puzzle' ? g.turn : st.human;
     const humanTurn = !auto && !g.winner && (st.two || g.turn === st.human || sc === 'lesson' || sc === 'puzzle');
     // highlights under the stones
@@ -267,25 +304,28 @@ export function render(ctx, st, L) {
       const rated = st.marks ? rate(g.board, g.turn) : null;
       for (const m of moves) { const bad = rated && rated.find((x) => x.m.from === m.from && x.m.to === m.to && x.v === -1); hl.push({ p: m.to, bad: !!bad }); }
     }
-    for (const h of hl) { const p = pointPos(h.p); glowDot(p, 92, h.bad ? '255,120,100' : '120,255,190', 0.5 + 0.25 * pulse(3.2)); ring(p, 58 + 3 * pulse(3.2), h.bad ? '#ff9a86' : '#c6ffe0', 5, 1); if (h.bad) text('!', p.x, p.y + 12, 34, '#ffb4a4', UI, 800); }
-    if (st.hint) for (const q of [st.hint.from, st.hint.to]) { const p = pointPos(q); glowDot(p, 80, '255,215,120', 0.35 + 0.25 * pulse(4)); ring(p, 58 + 4 * pulse(4), GOLD, 5, 0.95); }
+    for (const h of hl) { M(h.p, h.bad ? '255,120,100' : '120,255,190', 1.2, 0.75 + 0.25 * pulse(3.2)); if (h.bad) labels3.push(h.p); if (fa <= 0) continue; const p = pointPos(h.p); glowDot(p, 92, h.bad ? '255,120,100' : '120,255,190', 0.5 + 0.25 * pulse(3.2)); ring(p, 58 + 3 * pulse(3.2), h.bad ? '#ff9a86' : '#c6ffe0', 5, 1); if (h.bad) text('!', p.x, p.y + 12, 34, '#ffb4a4', UI, 800); }
+    if (st.hint) for (const q of [st.hint.from, st.hint.to]) { M(q, '255,215,120', 1.2, 0.7 + 0.3 * pulse(4)); if (fa <= 0) continue; const p = pointPos(q); glowDot(p, 80, '255,215,120', 0.35 + 0.25 * pulse(4)); ring(p, 58 + 4 * pulse(4), GOLD, 5, 0.95); }
     const LS = sc === 'lesson' ? LESSONS[st.lesson.i].steps[st.lesson.step] : null;
-    if (LS && LS.show && !st.lesson.done) for (const q of LS.show) { const p = pointPos(q); ring(p, 62 + 4 * pulse(3), '#fff2c8', 3.5, 0.5 + 0.4 * pulse(3)); }
-    if (auto && D.phase === 'reveal') autoReveal(D);
-    if (st.kb && !over) ring(pointPos(st.cursor), 64, '#ffffff', 3, 0.9);
-    if (g.last && !over && !a) ring(pointPos(g.last.from), 47, 'rgba(255,240,200,0.5)', 2.5, 0.8);
+    if (LS && LS.show && !st.lesson.done) for (const q of LS.show) { M(q, '255,242,200', 1.3, 0.45 + 0.4 * pulse(3)); if (fa <= 0) continue; const p = pointPos(q); ring(p, 62 + 4 * pulse(3), '#fff2c8', 3.5, 0.5 + 0.4 * pulse(3)); }
+    if (auto && D.phase === 'reveal') {
+      if (v3.on) { for (const m of D.moves || []) { const ch = D.chosen && m.from === D.chosen.from && m.to === D.chosen.to; M(m.to, ch ? '120,255,190' : '232,199,119', ch ? 1.25 : 1.0, ch ? 0.8 + 0.2 * pulse(3.2) : 0.45 + 0.15 * pulse(3)); } if (D.chosen) M(D.chosen.from, '120,255,190', 1.15, 0.7); }
+      if (fa > 0) autoReveal(D);
+    }
+    if (st.kb && !over) { M(st.cursor, '255,255,255', 1.35, 0.9); if (fa > 0) ring(pointPos(st.cursor), 64, '#ffffff', 3, 0.9); }
+    if (g.last && !over && !a) { M(g.last.from, '255,240,200', 0.95, 0.3); if (fa > 0) ring(pointPos(g.last.from), 47, 'rgba(255,240,200,0.5)', 2.5, 0.8); }
     // winner's glow
-    if (over && g.winner && g.winner < 3) for (let i = 0; i < 9; i++) if (g.board[i] === g.winner) glowDot(pointPos(i), 76, '255,230,160', 0.22 + 0.16 * pulse(2.5));
+    if (over && g.winner && g.winner < 3) for (let i = 0; i < 9; i++) if (g.board[i] === g.winner) { M(i, '255,230,160', 1.2, 0.45 + 0.3 * pulse(2.5)); if (fa > 0) glowDot(pointPos(i), 76, '255,230,160', 0.22 + 0.16 * pulse(2.5)); }
     // stones
     const skip = a ? (a.refuse ? a.from : a.to) : -1, dragging = st.drag && st.drag.moved ? st.drag.from : -1;
-    for (let i = 0; i < 9; i++) {
+    for (let i = 0; i < 9 && fa > 0; i++) {
       const k = g.board[i]; if (!k || i === skip || i === dragging) continue;
       const p = pointPos(i), lifted = i === st.sel;
       const dim = over && g.winner && g.winner < 3 && k !== g.winner;
       drawStone(ctx, k, p.x, p.y, STONE_R, { lift: lifted ? 9 + 2 * pulse(4) : 0, alpha: dim ? 0.78 : 1 });
       if (lifted) ring({ x: p.x, y: p.y - 9 }, 54, GOLD, 4, 0.95);
     }
-    if (a) {
+    if (a && fa > 0) {
       const f = pointPos(a.from), tp = pointPos(a.to), e = Math.min(1, a.t / a.dur);
       const s = e * e * (3 - 2 * e);
       let x, y, lift;
@@ -293,11 +333,12 @@ export function render(ctx, st, L) {
       else { x = f.x + (tp.x - f.x) * s; y = f.y + (tp.y - f.y) * s; lift = Math.sin(s * Math.PI) * 26; }
       drawStone(ctx, a.side, x, y, STONE_R, { lift });
     }
-    if (st.drag && st.drag.moved) drawStone(ctx, g.board[st.drag.from], (st.drag.x - (B.cx - BX * B.k)) / B.k, (st.drag.y - (B.cy - BY * B.k)) / B.k - 24, STONE_R * 1.08, { lift: 14 });
+    if (st.drag && st.drag.moved && fa > 0) drawStone(ctx, g.board[st.drag.from], (st.drag.x - (B.cx - BX * B.k)) / B.k, (st.drag.y - (B.cy - BY * B.k)) / B.k - 24, STONE_R * 1.08, { lift: 14 });
     ctx.restore();
+    if (v3.on && v3.pt) for (const i of labels3) { const p = v3.pt(i, 0.4), fs = Math.round(34 * B.k * p.k); text('!', p.x, p.y + fs * 0.35, fs, '#ffb4a4', UI, 800); }
 
     // ---- top area
-    if (PL.titleAt) text('Mū Tōrere', PL.titleAt.x, PL.titleAt.y, PL.titleAt.size, '#f7e8c4', FONT, 700);
+    if (PL.titleAt) gilded('Mū Tōrere', PL.titleAt.x, PL.titleAt.y, PL.titleAt.size);
     within(PL.top, () => {
       if (over) { /* the result panel covers the top */ } else if (auto) autoTop(D); else if (sc === 'lesson') lessonTop(); else if (sc === 'puzzle') puzzleTop(); else playTop();
       if (sc === 'over') overPanel(); else if (auto && D.phase === 'over') autoOverPanel(D);

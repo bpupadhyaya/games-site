@@ -14,7 +14,7 @@ import { createYard } from './yard.js';
 
 const { Group, Mesh, Vector3, MeshBasicMaterial, PlaneGeometry, CanvasTexture, SRGBColorSpace } = THREE;
 const WORLD = 100;                     // chart unit -> world units
-const SHIP_MAP_SCALE = 0.7;
+let SHIP_MAP_SCALE = 0.7;
 const ISLAND_K = 2.1;                  // island radius multiplier over the 2D chart radius
 const DECOR = [[0.16, 0.38, 0.02], [0.52, 0.5, 0.025], [0.62, 0.62, 0.016], [0.9, 0.82, 0.02], [0.14, 0.97, 0.018], [0.85, 0.12, 0.02], [0.3, 0.3, 0.024], [0.58, 0.12, 0.014], [0.95, 0.4, 0.018]];
 const portSeed = (i) => (i * 7 + 3) % 11 + 1;
@@ -116,7 +116,7 @@ export async function createPresenter({ kitCanvas, quality = 'high' }) {
   let lastT = null, camA = 0, tTitle = 0, ftEma = 8, ftCount = 0, tier = quality;
 
   function setCameraVoyage(L) {
-    const M = L.voy.map, s = Math.min(M.w, M.h) * (1 - 0.14);
+    const M = L.voy.map, s = Math.min(M.w, M.h) * (1 - 0.08);
     const fov = camera.fov * Math.PI / 180, elev = 58 * Math.PI / 180;
     const D = WORLD * (VH / 2) / (s * Math.tan(fov / 2));
     const tx = 0.5 * WORLD, tz = 0.5 * WORLD;
@@ -155,7 +155,7 @@ export async function createPresenter({ kitCanvas, quality = 'high' }) {
     } else {
       const pl = s.pl, v = pl?.v;
       const spec = (v && (sc === 'voyage' || sc === 'result')) ? v.ship : { size: 'pinisi', timber: 'teak', rig: 'balanced' };
-      ensureShip(spec);
+      ensureShip(spec); SHIP_MAP_SCALE = sc === 'voyage' ? 1.6 : 0.7;
       let tx, tz, head = sd.heading, setting = 'anchor', moving = 0;
       const title = sc === 'title' || sc === 'setup' || sc === 'demo-limit';
       if (title) {

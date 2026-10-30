@@ -4,7 +4,7 @@
   "tagline": "Real 3D table tennis. Spin it, place it, win it.",
   "genre": "table tennis",
   "orientation": "any",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "monetization": {
     "model": "premium",
     "priceUsd": 2.99,

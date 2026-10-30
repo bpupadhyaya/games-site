@@ -4,7 +4,7 @@ import { CW, CX, CELL, GX, PAD, courtDims, cellX, cellY, TEXT_SCALES, AUTO_THINK
 import { drawBackdrop, drawCourt, drawPlayer, drawGlyph, skinFor, KIND_COLORS, RUNNER_COLORS } from './art.js';
 import { W, MID, REACH, RUNNERS, ROUNDS, LEVELS, onGrid, plans, canMove, DIRS, remaining } from './engine.js';
 import { flowOf } from './pages.js';
-import { drawLockup, drawMoreLine } from './brand.js';
+import { drawLockup, drawMoreLine, drawHero, hasHero } from './brand.js';
 import { gl } from './glhook.js';
 
 const DISPLAY = '"Fredoka", "Trebuchet MS", system-ui, sans-serif', BODY = '"Barlow", "Trebuchet MS", system-ui, sans-serif', NUM = '"Barlow Condensed", "Barlow", system-ui, sans-serif';
@@ -117,7 +117,7 @@ function draw(ctx, state, L) {
     const gx = (g) => lerp(cellX(g.pc ?? g.c), cellX(g.c), e);
     // labels
     text('HOME', CX, courtDims(ln, pit).ch - PAD + 18 + 38, 24, 'rgba(255,238,190,0.95)', 'center', 700, DISPLAY);
-    text('FAR END', GX + 78, cY(r.top) - pit / 2 + 22, 15, 'rgba(14,70,45,0.7)', 'center', 700, DISPLAY);
+    text('FAR END', GX + 78, cY(r.top) - pit / 2 + 22, 15, 'rgba(255,244,205,0.95)', 'center', 700, DISPLAY);
     // touch zones under the players: where each guard touches right now (solid) and where it goes next (dashed)
     const zone = (x0, y0, w, h, alpha, dashed, col) => {
       if (G3 && !dashed) { G3.zones.push({ x: x0, y: y0, w, h, alpha }); return; }
@@ -218,9 +218,10 @@ function draw(ctx, state, L) {
   if (sc === 'title') {
     const T = L.title(false), d = state.demo, tt0 = T.titleText;
     if (!gl.active) drawBackdrop(ctx, W_, H_);
-    if (d.r) inCourt(T.hero.cx, T.hero.cy, T.hero.sc, courtDims(d.r.lines).ch, null, () => courtScene(d.r, d.a, { guide: false, sel: null }));
+    const heroOn = hasHero() && drawHero(ctx, L.land ? { x: 0, y: 0, w: T.card.x, h: H_ } : { x: 0, y: 0, w: W_, h: T.dim.y }, t);
+    if (d.r && !heroOn) inCourt(T.hero.cx, T.hero.cy, T.hero.sc, courtDims(d.r.lines).ch, null, () => courtScene(d.r, d.a, { guide: false, sel: null }));
     if (!L.land) {
-      const gh = gl.active ? tt0.y + 70 : T.brand.y + 90, gr = ctx.createLinearGradient(0, 0, 0, gh); gr.addColorStop(0, `rgba(${PLATE},${gl.active ? 0.55 : 0.9})`); gr.addColorStop(1, `rgba(${PLATE},0)`); ctx.fillStyle = gr; ctx.fillRect(0, 0, W_, gh);
+      const gh = heroOn ? tt0.y + 90 : gl.active ? tt0.y + 70 : T.brand.y + 90, gr = ctx.createLinearGradient(0, 0, 0, gh); gr.addColorStop(0, `rgba(${PLATE},${heroOn ? 0.7 : gl.active ? 0.55 : 0.9})`); gr.addColorStop(1, `rgba(${PLATE},0)`); ctx.fillStyle = gr; ctx.fillRect(0, 0, W_, gh);
       const dm = T.dim, gr2 = ctx.createLinearGradient(0, dm.y - 70, 0, dm.y); gr2.addColorStop(0, `rgba(${PLATE},0)`); gr2.addColorStop(1, `rgba(${PLATE},${gl.active ? 0.82 : 0.92})`); ctx.fillStyle = gr2; ctx.fillRect(0, dm.y - 70, W_, 70); ctx.fillStyle = `rgba(${PLATE},${gl.active ? 0.82 : 0.92})`; ctx.fillRect(0, dm.y, W_, dm.h + 2); ctx.fillStyle = 'rgba(226,196,112,0.55)'; ctx.fillRect(0, dm.y - 1, W_, 2);
     } else {
       const gr = ctx.createLinearGradient(0, 0, 0, 200); gr.addColorStop(0, `rgba(${PLATE},0.78)`); gr.addColorStop(1, `rgba(${PLATE},0)`); ctx.fillStyle = gr; ctx.fillRect(0, 0, T.card.x, 200);

@@ -11,7 +11,7 @@ export function baseCam(aspect, aim = 0) {
   const k = smooth((aspect - 0.75) / 0.5);                    // 0 portrait .. 1 landscape (blended through the tablet shapes)
   const yaw = clamp(aim, -1, 1) * 0.55, sy = Math.sin(yaw), cy = Math.cos(yaw);
   const pos = [lerp(1.2, 1.7, k) - lerp(1.0, 1.2, k) * sy, lerp(2.7, 3.3, k), lerp(-4.9, -7.4, k)];
-  const L = lerp(13, 13.4, k), lx = lerp(-1.4, -3.4, k), ly = lerp(0.15, 0.4, k);
+  const L = lerp(13, 13.4, k), lx = lerp(-1.4, -3.4, k), ly = lerp(-1.1, 0.4, k);
   const look = [pos[0] + sy * L + lx * cy, ly, pos[2] + cy * L];
   return { pos, look, fov: vfovFor(aspect) };
 }
@@ -59,7 +59,7 @@ export function cameraFor(r, aspect, aim = null) {
 export function titleCam(t, aspect) {
   const a = Math.sin(t * 0.2) * 0.3;
   if (aspect >= 1) return { pos: [0.8 + Math.sin(a) * 0.9, 1.55, 6.8], look: [-1.5, 1.15, STRIKER_Z - 0.1], fov: vfovFor(aspect, 46) };
-  return { pos: [0.9 + Math.sin(a) * 0.6, 1.7, 4.6 - Math.cos(a) * 0.2], look: [0, -0.5, STRIKER_Z - 0.1], fov: vfovFor(aspect, 40) };
+  return { pos: [1.4 + Math.sin(a) * 0.6, 1.2, 5.0 - Math.cos(a) * 0.2], look: [0, -1.25, STRIKER_Z - 0.1], fov: vfovFor(aspect, 40) };
 }
 
 /** Project a sim point to virtual screen units. Returns { x, y, k, ok } where k = virtual units per metre at that depth. */

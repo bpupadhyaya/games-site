@@ -14,7 +14,7 @@ const ctx = out.getContext('2d');
 const gl = document.createElement('canvas'); gl.width = gl.height = SIZE;
 const renderer = new THREE.WebGLRenderer({ canvas: gl, antialias: true, alpha: true, preserveDrawingBuffer: true });
 renderer.setPixelRatio(1); renderer.setSize(SIZE, SIZE, false);
-renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 0.72;
+renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 0.5;
 renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap;
 
 function ortho(W, H) {
@@ -46,16 +46,16 @@ const board = buildBoard('birch', CAMP, GATES, CENTRE, RING, CROSS);
 board.position.set(-0.0, 0, 0); scene.add(board);
 const cx = (i) => (i % 7) - 3, cz = (i) => Math.floor(i / 7) - 3;
 // hero: the white reindeer king on the star, a red herder beside and the sun die in front
-const king = makeKing(-1); king.position.set(cx(CENTRE), TILE_TOP, cz(CENTRE)); king.scale.setScalar(1.45); king.userData.body.rotation.y = -1.15; scene.add(king);
+const king = makeKing(-1); king.position.set(cx(CENTRE), TILE_TOP, cz(CENTRE)); king.scale.setScalar(1.9); king.userData.body.rotation.y = -1.15; scene.add(king);
 // golden ring under the king
 const ringG = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.03, 10, 48), new THREE.MeshStandardMaterial({ color: '#ffd24a', metalness: 0.9, roughness: 0.25, emissive: '#6a4400', emissiveIntensity: 0.6 }));
-ringG.rotation.x = Math.PI / 2; ringG.scale.setScalar(1.45); ringG.position.set(cx(CENTRE), TILE_TOP + 0.18, cz(CENTRE)); scene.add(ringG);
-const herder = makeHerder(0, 'four'); herder.position.set(cx(CENTRE) + 1.5, TILE_TOP, cz(CENTRE) + 1.3); herder.rotation.y = -0.5; herder.scale.setScalar(1.05); scene.add(herder);
-const die = makeDie(); die.scale.setScalar(0.62); die.position.set(cx(CENTRE) - 1.5, TILE_TOP + 0.31, cz(CENTRE) + 1.3); die.quaternion.copy(dieUp(0)); die.rotateY(0.6); scene.add(die);
+ringG.rotation.x = Math.PI / 2; ringG.scale.setScalar(1.9); ringG.position.set(cx(CENTRE), TILE_TOP + 0.23, cz(CENTRE)); scene.add(ringG);
+const herder = makeHerder(0, 'four'); herder.position.set(cx(CENTRE) + 1.5, TILE_TOP, cz(CENTRE) + 1.3); herder.rotation.y = -0.5; herder.scale.setScalar(1.05); /* one subject only */
+const die = makeDie(); die.scale.setScalar(0.62); die.position.set(cx(CENTRE) - 1.5, TILE_TOP + 0.31, cz(CENTRE) + 1.3); die.quaternion.copy(dieUp(0));
 scene.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
 
 const cam = new THREE.PerspectiveCamera(Number(q.get('fov') || 26), 1, 0.5, 100);
-const pitch = (Number(q.get('pitch') || 20) * Math.PI) / 180, dist = Number(q.get('dist') || 9), look = [Number(q.get('lx') || 0.1), Number(q.get('ly') || 1.0), 0];
+const pitch = (Number(q.get('pitch') || 20) * Math.PI) / 180, dist = Number(q.get('dist') || 9.4), look = [Number(q.get('lx') || 0.0), Number(q.get('ly') || 1.55), 0];
 cam.position.set(look[0] + 0, look[1] + Math.sin(pitch) * dist, Math.cos(pitch) * dist); cam.lookAt(look[0], look[1], 0);
 renderer.setClearColor(0x000000, 0); renderer.clear(); renderer.render(scene, cam);
 const subject = snap();
@@ -70,6 +70,8 @@ ctx.fillStyle = g; ctx.fillRect(0, 0, SIZE, SIZE);
 ctx.drawImage(subject, 0, 0);
 // bloom: the subject again, blurred, added
 ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.filter = `blur(${SIZE * 0.014}px)`; ctx.globalAlpha = 0.38; ctx.drawImage(subject, 0, 0); ctx.restore();
+// dark grade: board sinks into night, subject stays lit
+const gr = ctx.createLinearGradient(0, SIZE * 0.4, 0, SIZE * 0.95); gr.addColorStop(0, 'rgba(2,5,16,0)'); gr.addColorStop(1, 'rgba(2,5,16,0.86)'); ctx.fillStyle = gr; ctx.fillRect(0, 0, SIZE, SIZE);
 // vignette
 const v = ctx.createRadialGradient(SIZE / 2, SIZE / 2, SIZE * 0.38, SIZE / 2, SIZE / 2, SIZE * 0.78);
 v.addColorStop(0, 'rgba(2,4,14,0)'); v.addColorStop(1, 'rgba(2,4,14,0.55)'); ctx.fillStyle = v; ctx.fillRect(0, 0, SIZE, SIZE);

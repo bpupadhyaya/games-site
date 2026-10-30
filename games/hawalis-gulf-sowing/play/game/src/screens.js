@@ -156,11 +156,11 @@ function menuBlocks(S, mf) {
   const b = [];
   if (S.save) b.push({ t: 'btn', id: 'continue', label: tr('continueBtn'), kind: 'primary', size: 32, sub: `${levelLabel(S, S.save.two ? 'two' : S.save.level)}`, minH: m(104) });
   const playSub = S.demo ? tr('demoLeft', { n: Math.max(0, DEMO_GAMES - S.demoGames) }) : undefined;
-  b.push({ t: 'btn', id: 'play', label: tr('playBtn'), kind: S.save ? 'normal' : 'primary', size: 36, sub: playSub, minH: m(S.save ? 92 : 118) });
-  b.push({ t: 'btn', id: 'learn', label: tr('learnBtn'), size: 30, sub: `${lessonsDone(S)} / ${LESSONS.length}`, minH: m(96) });
-  b.push({ t: 'btn', id: 'auto', label: tr('autoBtn'), size: 30, minH: m(92) });
-  b.push({ t: 'row', size: 28, minH: m(92), items: [{ id: 'howto', label: tr('howtoBtn') }, { id: 'rules', label: tr('rulesBtn') }] });
-  b.push({ t: 'row', size: 28, minH: m(92), items: [{ id: 'about', label: tr('aboutBtn') }, { id: 'settings', label: tr('settingsBtn') }] });
+  // one dominant Play (Continue when a game is saved); everything else is a tidy grid of smaller buttons
+  b.push({ t: 'btn', id: 'play', label: tr('playBtn'), kind: S.save ? 'normal' : 'primary', size: S.save ? 30 : 42, sub: playSub, minH: m(S.save ? 84 : 132) });
+  b.push({ t: 'row', size: 26, minH: m(84), items: [{ id: 'learn', label: `${tr('learnBtn')} ${lessonsDone(S)}/${LESSONS.length}` }, { id: 'auto', label: tr('autoBtn') }] });
+  b.push({ t: 'row', size: 26, minH: m(84), items: [{ id: 'howto', label: tr('howtoBtn') }, { id: 'rules', label: tr('rulesBtn') }] });
+  b.push({ t: 'row', size: 26, minH: m(84), items: [{ id: 'about', label: tr('aboutBtn') }, { id: 'settings', label: tr('settingsBtn') }] });
   return b;
 }
 // Returns { hero, board, region, panel, blocks }. Everything is computed from the live size, so rotating just re-flows it.

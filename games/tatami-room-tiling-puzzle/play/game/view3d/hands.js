@@ -1,8 +1,10 @@
-// Two real human hands (view3d athlete rig via hand3d.js, see arm.js) in kimono sleeves lay each mat: they guide it in from the near edge,
-// press it down, give it two soft pats, then draw back. Positions follow the mat's own animated pose; every target is smoothed with a
-// critically damped spring (no teleports), finger curl and press are eased, the sleeve's hanging panel swings with the wrist's motion.
+// Two modelled human hands (handmesh.js via arm.js) in kimono sleeves lay each mat: palms flat on the mat's near end they guide it in,
+// press it down, give it two soft pats (fingers tip up from the wrist and come down on the rush), then draw back. The palm contact point
+// follows the mat's own animated pose through a speed + acceleration limited follower (no snaps, no teleports); the sleeve's hanging
+// panel swings with the wrist's motion.
 // Presenter calls: place(entry, tile, board) when a mat is laid by the sim, update(dt, clock, ctx) each frame, hide(), cancel(entry).
 import { createArm } from './arm.js';
+import { MAT } from './models.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const ease = (t) => t * t * (3 - 2 * t);
@@ -22,7 +24,7 @@ export function createHands({ THREE, scene, camera, renderer, burst, look }) {
     if (loading) return; loading = true;
     try {
       const mk = async (side) => {
-        const arm = await createArm(THREE, side, { skin: 'light', cloth: '#' + new THREE.Color(look().cloth ?? 0x9a2a4a).getHexString() });
+        const arm = await createArm(THREE, side, { cloth: '#' + new THREE.Color(look().cloth ?? 0x9a2a4a).getHexString() });
         scene.add(arm.object, arm.root); arm.setVisible(false);
         return { side, arm, wrist: new THREE.Vector3(), vel: new THREE.Vector3(), has: false };
       };
@@ -31,9 +33,17 @@ export function createHands({ THREE, scene, camera, renderer, burst, look }) {
     } catch (e) { console.warn('hands unavailable', e); slots = null; }
     loading = false;
   }
-  init();
+  // the hand surface is meshed in the background once the title is up (it yields to the browser, but must not compete with first paint)
+  setTimeout(init, 1400);
 
-  api.place = (e) => { const j = { e, t: 0 }; if (job && job.e && job.t < 1.6) queued = j; else job = j; };
+  // a mat whose near end lies against the room's front wall: the hands reach over the wall and press further onto the mat
+  const nearWall = (tl, Bd) => {
+    if (!tl || !Bd || !Bd.room) return false;
+    const w = Bd.w, ra = Math.floor(tl.a / w), rb = Math.floor(tl.b / w), r = Math.max(ra, rb);
+    const cols = [tl.a % w, tl.b % w].filter((c, i) => (i === 0 ? ra : rb) === r);
+    return cols.some((c) => r + 1 >= Bd.h || !Bd.room[(r + 1) * w + c]);
+  };
+  api.place = (e, tl, Bd) => { e.__wall = nearWall(tl, Bd); const j = { e, t: 0 }; if (job && job.e && job.t < 1.6) queued = j; else job = j; };
   api.cancel = (e) => { if (job && job.e === e) { job = queued; queued = null; } if (queued && queued.e === e) queued = null; };
   const none = () => { if (slots) for (const s of slots) { s.arm.setVisible(false); s.has = false; } };
   api.hide = () => { none(); job = null; queued = null; };
@@ -56,25 +66,29 @@ export function createHands({ THREE, scene, camera, renderer, burst, look }) {
       const s = slots[i], sd = i === 0 ? -1 : 1;
       s.arm.setVisible(true);
       s.arm.fade(Math.min(clamp(job.t / 0.14, 0, 1), 1 - clamp((tp - 0.62 - 0.3) / 0.22, 0, 1)));
+      // palm contact point: on the mat's top near its near end, fingers reaching onto the mat; hovering a little before it lands
+      const top = gp.y + MAT.TH * e.grp.scale.y;
       const tx = e.x + sd * spread + sd * 0.12 * away;
-      const ty = gp.y + 0.075 + 0.02 * (1 - press) - 0.03 * press * (0.4 + 0.6 * pat) + 0.55 * away + (1 - guide) * 0.06;
-      const tz = gp.z + depthHalf + 0.1 + 0.06 * pat + 0.95 * away - 0.02 * press;
-      if (!s.has) { s.wrist.set(tx + sd * 0.15, ty + 0.5, tz + 0.7); s.vel.set(0, 0, 0); s.has = true; s.arm.state.prev.copy(s.wrist); }
-      // velocity follower: aims for the target with a proportional speed, limited to ~3.5 m/s and ~30 m/s^2 (no snaps, no teleports)
+      const ty = top + 0.002 + 0.016 * (1 - press) * (1 - away) + 0.03 * (1 - guide) + 0.022 * pat + 0.55 * away;
+      const tz = gp.z + depthHalf - (e.__wall ? 0.62 : 0.1) + 0.95 * away;
+      if (!s.has) { s.wrist.set(tx + sd * 0.15, ty + 0.5, tz + 0.7); s.vel.set(0, 0, 0); s.has = true; s.arm.state.prev.set(tx + sd * 0.15, ty + 0.5, tz + 0.8); }
+      // velocity follower: aims for the target with a proportional speed, limited to 4 u/s and 34 u/s^2 (no snaps, no teleports)
       const om = away > 0 ? 6 : 10, VMAX = 4.0, AMAX = 34;
       const want = tmpV.set(tx - s.wrist.x, ty - s.wrist.y, tz - s.wrist.z).multiplyScalar(om);
       const wl = want.length(); if (wl > VMAX) want.multiplyScalar(VMAX / wl);
       const dv = want.sub(s.vel), dl = dv.length(), lim = AMAX * dt; if (dl > lim) dv.multiplyScalar(lim / dl);
       s.vel.add(dv); s.wrist.addScaledVector(s.vel, dt);
-      dirF.set(sd * 0.08, -0.12 * (1 - press), -1);
-      s.arm.pose(s.wrist, { dirF, press, pat, dt, iters: 3, clock });
+      // never below the mat's top (the follower may lag a mat that is still settling)
+      if (s.wrist.y < top + 0.001 && away === 0) { s.wrist.y = top + 0.001; if (s.vel.y < 0) s.vel.y = 0; }
+      dirF.set(-sd * 0.12, 0, -1);   // fingers forward, turned a little in toward each other
+      s.arm.pose(s.wrist, { dirF, surface: top, tilt: 0.16 * pat + 0.06 * (1 - press) * (1 - away) + 0.25 * away, dt, clock });
     }
   };
   api.flush = () => { job = null; queued = null; };
   // measurement hook: the main joints of both arms in world units (smoothness check, see STATUS.md)
   api.joints = () => (slots ? slots.map((s) => {
-    const h = s.arm.hand.human, p = (n) => h.bonePosition(`${s.side}_${n}`, new THREE.Vector3()).toArray();
-    return { side: s.side, vis: s.arm.object.visible, upper: p('UpperArm'), elbow: p('Forearm'), wrist: p('Hand'), target: s.wrist.toArray(), tamoto: s.arm.root.children[1].quaternion.toArray() };
+    const j = s.arm.joints();
+    return { side: s.side, vis: s.arm.object.visible, elbow: j.elbow, wrist: j.wrist, tip: j.tip, target: s.wrist.toArray(), tamoto: s.arm.root.children[1].quaternion.toArray() };
   }) : null);
   api.debug = () => (slots ? slots.map((s) => ({ side: s.side, wrist: s.wrist.toArray().map((v) => +v.toFixed(2)), vis: s.arm.object.visible })) : null);
   return api;

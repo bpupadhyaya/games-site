@@ -4,6 +4,7 @@
 import { lighten, darken, mix, sprite, stats } from './paint/kit.js';
 import { skyP, ridgeP, treeP, skylineP, hallP, cloudP, banyanP } from './scenery.js';
 import { FR } from './frame.js';
+import { v3, on as v3on, pt as v3pt, len as v3len } from './v3.js';
 export { FR, hudX, hudY } from './frame.js';
 export { wall, gardenTree, moon, softBlob, banner } from './scenery.js';
 export { dome } from './scenery.js';
@@ -41,6 +42,10 @@ export function light(ctx, x, y, r, rgb, alpha = 0.6) {
 }
 
 export function sun(ctx, x, y, r, rgb = '255,236,190') {
+  if (v3on()) { const [px, py] = v3pt(ctx, x, y); v3.rec.sun = { x: px, y: py, r: v3len(ctx, r), rgb, a: ctx.globalAlpha }; return fade2D(ctx, () => sun2D(ctx, x, y, r, rgb)); }
+  sun2D(ctx, x, y, r, rgb);
+}
+function sun2D(ctx, x, y, r, rgb) {
   light(ctx, x, y, r * 5, rgb, 0.55);
   ctx.fillStyle = `rgba(${rgb},0.95)`;
   ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();
@@ -48,6 +53,10 @@ export function sun(ctx, x, y, r, rgb = '255,236,190') {
 
 export function stars(ctx, alpha, t, top = 0, bottom = H * 0.6) {
   if (alpha <= 0.01) return;
+  if (v3on()) { v3.rec.stars = { a: alpha * ctx.globalAlpha, y0: v3pt(ctx, 0, top)[1], y1: v3pt(ctx, 0, bottom)[1] }; return fade2D(ctx, () => stars2D(ctx, alpha, t, top, bottom)); }
+  stars2D(ctx, alpha, t, top, bottom);
+}
+function stars2D(ctx, alpha, t, top, bottom) {
   const n = Math.round(70 * Math.max(1, FR.w / W));
   for (let i = 0; i < n; i++) {
     const x = FR.x0 + hash(i * 3 + 1) * FR.w, y = top + hash(i * 3 + 2) * (bottom - top);
@@ -75,7 +84,11 @@ export function lamp(ctx, x, y, s, t, rgb = '255,200,120', ink = INK) {
 }
 
 // Layered sea with moving crests. y = horizon of this band.
-export function sea(ctx, { y, t = 0, scroll = 0, colors, crest = '255,220,170', bands = 5, bottom = H }) {
+export function sea(ctx, o) {
+  if (v3on()) { v3.rec.sea = { y: v3pt(ctx, 0, o.y)[1], t: o.t ?? 0, scroll: v3len(ctx, o.scroll ?? 0), colors: o.colors, crest: o.crest ?? '255,220,170' }; return fade2D(ctx, () => sea2D(ctx, o)); }
+  sea2D(ctx, o);
+}
+function sea2D(ctx, { y, t = 0, scroll = 0, colors, crest = '255,220,170', bands = 5, bottom = H }) {
   bottom = Math.max(bottom, FR.y1);
   const xa = Math.floor(FR.x0 / 20) * 20 - 20, xb = FR.x1 + 20;
   for (let b = 0; b < bands; b++) {
@@ -202,7 +215,23 @@ export function rays(ctx, { x, y, dir = Math.PI / 2, n = 7, len = 1500, spread =
 
 
 // ---- painted, cached scenery (see scenery.js): same call signatures the chapters always used ----
-export const sky = skyP;
+// The painted sky; with the 3D layer live it is recorded and the real sky is rendered behind the canvas (glow stays 2D).
+export function sky(ctx, stops, glow) {
+  if (!v3on()) return skyP(ctx, stops, glow);
+  const top = Math.min(0, FR.y0), r = v3.rec, rec = { stops, y0: v3pt(ctx, 0, top)[1], y1: v3pt(ctx, 0, H)[1], a: ctx.globalAlpha };
+  if (!r.sky || rec.a >= 0.999) { r.sky = rec; r.sky2 = null; } else r.sky2 = rec;
+  fade2D(ctx, () => skyP(ctx, stops, null));
+  if (glow) {
+    const gr = ctx.createRadialGradient(glow.x, glow.y, 0, glow.x, glow.y, glow.r), a = (glow.alpha ?? 0.8) * 0.7;
+    gr.addColorStop(0, `rgba(${glow.color},${a})`); gr.addColorStop(0.45, `rgba(${glow.color},${a * 0.35})`); gr.addColorStop(1, `rgba(${glow.color},0)`);
+    ctx.fillStyle = gr; ctx.fillRect(glow.x - glow.r, glow.y - glow.r, glow.r * 2, glow.r * 2);
+  }
+}
+// While the 3D layer fades in, the painted version fades out (no pop); once it is fully in, nothing is painted.
+function fade2D(ctx, draw) {
+  if (v3.mix >= 0.999) return;
+  ctx.save(); ctx.globalAlpha *= 1 - v3.mix; draw(); ctx.restore();
+}
 export const ridge = ridgeP;
 export const treeline = treeP;
 export const skyline = skylineP;

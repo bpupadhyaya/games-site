@@ -13,15 +13,16 @@ renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadow
 const scene = new THREE.Scene();
 B.createEnvironment(renderer, scene, { intensity: 0.4 });
 const M = mats();
-const court = buildCourt(); court.position.z = num('wall', 8); scene.add(court);
+const court = buildCourt(); court.position.z = num('wall', 12);
+const dim = num('dim', 0.45); scene.add(court);
 { // a deeper dusk behind the ivory: indigo above, crimson and a warm halo behind the elephant
   const c = document.createElement('canvas'); c.width = 512; c.height = 320; const x = c.getContext('2d');
-  const g = x.createLinearGradient(0, 0, 0, 320); g.addColorStop(0, '#0d0f35'); g.addColorStop(0.45, '#4b1b58'); g.addColorStop(0.8, '#a83a3a'); g.addColorStop(1, '#d9632f');
+  const g = x.createLinearGradient(0, 0, 0, 320); g.addColorStop(0, '#05061a'); g.addColorStop(0.5, '#1c0b2e'); g.addColorStop(0.85, '#5a1a1c'); g.addColorStop(1, '#8a3418');
   x.fillStyle = g; x.fillRect(0, 0, 512, 320);
-  const h = x.createRadialGradient(256, 190, 4, 256, 190, 190); h.addColorStop(0, 'rgba(255,170,80,0.7)'); h.addColorStop(0.4, 'rgba(230,100,50,0.4)'); h.addColorStop(1, 'rgba(200,60,40,0)');
+  const h = x.createRadialGradient(256, 190, 4, 256, 190, 190); h.addColorStop(0, 'rgba(255,150,60,0.55)'); h.addColorStop(0.4, 'rgba(230,100,50,0.4)'); h.addColorStop(1, 'rgba(200,60,40,0)');
   x.fillStyle = h; x.fillRect(0, 0, 512, 320);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
-  court.traverse((o) => { if (o.material && o.material.isMeshBasicMaterial && o.material.map) { o.material.map = t; o.material.color.setScalar(1); o.material.needsUpdate = true; } });
+  court.traverse((o) => { if (o.material && o.material.isMeshBasicMaterial && o.material.map) { o.material.map = t; o.material.color.setScalar(dim); o.material.needsUpdate = true; } });
 }
 
 // the dais: a carved plinth carrying a 3x3 patch of the board, brass inlay and studs
@@ -59,11 +60,11 @@ for (const [x, z, tall] of [[-3.6, -1.4, true], [3.7, -1.2, true]]) {
 }
 
 const camera = new THREE.PerspectiveCamera(num('fov', 24), 1, 0.5, 200);
-const dist = num('dist', 8.6), pitch = (num('pitch', 8) * Math.PI) / 180, yaw = (num('yaw', -5) * Math.PI) / 180;
-const look = new THREE.Vector3(num('lx', 0), num('ly', 1.45), num('lz', 0));
+const dist = num('dist', 7), pitch = (num('pitch', 8) * Math.PI) / 180, yaw = (num('yaw', -5) * Math.PI) / 180;
+const look = new THREE.Vector3(num('lx', 0.45), num('ly', 1.7), num('lz', 0));
 camera.position.set(look.x + Math.sin(yaw) * Math.cos(pitch) * dist, look.y + Math.sin(pitch) * dist, look.z + Math.cos(yaw) * Math.cos(pitch) * dist);
 camera.lookAt(look);
-const res = B.renderIcon({ scene, camera, size, renderer, background: '#1a0a06', bloom: 0.22, vignette: 0.7, exposure: 0.95 });
+const res = B.renderIcon({ scene, camera, size, renderer, background: '#1a0a06', bloom: 0.22, vignette: num('vig', 1.3), exposure: num('exp', 0.85) });
 const c = document.createElement('canvas'); c.width = c.height = 1024; document.getElementById('stage').replaceChildren(c);
 c.getContext('2d').drawImage(res.canvas, 0, 0, 1024, 1024);
 document.title = 'READY';

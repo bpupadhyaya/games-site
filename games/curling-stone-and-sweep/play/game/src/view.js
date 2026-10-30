@@ -4,8 +4,9 @@
 import { R, HALF_W, HOG_FAR, HOG_NEAR, BACK, HOUSE_R, BUTTON_R, FOUR_R, EIGHT_R, NEAR_TEE, toButton } from './sim.js';
 import { TEAM, drawHouse, drawStone, drawBrushes, startIceBake, TILE_M, setHost, canBake, lcg } from './art.js';
 import { W, H, TEXT_SCALES, playLayout, inRect } from './layout.js';
-import { FONT, C, roundPath, drawButton, panel, wrapLines, FLOOR } from './ui.js';
+import { FONT, C, roundPath, drawButton, panel, wrapLines, FLOOR, v3 } from './ui.js';
 import { WEIGHTS } from './match.js';
+import { fitPin } from './pin.js';
 
 const TAU = Math.PI * 2;
 const SHOT_MODE = (() => { try { return /[?&]shot=/.test(globalThis.location.search); } catch { return false; } })();
@@ -39,8 +40,8 @@ export function layoutFor(state) {
 // Only drawing maps change; physics stays in real metres. cam.X(x, y) / cam.Y(y) project a world point; cam.rad(y) is the stone's
 // drawn radius in px there; cam.sx/sy are px per metre across / along the sheet at y.
 export const VIEW_TOP = BACK + 0.55, VIEW_BOT = HOG_NEAR - 1.05;
-const NEAR_FAR = 2.5;                       // near-end scale over far-end (house end) scale of the main camera
-const R_NEAR = 28, R_FAR = 12;              // drawn stone radius (virtual px) at the near end and at the house end of the main view
+// stones are drawn larger than true scale in the main view (2D and 3D): 1.35x at the delivery end, 1.9x at the house end, so they read at a glance
+export const stoneScale = (y) => 1.35 + 0.55 * Math.max(0, Math.min(1, (y + 29) / 31));
 export function makeCam(state, lay0) {
   // Always built from the tallest-controls layout (aim), whatever the phase, so the sheet never shifts when the control bar changes.
   // The sheet is drawn in a "frame" of virtual portrait coordinates: in portrait the frame IS the screen; in landscape the frame is turned
@@ -51,22 +52,14 @@ export function makeCam(state, lay0) {
   const sh = lay.sheet, rot = !!lay.land;
   const fw = rot ? sh.h : sh.w, fh = rot ? sh.w : sh.h;
   const top = rot ? 22 : sh.y, rh = rot ? fh - 30 : fh;
-  const x0 = rot ? 0 : sh.x, cxm = x0 + fw / 2, bot0 = top + rh;
+  const x0 = rot ? 0 : sh.x, cxm = x0 + fw / 2;
   const S = Math.round(Math.min(232, rh * 0.42));
   const rect = { x: x0 + fw - 14 - S, y: top + 6, w: S, h: S };
-  const sFar = Math.min(48, (fw / 2 - 14 - S - 6) / HALF_W);
-  const sNear = Math.min(sFar * NEAR_FAR, (fw - 20) / (2 * HALF_W));
-  const L = VIEW_TOP - VIEW_BOT, c = L / (sNear / sFar - 1);
-  const A = sNear * c, K = rh / Math.log((c + L) / c), bot = bot0;   // vertical scale K/z (like across: A/z), so circles keep their shape
-  const uOf = (y) => y - VIEW_BOT;
-  const sx = (y) => A / (c + uOf(y));
-  const sy = (y) => K / (c + uOf(y));
-  const sFarA = A / (c + L), sNearA = A / c;
-  const rad = (y) => R_FAR + (R_NEAR - R_FAR) * (sx(y) - sFarA) / (sNearA - sFarA);
-  const Y = (y) => bot - K * Math.log((c + uOf(y)) / c);
-  const X = (x, y) => cxm + x * sx(y);
-  const yAt = (py) => VIEW_BOT + c * Math.exp((bot - py) / K) - c;
-  const xAt = (px, y) => (px - cxm) / sx(y);
+  // one real pinhole shared with the 3D presenter (pin.js): the near end uses almost the full width, the house end stays clear of the inset
+  const pin = fitPin({ halfW: HALF_W, yNear: VIEW_BOT, yFar: VIEW_TOP, nearMax: fw - 24, farHalfMax: fw / 2 - 20 - S, rh, cx: cxm, top });
+  const { X, Y, yAt, xAt, sx, sy } = pin;
+  const rad = (y) => Math.max(8, stoneScale(y) * R * sx(y));
+  const bot = Y(VIEW_BOT);
   // the inset: top-down, uniform, centred on the button
   const ips = S / 4.0, icx = rect.x + S / 2, icy = rect.y + S / 2;
   const ins = { inset: true, rect, ppm: ips, X: (x) => icx + x * ips, Y: (y) => icy - y * ips, sx: () => ips, sy: () => ips, rad: () => R * ips * 1.4,
@@ -75,7 +68,7 @@ export function makeCam(state, lay0) {
   const toScreen = rot ? (px, py) => [sh.x + fh - py, sh.y + px] : (px, py) => [px, py];
   const apply = (ctx) => { if (rot) { ctx.translate(sh.x + fh, sh.y); ctx.rotate(Math.PI / 2); } };
   const full = rot ? { x: 0, y: 0, w: fw, h: fh } : { x: 0, y: 0, w: W, h: H };
-  const cam = { ppm: sx(0), top, rh, bottom: bot, X, Y, yAt, xAt, sx, sy, rad, rect, ins, lay, rot, toLocal, toScreen, apply, full, sheet: sh };
+  const cam = { pin, ppm: sx(0), top, rh, bottom: bot, X, Y, yAt, xAt, sx, sy, rad, rect, ins, lay, rot, toLocal, toScreen, apply, full, sheet: sh };
   ins.rot = rot; ins.toScreen = toScreen; ins.full = full;
   return cam;
 }
@@ -667,19 +660,20 @@ export function renderPlay(ctx, state) {
   const lay = layoutFor(state);
   const cam = makeCam(state, lay);
   state.cam.lay = lay; state.cam.ppm = cam.ppm;
+  const live = v3.on;     // the lit 3D ice is showing behind this transparent canvas: it draws the sheet and the main-view stones
   const scene = (c) => {
     drawTrail(ctx, c, state);
     if (state.ctl === 'aim' && state.aim.placed) drawAim(ctx, c, state);
-    drawStones(ctx, c, state, state.w, { highlight: state.hl });
+    if (!(live && !c.inset)) drawStones(ctx, c, state, state.w, { highlight: state.hl });
     drawFlightBrushes(ctx, c, state);
     drawParts(ctx, c, state.parts);
     drawScoreMarks(ctx, c, state, 'geo');
   };
-  ctx.fillStyle = '#08121f'; ctx.fillRect(0, 0, W, H);
+  if (live) ctx.clearRect(0, 0, W, H); else { ctx.fillStyle = '#08121f'; ctx.fillRect(0, 0, W, H); }
   ctx.save();
   if (cam.rot) { ctx.beginPath(); ctx.rect(cam.sheet.x, cam.sheet.y, cam.sheet.w, cam.sheet.h); ctx.clip(); }
   cam.apply(ctx);
-  drawSheet(ctx, cam, state);
+  if (!live) drawSheet(ctx, cam, state);
   scene(cam);
   beginInset(ctx, cam);
   scene(cam.ins);

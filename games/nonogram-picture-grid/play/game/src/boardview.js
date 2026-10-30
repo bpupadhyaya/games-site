@@ -2,6 +2,7 @@
 import { rr, text, NUM, alpha, mix, clamp01, ease, backOut } from './art.js';
 import { PAL } from './palette.js';
 import { FILLED, CROSSED } from './solver.js';
+import { v3 } from './v3.js';
 
 export function drawTile(ctx, th, x, y, s, kind, o = {}) {
   // kind: 0 empty, 1 filled, 2 crossed
@@ -27,10 +28,24 @@ export function drawTile(ctx, th, x, y, s, kind, o = {}) {
   }
 }
 
+function drawCross(ctx, th, x, y, s) {
+  const m = s * 0.3;
+  ctx.strokeStyle = th.cross; ctx.lineWidth = Math.max(2, s * 0.085); ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(x + m, y + m); ctx.lineTo(x + s - m, y + s - m); ctx.moveTo(x + s - m, y + m); ctx.lineTo(x + m, y + s - m); ctx.stroke();
+}
+
 export function drawNonogram(ctx, th, puz, cells, g, o = {}) {
   const { s, view } = g;
   const t = o.t ?? 0;
-  if (!o.noCard) {
+  // With the 3D layer alive (play + Watch & Learn only) the card, tiles and their pops are real meshes behind this transparent canvas:
+  // publish the frame for the presenter and draw only what stays 2D (crosses, guides, focus, hints, flashes, clues).
+  const D3 = Boolean(o.d3 && v3.on);
+  if (D3) {
+    const scales = new Float32Array(cells.length).fill(1);
+    if (o.pops) for (const [i, t0] of o.pops) scales[i] = 0.72 + 0.28 * backOut(clamp01((t - t0) / 0.18));
+    v3.frame = { th, g: { s, view: g.view, card: g.card, ox: g.ox, oy: g.oy }, w: puz.w, h: puz.h, cells, scales };
+  }
+  if (!o.noCard && !D3) {
     ctx.save();
     ctx.shadowColor = 'rgba(0,0,0,0.45)'; ctx.shadowBlur = 22; ctx.shadowOffsetY = 8;
     const cg = ctx.createLinearGradient(0, g.card.y, 0, g.card.y + g.card.h);
@@ -53,7 +68,8 @@ export function drawNonogram(ctx, th, puz, cells, g, o = {}) {
       const i = r * puz.w + c;
       const pop = o.pops?.get(i);
       const k = pop !== undefined ? backOut(clamp01((t - pop) / 0.18)) : 1;
-      drawTile(ctx, th, px(c), py(r), s, cells[i], { scale: cells[i] === FILLED ? 0.72 + 0.28 * k : 1 });
+      if (D3) { if (cells[i] === CROSSED) drawCross(ctx, th, px(c), py(r), s); }
+      else drawTile(ctx, th, px(c), py(r), s, cells[i], { scale: cells[i] === FILLED ? 0.72 + 0.28 * k : 1 });
     }
   }
   // guide lines every five squares

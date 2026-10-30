@@ -52,10 +52,12 @@ function grainStrip(g, x0, y0, x1, y1, horizontal, rgb, n, seed) {
   g.restore();
 }
 
-function paintBoard(g, th) {
+function paintBoard(g, th, part = 'all') {
+  const doFrame = part !== 'face', doFace = part !== 'frame';
   const T = THEMES[th] || THEMES.plywood, half = PLAY / 2 + FRAME, fx = CX - half, fy = CY - half, fs = half * 2, ix = BX, iy = BY;
   // shadow on the table
-  g.save(); g.shadowColor = 'rgba(0,0,0,0.65)'; g.shadowBlur = 46; g.shadowOffsetY = 22; g.fillStyle = '#000'; g.beginPath(); g.roundRect(fx, fy, fs, fs, 20); g.fill(); g.restore();
+  if (part === 'all') { g.save(); g.shadowColor = 'rgba(0,0,0,0.65)'; g.shadowBlur = 46; g.shadowOffsetY = 22; g.fillStyle = '#000'; g.beginPath(); g.roundRect(fx, fy, fs, fs, 20); g.fill(); g.restore(); }
+  if (doFrame) {
   // frame: four mitred strips, grain running along each
   const strip = (pts, horizontal, seed, shade) => {
     g.save(); g.beginPath(); pts.forEach((p, i) => (i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1]))); g.closePath(); g.clip();
@@ -78,14 +80,18 @@ function paintBoard(g, th) {
   g.strokeStyle = 'rgba(255,214,150,0.5)'; g.lineWidth = 2; g.beginPath(); g.roundRect(fx + 1.5, fy + 1.5, fs - 3, fs - 3, 19); g.stroke();
   g.strokeStyle = 'rgba(0,0,0,0.6)'; g.lineWidth = 3; g.beginPath(); g.roundRect(fx - 0.5, fy - 0.5, fs + 1, fs + 1, 20.5); g.stroke();
   // inlay line and brass studs on the frame
-  g.strokeStyle = 'rgba(232,186,96,0.55)'; g.lineWidth = 1.6; g.strokeRect(fx + 15, fy + 15, fs - 30, fs - 30);
-  g.strokeStyle = 'rgba(0,0,0,0.4)'; g.lineWidth = 1; g.strokeRect(fx + 17, fy + 17, fs - 34, fs - 34);
+  const il = FRAME * 0.24; g.strokeStyle = 'rgba(232,186,96,0.55)'; g.lineWidth = 1.6; g.strokeRect(fx + il, fy + il, fs - 2 * il, fs - 2 * il);
+  g.strokeStyle = 'rgba(0,0,0,0.4)'; g.lineWidth = 1; g.strokeRect(fx + il + 2, fy + il + 2, fs - 2 * il - 4, fs - 2 * il - 4);
   for (const [px, py] of [[fx + 31, fy + 31], [fx + fs - 31, fy + 31], [fx + 31, fy + fs - 31], [fx + fs - 31, fy + fs - 31]]) { /* under the pockets */ void px; void py; }
-  for (const t of [0.25, 0.5, 0.75]) for (const [px, py] of [[fx + fs * t, fy + 31], [fx + fs * t, fy + fs - 31], [fx + 31, fy + fs * t], [fx + fs - 31, fy + fs * t]]) { const sg = g.createRadialGradient(px - 1.5, py - 1.5, 0.5, px, py, 5); sg.addColorStop(0, '#fff1c4'); sg.addColorStop(0.5, '#d2a24a'); sg.addColorStop(1, '#6b4514'); g.fillStyle = sg; g.beginPath(); g.arc(px, py, 4.5, 0, TAU); g.fill(); }
+  for (const t of [0.25, 0.5, 0.75]) for (const [px, py] of [[fx + fs * t, fy + FRAME / 2], [fx + fs * t, fy + fs - FRAME / 2], [fx + FRAME / 2, fy + fs * t], [fx + fs - FRAME / 2, fy + fs * t]]) { const sg = g.createRadialGradient(px - 1.5, py - 1.5, 0.5, px, py, 5); sg.addColorStop(0, '#fff1c4'); sg.addColorStop(0.5, '#d2a24a'); sg.addColorStop(1, '#6b4514'); g.fillStyle = sg; g.beginPath(); g.arc(px, py, 4.5, 0, TAU); g.fill(); }
+  }
   // inner cushion lip: a raised rail with a shadow that falls on the playing surface
+  if (doFace) {
+  if (part === 'all') {
   g.save(); g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(ix - 9, iy - 9, PLAY + 18, PLAY + 18); g.restore();
   g.strokeStyle = 'rgba(255,220,160,0.35)'; g.lineWidth = 2; g.strokeRect(ix - 10, iy - 10, PLAY + 20, PLAY + 20);
   g.strokeStyle = 'rgba(0,0,0,0.55)'; g.lineWidth = 3; g.strokeRect(ix - 5.5, iy - 5.5, PLAY + 11, PLAY + 11);
+  }
   // playing surface
   const fg = g.createLinearGradient(ix, iy, ix + PLAY, iy + PLAY); fg.addColorStop(0, T.face[0]); fg.addColorStop(0.5, T.face[1]); fg.addColorStop(1, T.face[2]);
   g.fillStyle = fg; g.fillRect(ix, iy, PLAY, PLAY);
@@ -148,6 +154,7 @@ function paintBoard(g, th) {
     g.strokeStyle = 'rgba(210,166,86,0.95)'; g.lineWidth = 2.6; g.beginPath(); g.arc(px, py, R, 0, TAU); g.stroke();
     g.strokeStyle = 'rgba(255,238,190,0.6)'; g.lineWidth = 1; g.beginPath(); g.arc(px, py, R - 1.6, Math.PI * 0.95, Math.PI * 1.65); g.stroke();
   }
+  }
 }
 
 const layers = {};
@@ -174,10 +181,10 @@ const TONES = {
   B: { hi: '#6a6a74', mid: '#25252b', lo: '#08080a', edge: '#000', ring: 'rgba(0,0,0,0.6)', face: ['#3b3b44', '#111114'] },
   Q: { hi: '#ff8a7a', mid: '#cc2a2c', lo: '#6d0c12', edge: '#4a070c', ring: 'rgba(60,0,4,0.5)', face: ['#e2413f', '#a01820'] },
 };
-function paintDisc(g, k, R) {
+function paintDisc(g, k, R, flat = false) {
   const t = TONES[k];
   // thickness: a darker disc a little lower, then the top face
-  g.fillStyle = t.edge; g.beginPath(); g.arc(0, 1.6, R, 0, TAU); g.fill();
+  if (!flat) { g.fillStyle = t.edge; g.beginPath(); g.arc(0, 1.6, R, 0, TAU); g.fill(); }
   let gr = g.createRadialGradient(-R * 0.35, -R * 0.4, R * 0.1, 0, 0, R * 1.15); gr.addColorStop(0, t.hi); gr.addColorStop(0.5, t.mid); gr.addColorStop(1, t.lo);
   g.fillStyle = gr; g.beginPath(); g.arc(0, 0, R, 0, TAU); g.fill();
   // bevel band
@@ -200,8 +207,8 @@ function paintDisc(g, k, R) {
   g.fillStyle = gr; g.beginPath(); g.arc(0, 0, R * 0.9, 0.15, Math.PI - 0.15); g.fill();
   g.strokeStyle = 'rgba(255,255,255,0.4)'; g.lineWidth = R * 0.03; g.beginPath(); g.arc(0, 0, R * 0.97, Math.PI * 1.05, Math.PI * 1.55); g.stroke();
 }
-function paintStriker(g, R) {
-  g.fillStyle = '#3a2a10'; g.beginPath(); g.arc(0, 2.2, R, 0, TAU); g.fill();
+function paintStriker(g, R, flat = false) {
+  if (!flat) { g.fillStyle = '#3a2a10'; g.beginPath(); g.arc(0, 2.2, R, 0, TAU); g.fill(); }
   // steel weight ring
   let gr = g.createLinearGradient(-R, -R, R, R); gr.addColorStop(0, '#ffffff'); gr.addColorStop(0.3, '#c9ced6'); gr.addColorStop(0.6, '#7b828e'); gr.addColorStop(1, '#3d434d');
   g.fillStyle = gr; g.beginPath(); g.arc(0, 0, R, 0, TAU); g.fill();
@@ -243,4 +250,21 @@ export function drawPiece(ctx, k, x, y, s = 1, lift = 0, alpha = 1) {
   if (sp) { const sz = (R / ((k === 'S' ? R_STR : R_COIN) * K) * ((k === 'S' ? R_STR : R_COIN) * K + 4)) * 2; ctx.drawImage(sp, x - sz / 2, y - sz / 2 + dy, sz, sz); }
   else { ctx.fillStyle = k === 'W' ? '#eee' : k === 'B' ? '#222' : k === 'Q' ? '#c22' : '#e5a23a'; ctx.beginPath(); ctx.arc(x, y + dy, R, 0, TAU); ctx.fill(); }
   ctx.globalAlpha = 1;
+}
+
+// ---- for the 3D presenter (view3d/presenter.js): the board's parts and the top face of each piece as plain canvases -------------------------
+const parts3 = {};
+export function boardPart(part, theme = 'plywood') {
+  const key = part + theme; if (key in parts3) return parts3[key];
+  const half = PLAY / 2 + FRAME, c = new OffscreenCanvas(1, 1);
+  if (part === 'face') { c.width = c.height = Math.round(PLAY * 2.5); const g = c.getContext('2d'); g.scale(2.5, 2.5); g.translate(-BX, -BY); paintBoard(g, theme, 'face'); }
+  else { c.width = c.height = Math.round(half * 2 * 2); const g = c.getContext('2d'); g.scale(2, 2); g.translate(-(CX - half), -(CY - half)); paintBoard(g, theme, 'frame'); }
+  return (parts3[key] = c);
+}
+const tops3 = {};
+export function pieceTop(k) {
+  if (k in tops3) return tops3[k];
+  const R = (k === 'S' ? R_STR : R_COIN) * K, size = R * 2, px = Math.round(size * 6), c = new OffscreenCanvas(1, 1); c.width = c.height = px;
+  const g = c.getContext('2d'); g.scale(6, 6); g.translate(R, R); if (k === 'S') paintStriker(g, R, true); else paintDisc(g, k, R, true);
+  return (tops3[k] = c);
 }

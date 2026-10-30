@@ -8,8 +8,9 @@
 // fetlock (pastern) and hoof, tail. Mane / tail / forelock are strand cards on a verlet chain (horsehair.js); tack in horsetack.js.
 import * as THREE from './three.js';
 import { defaultAssetBase } from './human.js';
-import { paintCoat, coatSpec, HORSE_COATS } from './horsecoat.js';
+import { paintCoat, coatSpec, muzzleColor, HORSE_COATS } from './horsecoat.js';
 import { HorseHair } from './horsehair.js';
+import { HorseFace } from './horseface.js';
 import { buildTack } from './horsetack.js';
 import { attachRiderTo } from './horserider.js';
 
@@ -135,8 +136,16 @@ export class Horse3D {
     for (const m of this.meshes) {
       const cls = m.userData.cls;
       paintCoat(m.geometry, cls, this.coat);
+      // 'high' quality: the sheen lobe is ADDED on top of the vertex-coloured diffuse. A white sheen turned black/bay coats grey-white at
+      // grazing angles and under a bright environment (icon renders). Real hair sheen carries the hair colour: tint it by the coat.
+      const mt = m.material;
+      if (mt && mt.isMeshPhysicalMaterial && mt.sheen > 0 && mt.sheenColor) {
+        const b = new THREE.Color(this.coat.body);
+        mt.sheenColor.copy(b).lerp(new THREE.Color('#ffffff'), 0.18);
+      }
     }
     if (this.hair) this.hair.setColors(this.coat);
+    if (this.face) this.face.setColors(this.coat, muzzleColor(this.coat));
     return this;
   }
   setMane(style) { if (this.hair) this.hair.setStyle(style); return this; }
@@ -144,7 +153,7 @@ export class Horse3D {
   attachRider(human, o = {}) { if (this.rider) this.rider.dispose(); this.rider = attachRiderTo(this, human, o); return this.rider; }
   detachRider() { if (this.rider) { this.rider.dispose(); this.rider = null; } }
   /** footfall info for one frame: [{leg:'LH'|'LF'|'RH'|'RF', front, side}] */
-  dispose() { this.root.removeFromParent(); this.meshes.forEach((m) => { m.geometry.dispose(); [].concat(m.material).forEach((x) => x.dispose()); }); if (this.hair) this.hair.dispose(); if (this.tack) this.tack.dispose(); }
+  dispose() { this.root.removeFromParent(); this.meshes.forEach((m) => { m.geometry.dispose(); [].concat(m.material).forEach((x) => x.dispose()); }); if (this.hair) this.hair.dispose(); if (this.face) this.face.dispose(); if (this.tack) this.tack.dispose(); }
 
   // ---- per-frame --------------------------------------------------------------------------------------------------------
   update(dt) {
@@ -472,10 +481,14 @@ export async function loadHorse(spec = {}) {
     m.userData.cls = prims[0].name;
     const cls = prims[0].name;
     const gloss = cls === 'eye' || cls === 'eyewhite';
+    // SkeletonUtils.clone shares the BufferGeometry between every horse; setCoat writes the `color` attribute, so without a private copy
+    // the last coat painted wins for all horses (and disposing one horse freed the buffers of the others). A clone is ~0.3 MB per horse.
+    m.geometry = m.geometry.clone();
     m.material = (quality === 'high' ? new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: gloss ? 0.15 : 0.62, metalness: 0, sheen: gloss ? 0 : 0.55, sheenRoughness: 0.5, sheenColor: new THREE.Color('#ffffff'), clearcoat: gloss ? 1 : 0.14, clearcoatRoughness: gloss ? 0.03 : 0.45 })
       : new THREE.MeshStandardMaterial({ vertexColors: true, roughness: gloss ? 0.2 : 0.7, metalness: 0 }));
     m.castShadow = spec.castShadow !== false; m.receiveShadow = true;
   }
+  horse.face = new HorseFace(horse);
   horse.hair = new HorseHair(horse, { style: spec.mane || 'loose', quality });
   horse.model.add(horse.hair.group);
   horse.setCoat(spec.coat ? (typeof spec.coat === 'object' ? spec.coat : { coat: spec.coat, socks: spec.socks, blaze: spec.blaze }) : 'bay');

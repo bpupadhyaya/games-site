@@ -34,3 +34,7 @@ const create = async (env) => { const game = await createGame(env); { const q0 =
 const lk = new Image(); lk.onload = () => setLockup(lk); lk.src = './brand/arcforge-lockup.png';
 
 boot({ createGame: create, meta, canvas, background: '#000' });
+// 3D table (view3d/presenter.js): loaded after the flat title has painted. No WebGL or a failure: the flat 2D art stays (src/view.js).
+requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(() => {
+  import('./view3d/presenter.js').then((m) => m.createPresenter({ kitCanvas: canvas })).catch((e) => console.warn('3D table unavailable; flat art stays', e));
+}, 30)));

@@ -4,6 +4,9 @@ const UI = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 let af = null, lockup = null;
 export const setLogo = (img) => { af = img; };
 export const setLockup = (img) => { lockup = img; };
+let hero = null;
+export const setHero = (img) => { hero = img; };
+export const heroImage = () => (has(hero) ? hero : null);
 const has = (i) => !!(i && i.width);
 
 // The themed lockup (AF icon + ARCFORGE + WORLD HERITAGE GAMES), drawn small and quiet. h = its height; (cx, y) = centre x and top.

@@ -105,7 +105,7 @@ export function renderDoc(ctx, st, L, doc) {
   // body
   const vh = doc.nav ? vp.h : (D.nav.back.y + D.nav.back.h) - vp.y;
   const view = { x: vp.x, y: vp.y, w: vp.w, h: vh };
-  panel(ctx, view, { fill: 'rgba(12,8,30,0.62)', rad: 22 });
+  panel(ctx, view, { fill: 'rgba(18,11,7,0.8)', rad: 22 });
   const padX = 22, innerW = view.w - padX * 2 - 18;
   const key = `${doc.key}|${Math.round(innerW)}|${ts}`;
   let lay = cache.get(key);

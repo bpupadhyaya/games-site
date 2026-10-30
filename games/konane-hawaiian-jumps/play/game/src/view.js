@@ -6,6 +6,7 @@ import { LEVELS } from './engine.js';
 import { LESSONS } from './lessons.js';
 import { ABOUT, HELP_PAGES, RULES } from './content.js';
 import { drawCredit, drawTitleLockup, drawLockup, drawMoreLine } from './brand.js';
+import { v3, flatAlpha } from './v3.js';
 
 const FONT = '"Cormorant Garamond", Georgia, "Times New Roman", serif', UI = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 const TAU = Math.PI * 2;
@@ -47,7 +48,47 @@ export function button(ctx, tx, r, label, o = {}) {
   ctx.fillStyle = g; ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, rad); ctx.fill();
   ctx.strokeStyle = o.primary ? 'rgba(255,240,200,0.9)' : o.on ? 'rgba(255,217,138,0.95)' : 'rgba(255,214,170,0.45)'; ctx.lineWidth = o.on ? 3 : 2; ctx.stroke();
   const size = Math.min(o.size ?? 30, r.h * 0.5);
-  tx.fit(label, r.x + r.w / 2, r.y + r.h / 2 + Math.max(size, tx.mf(0)) * 0.35, size, r.w - 22, o.primary ? '#2a1208' : PAGE_TEXT, UI, 700);
+  ctx.font = `700 ${tx.mf(Math.min(o.size ?? 30, r.h * 0.5))}px ${UI}`;
+  const iconFits = o.icon && r.w >= 150 && (() => { const is = Math.min(r.h * 0.42, 30), avail = r.w - 30 - is - 10; ctx.font = `700 ${tx.mf(0)}px ${UI}`; return ctx.measureText(label).width <= avail; })();
+  if (iconFits) {
+    // a line icon before the label; the pair is centred in the button
+    const is = Math.min(r.h * 0.42, 30), col = o.primary ? '#2a1208' : '#ffd98a';
+    const avail = r.w - 30 - is - 10; let fs = size;
+    const meas = () => { ctx.font = `700 ${tx.mf(fs)}px ${UI}`; return ctx.measureText(label).width; };
+    while (fs > 12 && tx.mf(fs) > tx.mf(0) + 0.01 && meas() > avail) fs -= 1;
+    const tw = Math.min(meas(), avail), x0 = r.x + (r.w - (is + 10 + tw)) / 2;
+    drawIcon(ctx, o.icon, x0 + is / 2, r.y + r.h / 2, is, col);
+    tx.fit(label, x0 + is + 10 + tw / 2, r.y + r.h / 2 + Math.max(fs, tx.mf(0)) * 0.35, fs, avail, o.primary ? '#2a1208' : PAGE_TEXT, UI, 700);
+  } else tx.fit(label, r.x + r.w / 2, r.y + r.h / 2 + Math.max(size, tx.mf(0)) * 0.35, size, r.w - 22, o.primary ? '#2a1208' : PAGE_TEXT, UI, 700);
+  ctx.restore();
+}
+// The game's name in gilded lettering: a soft dark halo, a deep bronze under-cut, then a gold face lit from above with a pale top edge.
+function gilded(ctx, str, x, y, size) {
+  ctx.save(); ctx.textAlign = 'center'; ctx.font = `700 ${size}px ${FONT}`;
+  ctx.shadowColor = 'rgba(20,6,4,0.7)'; ctx.shadowBlur = size * 0.28; ctx.shadowOffsetY = size * 0.05;
+  ctx.fillStyle = '#5a2e12'; ctx.fillText(str, x + size * 0.02, y + size * 0.045);
+  ctx.shadowColor = 'transparent';
+  const g = ctx.createLinearGradient(0, y - size * 0.75, 0, y + size * 0.1);
+  g.addColorStop(0, '#fff6d8'); g.addColorStop(0.35, '#ffd98a'); g.addColorStop(0.62, '#e0a04a'); g.addColorStop(1, '#a8642a');
+  ctx.fillStyle = g; ctx.fillText(str, x, y);
+  ctx.lineWidth = Math.max(1, size * 0.012); ctx.strokeStyle = 'rgba(255,240,200,0.35)'; ctx.strokeText(str, x, y);
+  ctx.restore();
+}
+// Small line icons for the menu buttons (stroked, round caps, one colour).
+function drawIcon(ctx, kind, cx, cy, s, col) {
+  ctx.save(); ctx.translate(cx, cy); ctx.scale(s / 24, s / 24); ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = 2.2; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  const P = (d) => { ctx.beginPath(); d(); ctx.stroke(); };
+  if (kind === 'play') { ctx.beginPath(); ctx.moveTo(-6, -9); ctx.lineTo(9, 0); ctx.lineTo(-6, 9); ctx.closePath(); ctx.fill(); }
+  else if (kind === 'learn') { P(() => { ctx.moveTo(-11, -6); ctx.lineTo(0, -11); ctx.lineTo(11, -6); ctx.lineTo(0, -1); ctx.closePath(); }); P(() => { ctx.moveTo(-6, -3); ctx.lineTo(-6, 5); ctx.quadraticCurveTo(0, 9, 6, 5); ctx.lineTo(6, -3); }); P(() => { ctx.moveTo(11, -6); ctx.lineTo(11, 3); }); }
+  else if (kind === 'daily') { P(() => { ctx.roundRect(-10, -8, 20, 18, 3); }); P(() => { ctx.moveTo(-10, -2); ctx.lineTo(10, -2); ctx.moveTo(-5, -11); ctx.lineTo(-5, -6); ctx.moveTo(5, -11); ctx.lineTo(5, -6); }); ctx.beginPath(); ctx.arc(2, 4, 2.4, 0, TAU); ctx.fill(); }
+  else if (kind === 'how') { P(() => { ctx.arc(0, 0, 11, 0, TAU); }); P(() => { ctx.moveTo(-3.5, -3.5); ctx.quadraticCurveTo(-3, -7.5, 0.5, -7); ctx.quadraticCurveTo(4.5, -6, 3.5, -2.5); ctx.quadraticCurveTo(2.5, 0, 0, 1.5); ctx.lineTo(0, 3); }); ctx.beginPath(); ctx.arc(0, 7, 1.5, 0, TAU); ctx.fill(); }
+  else if (kind === 'about') { P(() => { ctx.arc(0, 0, 11, 0, TAU); }); P(() => { ctx.moveTo(0, -1); ctx.lineTo(0, 6.5); }); ctx.beginPath(); ctx.arc(0, -5.5, 1.6, 0, TAU); ctx.fill(); }
+  else if (kind === 'rules') { P(() => { ctx.roundRect(-8, -11, 16, 22, 2.5); }); P(() => { ctx.moveTo(-4, -5); ctx.lineTo(4, -5); ctx.moveTo(-4, 0); ctx.lineTo(4, 0); ctx.moveTo(-4, 5); ctx.lineTo(1.5, 5); }); }
+  else if (kind === 'auto') { P(() => { ctx.moveTo(-12, 0); ctx.quadraticCurveTo(0, -11, 12, 0); ctx.quadraticCurveTo(0, 11, -12, 0); }); ctx.beginPath(); ctx.arc(0, 0, 3.6, 0, TAU); ctx.fill(); }
+  else if (kind === 'sound') { ctx.beginPath(); ctx.moveTo(-10, -4); ctx.lineTo(-5, -4); ctx.lineTo(1, -9); ctx.lineTo(1, 9); ctx.lineTo(-5, 4); ctx.lineTo(-10, 4); ctx.closePath(); ctx.fill(); P(() => { ctx.arc(2, 0, 6, -0.8, 0.8); }); P(() => { ctx.arc(2, 0, 10.5, -0.8, 0.8); }); }
+  else if (kind === 'calm') { P(() => { ctx.moveTo(-11, -3); ctx.quadraticCurveTo(-5.5, -8, 0, -3); ctx.quadraticCurveTo(5.5, 2, 11, -3); }); P(() => { ctx.moveTo(-11, 5); ctx.quadraticCurveTo(-5.5, 0, 0, 5); ctx.quadraticCurveTo(5.5, 10, 11, 5); }); }
+  else if (kind === 'text') { ctx.font = `700 19px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText('A', -4, 7); ctx.font = `700 12px ${FONT}`; ctx.fillText('A', 7, 7); }
+  else if (kind === 'resume') { P(() => { ctx.arc(0, 0, 10, -2.4, 2.2); }); ctx.beginPath(); ctx.moveTo(-9.5, -9); ctx.lineTo(-6.5, -2.5); ctx.lineTo(-13, -3); ctx.closePath(); ctx.fill(); ctx.beginPath(); ctx.moveTo(-2.5, -5); ctx.lineTo(5, 0); ctx.lineTo(-2.5, 5); ctx.closePath(); ctx.fill(); }
   ctx.restore();
 }
 function panel(ctx, x, y, w, h, a = 0.7) {
@@ -123,10 +164,20 @@ export function render(ctx, state, L) {
   const g = autoOn ? D0.game : state.game, big = state.textScaleIdx > 0, calm = state.calm, t = state.t;
   const boardScene = scene === 'play' || scene === 'over' || scene === 'lesson' || scene === 'auto' || (scene === 'puzzle' && state.pz.status !== 'making');
   const B = L.board, BT = L.BTN;
-  drawBackdrop(ctx, w, h, L.hz, t, calm);
-  // Drifting petals right after the backdrop, before any board/panel/button is painted over them, so they only ever show in the open
-  // sky/sea backdrop, never over anything readable.
-  if (!calm) drawPetals(ctx, t, w, h);
+  // With the 3D scene on, the beach, rock and stones are drawn by the presenter behind this canvas; the flat art fades out over it.
+  const fa = flatAlpha(); v3.hero = null;
+  if (fa > 0) {
+    ctx.save(); ctx.globalAlpha = fa;
+    drawBackdrop(ctx, w, h, L.hz, t, calm);
+    // Drifting petals right after the backdrop, before any board/panel/button is painted over them, so they only ever show in the open
+    // sky/sea backdrop, never over anything readable.
+    if (!calm) drawPetals(ctx, t, w, h);
+    ctx.restore();
+  }
+  if (v3.on) {             // a soft lens vignette over the 3D scene keeps the eye on the rock and the panels readable
+    const vg = ctx.createRadialGradient(w / 2, h * 0.55, Math.min(w, h) * 0.38, w / 2, h * 0.55, Math.hypot(w, h) * 0.62);
+    vg.addColorStop(0, 'rgba(12,6,10,0)'); vg.addColorStop(1, `rgba(12,6,10,${0.5 * v3.fade})`); ctx.fillStyle = vg; ctx.fillRect(0, 0, w, h);
+  }
 
   if (boardScene) {
     const n = g.n, a = autoOn ? D0.anim : state.anim, R = stoneRadius(n), pulse = calm ? 0.6 : 0.5 + 0.5 * Math.sin(t * 6);
@@ -134,33 +185,43 @@ export function render(ctx, state, L) {
     drawHeader(ctx, tx, state, L, g, scene, autoOn ? D0 : null, big);
     // ---- board (canonical coordinates inside the board transform) ----
     ctx.save(); ctx.translate(B.x, B.y); ctx.scale(B.s, B.s); ctx.translate(-SLAB.x, -SLAB.y);
-    drawSlab(ctx, n);
-    if (g.ply < 2 && !a && !g.winner && (scene === 'play' || scene === 'lesson') && state.canAct) for (const m of legalMoves(g)) { const p = cellCenter(n, m.at); drawSquareRing(ctx, p.x, p.y, R * 1.05, '255,216,120', 0.6 + pulse * 0.4, 0.3); }
+    ctx.globalAlpha = fa;
+    if (fa > 0) drawSlab(ctx, n);
+    // a ring on square sq: flat art draws it on the slab; the 3D presenter lays it as light in the cup (v3.marks)
+    const ring = (sq, k, rgb, al, fillA) => { if (v3.on) v3.marks.push({ sq, rgb, r: k, a: al }); if (fa > 0) { const p = cellCenter(n, sq); drawSquareRing(ctx, p.x, p.y, R * k, rgb, al, fillA); } };
+    const labels = [];
+    if (g.ply < 2 && !a && !g.winner && (scene === 'play' || scene === 'lesson') && state.canAct) for (const m of legalMoves(g)) ring(m.at, 1.05, '255,216,120', 0.6 + pulse * 0.4, 0.3);
     if (state.sel >= 0 && !a) {
       for (const m of jumpsFrom(g, state.sel)) {
         const p = cellCenter(n, m.to), hops = overSquares(n, m.from, m.to).length;
-        drawSquareRing(ctx, p.x, p.y, R * 0.96, hops > 1 ? '255,150,110' : '255,216,120', 0.55 + pulse * 0.4, 0.28);
-        if (hops > 1) text(`x${hops}`, p.x, p.y + 9, Math.round(R * 0.72), '#fff', UI, 800);
+        ring(m.to, 0.96, hops > 1 ? '255,150,110' : '255,216,120', 0.55 + pulse * 0.4, 0.28);
+        if (hops > 1) { if (fa > 0) text(`x${hops}`, p.x, p.y + 9, Math.round(R * 0.72), '#fff', UI, 800); labels.push([m.to, hops]); }
       }
     } else if (scene !== 'auto' && state.marks && !a && state.canAct && !g.winner && g.ply >= 2 && state.sel < 0) {
-      for (let i = 0; i < g.b.length; i++) if (g.b[i] === g.turn && jumpsFrom(g, i).length) { const p = cellCenter(n, i); ctx.strokeStyle = `rgba(255,222,140,${0.35 + pulse * 0.4})`; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(p.x, p.y, R * 1.08, 0, TAU); ctx.stroke(); }
+      for (let i = 0; i < g.b.length; i++) if (g.b[i] === g.turn && jumpsFrom(g, i).length) {
+        if (v3.on) v3.marks.push({ sq: i, rgb: '255,222,140', r: 1.12, a: 0.3 + pulse * 0.35 });
+        if (fa > 0) { const p = cellCenter(n, i); ctx.strokeStyle = `rgba(255,222,140,${0.35 + pulse * 0.4})`; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(p.x, p.y, R * 1.08, 0, TAU); ctx.stroke(); }
+      }
     }
-    if (state.hint && !a) for (const sq of [state.hint.from, state.hint.to]) if (sq >= 0) { const p = cellCenter(n, sq); drawSquareRing(ctx, p.x, p.y, R * 1.05, '120,255,170', 0.6 + pulse * 0.4, 0.3); }
-    if (scene === 'lesson' && !state.lesson.done && !a) for (const sq of LESSONS[state.lesson.i].mark || []) { const p = cellCenter(n, sq); drawSquareRing(ctx, p.x, p.y, R * 1.15, '140,210,255', 0.5 + pulse * 0.4, 0.15); }
+    if (state.hint && !a) for (const sq of [state.hint.from, state.hint.to]) if (sq >= 0) ring(sq, 1.05, '120,255,170', 0.6 + pulse * 0.4, 0.3);
+    if (scene === 'lesson' && !state.lesson.done && !a) for (const sq of LESSONS[state.lesson.i].mark || []) ring(sq, 1.15, '140,210,255', 0.5 + pulse * 0.4, 0.15);
     // REVEAL phase of Auto Play: show every legal option (dim gold ring), then the ONE move about to be played highlighted much more
     // strongly (bright green ring, plus the source square for a jump), so a watcher can compare their own guess against it.
     if (autoOn && D0.phase === 'reveal' && D0.moves) {
       const chosenAt = (m) => m.type === 'remove' ? m.at === D0.chosen.at : m.to === D0.chosen.to && m.from === D0.chosen.from;
       for (const m of D0.moves) {
         const sq = m.type === 'remove' ? m.at : m.to, isChosen = D0.chosen && D0.chosen.type === m.type && chosenAt(m);
-        const p = cellCenter(n, sq);
-        drawSquareRing(ctx, p.x, p.y, R * (isChosen ? 1.14 : 0.95), isChosen ? '120,255,170' : '255,216,120', isChosen ? 0.75 + pulse * 0.25 : 0.32 + pulse * 0.18, isChosen ? 0.4 : 0.15);
+        ring(sq, isChosen ? 1.14 : 0.95, isChosen ? '120,255,170' : '255,216,120', isChosen ? 0.75 + pulse * 0.25 : 0.32 + pulse * 0.18, isChosen ? 0.4 : 0.15);
       }
-      if (D0.chosen && D0.chosen.type === 'jump') { const p = cellCenter(n, D0.chosen.from); drawSquareRing(ctx, p.x, p.y, R * 1.14, '120,255,170', 0.75 + pulse * 0.25, 0.4); }
+      if (D0.chosen && D0.chosen.type === 'jump') ring(D0.chosen.from, 1.14, '120,255,170', 0.75 + pulse * 0.25, 0.4);
     }
-    drawStones(ctx, g, a, { sel: state.sel, calm, t });
-    if (state.kb && scene !== 'over') { const c = cellCenter(n, state.cursor); ctx.strokeStyle = '#7dff9a'; ctx.lineWidth = 5; ctx.beginPath(); ctx.roundRect(c.x - cellSize(n) / 2 + 3, c.y - cellSize(n) / 2 + 3, cellSize(n) - 6, cellSize(n) - 6, 10); ctx.stroke(); }
+    if (fa > 0) drawStones(ctx, g, a, { sel: state.sel, calm, t });
+    if (state.kb && scene !== 'over') {
+      if (v3.on) v3.marks.push({ sq: state.cursor, rgb: '125,255,154', r: 1.3, a: 1 });
+      if (fa > 0) { const c = cellCenter(n, state.cursor); ctx.strokeStyle = '#7dff9a'; ctx.lineWidth = 5; ctx.beginPath(); ctx.roundRect(c.x - cellSize(n) / 2 + 3, c.y - cellSize(n) / 2 + 3, cellSize(n) - 6, cellSize(n) - 6, 10); ctx.stroke(); }
+    }
     ctx.restore();
+    if (v3.on && v3.pt) for (const [sq, hops] of labels) { const p = v3.pt(n, sq, 0.6), fs = Math.round(R * 0.72 * B.s * p.k); text(`x${hops}`, p.x, p.y + fs * 0.35, fs, '#fff', UI, 800); }
     // ---- trays: stones taken from the slab are collected here ----
     if (L.trays && (scene === 'play' || scene === 'over')) {
       const per = (n * n) / 2;
@@ -186,19 +247,24 @@ export function render(ctx, state, L) {
 
   if (scene === 'title' || scene === 'demo-limit') {
     const T = L.title(!!state.saved), H0 = T.hero;
-    if (H0.sc > 0) { ctx.save(); ctx.translate(H0.cx, H0.cy); ctx.scale(H0.sc, H0.sc); ctx.translate(-360, -760); drawSlab(ctx, 6); if (state.demo) drawStones(ctx, state.demo.g, state.demo.anim, { calm, t }); ctx.restore(); }
-    shadowText('Konane', H0.titleX, H0.titleY, H0.titleSize); text('The jumping game of Hawaii', H0.tagX, H0.tagY, 30, 'rgba(255,232,196,0.95)', FONT, 600);
+    if (H0.sc > 0) {
+      v3.hero = { x: H0.cx + (SLAB.x - 360) * H0.sc, y: H0.cy + (SLAB.y - 760) * H0.sc, w: SLAB.w * H0.sc, h: SLAB.h * H0.sc };
+      if (fa > 0) { ctx.save(); ctx.globalAlpha = fa; ctx.translate(H0.cx, H0.cy); ctx.scale(H0.sc, H0.sc); ctx.translate(-360, -760); drawSlab(ctx, 6); if (state.demo) drawStones(ctx, state.demo.g, state.demo.anim, { calm, t }); ctx.restore(); }
+    }
+    gilded(ctx, 'Konane', H0.titleX, H0.titleY, H0.titleSize); text('The jumping game of Hawaii', H0.tagX, H0.tagY, 30, 'rgba(255,232,196,0.95)', FONT, 600);
     if (T.lock) drawTitleLockup(ctx, T.lock, state.lockPress > 0, Math.max(16, L.minFont));
   }
   if (scene === 'title') {
     const T = L.title(!!state.saved), R = T.rows, S = T.sizes, solvedToday = state.daily.solvedDay === state.daily.day;
-    if (R.resume) btn(R.resume, 'Continue your game', { primary: true, size: S.resume });
-    btn(R.play, 'Play', { primary: state.learned && !R.resume, size: S.play });
-    btn(R.learn, 'Learn to play', { primary: !state.learned && !R.resume, size: S.learn });
-    btn(R.daily, solvedToday ? `Daily puzzle: solved · streak ${state.daily.streak}` : state.daily.streak ? `Daily puzzle · streak ${state.daily.streak}` : 'Daily puzzle', { size: S.daily });
-    btn(R.how, 'How to play and controls', { size: S.how }); btn(R.about, 'About Konane', { size: S.about });
-    btn(R.rules, 'Rules', { size: S.rules }); btn(R.auto, 'Auto Play', { size: S.auto });
-    btn(R.sound, state.sound ? 'Sound on' : 'Sound off', { size: S.sound, on: state.sound }); btn(R.calm, calm ? 'Calm: on' : 'Calm: off', { size: S.calm, on: calm }); btn(R.big, big ? 'Large text: on' : 'Large text', { size: S.big, on: big });
+    // Play is the dominant action (gold); a saved game puts "Continue" first in gold and Play becomes secondary. A new player's
+    // "Learn to play" is lit (warm outline) as the suggested first step.
+    if (R.resume) btn(R.resume, 'Continue your game', { primary: true, size: S.resume, icon: 'resume' });
+    btn(R.play, 'Play', { primary: !R.resume, size: S.play, icon: 'play' });
+    btn(R.learn, 'Learn to play', { on: !state.learned, size: S.learn, icon: 'learn' });
+    btn(R.daily, solvedToday ? `Daily puzzle: solved · streak ${state.daily.streak}` : state.daily.streak ? `Daily puzzle · streak ${state.daily.streak}` : 'Daily puzzle', { size: S.daily, icon: 'daily' });
+    btn(R.how, 'How to play and controls', { size: S.how, icon: 'how' }); btn(R.about, 'About Konane', { size: S.about, icon: 'about' });
+    btn(R.rules, 'Rules', { size: S.rules, icon: 'rules' }); btn(R.auto, 'Auto Play', { size: S.auto, icon: 'auto' });
+    btn(R.sound, state.sound ? 'Sound on' : 'Sound off', { size: S.sound, on: state.sound, icon: 'sound' }); btn(R.calm, calm ? 'Calm: on' : 'Calm: off', { size: S.calm, on: calm, icon: 'calm' }); btn(R.big, big ? 'Large text: on' : 'Large text', { size: S.big, on: big, icon: 'text' });
     text(`Games played: ${state.stats.games} · won: ${state.stats.wins}`, T.stats.x, T.stats.y, 22, 'rgba(255,232,196,0.8)', UI, 500);
     if (state.msg) wrap(state.msg.text, T.msg.x, T.msg.y, 24, T.msg.w, '#ffe9b0');
   } else if (scene === 'demo-limit') {
@@ -271,11 +337,21 @@ function drawHeader(ctx, tx, state, L, g, scene, D, big) {
   }
   const r = L.hdr;
   if (!L.hdrWide) {
+    if (L.slim) {
+      // play screen, portrait: one slim status strip (stone + whose move, setup, then one line of hint or counts)
+      const y0 = r.y;
+      ctx.fillStyle = 'rgba(14,8,16,0.58)'; ctx.beginPath(); ctx.roundRect(r.x, y0, r.w, r.h, 22); ctx.fill();
+      if (L.titleY) gilded(ctx, 'Konane', 360, L.titleY, 62);
+      drawStone(ctx, C.stone, 80, y0 + 38, 26, { v: 1 }); shadowText(C.title, 122, y0 + 52, 40, '#ffe6b0', FONT, 700, 'left');
+      text(C.sub, r.x + r.w - 24, y0 + 52, 20, 'rgba(255,224,178,0.85)', UI, 500, 'right');
+      const line = C.body || C.foot; if (line) wrap(line, 360, y0 + 96, 22, 640, C.body ? PAGE_TEXT : 'rgba(255,224,178,0.85)', 26, 'center');
+      return;
+    }
     // portrait: the canonical phone arrangement, shifted so the panel top sits at r.y
     const dy = r.y - 192;
     ctx.save(); ctx.translate(0, dy);
     ctx.fillStyle = 'rgba(14,8,16,0.58)'; ctx.beginPath(); ctx.roundRect(24, 192, 672, 214, 22); ctx.fill();
-    if (L.titleY) shadowText('Konane', 420, 128, 62);
+    if (L.titleY) gilded(ctx, 'Konane', 360, 128, 62);
     if (C.label) text(C.label, 420, 176, 26, 'rgba(255,224,178,0.85)', UI, 600);
     if (scene === 'lesson') {
       shadowText(C.title, 360, 250, 44, C.titleColor); wrap(C.body, 360, 296, C.bodySize, 640, C.bodyColor, C.bodyLh);
@@ -335,7 +411,7 @@ function drawPage(ctx, tx, state, L, scene, calm) {
   const scroll = Math.max(0, Math.min(state.scroll || 0, pageMetrics.max));
   // The wrapped document is laid out once per (scene, text size, width, font, minimum font) and reused; a frame only draws the visible slice.
   const fontsKey = (ctx.font = `800 40px ${FONT}`, ctx.measureText('Hamburgefonstiv').width)   // changes when the web font finishes loading;
-  const key = [scene, fs, bw, titleSize, v.y, cx, bx, tx.minF, fontsKey].join('|');
+  const key = [scene, pages.length, fs, bw, titleSize, v.y, cx, bx, tx.minF, fontsKey].join('|');
   if (readerCache.pages !== pages || readerCache.key !== key) {
     readerStats.layouts++;
     const items = []; let yy = v.y + 36;

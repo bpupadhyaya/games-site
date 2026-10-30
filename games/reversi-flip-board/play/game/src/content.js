@@ -88,7 +88,7 @@ export const ABOUT = [
   { title: 'What you get', items: [
     P('Three rule sets: Classic (8 by 8), Mini (6 by 6, quick) and Reverse (fewest discs wins).'),
     P('Five computer levels from Beginner to Master, two players on one phone, hands-on lessons, Hint, legal-move marks, take back, and Auto Play (Watch & Learn).'),
-    P('Three felt boards and two disc styles to earn. Large text, reduced motion and sound options. It works offline.'),
+    P('Three boards and two disc styles to earn. Large text, reduced motion and sound options. It works offline.'),
   ] },
   { title: 'Credits', items: [
     P('Board, discs, sounds and the computer player were made for Arcforge. Titles are set in Cormorant Garamond (SIL Open Font License 1.1).'),
@@ -110,3 +110,9 @@ export const LESSONS = [
   { title: 'Wipe them out', variant: 'classic', board: rowsOf([[3, 2, 'B'], [3, 3, 'W'], [3, 4, 'W']]), goal: { type: 'win' }, target: 3 * 8 + 5,
     text: 'If your opponent is left with no discs, nobody can move and the game ends. Flip both white discs.', done: 'No white discs left: the game is over and you win.', hint: 'Place a disc at the end of the white line.' },
 ];
+
+// Credits for the optional 3D layer (three.js and the shared view3d library), added at the end of About by main.js once loaded.
+export const addAboutCredits = (body) => {
+  if (ABOUT.some((d) => d.credits)) return;
+  ABOUT.push({ credits: true, title: '3D graphics credits', items: [P(body)] });
+};

@@ -4,7 +4,7 @@
   "tagline": "Order the paper cards, then tell the tale on time.",
   "genre": "story puzzle",
   "orientation": "any",
-  "version": "1.1.4",
+  "version": "1.2.0",
   "monetization": {
     "model": "premium",
     "priceUsd": 2.99,

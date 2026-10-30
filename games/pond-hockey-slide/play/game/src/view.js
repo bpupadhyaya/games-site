@@ -5,6 +5,7 @@ import { HW, HH, bodyById, skatersOf, puckOf } from './sim.js';
 import { drawShore, drawBanks, drawIce, drawGoal, drawSnow, drawTrails, drawSkater, drawPuck, makeCanvas, LOOKS } from './art.js';
 import { FONT, DISPLAY, roundPath, drawButton, wrapLines } from './ui.js';
 import { PROFILES } from './opponents.js';
+import { v3 } from './v3.js';
 
 const TAU = Math.PI * 2;
 export const SIDE_COL = [['#e0584c', '#8f1d1f'], ['#4a93d0', '#1f5a94']];
@@ -59,19 +60,32 @@ function paintStill(ctx, L) {
 
 export function drawPond(ctx, L, w, parts, o = {}) {
   const t = o.t ?? 0;
-  const bg = backdropFor(ctx, L);
-  if (bg) ctx.drawImage(bg, 0, 0, W, H); else paintStill(ctx, L);
+  // tell the 3D pond what to show (same place, same turn, same world); it draws it behind this transparent canvas
+  v3.frame = { cx: L.cx, cy: L.cy, s: L.s, rot: L.rot, w, trails: o.trails || null, t, glow: o.glow ?? 0, flash0: o.flash0 ?? 0, flash1: o.flash1 ?? 0, vw: W, vh: H };
+  const hide = v3.on && v3.mix >= 1, fa = v3.on ? 1 - v3.mix : 1;
+  if (!hide) { ctx.save(); ctx.globalAlpha = fa; const bg = backdropFor(ctx, L); if (bg) ctx.drawImage(bg, 0, 0, W, H); else paintStill(ctx, L); ctx.restore(); }
   withBoard(ctx, L, () => {
-    if (o.glow) drawIce(ctx, o.glow, true);
-    drawGoal(ctx, -1, o.flash0 ?? 0, t); drawGoal(ctx, 1, o.flash1 ?? 0, t);
-    for (const s of w.snow) drawSnow(ctx, s, t);
-    if (o.trails) drawTrails(ctx, o.trails);
-    if (o.under) o.under();
-    // people and the puck, back to front so the near ones overlap the far ones
-    const list = w.bodies.slice().sort((a, b) => a.y - b.y);
-    for (const b of list) {
-      if (b.kind === 'puck') drawPuck(ctx, b, t);
-      else drawSkater(ctx, b, t, o.mark && o.mark[b.id] ? o.mark[b.id] : {});
+    if (!hide) {
+      ctx.save(); ctx.globalAlpha = fa;
+      if (o.glow) drawIce(ctx, o.glow, true);
+      drawGoal(ctx, -1, o.flash0 ?? 0, t); drawGoal(ctx, 1, o.flash1 ?? 0, t);
+      for (const s of w.snow) drawSnow(ctx, s, t);
+      if (o.trails) drawTrails(ctx, o.trails);
+      if (o.under) o.under();
+      // people and the puck, back to front so the near ones overlap the far ones
+      const list = w.bodies.slice().sort((a, b) => a.y - b.y);
+      for (const b of list) {
+        if (b.kind === 'puck') drawPuck(ctx, b, t);
+        else drawSkater(ctx, b, t, o.mark && o.mark[b.id] ? o.mark[b.id] : {});
+      }
+      ctx.restore();
+    } else {
+      if (o.under) o.under();
+      // the lit 3D skaters carry no ring: the ring that marks the one to pull is drawn here, flat on the ice
+      if (o.mark) for (const b of w.bodies) {
+        const mk = o.mark[b.id]; if (!mk || !mk.ring) continue;
+        ctx.lineWidth = 4; ctx.strokeStyle = mk.ring; ctx.globalAlpha = mk.ringA ?? 0.9; ctx.beginPath(); ctx.arc(b.x, b.y, 44, 0, TAU); ctx.stroke(); ctx.globalAlpha = 1;
+      }
     }
     if (o.over) o.over();
     drawParts(ctx, parts);

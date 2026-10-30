@@ -1,6 +1,6 @@
 // All drawing. Reads the game state and the layout; never changes game state (apart from the scroll metrics it reports back).
 import { toolsFor, playLayout, titleLayout, docLayout, settingsLayout, pickLayout, galleryLayout, showLayout, backFooter, pauseLayout, centerCard, playOpts, TEXT_SCALES, host, inRect, R, clamp, grid } from './layout.js';
-import { theme, LOOKS, LOOK_IDS, background, panel, button, rr, txt, para, paraHeight, wrap, F, mix, rgba, icons } from './ui.js';
+import { theme, LOOKS, LOOK_IDS, background, panel, button, rr, txt, para, paraHeight, wrap, F, mix, rgba, icons, setFont } from './ui.js';
 import { setBrandTone, drawCredit, drawMoreLine, edgeStroke, drawBadgeStack } from './brand.js';
 import { drawTable, drawMat, drawBlock, drawQuilt, drawSwatch, drawSpool, drawPatch, patchPoints } from './art.js';
 import { blockOf, BLOCKS } from './blocks.js';
@@ -8,6 +8,7 @@ import { fab, FABRICS, BAND_NAME } from './fabrics.js';
 import { evaluate, SASH_NAME, quiltGeo } from './rules.js';
 import { CARDS, LESSONS, STARTER_TILES } from './gen.js';
 import { docOf } from './content.js';
+import { flatAlpha } from './v3.js';
 
 export const metrics = { max: 0, view: 0, rect: null };
 export const SETTINGS = [
@@ -45,8 +46,9 @@ const SAMPLE_QUILT = (() => {
 })();
 
 export function render(ctx, s, view) {
-  const w = view.width, h = view.height, T = theme();
-  drawTable(ctx, w, h, s.t, T, s.prefs.calm);
+  const w = view.width, h = view.height, T = theme(), fa = flatAlpha();
+  ctx.clearRect(0, 0, w, h);
+  if (fa > 0) { ctx.save(); ctx.globalAlpha = fa; drawTable(ctx, w, h, s.t, T, s.prefs.calm); ctx.restore(); }
   metrics.max = 0; metrics.rect = null;
   const sc = s.scene;
   if (sc === 'title') drawTitle(ctx, s, w, h);
@@ -94,12 +96,22 @@ function drawTitle(ctx, s, w, h) {
   let tt = s.t, k = 0; const durOf = (id) => blockOf(id).patches.length * step + hold;
   while (tt > durOf(ids[k % 6])) { tt -= durOf(ids[k % 6]); k += 1; }
   const id = ids[k % 6], block = blockOf(id), pop = block.patches.map((_, i) => tt - i * step), paint = samplePaint(id).map((f, i) => (pop[i] >= 0 ? f : ''));
-  const mat = R(x0, y0, gs, gs); drawMat(ctx, mat, T);
-  drawBlock(ctx, id, paint, x0 + gs * 0.06, y0 + gs * 0.06, gs * 0.88, 0, { pop, empty: T.empty });
-  drawSpool(ctx, x0 - gs * 0.02, y0 + gs * 0.95, Math.min(60, gs * 0.14), '#c9453a');
-  drawSpool(ctx, x0 + gs * 1.02, y0 + gs * 0.12, Math.min(52, gs * 0.12), '#2f6fb0');
+  const fa = flatAlpha();
+  if (fa > 0) {
+    ctx.save(); ctx.globalAlpha = fa;
+    const mat = R(x0, y0, gs, gs); drawMat(ctx, mat, T);
+    drawBlock(ctx, id, paint, x0 + gs * 0.06, y0 + gs * 0.06, gs * 0.88, 0, { pop, empty: T.empty });
+    drawSpool(ctx, x0 - gs * 0.02, y0 + gs * 0.95, Math.min(60, gs * 0.14), '#c9453a');
+    drawSpool(ctx, x0 + gs * 1.02, y0 + gs * 0.12, Math.min(52, gs * 0.12), '#2f6fb0');
+    ctx.restore();
+  }
   const ty = y0 + gs + tb * 0.5;
-  txt(ctx, 'QUILT PATTERNS', hero.x + hero.w / 2, ty, { size: tb * 0.46, weight: 700, color: T.text, align: 'center', maxW: hero.w * 0.96, min: 22 });
+  if (fa < 1) {   // 3D: a soft dark band behind the lettering so it reads over the lit table
+    const bw = Math.min(hero.w, tb * 7.2), g0 = ctx.createRadialGradient(hero.x + hero.w / 2, ty + tb * 0.1, 0, hero.x + hero.w / 2, ty + tb * 0.1, bw * 0.55);
+    g0.addColorStop(0, `rgba(10,5,2,${0.5 * (1 - fa)})`); g0.addColorStop(1, 'rgba(10,5,2,0)');
+    ctx.save(); ctx.translate(hero.x + hero.w / 2, ty + tb * 0.1); ctx.scale(1, 0.32); ctx.translate(-(hero.x + hero.w / 2), -(ty + tb * 0.1)); ctx.fillStyle = g0; ctx.fillRect(hero.x + hero.w / 2 - bw, ty + tb * 0.1 - bw, bw * 2, bw * 2); ctx.restore();
+  }
+  titleWord(ctx, 'QUILT PATTERNS', hero.x + hero.w / 2, ty, tb * 0.46, hero.w * 0.96, T, 1 - fa);
   txt(ctx, `${block.name.toUpperCase()}  ·  PIECE  ·  ARRANGE  ·  FRAME`, hero.x + hero.w / 2, ty + tb * 0.36, { size: tb * 0.19, weight: 600, color: T.accent, align: 'center', maxW: hero.w * 0.94, min: 12 });
   const B = L.buttons, lab = {
     continue: ['Continue', s.saved ? `${s.saved.title}  ·  ${fmtTime(s.saved.t)}` : ''],
@@ -113,6 +125,18 @@ function drawTitle(ctx, s, w, h) {
     if (bid === 'daily' && s.dailyDone) icons.check(ctx, r.x + r.w - 36, r.y + r.h / 2, 28, T.good);
   }
   drawCredit(ctx, L.brand.x, L.brand.y, Math.min(16, Math.max(12.5, 13.5 / (host.px || 0.55) * 0.5 + 6)), { dim: 0.95 });
+}
+
+// Title lettering: cream letters with a stitched (dashed) underline and a soft lift shadow; in 3D a warm thread-gold face.
+function titleWord(ctx, text, x, y, size, maxW, T, k) {
+  if (k <= 0) { txt(ctx, text, x, y, { size, weight: 700, color: T.text, align: 'center', maxW, min: 22 }); return; }
+  ctx.save();
+  ctx.globalAlpha = 1; txt(ctx, text, x + size * 0.03, y + size * 0.07, { size, weight: 700, color: 'rgba(0,0,0,0.55)', align: 'center', maxW, min: 22 });
+  ctx.restore();
+  txt(ctx, text, x, y, { size, weight: 700, color: T.dark ? '#fbeed3' : T.text, align: 'center', maxW, min: 22 });
+  ctx.save(); setFont(ctx, size, 700); const tw = Math.min(maxW, ctx.measureText(text).width);
+  ctx.globalAlpha = k; ctx.setLineDash([size * 0.16, size * 0.1]); ctx.lineWidth = Math.max(2, size * 0.055); ctx.lineCap = 'round'; ctx.strokeStyle = T.accent;
+  ctx.beginPath(); ctx.moveTo(x - tw * 0.42, y + size * 0.56); ctx.lineTo(x + tw * 0.42, y + size * 0.56); ctx.stroke(); ctx.restore();
 }
 
 // ================================================================ headers and scrolling ===========================================================
@@ -175,17 +199,24 @@ function drawPick(ctx, s, w, h) {
 // ================================================================ play ==========================================================================
 function drawPlay(ctx, s, w, h) {
   const T = theme(), L = playLayout(w, h, playOpts(s)), ch = s.ch, d = s.d;
-  drawMat(ctx, L.mat, T);
+  const fa = flatAlpha(), ov = fa < 1;
+  if (fa > 0) { ctx.save(); ctx.globalAlpha = fa; drawMat(ctx, L.mat, T); ctx.restore(); }
   const hi = new Set(), step = s.hint?.step;
   if (step) { if (ch.kind === 'block') hi.add(step.i); else if (step.op === 'cell') hi.add(step.i); }
   if (ch.kind === 'block') {
     const b = L.board;
-    ctx.fillStyle = 'rgba(0,0,0,0.30)'; ctx.fillRect(b.x + b.w * 0.012, b.y + b.w * 0.022, b.w, b.w);
-    drawBlock(ctx, ch.block, d.paint, b.x, b.y, b.w, 0, { squint: s.squint, pop: s.pop, hi, pulse: s.t, sel: s.sel, roleLabels: s.prefs.labels, empty: T.empty });
+    if (fa > 0) {
+      ctx.save(); ctx.globalAlpha = fa;
+      ctx.fillStyle = 'rgba(0,0,0,0.30)'; ctx.fillRect(b.x + b.w * 0.012, b.y + b.w * 0.022, b.w, b.w);
+      drawBlock(ctx, ch.block, d.paint, b.x, b.y, b.w, 0, { squint: s.squint, pop: s.pop, hi, pulse: s.t, sel: s.sel, roleLabels: s.prefs.labels, empty: T.empty });
+      ctx.restore();
+    }
+    if (ov) drawBlock(ctx, ch.block, d.paint, b.x, b.y, b.w, 0, { overlay: true, hi, pulse: s.t, sel: s.sel, roleLabels: s.prefs.labels, lod: b.w > 220 ? 2 : 1 });
     if (s.pressT > 0) { ctx.save(); ctx.globalAlpha = Math.min(1, s.pressT / 0.6) * 0.35; ctx.fillStyle = '#fff3c4'; ctx.fillRect(b.x, b.y, b.w, b.w); ctx.restore(); }
   } else {
     const b = L.board;
-    drawQuilt(ctx, ch, d, b.x, b.y, b.w, { squint: s.squint, pop: s.pop, hi, pulse: s.t, quilted: s.pressT > 0 || !!s.finished, empty: T.empty });
+    if (fa > 0) { ctx.save(); ctx.globalAlpha = fa; drawQuilt(ctx, ch, d, b.x, b.y, b.w, { squint: s.squint, pop: s.pop, hi, pulse: s.t, quilted: s.pressT > 0 || !!s.finished, empty: T.empty }); ctx.restore(); }
+    if (ov) drawQuilt(ctx, ch, d, b.x, b.y, b.w, { overlay: true, hi, pulse: s.t, sel: s.sel });
   }
   drawHud(ctx, s, L);
   if (s.paused) { ctx.save(); ctx.globalAlpha = 0.3; drawSide(ctx, s, L); ctx.restore(); drawPaused(ctx, s, L); }
@@ -289,6 +320,7 @@ function drawTools(ctx, s, L) {
   L.toolRects.forEach((r, i) => {
     const id = ids[i], [label, icon] = TOOL_DEF[id];
     const dis = (id === 'undo' && !s.un.length) || (id === 'redo' && !s.re.length), on = (id === 'role' && s.roleFill) || (id === 'squint' && s.squint), hint = id === 'hint';
+    if (flatAlpha() < 1) { rr(ctx, r.x + 1, r.y + 4, r.w, r.h, 18); ctx.fillStyle = 'rgba(0,0,0,0.28)'; ctx.fill(); rr(ctx, r.x, r.y, r.w, r.h, 18); ctx.fillStyle = T.dark ? 'rgba(26,15,8,0.8)' : 'rgba(252,247,236,0.85)'; ctx.fill(); }
     ctx.save(); if (dis) ctx.globalAlpha = 0.38;
     rr(ctx, r.x, r.y, r.w, r.h, 18); ctx.fillStyle = hint ? T.accent : on ? rgba(T.accent, 0.28) : T.btn; ctx.fill();
     const fl = flashOf(s, id); if (fl) { ctx.fillStyle = `rgba(255,255,255,${0.3 * fl})`; ctx.fill(); }
@@ -466,10 +498,15 @@ function drawShow(ctx, s, w, h) {
   if (!v) return;
   const O = showLayout(w, h, v.buttons.length);
   const pic = O.pic, S = pic.w;
-  drawMat(ctx, R(pic.x - S * 0.03, pic.y - S * 0.03, S * 1.06, S * 1.06), T);
-  const lift = v.lift ? Math.min(1, s.sceneT / 0.7) : 1;
-  if (v.kind === 'quilt') drawQuilt(ctx, v.ch, v.d, pic.x, pic.y - S * 0.015 * (1 - lift), S, { quilted: true });
-  else drawBlock(ctx, v.ch.block, v.d.paint, pic.x + S * 0.03, pic.y + S * 0.03, S * 0.94, 0, {});
+  const fa = flatAlpha();
+  if (fa > 0) {
+    ctx.save(); ctx.globalAlpha = fa;
+    drawMat(ctx, R(pic.x - S * 0.03, pic.y - S * 0.03, S * 1.06, S * 1.06), T);
+    const lift = v.lift ? Math.min(1, s.sceneT / 0.7) : 1;
+    if (v.kind === 'quilt') drawQuilt(ctx, v.ch, v.d, pic.x, pic.y - S * 0.015 * (1 - lift), S, { quilted: true });
+    else drawBlock(ctx, v.ch.block, v.d.paint, pic.x + S * 0.03, pic.y + S * 0.03, S * 0.94, 0, {});
+    ctx.restore();
+  }
   for (const p of s.sparks) { ctx.globalAlpha = Math.max(0, 1 - p.t / p.life); ctx.fillStyle = p.c; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 7); ctx.fill(); }
   ctx.globalAlpha = 1;
   const body = O.body;

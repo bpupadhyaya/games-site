@@ -1,12 +1,13 @@
 // Futbolín: the game shell. Scenes, input, persistence, preview wiring, the Cup, Hint and Watch & Learn. The table itself lives in sim.js.
 import { createSim } from './sim.js';
-import { W, H, host, isWide, setSize, TEXT_SCALES, readerLayout, setupPins, inRect, playLayout, toTable, setReserve } from './layout.js';
+import { W, H, host, isWide, setSize, TEXT_SCALES, readerLayout, setupPins, inRect, playLayout, toTable, setReserve, scaleAt } from './layout.js';
 import { setPress } from './ui.js';
 import { ABOUT, HOWTO, RULES } from './content.js';
 import * as MN from './menus.js';
 import { renderPlay, renderThink, watchHit } from './hud.js';
 import { LEVELS, CUP, MATCH_GOALS, THINK_STEPS, HOME_KIT, RIVAL_KITS, dirOf } from './consts.js';
 import { drawFloor, drawTable, drawLight, KIT_PAL } from './draw.js';
+import { v3 } from './v3.js';
 import { clamp, hash } from './util.js';
 import { touches } from './touches.js';
 
@@ -213,7 +214,7 @@ export function createGame(env) {
     let ref = hs[0]; for (const h of hs) { if (G.t - h.t <= 0.075) { ref = h; break; } }
     const span = Math.max(G.t - ref.t, 1e-3), ok = span >= 0.025;
     d.vf = ok ? dirOf(d.team) * (p.y - ref.y) / span : d.vf; d.vl = ok ? (p.x - ref.x) / span : d.vl;
-    const k = lay.s * (host.px || 0.6), vpx = d.vf * k;      // finger speed toward the rival in CSS px/s
+    const k = scaleAt(lay, p.x, p.y) * (host.px || 0.6), vpx = d.vf * k;      // finger speed toward the rival in CSS px/s
     if (G.t - d.lastKick > 0.35) {
       if (!d.pend && vpx > FLICK_PX && d.vf > Math.abs(d.vl) * 0.7) d.pend = { t: G.t, vmax: vpx };
       else if (d.pend) {
@@ -501,9 +502,11 @@ export function createGame(env) {
       }
       // every other screen sits on the attract table (two computer sides playing quietly behind a dark veil)
       const lay = playLayout(0);
-      drawFloor(ctx, W, H, lay);
-      drawTable(ctx, lay, S.s, { kits: G.kits, active: -1, trail: true, fx: G.fx });
-      drawLight(ctx, W, H, lay);
+      if (!v3.on) {
+        drawFloor(ctx, W, H, lay);
+        drawTable(ctx, lay, S.s, { kits: G.kits, active: -1, trail: true, fx: G.fx });
+        drawLight(ctx, W, H, lay);
+      }
       switch (G.scene) {
         case 'title': MN.renderTitle(ctx, G); break;
         case 'setup': MN.renderSetup(ctx, G); break;

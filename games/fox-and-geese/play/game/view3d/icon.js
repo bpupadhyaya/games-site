@@ -1,0 +1,31 @@
+// Store icon, rendered from the game's own 3D world (icon.html, 1024 x 1024, opaque). One subject: the fox carving sitting up alert on its point,
+// moonlit from behind, a goose soft in the haze beside it, the warm lantern glow low in the corner.
+import * as THREE from '../vendor3d/three.js';
+import { TOP, pointW, THEMES, buildBoard, buildClearing, buildLights, applyTheme, foxGeos, gooseGeos, makePiece, pieceMats, radialTex } from './world.js';
+const S = 1024, canvas = document.createElement('canvas'); canvas.width = canvas.height = S; document.body.appendChild(canvas);
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(1); renderer.setSize(S, S, false);
+renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 0.8;
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap;
+const scene = new THREE.Scene();
+const pm = new THREE.PMREMGenerator(renderer); scene.environment = pm.fromScene(new THREE.RoomEnvironment(), 0.04).texture; scene.environmentIntensity = 0.3;
+const L = buildLights(scene, 'frost'); applyTheme(scene, L, 'frost');
+scene.fog = new THREE.Fog(0x050a16, 24, 120); scene.background = new THREE.Color(0x050a16);
+L.key.shadow.mapSize.set(4096, 4096); L.key.intensity = 1.0; L.key.position.set(-60, 90, 70); L.rim.intensity = 6; L.rim.color.setHex(0x9cc0ff); L.rim.position.set(60, 60, -120); L.hemi.intensity = 0.2;
+const cl = buildClearing(scene, 'frost', 1); scene.add(cl);
+scene.add(buildBoard(THEMES.frost, 2048));
+const mats = pieceMats(), fp = pointW(24);
+const fox = makePiece('F', await foxGeos('classic', 0.05), mats); fox.position.set(fp.x, TOP + 0.05, fp.z); fox.rotation.y = 0.55; scene.add(fox);
+const gp = pointW(32), goose = makePiece('G', await gooseGeos('classic', 0.06), mats); goose.position.set(gp.x, TOP + 0.05, gp.z); goose.rotation.y = -0.9; scene.add(goose);
+scene.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+const glow = new THREE.Mesh(new THREE.PlaneGeometry(90, 90), new THREE.MeshBasicMaterial({ map: radialTex('150,190,255', 0.9), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false, opacity: 0.7 }));
+glow.position.set(fp.x + 18, TOP + 20, fp.z - 55);
+const cam = new THREE.PerspectiveCamera(30, 1, 0.5, 2000);
+cam.position.set(fp.x - 8, TOP + 6.5, fp.z + 26); cam.lookAt(fp.x + 0.3, TOP + 6.6, fp.z); glow.lookAt(cam.position); scene.add(glow);
+renderer.render(scene, cam);
+const out = document.createElement('canvas'); out.width = out.height = S; const x = out.getContext('2d');
+x.drawImage(canvas, 0, 0);
+x.globalCompositeOperation = 'screen'; x.filter = 'blur(16px)'; x.globalAlpha = 0.25; x.drawImage(canvas, 0, 0); x.filter = 'none'; x.globalAlpha = 1; x.globalCompositeOperation = 'source-over';
+const g = x.createRadialGradient(S / 2, S * 0.45, S * 0.22, S / 2, S / 2, S * 0.62); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(2,5,14,0.85)'); x.fillStyle = g; x.fillRect(0, 0, S, S);
+canvas.replaceWith(out); out.style.cssText = 'display:block;width:1024px;height:1024px';
+window.__icon = out.toDataURL('image/jpeg', 0.92); window.__iconDone = true; document.title = 'icon done';

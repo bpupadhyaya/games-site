@@ -27,7 +27,7 @@ export function createGame(env) {
     prefs: { sound: true, haptics: true, calm: false, wheelIdx: 1, thinkIdx: 1, textIdx: 0 },
     shelf: [], stars: {}, best: {}, demoPots: 0, nextId: 1,
     ses: null, auto: null, hint: null, paused: false, result: null, sel: 0, study: null,
-    credits: '', showPot: showPot(), showT: 0, glFallback: false, zoom: { y1: 4.3, w: 3.5 },
+    credits: '', showPot: showPot(), showT: 0, glFallback: false, zoom: { y1: 4.3, w: 3.1 }, panelK: 0,
     rulesPage: 0, docScroll: 0, docFrac: 0, docRescale: false, docKey: 'about',
     scroll: { pick: 0, shelf: 0 }, parts: [], toast: null,
     g3: { rect: null, pot: null, glaze: null, fire: 0, mode: 'title', finger: null, target: null, visible: true, glazed: false, stage: 'fire' },
@@ -45,7 +45,7 @@ export function createGame(env) {
   const savePrefs = () => { storage.set('prefs', state.prefs); applyPrefs(); };
   function applyPrefs() { env.audio.setMuted?.(!state.prefs.sound); config.textScale = TEXT_SCALES[state.prefs.textIdx]; if (state.ses) state.ses.pot.spin = 6.4 * WHEEL_OPTS[state.prefs.wheelIdx]; }
   applyPrefs();
-  const lay = () => layoutFor(meta.width, meta.height);
+  const lay = () => layoutFor(meta.width, meta.height, state.panelK);
   const say = (text, hold = 2.2) => { state.toast = { text, t: 0, hold }; };
   const go = (scene) => { state.scene = scene; };
   const tone = (o) => { if (state.prefs.sound) env.audio.tone?.(o); };
@@ -59,7 +59,7 @@ export function createGame(env) {
     return L.play.pot;
   }
   // Title, result and study frame the pot more tightly than the play screen (whose camera never moves, so the target outline stays put).
-  const zoomWant = () => { const s = state.ses; if (!s) return { y1: 4.3, w: 3.5 }; return s.station <= 1 ? { y1: 2.7, w: 3.1 } : { y1: s.target ? clamp(s.target.H + 0.75, 3.0, 4.3) : 4.3, w: 3.5 }; };
+  const zoomWant = () => { const s = state.ses; if (!s) return { y1: 4.3, w: 3.1 }; return s.station <= 1 ? { y1: 2.7, w: 2.9 } : { y1: s.target ? clamp(s.target.H + 0.75, 3.0, 4.3) : 4.3, w: 3.1 }; };
   const boxFor = (scene) => (scene === 'play' ? { y1: state.zoom.y1, worldW: state.zoom.w } : scene === 'title' ? { y1: 3.3, worldW: 2.7 } : scene === 'study' || scene === 'result' ? { y1: Math.max(2.5, (state.g3.pot ? state.g3.pot.H : 3) + 0.6), worldW: 3.2 } : null);
   const camNow = (scene = state.scene) => camFor(meta.width, meta.height, potRectFor(scene), boxFor(scene));
 
@@ -73,7 +73,7 @@ export function createGame(env) {
     if (auto) { target = DEMO_TARGET; trad = DEMO_TARGET.trad; }
     const ses = newSession({ target, rng: rng.fork(), mode: auto ? 'auto' : kind, trad });
     ses.pot.spin = 6.4 * WHEEL_OPTS[state.prefs.wheelIdx];
-    state.ses = ses; state.zoom = { ...zoomWant() }; state.result = null; state.hint = null; state.paused = false; state.parts = [];
+    state.ses = ses; state.zoom = { ...zoomWant() }; state.panelK = stationId(ses) === 'glaze' ? 1 : 0; state.result = null; state.hint = null; state.paused = false; state.parts = [];
     state.auto = auto ? { phase: 'think', t: 0, step: null, last: '', thinkFor: 0, revealFor: 0, fp: { X: 0, Y: 0, down: false } } : null;
     go('play');
     env.monetization.track?.('pot_start', { mode: kind, ch: target?.id ?? 'studio' });
@@ -179,7 +179,7 @@ export function createGame(env) {
       stepSession(s, dt);
     }
     if (state.scene !== 'play') return;
-    { const w = zoomWant(), k = Math.min(1, 2.5 * dt); state.zoom.y1 += (w.y1 - state.zoom.y1) * k; state.zoom.w += (w.w - state.zoom.w) * k; }
+    { const w = zoomWant(), k = Math.min(1, 2.5 * dt); state.zoom.y1 += (w.y1 - state.zoom.y1) * k; state.zoom.w += (w.w - state.zoom.w) * k; state.panelK += ((stationId(state.ses) === 'glaze' ? 1 : 0) - state.panelK) * k; }
     stepParts(dt);
     if (state.hint) { state.hint.t += dt; if (state.hint.t > state.hint.hold) state.hint = null; }
     const A = state.audio, id = stationId(s);
@@ -418,7 +418,7 @@ export function createGame(env) {
       syncView();
       if (state.scene === 'play') { const P = lay().play; meta.previewBadge = { x: P.pot.x + P.pot.w / 2, y: P.pot.y + P.pot.h - 34, align: 'center' }; } else meta.previewBadge = null;
     },
-    render(ctx, view) { render(ctx, state, layoutFor(view?.width ?? meta.width, view?.height ?? meta.height), view, meta, pauseItems, camNow); },
+    render(ctx, view) { render(ctx, state, layoutFor(view?.width ?? meta.width, view?.height ?? meta.height, state.panelK), view, meta, pauseItems, camNow); },
     getState: () => state,
     autoPause() { if (state.scene === 'play' && !state.paused) pause(); },
     setGL(ok) { state.glFallback = !ok; },
@@ -440,7 +440,7 @@ export function createGame(env) {
           if (o.trad !== undefined) s.glaze.trad = o.trad;
           const until = o.station !== undefined ? (q) => q.station >= o.station && (o.frac === undefined || q.stationT >= o.frac) : (o.secs ? (q) => q.t >= o.secs : () => false);
           if (o.station !== undefined || o.secs) runPilot(s, { until });
-          state.zoom = { ...zoomWant() };
+          state.zoom = { ...zoomWant() }; state.panelK = stationId(s) === 'glaze' ? 1 : 0;
           if (o.glazed) runPilot(s, { until: (q) => q.glaze.bands.length >= 2 });
           if (sc === 'result') {
             runPilot(s, { until: (q) => q.fireDone });

@@ -74,7 +74,7 @@ function ink(ctx, pts, w, alpha = 0.92) {
   }
 }
 
-function paintTrack(ctx) {
+function paintTrack(ctx, flat = false) {
   const P = POINTS;
   // the outer square and the two diagonals
   ink(ctx, [{ x: BX0, y: BY0 }, { x: BX1, y: BY0 }, { x: BX1, y: BY1 }, { x: BX0, y: BY1 }, { x: BX0, y: BY0 }], 9);
@@ -89,7 +89,7 @@ function paintTrack(ctx) {
   for (let i = 0; i < 29; i++) {
     if (i === 0) continue;
     const p = P[i], big = isBig(i), R = big ? 30 : 17;
-    ctx.save(); ctx.shadowColor = 'rgba(60,35,10,0.4)'; ctx.shadowBlur = 5; ctx.shadowOffsetY = 2;
+    ctx.save(); if (!flat) { ctx.shadowColor = 'rgba(60,35,10,0.4)'; ctx.shadowBlur = 5; ctx.shadowOffsetY = 2; }
     ctx.fillStyle = '#f2e6c6'; ctx.beginPath(); ctx.arc(p.x, p.y, R, 0, TAU); ctx.fill(); ctx.restore();
     ctx.strokeStyle = 'rgba(28,18,12,0.9)'; ctx.lineWidth = big ? 5 : 4; ctx.beginPath(); ctx.arc(p.x, p.y, R, 0, TAU); ctx.stroke();
     if (big) {
@@ -100,7 +100,7 @@ function paintTrack(ctx) {
   }
   // the start / finish corner
   const s = P[0];
-  ctx.save(); ctx.shadowColor = 'rgba(60,35,10,0.45)'; ctx.shadowBlur = 6; ctx.shadowOffsetY = 2;
+  ctx.save(); if (!flat) { ctx.shadowColor = 'rgba(60,35,10,0.45)'; ctx.shadowBlur = 6; ctx.shadowOffsetY = 2; }
   ctx.fillStyle = '#f2e6c6'; ctx.beginPath(); ctx.arc(s.x, s.y, 34, 0, TAU); ctx.fill(); ctx.restore();
   ctx.strokeStyle = 'rgba(28,18,12,0.92)'; ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(s.x, s.y, 34, 0, TAU); ctx.stroke();
   ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(s.x, s.y, 25, 0, TAU); ctx.stroke();
@@ -170,3 +170,6 @@ export function drawPadArt(ctx) {
   if (!boardTried) drawBoardArt(ctx);
   if (padLayer) ctx.drawImage(padLayer, LAYER_PAD.x, LAYER_PAD.y, LAYER_PAD.w, LAYER_PAD.h); else paintPad(ctx);
 }
+
+// The 3D board's top face (view3d/world.js): cloth binding, hanji paper and the inked track, without the baked drop shadows.
+export function paintBoardTop(ctx) { paintBoard(ctx); paintTrack(ctx, true); }

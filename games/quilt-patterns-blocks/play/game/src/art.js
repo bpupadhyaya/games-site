@@ -16,7 +16,7 @@ const bbox = (pts) => { let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9; for (const
 const cen = (pts) => { let x = 0, y = 0; for (const p of pts) { x += p[0]; y += p[1]; } return [x / pts.length, y / pts.length]; };
 
 // ---- prints ------------------------------------------------------------------------------------------------------------------
-function drawPrint(ctx, f, x0, y0, x1, y1, u, ax, ay, sq) {
+export function drawPrint(ctx, f, x0, y0, x1, y1, u, ax, ay, sq) {
   if (f.print === 'solid' || u < 3.5) return;
   const ink = sq ? toGray(f.ink) : f.ink, w = x1 - x0, h = y1 - y0;
   ctx.save(); ctx.fillStyle = ink; ctx.strokeStyle = ink;
@@ -99,11 +99,11 @@ export function drawPatch(ctx, pts, fid, o) {
         ctx.stroke();
       }
     }
-    // puffy edge: shade the rim, then a soft light from the top left
-    poly(ctx, pts); ctx.lineWidth = Math.max(3, Math.min(small * 0.2, o.u * 0.5)); ctx.strokeStyle = 'rgba(0,0,0,0.20)'; ctx.stroke();
+    // puffy edge: shade the rim, then a soft light from the top left (bare: the 3D layer lights the cloth itself)
+    if (!o.bare) { poly(ctx, pts); ctx.lineWidth = Math.max(3, Math.min(small * 0.2, o.u * 0.5)); ctx.strokeStyle = 'rgba(0,0,0,0.20)'; ctx.stroke();
     const g = ctx.createLinearGradient(x0, y0, x1, y1);
     g.addColorStop(0, 'rgba(255,255,255,0.20)'); g.addColorStop(0.5, 'rgba(255,255,255,0)'); g.addColorStop(1, 'rgba(0,0,0,0.16)');
-    ctx.fillStyle = g; ctx.fillRect(x0 - 1, y0 - 1, x1 - x0 + 2, y1 - y0 + 2);
+    ctx.fillStyle = g; ctx.fillRect(x0 - 1, y0 - 1, x1 - x0 + 2, y1 - y0 + 2); }
     ctx.restore();
     // topstitch, inset from the seam
     if (lod >= 1 && small > 18) {
@@ -114,7 +114,7 @@ export function drawPatch(ctx, pts, fid, o) {
       ctx.strokeStyle = o.squint ? 'rgba(255,255,255,0.35)' : f.lum < 0.45 ? 'rgba(255,240,215,0.55)' : 'rgba(70,50,30,0.38)'; ctx.stroke(); ctx.setLineDash([]);
     }
   }
-  poly(ctx, pts); ctx.lineWidth = lod >= 1 ? 1.2 : 0.6; ctx.strokeStyle = 'rgba(30,18,8,0.45)'; ctx.stroke();
+  poly(ctx, pts); ctx.lineWidth = lod >= 1 ? 1.2 : 0.6; ctx.strokeStyle = o.bare ? 'rgba(30,18,8,0.3)' : 'rgba(30,18,8,0.45)'; ctx.stroke();
   if (o.flash > 0) { poly(ctx, pts); ctx.fillStyle = `rgba(255,255,255,${0.5 * o.flash})`; ctx.fill(); }
 }
 
@@ -125,7 +125,7 @@ export function patchPoints(blockId, i, x, y, s, rot = 0) { return mapPts(blockO
 export function drawBlock(ctx, blockId, paint, x, y, s, rot = 0, o = {}) {
   const block = blockOf(blockId), u = s * 0.075;
   const lod = o.lod ?? (s > 220 ? 2 : s > 70 ? 1 : 0);
-  for (let i = 0; i < block.patches.length; i++) {
+  if (!o.overlay) for (let i = 0; i < block.patches.length; i++) {
     const pop = o.pop?.[i] ?? 99, pts = mapPts(block.patches[i].pts, x, y, s, rot);
     let popK = 0; if (pop < 0.34) popK = Math.sin((Math.PI * pop) / 0.34);
     if (popK > 0) {
@@ -133,11 +133,11 @@ export function drawBlock(ctx, blockId, paint, x, y, s, rot = 0, o = {}) {
       ctx.save(); ctx.translate(c[0], c[1] - popK * s * 0.012); ctx.scale(k, k); ctx.translate(-c[0], -c[1]);
       drawPatch(ctx, pts, paint[i], { u, ax: x, ay: y, squint: o.squint, lod, empty: o.empty, shadow: { dx: 0, dy: s * 0.02 * popK + 1, a: 0.28 }, flash: popK * 0.5 });
       ctx.restore();
-    } else drawPatch(ctx, pts, paint[i], { u, ax: x, ay: y, squint: o.squint, lod, empty: o.empty });
+    } else drawPatch(ctx, pts, paint[i], { u, ax: x, ay: y, squint: o.squint, lod, empty: o.empty, bare: o.bare });
   }
   if (o.roleLabels && lod >= 2) {
     ctx.save(); ctx.font = `700 ${Math.max(11, s * 0.045)}px system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    block.patches.forEach((p, i) => { if (paint[i]) return; const pts = mapPts(p.pts, x, y, s, rot), c = cen(pts); ctx.fillStyle = 'rgba(40,28,14,0.62)'; ctx.fillText('ABC'[p.role], c[0], c[1]); });
+    block.patches.forEach((p, i) => { if (paint[i] && !o.labelsAll) return; if (o.overlay && paint[i]) return; const pts = mapPts(p.pts, x, y, s, rot), c = cen(pts); ctx.fillStyle = 'rgba(40,28,14,0.62)'; ctx.fillText('ABC'[p.role], c[0], c[1]); });
     ctx.restore();
   }
   if (o.hi && o.hi.size) {
@@ -152,12 +152,13 @@ const rectPts = (r) => [[r.x, r.y], [r.x + r.w, r.y], [r.x + r.w, r.y + r.h], [r
 // d: quilt design, ch: { cols, tiles }. o: { squint, quilted, sel, drape, pop (cell pop times), hi: Set of cells, empty }
 export function drawQuilt(ctx, ch, d, x, y, S, o = {}) {
   const g = quiltGeo(d, ch.cols, S), ox = x, oy = y, u = g.k * 0.1;
-  ctx.save();
+  if (o.overlay) return quiltOverlay(ctx, g, d, ox, oy, o);
+  ctx.save(); if (o.bare) ctx.globalAlpha = 0;
   // soft drop shadow on the table
   ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.fillRect(ox + S * 0.012, oy + S * 0.02, S, S);
   ctx.fillStyle = 'rgba(0,0,0,0.12)'; ctx.fillRect(ox + S * 0.004, oy + S * 0.008, S + S * 0.02, S + S * 0.03);
   ctx.restore();
-  const flat = (r, fid, extra = {}) => drawPatch(ctx, rectPts({ x: r.x + ox, y: r.y + oy, w: r.w, h: r.h }), fid, { u, ax: ox, ay: oy, squint: o.squint, lod: r.w < 30 || r.h < 30 ? 0 : 1, empty: o.empty, ...extra });
+  const flat = (r, fid, extra = {}) => drawPatch(ctx, rectPts({ x: r.x + ox, y: r.y + oy, w: r.w, h: r.h }), fid, { u, ax: ox, ay: oy, squint: o.squint, lod: r.w < 30 || r.h < 30 ? 0 : 1, empty: o.empty, bare: o.bare, ...extra });
   if (g.bw > 0) for (const r of g.bord) flat(r, d.bordF || '');
   else { ctx.fillStyle = o.empty ?? '#d8d0bd'; ctx.fillRect(ox, oy, S, S); }
   if (g.sw > 0) {
@@ -175,7 +176,7 @@ export function drawQuilt(ctx, ch, d, x, y, S, o = {}) {
     }
     const t = ch.tiles[c.t];
     if (pop < 0.34) { const k = 1 + 0.06 * Math.sin((Math.PI * pop) / 0.34), cx = px + cell.s / 2, cy = py + cell.s / 2; ctx.save(); ctx.translate(cx, cy); ctx.scale(k, k); ctx.translate(-cx, -cy); drawBlock(ctx, t.type, t.paint, px, py, cell.s, c.r, { squint: o.squint }); ctx.restore(); }
-    else drawBlock(ctx, t.type, t.paint, px, py, cell.s, c.r, { squint: o.squint });
+    else drawBlock(ctx, t.type, t.paint, px, py, cell.s, c.r, { squint: o.squint, bare: o.bare, lod: o.lod });
     if (o.hi?.has(i)) { ctx.lineWidth = Math.max(3, cell.s * 0.03); ctx.strokeStyle = `rgba(255,214,90,${0.6 + 0.4 * Math.sin((o.pulse ?? 0) * 6)})`; ctx.strokeRect(px, py, cell.s, cell.s); }
   });
   if (o.sel >= 0 && o.sel != null) { const c = g.cells[o.sel]; ctx.lineWidth = Math.max(3, c.s * 0.03); ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.strokeRect(ox + c.x, oy + c.y, c.s, c.s); }
@@ -187,7 +188,7 @@ export function drawQuilt(ctx, ch, d, x, y, S, o = {}) {
     ctx.stroke(); ctx.setLineDash([]); ctx.restore();
   }
   // drape: broad soft folds of light over the whole top
-  if (o.drape !== false) {
+  if (o.drape !== false && !o.bare) {
     ctx.save(); ctx.beginPath(); ctx.rect(ox, oy, S, S); ctx.clip();
     const gr = ctx.createLinearGradient(ox, oy, ox + S, oy + S * 0.7);
     gr.addColorStop(0, 'rgba(255,255,255,0.10)'); gr.addColorStop(0.2, 'rgba(0,0,0,0.07)'); gr.addColorStop(0.42, 'rgba(255,255,255,0.05)'); gr.addColorStop(0.66, 'rgba(0,0,0,0.09)'); gr.addColorStop(0.85, 'rgba(255,255,255,0.06)'); gr.addColorStop(1, 'rgba(0,0,0,0.12)');
@@ -196,6 +197,17 @@ export function drawQuilt(ctx, ch, d, x, y, S, o = {}) {
   // binding
   ctx.save(); ctx.lineWidth = Math.max(3, S * 0.014); ctx.strokeStyle = o.squint ? '#444' : '#3a2a22'; ctx.strokeRect(ox, oy, S, S);
   ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(255,255,255,0.18)'; ctx.strokeRect(ox + S * 0.008, oy + S * 0.008, S - S * 0.016, S - S * 0.016); ctx.restore();
+  return g;
+}
+
+// The 2D marks drawn over the 3D quilt: empty spaces, hint and selection rings (the cloth itself is 3D).
+function quiltOverlay(ctx, g, d, ox, oy, o) {
+  d.cells.forEach((c, i) => {
+    const cell = g.cells[i], px = ox + cell.x, py = oy + cell.y;
+    if (c.t < 0) { ctx.save(); ctx.lineWidth = 2.5; ctx.strokeStyle = 'rgba(60,45,25,0.7)'; ctx.beginPath(); ctx.moveTo(px + cell.s * 0.4, py + cell.s / 2); ctx.lineTo(px + cell.s * 0.6, py + cell.s / 2); ctx.moveTo(px + cell.s / 2, py + cell.s * 0.4); ctx.lineTo(px + cell.s / 2, py + cell.s * 0.6); ctx.stroke(); ctx.restore(); }
+    if (o.hi?.has(i)) { ctx.lineWidth = Math.max(3, cell.s * 0.03); ctx.strokeStyle = `rgba(255,214,90,${0.6 + 0.4 * Math.sin((o.pulse ?? 0) * 6)})`; ctx.strokeRect(px, py, cell.s, cell.s); }
+  });
+  if (o.sel >= 0 && o.sel != null) { const c = g.cells[o.sel]; ctx.lineWidth = Math.max(3, c.s * 0.03); ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.strokeRect(ox + c.x, oy + c.y, c.s, c.s); }
   return g;
 }
 

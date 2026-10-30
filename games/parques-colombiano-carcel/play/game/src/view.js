@@ -5,6 +5,7 @@ import { T, END, isSafe, trackIndex, homeCount, SEAT_NAMES, SEAT_ES, newGame } f
 import { drawStatic, drawFloorOnly, drawPanel, drawPiece, drawDie, paintCell, crown, star5, lcg, SEAT, LIGHT, DARK, INK, mix } from './art.js';
 import { screenButtons, screenLayout, readerFlow, readerMax, zoomOf } from './ui.js';
 import { ART_H } from './text.js';
+import { v3 } from './v3.js';
 
 export const DISPLAY = '"Fredoka", "Trebuchet MS", "Segoe UI", system-ui, sans-serif';
 export const UI = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
@@ -22,7 +23,9 @@ export function render(ctx, state) {
   PRESSED = state.press && !state.press.moved ? state.press.b : null;
   const R = makeText(ctx);
 
-  if (panelScene) drawFloorOnly(ctx); else drawStatic(ctx, sc !== 'title');
+  if (panelScene) drawFloorOnly(ctx);
+  else if (!v3.on) drawStatic(ctx, sc !== 'title');
+  else if (v3.fade < 1) { ctx.save(); ctx.globalAlpha = 1 - v3.fade; drawStatic(ctx, sc !== 'title'); ctx.restore(); }
 
   if (sc === 'title') { drawTitle(ctx, state, R); return; }
   if (panelScene) { drawPanelScene(ctx, state, R, z); return; }
@@ -108,6 +111,16 @@ function drawJails(ctx, state, R) {
   const g = state.g, T0 = state.t, inGame = state.scene !== 'title';
   for (let a = 0; a < 4; a++) {
     const pl = g.players.findIndex((p) => p.arm === a), r = jailRect(a);
+    if (v3.on) {
+      const J = v3.jails[a]; J.active = pl >= 0; J.turn = pl >= 0 && inGame && g.turn === pl && g.winner < 0; J.flash = (state.jailShake?.[a] || 0) > 0 ? Math.min(1, state.jailShake[a] / 0.7) * (0.55 + 0.45 * Math.sin(state.jailShake[a] * 40)) : 0;
+      if (pl < 0) continue;
+      const turn = J.turn, label = `${g.players[pl].name} · ${homeCount(g, pl)}/4`, up = a === 2 || a === 3, ly = up ? r.y - 14 : r.y + r.h + 14, q = v3.proj(r.cx, up ? r.y - 6 : r.y + r.h + 6, 0);
+      void ly; ctx.save(); ctx.font = `600 22px ${DISPLAY}`; const w = ctx.measureText(label).width + 30;
+      ctx.fillStyle = turn ? SEAT[a] : 'rgba(18,12,30,0.82)'; ctx.beginPath(); ctx.roundRect(q.x - w / 2, q.y - 17, w, 34, 17); ctx.fill();
+      ctx.strokeStyle = LIGHT[a]; ctx.lineWidth = 2.5; ctx.stroke(); ctx.restore();
+      R.text(label, q.x, q.y + 7, 22, turn ? '#2a1b12' : '#fff4d6', DISPLAY, 600);
+      continue;
+    }
     if (pl < 0) { ctx.fillStyle = 'rgba(20,10,5,0.5)'; ctx.beginPath(); ctx.roundRect(r.x - 8, r.y - 8, r.w + 16, r.h + 16, 26); ctx.fill(); continue; }
     const turn = inGame && g.turn === pl && g.winner < 0;
     if (turn) {
@@ -122,6 +135,7 @@ function drawJails(ctx, state, R) {
   }
 }
 function drawBars(ctx, state, arm) {
+  if (v3.on) return;
   const r = jailRect(arm), sh = state.jailShake?.[arm] || 0, fl = sh > 0 ? Math.min(1, sh / 0.7) * (0.55 + 0.45 * Math.sin(sh * 40)) : 0;
   ctx.save(); ctx.beginPath(); ctx.roundRect(r.x + 2, r.y + 2, r.w - 4, r.h - 4, 16); ctx.clip();
   const n = 7;
@@ -152,45 +166,48 @@ export function drawPieces(ctx, state, R) {
   g.pos.forEach((ps, pl) => ps.forEach((p, i) => {
     if (flying.has(pl + ',' + i) || (hop && hop.pl === pl && hop.i === i)) return;
     const s = posXY(g, pl, i, p), onBoard = p >= 0 && p < END, key = onBoard ? `${Math.round(s.x)},${Math.round(s.y)}` : `s${pl}_${i}`;
-    const it = { pl, i, p, x: s.x, y: s.y, k: PK, movable: choose && pl === g.turn && froms.has(p), other: choose && pl === g.turn && !froms.has(p) && othersFrom.has(p) };
+    const it = { pl, i, p, x: s.x, y: s.y, k: v3.on && p >= END ? PK * 0.6 : PK, movable: choose && pl === g.turn && froms.has(p), other: choose && pl === g.turn && !froms.has(p) && othersFrom.has(p) };
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(it); list.push(it);
   }));
-  for (const gr of groups.values()) if (gr.length > 1) gr.forEach((it, j) => { it.x += (j - (gr.length - 1) / 2) * 9 * u; it.k = PK * 0.9; it.y += (j % 2 ? 2 : -2) * u; });
+  for (const gr of groups.values()) if (gr.length > 1) gr.forEach((it, j) => { it.x += (j - (gr.length - 1) / 2) * (v3.on ? 30 : 9) * u; it.k = PK * (v3.on ? 0.78 : 0.9); it.y += (j % 2 ? 2 : -2) * u; });
   // rings for where each movable piece would land
   if (choose) {
     for (const m of optsDie) {
       const d = posXY(g, m.pl, m.i, m.to), sel = selMove && selMove.i === m.i, pulse = 0.5 + 0.5 * Math.sin(T0 * 5);
+      if (v3.on) { v3.marks.push({ k: 'ring', x: d.x, y: d.y, cap: m.caps.length > 0, sel: Boolean(sel), a: pulse }); continue; }
       ctx.save(); ctx.strokeStyle = m.caps.length ? `rgba(255,90,70,${0.75 + 0.25 * pulse})` : `rgba(255,236,150,${sel ? 1 : 0.5 + 0.25 * pulse})`; ctx.lineWidth = sel ? 5 : 3;
       if (!sel) ctx.setLineDash([5, 6]);
       ctx.beginPath(); ctx.ellipse(d.x, d.y + 2 * u, (17 + pulse * 2) * u, (12 + pulse) * u, 0, 0, TAU); ctx.stroke(); ctx.restore();
     }
   }
+  const put = (arm, x, y, k, lift, alpha = 1) => { if (v3.on) v3.items.push({ arm, x, y, k: k / PK, lift: lift / u, alpha }); else drawPiece(ctx, arm, x, y + 5 * u, k, lift, alpha); };
   const drawOne = (it) => {
     let lift = 0, x = it.x, y = it.y + 5 * u;
     if (it.movable || it.other) {
       const sel = it.movable && selMove && selMove.from === it.p;
-      ctx.save(); ctx.globalAlpha = it.movable ? 0.5 + 0.3 * Math.sin(T0 * 5 + it.i) : 0.22;
+      if (v3.on) v3.marks.push({ k: 'glow', x: it.x, y: it.y, a: it.movable ? 0.5 + 0.3 * Math.sin(T0 * 5 + it.i) : 0.22, sel });
+      else { ctx.save(); ctx.globalAlpha = it.movable ? 0.5 + 0.3 * Math.sin(T0 * 5 + it.i) : 0.22;
       const g2 = ctx.createRadialGradient(x, y, 2, x, y, 28 * u); g2.addColorStop(0, sel ? 'rgba(255,245,170,1)' : 'rgba(255,220,110,0.95)'); g2.addColorStop(1, 'rgba(255,190,60,0)');
-      ctx.fillStyle = g2; ctx.beginPath(); ctx.ellipse(x, y + 2 * u, 28 * u, 17 * u, 0, 0, TAU); ctx.fill(); ctx.restore();
+      ctx.fillStyle = g2; ctx.beginPath(); ctx.ellipse(x, y + 2 * u, 28 * u, 17 * u, 0, 0, TAU); ctx.fill(); ctx.restore(); }
       if (it.movable) lift = ((sel ? 9 : 0) + (state.prefs.calm ? 0 : Math.abs(Math.sin(T0 * 4 + it.i)) * 3)) * u;
     }
     if (state.shake && state.shake.pl === it.pl && state.shake.i === it.i) x += Math.sin(state.shake.t * 60) * 5 * u * (1 - state.shake.t / 0.55);
-    drawPiece(ctx, g.players[it.pl].arm, x, y, it.k, lift);
+    put(g.players[it.pl].arm, x, it.y, it.k, lift);
   };
   list.filter((it) => it.p < 0).sort((a, b) => a.y - b.y).forEach(drawOne);
-  for (let a = 0; a < 4; a++) if (g.players.some((p) => p.arm === a)) drawBars(ctx, state, a);
+  if (!v3.on) for (let a = 0; a < 4; a++) if (g.players.some((p) => p.arm === a)) drawBars(ctx, state, a);
   list.filter((it) => it.p >= 0).sort((a, b) => a.y - b.y || a.x - b.x).forEach(drawOne);
   // ghost, path and tag for the selected move
   if (selMove) {
-    const pts = hopPath(g, selMove.pl, selMove.i, selMove.from, selMove.to), d = pts[pts.length - 1];
-    ctx.save(); ctx.strokeStyle = 'rgba(255,240,180,0.8)'; ctx.lineWidth = 3; ctx.setLineDash([2, 8]); ctx.lineCap = 'round'; ctx.beginPath();
-    pts.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y))); ctx.stroke(); ctx.restore();
-    drawPiece(ctx, g.players[selMove.pl].arm, d.x, d.y + 5 * u, PK, 0, 0.55 + 0.2 * Math.sin(T0 * 6));
+    const pts = hopPath(g, selMove.pl, selMove.i, selMove.from, selMove.to); let d = pts[pts.length - 1];
+    if (!v3.on) { ctx.save(); ctx.strokeStyle = 'rgba(255,240,180,0.8)'; ctx.lineWidth = 3; ctx.setLineDash([2, 8]); ctx.lineCap = 'round'; ctx.beginPath();
+    pts.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y))); ctx.stroke(); ctx.restore(); }
+    put(g.players[selMove.pl].arm, d.x, d.y, PK, 0, 0.55 + 0.2 * Math.sin(T0 * 6));
     const t = trackIndex(g, selMove.pl, selMove.to);
     const tag = selMove.caps.length ? (selMove.enter ? 'Free + capture!' : 'Capture!') : selMove.enter ? 'Free' : selMove.to === END ? 'Home!' : t != null && isSafe(t) ? 'Safe' : selMove.to >= T ? 'Home lane' : '';
     if (tag) {
-      ctx.save(); ctx.font = `600 21px ${DISPLAY}`; const w = ctx.measureText(tag).width + 24, ty = d.y - 70 * u;
+      const dp = v3.on ? v3.proj(d.x, d.y, 24 * u) : { x: d.x, y: d.y - 24 * u }; ctx.save(); ctx.font = `600 21px ${DISPLAY}`; const w = ctx.measureText(tag).width + 24, ty = dp.y - 46 * u; d = { x: dp.x, y: d.y };
       ctx.fillStyle = selMove.caps.length ? '#c42a30' : '#1d8a54'; ctx.beginPath(); ctx.roundRect(d.x - w / 2, ty, w, 30, 15); ctx.fill(); ctx.strokeStyle = '#fff2b0'; ctx.lineWidth = 2; ctx.stroke();
       ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.fillText(tag, d.x, ty + 22); ctx.restore();
     }
@@ -198,12 +215,13 @@ export function drawPieces(ctx, state, R) {
   if (hop) {
     const a = hop.pts[Math.min(hop.seg, hop.n)], b = hop.pts[Math.min(hop.seg + 1, hop.n)], f = hop.seg >= hop.n ? 1 : clamp(hop.t / hop.per, 0, 1), e = ease(f);
     const x = a.x + (b.x - a.x) * e, y = a.y + (b.y - a.y) * e;
-    drawPiece(ctx, g.players[hop.pl].arm, x, y + 5 * u, PK * 1.06, Math.sin(Math.PI * f) * (hop.m.enter ? 34 : 17) * u);
+    put(g.players[hop.pl].arm, x, y, PK * 1.06, Math.sin(Math.PI * f) * (hop.m.enter ? 34 : 17) * u);
   }
   for (const f of state.fly) {
     const uu = ease(clamp(f.t / f.dur, 0, 1));
-    drawPiece(ctx, g.players[f.pl].arm, f.from.x + (f.to.x - f.from.x) * uu, f.from.y + (f.to.y - f.from.y) * uu + 5 * u, PK, (Math.sin(Math.PI * uu) * 100 + 6) * u, 1);
-    if (f.t < 0.35) { ctx.save(); ctx.globalAlpha = 1 - f.t / 0.35; ctx.strokeStyle = '#fff0b0'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(f.from.x, f.from.y, 14 + f.t * 90, 0, TAU); ctx.stroke(); ctx.restore(); }
+    put(g.players[f.pl].arm, f.from.x + (f.to.x - f.from.x) * uu, f.from.y + (f.to.y - f.from.y) * uu, PK, (Math.sin(Math.PI * uu) * 100 + 6) * u, 1);
+    if (v3.on) { if (f.t < 0.35) v3.marks.push({ k: 'burst', x: f.from.x, y: f.from.y, f: f.t / 0.35 }); }
+    else if (f.t < 0.35) { ctx.save(); ctx.globalAlpha = 1 - f.t / 0.35; ctx.strokeStyle = '#fff0b0'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(f.from.x, f.from.y, 14 + f.t * 90, 0, TAU); ctx.stroke(); ctx.restore(); }
   }
 }
 
@@ -215,8 +233,9 @@ function drawDice(ctx, state, R) {
     ctx.save(); const pulse = 0.5 + 0.5 * Math.sin(T0 * 4), tcx = TRAY.x + TRAY.w / 2, tcy = DICE_SPOTS[0].y + 20, trx = TRAY.w * 0.5, try_ = Math.min(130, TRAY.h * 0.43), gr = ctx.createRadialGradient(tcx, tcy, 20, tcx, tcy, trx);
     gr.addColorStop(0, `rgba(255,224,120,${0.25 + 0.2 * pulse})`); gr.addColorStop(1, 'rgba(255,190,60,0)'); ctx.fillStyle = gr; ctx.beginPath(); ctx.ellipse(tcx, tcy, trx, try_, 0, 0, TAU); ctx.fill(); ctx.restore();
   }
+  const die = (k, x, y, rot, face, z, o = {}) => { if (v3.on) v3.dice.push({ id: k, x, y, rot, face, z, used: !!o.used, glow: o.glow || 0, u: o.u ?? 1, rolling: !!o.rolling }); else drawDie(ctx, x, y, rot, face, z, 1, o); };
   if (!Ro) {
-    DICE_SPOTS.forEach((s, k) => drawDie(ctx, s.x + (k ? 6 : -4), s.y + Math.sin(T0 * 2 + k * 2) * 2, k ? 0.28 : -0.2, k ? 3 : 5, 0, 1));
+    DICE_SPOTS.forEach((s, k) => die(k, s.x + (k ? 6 : -4), s.y + Math.sin(T0 * 2 + k * 2) * 2, k ? 0.28 : -0.2, k ? 3 : 5, 0));
   } else {
     const rolling = ph === 'roll';
     Ro.items.forEach((it, k) => {
@@ -227,7 +246,7 @@ function drawDice(ctx, state, R) {
       if (state.prefs.calm) zz = 0;
       const rotA = it.r0 + (it.r1 - it.r0) * (1 - (1 - u) * (1 - u)), face = u < 0.85 ? ((Math.floor(Ro.t * 18) + it.face0 + k * 2) % 6) + 1 : Ro.dice[k];
       const used = !rolling && Ro.rem[k] == null, glow = !rolling && !used && (ph === 'choose' || ph === 'apreveal') && state.dieSel === k ? 0.5 + 0.5 * Math.sin(T0 * 6) : 0;
-      drawDie(ctx, x, y, rotA, face, zz, 1, { used, glow });
+      die(k, x, y, rotA, face, zz, { used, glow, u, rolling });
     });
   }
   // prompt or result
@@ -249,8 +268,8 @@ function drawDice(ctx, state, R) {
 }
 
 function drawParticles(ctx, state) {
-  for (const p of state.parts) {
-    const a = clamp(p.life / p.max, 0, 1);
+  for (const p0 of state.parts) {
+    const a = clamp(p0.life / p0.max, 0, 1), p = v3.on ? { ...p0, ...v3.proj(p0.x, p0.y, 0) } : p0;
     ctx.save(); ctx.globalAlpha = a; ctx.fillStyle = p.col;
     if (p.rect) { ctx.translate(p.x, p.y); ctx.rotate(p.rot || 0); ctx.fillRect(-p.sz, -p.sz * 0.6, p.sz * 2, p.sz * 1.2); } else { ctx.beginPath(); ctx.arc(p.x, p.y, p.sz * (0.4 + 0.6 * a), 0, TAU); ctx.fill(); }
     ctx.restore();

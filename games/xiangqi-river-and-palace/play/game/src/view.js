@@ -9,6 +9,7 @@ import { LESSONS } from './lessons.js';
 import { HOW, ABOUT, RULES } from './content.js';
 import { SIDE_NAME, kingSquare, inCheckBoard, RED, BLACK } from './rules.js';
 import { drawCredit, drawMoreLine, drawLockup } from './brand.js';
+import { v3, flatAlpha } from './v3.js';
 
 const TITLE = '"Cormorant Garamond", Georgia, "Times New Roman", serif', UI = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 const TAU = Math.PI * 2, GOLD = '#f2d27a', CREAM = '#fbeccb';
@@ -29,7 +30,8 @@ export function render(ctx, state, L) {
   const scene = state.scene, big = state.big, calm = state.calm;
   const theme = state.set, lang = state.lang === 'en' ? 'en' : 'zh', flip = state.human === BLACK && !state.two && (scene === 'play');
   const T = state.t, SW = L.w, SH = L.h;
-  drawTable(ctx, SW, SH);
+  const fa = flatAlpha();            // 1 without 3D; fades to 0 while the 3D scene takes over (the 3D scene draws table, board and pieces)
+  if (fa >= 1) drawTable(ctx, SW, SH); else if (fa > 0) { ctx.save(); ctx.globalAlpha = fa; drawTable(ctx, SW, SH); ctx.restore(); }
   const piece = (p, x, y, o = {}) => drawPiece(ctx, p, x, y, { theme, lang, ...o });
 
   const text = (str, x, y, size, color = CREAM, font = UI, weight = 700, align = 'center') => { ctx.textAlign = align; ctx.textBaseline = 'alphabetic'; ctx.font = `${weight} ${size}px ${font}`; ctx.fillStyle = color; ctx.fillText(str, x, y); };
@@ -66,7 +68,7 @@ export function render(ctx, state, L) {
     text(label, r.x + r.w / 2, r.y + press + r.h / 2 + sz * 0.35, sz, o.primary ? '#2a1204' : CREAM, o.font ?? UI, 700);
     ctx.restore();
   };
-  const lantern = (x, scale) => drawLantern(ctx, x, host.t - 6, T, x < SW / 2 ? 0 : 2.1, scale);
+  const lantern = (x, scale) => { if (fa > 0) { ctx.save(); ctx.globalAlpha = fa; drawLantern(ctx, x, host.t - 6, T, x < SW / 2 ? 0 : 2.1, scale); ctx.restore(); } };
   const stepper = (st, dec, inc, label) => {
     button(st.dec, '−', { dim: dec, size: 30 }); button(st.inc, '+', { dim: inc, size: 30 });
     text(label, st.label.x, st.label.y, st.label.size, 'rgba(251,236,203,0.9)', UI, 700);
@@ -76,12 +78,17 @@ export function render(ctx, state, L) {
   if (scene === 'title') {
     const TL = L.title(!!state.saved), hr = TL.hero;
     ctx.save(); ctx.translate(hr.x, hr.y); ctx.scale(hr.s, hr.s);
-    { const ly = host.t / hr.s - 6; drawLantern(ctx, TL.lanternX[0], ly, T, 0, 1); drawLantern(ctx, TL.lanternX[1], ly, T, 2.1, 1); }
     const bob = calm ? 0 : Math.sin(T * 1.4) * 5;
-    blob(ctx, 360, 380, 330, 190, '255,150,70', 0.28);
-    piece(1, 226, 372 + bob, { R: 32, scale: 2.75 });
-    piece(-1, 494, 372 - bob, { R: 32, scale: 2.75 });
-    if (lang === 'en') {
+    if (fa > 0) {
+      ctx.save(); ctx.globalAlpha = fa;
+      { const ly = host.t / hr.s - 6; drawLantern(ctx, TL.lanternX[0], ly, T, 0, 1); drawLantern(ctx, TL.lanternX[1], ly, T, 2.1, 1); }
+      blob(ctx, 360, 380, 330, 190, '255,150,70', 0.28);
+      piece(1, 226, 372 + bob, { R: 32, scale: 2.75 });
+      piece(-1, 494, 372 - bob, { R: 32, scale: 2.75 });
+      ctx.restore();
+    }
+    if (v3.on) { ctx.fillStyle = 'rgba(6,12,12,0.0)'; }
+    if (v3.on) { /* the 3D hero carries the generals: no flat flourish */ } else if (lang === 'en') {
       ctx.save(); ctx.strokeStyle = 'rgba(242,210,122,0.5)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(300, 372); ctx.lineTo(420, 372); ctx.stroke();
       ctx.font = `italic 700 22px ${TITLE}`; ctx.fillStyle = 'rgba(242,210,122,0.9)'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('English', 360, 336); ctx.restore();
     } else {
@@ -93,8 +100,8 @@ export function render(ctx, state, L) {
     ctx.restore();
     const nr = TL.narrow;
     if (state.saved) button(TL.resume, 'Resume game', { primary: true });
-    button(TL.learn, state.learnedAll ? 'Lessons' : 'Learn to play', { primary: !state.saved });
-    button(TL.red, nr ? 'Play Red' : 'Play Red (you move first)', { size: 27 }); button(TL.black, 'Play Black', {}); button(TL.two, 'Two players', {});
+    button(TL.red, nr ? 'Play Red' : 'Play Red (you move first)', { primary: !state.saved, size: 32 });
+    button(TL.learn, state.learnedAll ? 'Lessons' : 'Learn to play', { size: 26 }); button(TL.black, 'Play Black', {}); button(TL.two, 'Two players', {});
     button(TL.daily, state.daily.solvedToday ? (nr ? 'Puzzle: solved' : 'Daily puzzle: solved') : `Daily puzzle${state.daily.streak && !nr ? ' (streak ' + state.daily.streak + ')' : ''}`, { size: 27 });
     // Auto Play ("Watch & Learn"): free, untimed, both sides play automatically - a teaching demo,
     // never counted as a real game (see startAutoplay()/isPreviewExempt() in game.js).
@@ -109,6 +116,7 @@ export function render(ctx, state, L) {
     if (!drawLockup(ctx, TL.credit.x, TL.credit.top + TL.credit.w * 0.2725, TL.credit.w, state.lockPress > 0 ? 0.7 : 1)) drawCredit(ctx, TL.credit.x, TL.credit.y, 20);
     return;
   }
+  if (v3.on && scene !== 'title' && scene !== 'play' && scene !== 'lesson' && scene !== 'puzzle' && scene !== 'autoplay') { ctx.fillStyle = `rgba(5,9,9,${0.72 * (1 - fa)})`; ctx.fillRect(0, 0, SW, SH); }   // calm the 3D backdrop behind text pages
   if (scene === 'demo-limit') {
     const DL = L.demo();
     lantern(L.lanternX[0], 1); lantern(L.lanternX[1], 1); blob(ctx, DL.hero.x, DL.hero.y + 40, 300, 200, '255,150,70', 0.25);
@@ -244,30 +252,34 @@ export function render(ctx, state, L) {
 
   // ---- the board and everything on it, in canonical board space
   ctx.save(); ctx.translate(BL.ox, BL.oy); ctx.scale(BL.s, BL.s);
-  drawBoard(ctx, state.board, lang);
-  const pos = (s) => pointXY(s, flip);
+  if (fa >= 1) drawBoard(ctx, state.board, lang); else if (fa > 0) { ctx.save(); ctx.globalAlpha = fa; drawBoard(ctx, state.board, lang); ctx.restore(); }
+  const pos = (s) => { const q = pointXY(s, flip); if (!v3.on || !v3.at) return { x: q.x, y: q.y, k: 1 }; return v3.at(q.x, q.y, 0); };
+  // a glow / dot on a board point: the 3D scene lays it as light on the board; the flat art blits a blob
+  const mark = (s, r, rgb, a, kind = 'glow') => { const q = pointXY(s, flip); if (v3.on) v3.marks.push({ x: q.x, y: q.y, r, rgb, a, kind }); else blob(ctx, q.x, q.y, r, r, rgb, a); };
+  const bpiece = (p, x, y, o = {}) => { if (v3.on) return; piece(p, x, y, o); };
   const pulse = calm ? 0.6 : 0.5 + 0.5 * Math.sin(T * 4.2);
-  if (state.last && !inLesson) for (const s of [state.last.f, state.last.t]) { const p = pos(s); blob(ctx, p.x, p.y, 54, 54, '255,205,90', 0.5); }
-  if (state.last && inLesson) for (const s of [state.last.f, state.last.t]) { const p = pos(s); blob(ctx, p.x, p.y, 54, 54, '255,205,90', 0.4); }
+  if (state.last && !inLesson) for (const s of [state.last.f, state.last.t]) mark(s, 54, '255,205,90', 0.5);
+  if (state.last && inLesson) for (const s of [state.last.f, state.last.t]) mark(s, 54, '255,205,90', 0.4);
   const inChk = !g.result && inCheckBoard(g.board, g.turn);
-  if (inChk || (g.result && g.result.why === 'checkmate')) { const k = kingSquare(g.board, g.turn); if (k >= 0) { const p = pos(k); blob(ctx, p.x, p.y, 78 + pulse * 10, 78 + pulse * 10, '255,50,30', 0.6 + pulse * 0.3); } }
-  if (state.sel >= 0) { const p = pos(state.sel); blob(ctx, p.x, p.y, 66, 66, '255,214,110', 0.7); }
-  if (state.hint) for (const s of [state.hint.from, state.hint.to]) { const p = pos(s); blob(ctx, p.x, p.y, 62 + pulse * 8, 62 + pulse * 8, '90,255,160', 0.55 + pulse * 0.25); }
+  if (inChk || (g.result && g.result.why === 'checkmate')) { const k = kingSquare(g.board, g.turn); if (k >= 0) mark(k, 78 + pulse * 10, '255,50,30', 0.6 + pulse * 0.3); }
+  if (state.sel >= 0) mark(state.sel, 66, '255,214,110', 0.7);
+  if (state.hint) for (const s of [state.hint.from, state.hint.to]) mark(s, 62 + pulse * 8, '90,255,160', 0.55 + pulse * 0.25);
   for (const s of state.targets) {
-    const p = pos(s), cap = g.board[s] !== 0;
-    if (cap) { blob(ctx, p.x, p.y, 62, 62, '255,60,40', 0.4 + pulse * 0.25); }
-    else { blob(ctx, p.x, p.y, 34 + pulse * 5, 34 + pulse * 5, '70,220,140', 0.65 + pulse * 0.25); ctx.fillStyle = 'rgba(214,255,226,0.95)'; ctx.beginPath(); ctx.arc(p.x, p.y, 7.5, 0, TAU); ctx.fill(); }
+    const cap = g.board[s] !== 0;
+    if (cap) mark(s, 62, '255,60,40', 0.4 + pulse * 0.25);
+    else { mark(s, 34 + pulse * 5, '70,220,140', 0.65 + pulse * 0.25); if (v3.on) mark(s, 12, '214,255,226', 0.95, 'dot'); else { const p = pos(s); ctx.fillStyle = 'rgba(214,255,226,0.95)'; ctx.beginPath(); ctx.arc(p.x, p.y, 7.5, 0, TAU); ctx.fill(); } }
   }
-  if (inLesson && !state.lesson.done && state.lesson.showSol) { const st = LESSONS[state.lesson.i].steps[state.lesson.s]; for (const pt of st.sol) { const p = pos(pt[1] * 9 + pt[0]); blob(ctx, p.x, p.y, 62, 62, '90,255,160', 0.5 + pulse * 0.3); } }
+  if (inLesson && !state.lesson.done && state.lesson.showSol) { const st = LESSONS[state.lesson.i].steps[state.lesson.s]; for (const pt of st.sol) mark(pt[1] * 9 + pt[0], 62, '90,255,160', 0.5 + pulse * 0.3); }
   // Auto Play REVEAL: a bold gold ring around the destination of the move about to be played.
   if (inAuto && state.autoPhase === 'reveal' && state.hint) {
-    const p = pos(state.hint.to);
+    if (v3.on) mark(state.hint.to, 40 + pulse * 6, '255,214,80', 0.95, 'ring');
+    else { const p = pos(state.hint.to);
     ctx.save(); ctx.strokeStyle = `rgba(255,214,80,${0.75 + pulse * 0.25})`; ctx.lineWidth = 5;
-    ctx.beginPath(); ctx.arc(p.x, p.y, 30 + pulse * 6, 0, TAU); ctx.stroke(); ctx.restore();
+    ctx.beginPath(); ctx.arc(p.x, p.y, 30 + pulse * 6, 0, TAU); ctx.stroke(); ctx.restore(); }
   }
   // pieces (top to bottom so lower ones overlap upper ones' shadows naturally)
   const moving = a && (a.type === 'move' || a.type === 'refuse') ? a : null, dragSq = state.drag && state.drag.moved ? state.drag.sq : -1;
-  const drawAt = (p, s, o = {}) => { const q = pos(s); piece(p, q.x + (o.dx ?? 0), q.y + (o.dy ?? 0), o); };
+  const drawAt = (p, s, o = {}) => { const q = pointXY(s, flip); bpiece(p, q.x + (o.dx ?? 0), q.y + (o.dy ?? 0), o); };
   for (let s = 0; s < 90; s++) {
     const p = g.board[s]; if (!p) continue;
     if (moving && a.type === 'move' && s === a.to) continue;
@@ -278,21 +290,22 @@ export function render(ctx, state, L) {
   }
   if (moving && a.type === 'move' && a.cap) { const f = Math.min(1, a.t / a.dur); if (f < 0.98) drawAt(a.cap, a.to, { alpha: 1 - Math.max(0, (f - 0.7) / 0.28), scale: 1 - Math.max(0, (f - 0.7)) * 0.6 }); }
   if (moving) {
-    const f = Math.min(1, a.t / a.dur), from = pos(a.from), to = pos(a.to);
+    const f = Math.min(1, a.t / a.dur), from = pointXY(a.from, flip), to = pointXY(a.to, flip);
     if (a.type === 'move') {
       const e = f * f * (3 - 2 * f), x = from.x + (to.x - from.x) * e, y = from.y + (to.y - from.y) * e, lift = Math.sin(Math.PI * f) * 1.25;
-      piece(a.p, x, y, { lift, scale: 1 + lift * 0.06 });
+      bpiece(a.p, x, y, { lift, scale: 1 + lift * 0.06 });
     } else {
       const reach = 0.55, out = f < 0.4 ? f / 0.4 : f < 0.6 ? 1 : 1 - (f - 0.6) / 0.4, e = out * out * (3 - 2 * out) * reach;
       const shake = calm ? 0 : f >= 0.38 && f < 0.64 ? Math.sin(f * 110) * 5 : 0;
-      piece(a.p, from.x + (to.x - from.x) * e + shake, from.y + (to.y - from.y) * e, { lift: 0.5 * Math.sin(Math.PI * Math.min(1, f * 1.1)) });
+      bpiece(a.p, from.x + (to.x - from.x) * e + shake, from.y + (to.y - from.y) * e, { lift: 0.5 * Math.sin(Math.PI * Math.min(1, f * 1.1)) });
       if (f > 0.34 && f < 0.7) { ctx.save(); ctx.strokeStyle = `rgba(255,90,60,${0.8 * (1 - Math.abs(f - 0.5) * 4)})`; ctx.lineWidth = 4; const q = pos(a.to); ctx.beginPath(); ctx.moveTo(q.x - 16, q.y - 16); ctx.lineTo(q.x + 16, q.y + 16); ctx.moveTo(q.x + 16, q.y - 16); ctx.lineTo(q.x - 16, q.y + 16); ctx.stroke(); ctx.restore(); }
     }
   }
-  if (dragSq >= 0) piece(g.board[dragSq], state.drag.x, state.drag.y - 46, { lift: 1.2, scale: 1.12 });
-  if (state.kb && !moving) { const p = pos(state.cursor); ctx.save(); ctx.strokeStyle = '#7fffc0'; ctx.lineWidth = 4; ctx.beginPath(); ctx.roundRect(p.x - 38, p.y - 38, 76, 76, 12); ctx.stroke(); ctx.restore(); }
-  for (const r of state.rings) { const f = r.t / 0.5; if (f < 1) { ctx.save(); ctx.strokeStyle = `rgba(255,220,130,${1 - f})`; ctx.lineWidth = 6 * (1 - f) + 1; ctx.beginPath(); ctx.arc(r.x, r.y, 20 + f * 60, 0, TAU); ctx.stroke(); ctx.restore(); } }
-  for (const q of state.parts) { const f = q.t / q.max; if (f < 1) { ctx.fillStyle = `rgba(${q.c},${1 - f})`; ctx.beginPath(); ctx.arc(q.x, q.y, q.size * (1 - f * 0.6), 0, TAU); ctx.fill(); } }
+  if (dragSq >= 0) bpiece(g.board[dragSq], state.drag.x, state.drag.y - 46, { lift: 1.2, scale: 1.12 });
+  if (state.kb && !moving) { const p = pos(state.cursor); ctx.save(); ctx.strokeStyle = '#7fffc0'; ctx.lineWidth = 4; ctx.beginPath(); ctx.roundRect(p.x - 38 * p.k, p.y - 38 * p.k, 76 * p.k, 76 * p.k, 12); ctx.stroke(); ctx.restore(); }
+  const at = (x, y) => (v3.on && v3.at ? v3.at(x, y, 0) : { x, y, k: 1 });
+  for (const r0 of state.rings) { const r = { ...r0, ...at(r0.x, r0.y) }, f = r0.t / 0.5; if (f < 1) { ctx.save(); ctx.strokeStyle = `rgba(255,220,130,${1 - f})`; ctx.lineWidth = 6 * (1 - f) + 1; ctx.beginPath(); ctx.arc(r.x, r.y, (20 + f * 60) * r.k, 0, TAU); ctx.stroke(); ctx.restore(); } }
+  for (const q0 of state.parts) { const q = { ...q0, ...at(q0.x, q0.y) }, f = q0.t / q0.max; if (f < 1) { ctx.fillStyle = `rgba(${q.c},${1 - f})`; ctx.beginPath(); ctx.arc(q.x, q.y, q.size * (1 - f * 0.6), 0, TAU); ctx.fill(); } }
   if (state.banner && state.banner.t < 1.4) {
     const f = state.banner.t / 1.4, sc = 1 + Math.max(0, 0.4 - f * 2), al = f < 0.75 ? 1 : 1 - (f - 0.75) * 4;
     ctx.save(); ctx.globalAlpha = Math.max(0, al); ctx.translate(360, GY_MID); ctx.scale(sc, sc); ctx.rotate(-0.05);

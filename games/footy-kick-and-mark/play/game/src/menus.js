@@ -1,7 +1,7 @@
 // Every screen that is not the play screen: title, setup, learn, settings, result, pause and the paginated About / How to Play /
 // Rules reader with its diagrams. Pure drawing; game.js owns state. All text follows the 100-300% text size.
 import { W, H, TEXT_SCALES, THINK_STEPS, colGeom, readerLayout, setupPins, host, isWide, minFont } from './layout.js';
-import { drawLockup, drawMoreLine } from './brand.js';
+import { drawLockup, drawMoreLine, heroImage } from './brand.js';
 import { FONT, DISPLAY, C, roundPath, drawButton, panel, wrapLines, textShadow, flowLayout, drawFlow, flowHit } from './ui.js';
 import { LEVELS, ROLES, HW, HL, ZG, GHW, BHW } from './consts.js';
 import { LESSONS, QUIZ, ROLE_INFO } from './content.js';
@@ -283,6 +283,14 @@ export function renderTitle(ctx, state) {
     titleLockTap = { x: lcx - tw / 2, y: ly + LOCKUP_H + 6 - th, w: tw, h: th };
     ctx.save(); ctx.fillStyle = state.lockDown > state.t ? 'rgba(255,226,122,0.5)' : 'rgba(4,22,14,0.55)'; roundPath(ctx, lcx - lw / 2 - 12, ly - 6, lw + 24, LOCKUP_H + 12, (LOCKUP_H + 12) / 2); ctx.fill(); ctx.restore();
     drawLockup(ctx, lcx, ly, LOCKUP_H, 1);
+    const hi = heroImage(), hy = ly + LOCKUP_H + 26, ha = H - host.b - 24 - hy;
+    if (hi && !g.wide && ha >= 220) {   // a still of the real 3D match (rendered from the scene) in the empty lower part of a tall title
+      const hh = Math.min(ha, 400), hw = Math.min(W - 80, Math.round(hh * hi.width / hi.height)), hx = Math.round((W - hw) / 2), hh2 = Math.round(hw * hi.height / hi.width), ty = hy + Math.round((ha - hh2) / 2);
+      const z = 1.05 + 0.03 * Math.sin(state.t * 0.35), iw = hi.width / z, ih = hi.height / z;
+      ctx.save(); roundPath(ctx, hx, ty, hw, hh2, 22); ctx.clip();
+      ctx.drawImage(hi, (hi.width - iw) * (0.5 + 0.4 * Math.sin(state.t * 0.21)), (hi.height - ih) * 0.5, iw, ih, hx, ty, hw, hh2);
+      ctx.restore(); ctx.lineWidth = 4; ctx.strokeStyle = '#f2b441'; roundPath(ctx, hx, ty, hw, hh2, 22); ctx.stroke();
+    }
   }
   if (state.demo) { ctx.textAlign = 'center'; ctx.font = `400 ${minFont(18)}px ${FONT}`; ctx.fillStyle = 'rgba(255,246,228,0.6)'; ctx.fillText('Web demo', g.wide ? g.heroCx : W / 2, H - 8 - host.b); }
 }

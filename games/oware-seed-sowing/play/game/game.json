@@ -4,7 +4,7 @@
   "tagline": "The seed-sowing game of West Africa",
   "genre": "abstract strategy board game",
   "orientation": "any",
-  "version": "0.2.4",
+  "version": "0.3.0",
   "monetization": {
     "model": "premium",
     "priceUsd": 2.99,

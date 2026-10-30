@@ -4,6 +4,7 @@
 // Scenes: title, setup, settings, learn, play (also Watch & Learn and the lessons), result, howto / about / rules, demolimit.
 // Play phases: intro, aim (a person plans the throw), think (a computer plans it), fly (the disc is in the air and on the table),
 // settle (the throw is scored), roundend (the Closest bonus), clear.
+import { r3 } from './r3.js';
 import { W, H, TEXT_SCALES, THINK_STEPS, REVEAL_SECS, TEXT_DEC, TEXT_INC, REF_BACK, REF_NEXT, SETUP_PINS, PULL, inRect, SCENE_Y0, frameFor, setStage, host, screen } from './layout.js';
 import { DT, newSim, stepSim, snapSim, launchDisc, runThrow, resting, closestDisc, newDisc, MOUTH, HOLES, planPath, TD, HW } from './phys.js';
 import { newMatch, applyThrow, tableDiscs, turnSide, leftFor, DISCS, LENGTHS, CLOSEST_BONUS } from './engine.js';
@@ -847,6 +848,7 @@ export function createGame(env) {
       }
     },
     render(ctx) {
+      if (r3.on) { ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height); ctx.restore(); }   // the kit's transparent background does not clear
       noteSize();
       const a = state.att;
       a.alpha = a.stepped && env.clock ? Math.max(0, Math.min(1, (nowMs() - a.updAt) / (STEP * 1000))) : 1;
@@ -854,7 +856,7 @@ export function createGame(env) {
       const inFrame = (kind, fn) => {
         const T = applyFrame(kind);
         ctx.save();
-        if (kind === 'play' && playFrame.mode === 'short') { ctx.fillStyle = '#0b0705'; ctx.fillRect(0, 0, screen.w, screen.h); }
+        if (kind === 'play' && playFrame.mode === 'short' && !r3.on) { ctx.fillStyle = '#0b0705'; ctx.fillRect(0, 0, screen.w, screen.h); }
         ctx.translate(T.ox, T.oy); ctx.scale(T.k, T.k);
         try { fn(); } finally { ctx.restore(); }
       };

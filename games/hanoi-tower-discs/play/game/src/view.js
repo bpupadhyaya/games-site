@@ -11,11 +11,15 @@ import { tr, RULES } from './content.js';
 import { TEXT_SCALES } from './ui.js';
 import { TOOLBAR_IDS, layoutFor } from './layout.js';
 import { THINK_STEPS } from './screens.js';
+import { v3, flatAlpha } from './v3.js';
 
 const ease = (t) => 1 - (1 - t) ** 3;
 const backOut = (t) => { const c = 1.7; return 1 + (c + 1) * (t - 1) ** 3 + c * (t - 1) ** 2; };
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
 const PEG = (i) => 'ABCD'[i];
+// flat layers fade out when the 3D scene takes over (crossfade); with no 3D they draw exactly as before
+const flat = (ctx, fn) => { const fa = flatAlpha(); if (fa <= 0.01) return; ctx.save(); ctx.globalAlpha *= fa; fn(); ctx.restore(); };
+const bgf = (ctx, t, gy) => flat(ctx, () => background(ctx, t, gy));
 
 // ----------------------------------------------------------------------------------------- documents
 function drawDocBlocks(ctx, S, ui, scroll) {
@@ -278,16 +282,23 @@ function drawAttract(ctx, S, T) {
   const pegOf = [0, 0, 0];
   for (let i = 0; i < k; i++) pegOf[PLAN3[i][0]] = PLAN3[i][2];
   const moving = k < PLAN3.length ? PLAN3[k] : null;
+  const rodLen = 290;
   const seatY = (d, pegs) => { let c = 0; for (let e = d + 1; e < n; e++) if (pegs[e] === pegs[d]) c++; return base - c * sh; };
+  const T2 = (x) => T.ox + x * T.k, TY = (y) => T.oy + y * T.k;
+  v3.slab = { x0: T2(40), x1: T2(680), y: TY(base), h: 64 * T.k };
+  v3.pegs = px.map((x, i) => ({ x: T2(x), y: TY(base), len: rodLen * T.k, r: 9 * T.k, glow: i === 2 && !moving ? 0.8 : 0 }));
+  v3.discs = []; v3.goal = 2; v3.numbers = false; v3.done = 0;
+  const pushDisc = (id, x, y) => v3.discs.push({ id, x: T2(x), y: TY(y), w: W3[id] * T.k, sh: sh * T.k, sq: 0, glow: 0 });
+  flat(ctx, () => {
   const glow = ctx.createRadialGradient(360, 560, 30, 360, 560, 380);
   glow.addColorStop(0, 'rgba(255,170,100,0.20)'); glow.addColorStop(1, 'rgba(255,170,100,0)');
   ctx.fillStyle = glow; ctx.fillRect(0, 380, 720, 500);
   drawSlab(ctx, 40, 680, base, { h: 64 });
-  const rodLen = 290;
   for (let i = 0; i < P; i++) drawRod(ctx, px[i], base + 18, rodLen + 18, 9, { glow: i === 2 && !moving ? 0.8 : 0 });
+  });
   for (let d = n - 1; d >= 0; d--) {
     if (moving && moving[0] === d) continue;
-    drawDisc(ctx, px[pegOf[d]], seatY(d, pegOf), W3[d], sh, d, { label: false, hole: 9 });
+    pushDisc(d, px[pegOf[d]], seatY(d, pegOf));
   }
   if (moving) {
     const d = moving[0], from = moving[1], to = moving[2];
@@ -297,8 +308,15 @@ function drawAttract(ctx, S, T) {
     if (u < 0.3) { const q = ease(u / 0.3); x = px[from]; y = sy0 + (hv - sy0) * q; }
     else if (u < 0.7) { const q = (u - 0.3) / 0.4; const e = q * q * (3 - 2 * q); x = px[from] + (px[to] - px[from]) * e; y = hv; }
     else { const q = (u - 0.7) / 0.3; x = px[to]; y = hv + (sy1 - hv) * q * q; }
-    drawDisc(ctx, x, y, W3[d], sh, d, { label: false, hole: 9 });
+    pushDisc(d, x, y);
   }
+  flat(ctx, () => {
+    for (let d = n - 1; d >= 0; d--) {
+      if (moving && moving[0] === d) continue;
+      drawDisc(ctx, px[pegOf[d]], seatY(d, pegOf), W3[d], sh, d, { label: false, hole: 9 });
+    }
+    if (moving) { const m = v3.discs[v3.discs.length - 1]; drawDisc(ctx, (m.x - T.ox) / T.k, (m.y - T.oy) / T.k, W3[moving[0]], sh, moving[0], { label: false, hole: 9 }); }
+  });
   const g = ctx.createLinearGradient(0, 120, 0, 290);
   g.addColorStop(0, '#fff3c4'); g.addColorStop(0.5, '#e8c46a'); g.addColorStop(1, '#b8842c');
   ctx.save();
@@ -314,14 +332,14 @@ function drawAttract(ctx, S, T) {
 }
 
 function drawTitle(ctx, S, ui, L) {
-  background(ctx, S.t, L.land ? L.h * 0.5 : 560 * L.title.k + L.title.oy);
+  v3.mode = 'title'; bgf(ctx, S.t, L.land ? L.h * 0.5 : 560 * L.title.k + L.title.oy);
   drawAttract(ctx, S, L.title);
   drawDocBlocks(ctx, S, ui, S.scroll[ui.scrollKey] ?? 0);
   drawFixed(ctx, S, ui.fixed);
 }
 
 function drawDocScreen(ctx, S, ui) {
-  background(ctx, S.t);
+  v3.mode = 'env'; bgf(ctx, S.t);
   if (ui.panel) panel(ctx, ui.panel.x, ui.panel.y, ui.panel.w, ui.panel.h, {});
   drawDocBlocks(ctx, S, ui, S.scroll[ui.scrollKey] ?? 0);
   drawFixed(ctx, S, ui.fixed);
@@ -394,17 +412,22 @@ function drawScene(ctx, S, puz, auto) {
   const held = puz.sel >= 0 ? puz.sel : puz.ptr && puz.ptr.kind === 'src' ? puz.ptr.peg : -1;
   let over = -1;
   if (puz.ptr && puz.ptr.dragging && puz.ptr.fx != null) over = pegAt(puz, puz.ptr.fx, puz.ptr.fy - 20, true);
-  drawSlab(ctx, g.slab[0], g.slab[1], g.baseY, { h: g.slabH });
+  v3.slab = { x0: g.slab[0], x1: g.slab[1], y: g.baseY, h: g.slabH };
+  v3.goal = puz.goal; v3.numbers = S.numbers; v3.done = puz.done && allRest(puz) ? puz.doneT : 0;
+  flat(ctx, () => drawSlab(ctx, g.slab[0], g.slab[1], g.baseY, { h: g.slabH }));
   // goal marker
   const gx = g.pegX[puz.goal];
-  ctx.save();
+  if (flatAlpha() > 0.01) {
+  ctx.save(); ctx.globalAlpha *= flatAlpha();
   ctx.strokeStyle = `rgba(255,224,130,${0.65 + 0.2 * Math.sin(t * 2.4)})`; ctx.lineWidth = 3;
   ctx.shadowColor = 'rgba(255,214,110,0.8)'; ctx.shadowBlur = 16;
   ctx.beginPath(); ctx.ellipse(gx, g.baseY + 22, g.spacing * 0.42, 16, 0, 0, Math.PI * 2); ctx.stroke();
   ctx.restore();
+  }
   for (let i = 0; i < puz.P; i++) {
     const px = g.pegX[i];
     const isGoal = i === puz.goal;
+    if (v3.on) { ctx.save(); ctx.globalAlpha *= 1 - flatAlpha(); ctx.fillStyle = 'rgba(14,5,8,0.62)'; rr(ctx, px - 26, g.labelY - 31, 52, 44, 14); ctx.fill(); ctx.restore(); }
     text(ctx, PEG(i), px, g.labelY, 34, isGoal ? GOLD : 'rgba(246,236,214,0.7)', { weight: 800, font: DISPLAY });
     if (isGoal) text(ctx, tr('goalWord').toUpperCase(), px, g.goalY, 16, 'rgba(232,196,106,0.8)', { weight: 700 });
     // highlight
@@ -420,18 +443,20 @@ function drawScene(ctx, S, puz, auto) {
     }
   }
   // rods
+  v3.pegs = [];
   for (let i = 0; i < puz.P; i = i + 1) {
     const glow = (puz.done && i === puz.goal) ? 0.6 + 0.4 * Math.sin(puz.doneT * 5) : held === i ? 0.7 : 0;
-    drawRod(ctx, g.pegX[i], g.baseY + 20, g.len + 20, g.rodR, { glow });
+    v3.pegs.push({ x: g.pegX[i], y: g.baseY, len: g.len, r: g.rodR, glow });
+    flat(ctx, () => drawRod(ctx, g.pegX[i], g.baseY + 20, g.len + 20, g.rodR, { glow }));
   }
   // landing shadows for discs in the air
-  for (const d of puz.discs) {
+  if (flatAlpha() > 0.01) for (const d of puz.discs) {
     if (d.mode === 'rest') continue;
     const dst = puz.pegOf[d.id];
     const k = stackOf(puz, dst).indexOf(d.id);
     const sy = g.baseY - k * g.sh - g.sh;
     const h = clamp01((g.baseY - 60 - d.y) / 600);
-    ctx.save();
+    ctx.save(); ctx.globalAlpha *= flatAlpha();
     ctx.fillStyle = `rgba(0,0,0,${0.12 + 0.2 * (1 - h)})`;
     ctx.beginPath(); ctx.ellipse(g.pegX[dst], sy + ry, g.w(d.id) * (0.46 + 0.08 * h) , ry * 1.05, 0, 0, Math.PI * 2); ctx.fill();
     ctx.restore();
@@ -440,14 +465,18 @@ function drawScene(ctx, S, puz, auto) {
   const label = S.numbers;
   const hintDisc = puz.hint ? puz.hint.disc : -1;
   const pulse = 0.5 + 0.5 * Math.sin(t * 5);
+  v3.discs = [];
   const order = [...puz.discs].sort((a, b) => (a.mode === 'rest' ? 0 : 1) - (b.mode === 'rest' ? 0 : 1) || b.y - a.y);
   for (const d of order) {
     const px = g.pegX[d.id === d.id ? puz.pegOf[d.id] : 0];
     const glow = d.id === hintDisc ? 0.5 + 0.5 * pulse : (auto && auto.target && auto.phase !== 'think' && auto.target.disc === d.id ? 0.55 + 0.45 * pulse : 0);
     const wt = d.id === puz.wiggleDisc ? Math.max(...puz.shake) : 0; // refused move: only the disc wiggles
     const wx = wt > 0 ? Math.sin(wt * 70) * 6 * (wt / 0.4) : 0;
-    drawDisc(ctx, d.x + wx, d.y, g.w(d.id), g.sh, d.id, { squash: squashOf(d), glow, label, hole: g.rodR });
-    if ((d.mode === 'rest' || d.mode === 'drop') && Math.abs(d.x - px) < 2) rodFront(ctx, g, px, d.y - g.sh);
+    v3.discs.push({ id: d.id, x: d.x + wx, y: d.y, w: g.w(d.id), sh: g.sh, sq: squashOf(d), glow });
+    flat(ctx, () => {
+      drawDisc(ctx, d.x + wx, d.y, g.w(d.id), g.sh, d.id, { squash: squashOf(d), glow, label, hole: g.rodR });
+      if ((d.mode === 'rest' || d.mode === 'drop') && Math.abs(d.x - px) < 2) rodFront(ctx, g, px, d.y - g.sh);
+    });
   }
   // Think arc
   const hint = puz.hint;
@@ -527,7 +556,7 @@ const moveWords = (puz, a, b) => `disc ${topDisc(puz, a) + 1} from ${PEG(a)} to 
 
 function drawPlay(ctx, S, L) {
   const P = L.play;
-  background(ctx, S.t, L.land ? L.h * 0.55 : P.scene.y + P.scene.h * 0.5);
+  v3.mode = 'play'; bgf(ctx, S.t, L.land ? L.h * 0.55 : P.scene.y + P.scene.h * 0.5);
   const puz = S.puz;
   const auto = S.scene === 'auto' ? S.auto : null;
   const lv = puz.level;
@@ -576,16 +605,16 @@ export function render(ctx, S, ui, L = layoutFor()) {
     case 'title': drawTitle(ctx, S, ui, L); break;
     case 'levels': case 'howto': case 'rules': case 'about': case 'settings': drawDocScreen(ctx, S, ui); break;
     case 'demo-limit':
-      background(ctx, S.t);
+      v3.mode = 'env'; bgf(ctx, S.t);
       panel(ctx, ui.panel.x, ui.panel.y, ui.panel.w, ui.panel.h, {});
       drawDocBlocks(ctx, S, ui, S.scroll[ui.scrollKey] ?? 0);
       drawFixed(ctx, S, ui.fixed);
       break;
     case 'play': case 'auto':
-      if (!S.puz) { background(ctx, S.t); break; }
+      if (!S.puz) { v3.mode = 'env'; bgf(ctx, S.t); break; }
       drawPlay(ctx, S, L);
       break;
-    default: background(ctx, S.t);
+    default: v3.mode = 'env'; bgf(ctx, S.t);
   }
   if (S.overlay) drawOverlay(ctx, S, ui);
 }

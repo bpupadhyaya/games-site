@@ -40,18 +40,18 @@ export function button(ctx, r, label, o = {}) {
   if (v3.on) v3.items.push({ t: 'button', r: v3.rel(ctx, r), kind, rad, press: !!o.press, flat: !!o.noShadow });
   else {
     if (!o.noShadow) { ctx.fillStyle = 'rgba(0,0,0,0.28)'; rrect(ctx, { x: r.x, y: r.y + 4, w: r.w, h: r.h }, rad); ctx.fill(); }
-    const fills = { primary: '#c85a18', ghost: 'rgba(255,240,220,0.09)', quiet: 'rgba(255,240,220,0.14)', on: '#2fb6a3', danger: '#b9304a', gold: '#f0b94a', disabled: 'rgba(255,255,255,0.05)' };
+    const fills = { primary: '#e8ae38', ghost: 'rgba(255,240,220,0.09)', quiet: 'rgba(255,240,220,0.14)', on: '#2fb6a3', danger: '#b9304a', gold: '#f0b94a', disabled: 'rgba(255,255,255,0.05)' };
     ctx.fillStyle = fills[kind] ?? fills.ghost; rrect(ctx, r, rad); ctx.fill();
     if (kind === 'ghost' || kind === 'quiet' || kind === 'disabled') { ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(255,230,200,0.32)'; rrect(ctx, r, rad); ctx.stroke(); }
     if (o.press) { ctx.fillStyle = 'rgba(255,255,255,0.18)'; rrect(ctx, r, rad); ctx.fill(); }
   }
   const dark = kind === 'primary' || kind === 'on' || kind === 'gold';
-  const col = kind === 'disabled' ? 'rgba(255,240,220,0.4)' : dark ? (kind === 'primary' ? '#fff' : '#10101e') : PAL.text;
+  const col = kind === 'disabled' ? 'rgba(255,240,220,0.4)' : dark ? (kind === 'primary' ? '#2a1604' : '#10101e') : PAL.text;
   const hasSub = !!o.sub, pad = o.icon ? r.h * 0.9 : 14;
   if (o.icon) icon(ctx, o.icon, r.x + r.h * 0.5, r.y + r.h / 2, r.h * 0.42, col);
   const cx = r.x + (o.icon ? r.h * 0.9 + (r.w - r.h * 0.9) / 2 : r.w / 2);
   txt(ctx, label, cx, r.y + r.h * (hasSub ? 0.36 : 0.5), size, col, { align: 'center', weight: 700, maxW: r.w - pad - 14 });
-  if (hasSub) txt(ctx, o.sub, cx, r.y + r.h * 0.72, size * 0.6, dark ? 'rgba(255,255,255,0.8)' : PAL.dim, { align: 'center', weight: 500, maxW: r.w - pad - 14 });
+  if (hasSub) txt(ctx, o.sub, cx, r.y + r.h * 0.72, size * 0.6, dark ? 'rgba(42,22,4,0.78)' : PAL.dim, { align: 'center', weight: 500, maxW: r.w - pad - 14 });
   ctx.restore();
 }
 

@@ -271,12 +271,16 @@ export const rulesPages = () => (LANG === 'vi' ? rulesVi() : rulesEn());
 export const RULE_COUNT = rulesEn().length;
 export const HOWTO_COUNT = HOWTO_EN.length;
 
-export const aboutSections = () => (LANG === 'vi' ? [
-  { title: 'Ô Ăn Quan', body: 'Trò chơi sỏi cổ truyền của trẻ em Việt Nam, được làm lại với bàn gỗ sơn mài, sỏi sáng bóng và những hạt dân rải từng viên theo chuyển động mượt mà.' },
+// Credits for the optional 3D layer (three.js and the shared view3d library), added at the end of About by main.js once loaded.
+let CREDITS = '';
+export const addAboutCredits = (body) => { CREDITS = body; };
+const withCredits = (a) => (CREDITS ? [...a, { title: LANG === 'vi' ? 'Ghi công đồ họa 3D' : '3D graphics credits', body: CREDITS }] : a);
+export const aboutSections = () => withCredits(LANG === 'vi' ? [
+  { title: 'Ô Ăn Quan', body: 'Trò chơi sỏi cổ truyền của trẻ em Việt Nam, được làm lại thành cảnh 3D: bàn đất nung chạm khắc trên chiếu cói, sỏi sáng bóng và những hạt dân rải từng viên theo chuyển động mượt mà.' },
   { title: 'Nguồn gốc', body: 'Ô ăn quan là trò chơi dân gian của trẻ em Việt Nam, thuộc họ trò chơi rải hạt (mancala) trên thế giới. Trẻ em thường vẽ bàn cờ xuống đất hoặc lên sân bằng phấn hay que và chơi bằng sỏi, hạt hoặc hột trái cây. Luật hơi khác nhau giữa các vùng và các gia đình. "Ô" là ô vuông, "ăn" là bắt lấy, "quan" là vị quan, và "dân" là người dân.' },
   { title: 'Trong trò chơi này', body: 'Bàn mười hai ô, hai viên quan, năm mươi dân. Rải sang trái hoặc phải, rải tiếp, ăn liên tiếp, mượn dân khi hết, hai tùy chọn luật. Năm mức đối thủ từ Người mới tới Đại sư, hai người trên một điện thoại, Gợi ý có giải thích bằng lời, sáu bài học và Xem và học. Hai bàn cờ, cỡ chữ lên tới 300 phần trăm, không có đồng hồ, chơi được khi không có mạng. Mọi chữ có cả tiếng Anh và tiếng Việt.' },
 ] : [
-  { title: 'Ô Ăn Quan', body: 'The traditional Vietnamese children\'s pebble game, rebuilt with a lacquered wooden board, polished stones and sowing that flows one stone at a time.' },
+  { title: 'Ô Ăn Quan', body: 'The traditional Vietnamese children\'s pebble game, rebuilt as a lit 3D scene: a carved clay board on a woven mat, polished stones and sowing that flows one stone at a time.' },
   { title: 'Where it comes from', body: 'Ô ăn quan is a folk game of Vietnamese children and belongs to the worldwide mancala family of sowing games. Children traditionally draw the board on the ground or pavement with chalk or a stick and play with pebbles, seeds or fruit stones. The rules differ a little from region to region and family to family. "Ô" means a square, "ăn" to eat or capture, "quan" a mandarin (an official), and "dân" a citizen.' },
   { title: 'In this game', body: 'A board of twelve squares, two mandarin stones and fifty small stones. Sow left or right, relay, chain captures, borrowing when you run out, and two rule options. Five opponent levels from Novice to Master, two players on one phone, Think with a reason in words, six lessons and Watch & Learn. Two boards, text that scales up to 300 percent, no timers, works offline. Every word is in English and in Vietnamese.' },
 ]);

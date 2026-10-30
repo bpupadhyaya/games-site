@@ -12,6 +12,39 @@ export function roundPath(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
+
+// Lit wood + brass chrome (the game's own world: a painted school-yard sign).
+export function brassRim(ctx, x, y, w, h, r) {
+  ctx.save(); roundPath(ctx, x, y, w, h, r);
+  const g = ctx.createLinearGradient(x, y, x, y + h); g.addColorStop(0, '#ffe08a'); g.addColorStop(0.5, '#b8862a'); g.addColorStop(1, '#f0c25a');
+  ctx.lineWidth = 2.6; ctx.strokeStyle = g; ctx.stroke(); ctx.restore();
+}
+export function woodPlaque(ctx, x, y, w, h, r, o = {}) {
+  const { glow = null, grain = true, rivets = true } = o;
+  ctx.save();
+  roundPath(ctx, x, y, w, h, r);
+  const g = ctx.createLinearGradient(0, y, 0, y + h);
+  g.addColorStop(0, '#6b4226'); g.addColorStop(0.5, '#4a2b16'); g.addColorStop(1, '#2f1a0d');
+  ctx.fillStyle = g; ctx.fill();
+  ctx.clip();
+  if (grain) { ctx.globalAlpha = 0.16; ctx.strokeStyle = '#1a0d05'; ctx.lineWidth = 1; for (let i = 1; i < 6; i++) { const yy = y + (h * i) / 6; ctx.beginPath(); ctx.moveTo(x, yy); ctx.bezierCurveTo(x + w * 0.3, yy - 3, x + w * 0.65, yy + 4, x + w, yy - 1); ctx.stroke(); } ctx.globalAlpha = 1; }
+  const hl = ctx.createLinearGradient(0, y, 0, y + h * 0.5); hl.addColorStop(0, 'rgba(255,214,150,0.28)'); hl.addColorStop(1, 'rgba(255,214,150,0)');
+  ctx.fillStyle = hl; ctx.fillRect(x, y, w, h * 0.5);
+  if (glow) { ctx.fillStyle = glow; ctx.globalAlpha = 0.22; ctx.fillRect(x, y, w, h); ctx.globalAlpha = 1; }
+  ctx.restore();
+  brassRim(ctx, x, y, w, h, r);
+  if (h < 64 || !rivets) return;
+  ctx.save(); const rv = Math.max(2.2, Math.min(4, h * 0.05));
+  for (const [cx, cy] of [[x + r * 0.55, y + r * 0.55], [x + w - r * 0.55, y + r * 0.55], [x + r * 0.55, y + h - r * 0.55], [x + w - r * 0.55, y + h - r * 0.55]]) { ctx.beginPath(); ctx.arc(cx, cy, rv, 0, 6.3); ctx.fillStyle = '#e8c15a'; ctx.fill(); ctx.beginPath(); ctx.arc(cx - rv * 0.3, cy - rv * 0.3, rv * 0.4, 0, 6.3); ctx.fillStyle = '#fff1b8'; ctx.fill(); }
+  ctx.restore();
+}
+export function goldFill(ctx, x, y, w, h, r) {
+  ctx.save(); roundPath(ctx, x, y, w, h, r);
+  const g = ctx.createLinearGradient(0, y, 0, y + h); g.addColorStop(0, '#ffe27a'); g.addColorStop(0.55, '#f5b83a'); g.addColorStop(1, '#d28b1a');
+  ctx.fillStyle = g; ctx.fill(); ctx.restore();
+  brassRim(ctx, x, y, w, h, r);
+}
+
 // One flat button look for the whole game: a solid fill, ONE crisp border, a soft drop shadow and a
 // pressed state (the button sinks 3 px and darkens while a finger that started on it is down).
 const PRESS = { x: -1, y: -1, on: false };
@@ -34,12 +67,12 @@ export function paintButton(ctx, r, o = {}) {
   const dy = pressed ? 3 : 0;
   ctx.save();
   if (!disabled) { roundPath(ctx, r.x, r.y + (pressed ? 2 : 5), r.w, r.h, 18); ctx.fillStyle = pressed ? 'rgba(8,10,40,0.25)' : 'rgba(8,10,40,0.34)'; ctx.fill(); }
-  roundPath(ctx, r.x, r.y + dy, r.w, r.h, 18);
-  ctx.fillStyle = fill; ctx.fill();
-  if (pressed) { ctx.fillStyle = 'rgba(8,10,40,0.16)'; ctx.fill(); }
-  ctx.lineWidth = 1.5; ctx.strokeStyle = edge; ctx.stroke();
+  if (k === 'primary') goldFill(ctx, r.x, r.y + dy, r.w, r.h, 18);
+  else if (k === 'dark') woodPlaque(ctx, r.x, r.y + dy, r.w, r.h, 18, { grain: false, rivets: false });
+  else { roundPath(ctx, r.x, r.y + dy, r.w, r.h, 18); ctx.fillStyle = fill; ctx.fill(); ctx.lineWidth = 1.5; ctx.strokeStyle = edge; ctx.stroke(); }
+  if (pressed) { roundPath(ctx, r.x, r.y + dy, r.w, r.h, 18); ctx.fillStyle = 'rgba(8,10,40,0.16)'; ctx.fill(); }
   ctx.restore();
-  return { dy, light: primary || active || dark };
+  return { dy, light: active || dark };
 }
 
 // A flat pill. opts: primary (vermilion), active (teal), disabled, sub (small second line), size (font px)

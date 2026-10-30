@@ -4,7 +4,7 @@
   "tagline": "Gallop down the lane and lift the peg with your lance.",
   "genre": "mounted sport / timing",
   "orientation": "any",
-  "version": "1.2.0",
+  "version": "1.2.2",
   "monetization": {
     "model": "premium",
     "priceUsd": 2.99,

@@ -11,13 +11,14 @@ import { createMatch, startMove, undoMatch, tapCell, chooseDir, stepMatch, spark
 import { RULE_COUNT, HOWTO_COUNT, tr, setLang, levelName, hintText, setCalibration } from './content.js';
 import { CAL_EN, CAL_VI } from './calibration.js';
 import { THEMES, boardGeo, cellAt, CELLS } from './art.js';
+import { v3, traySlot } from './v3.js';
 import { trayStone, trayQuan } from './layout.js';
 import { render, plateIcons } from './view.js';
 
 // Kit 1.7 fluid viewport: width/height are updated live by the kit on every resize; every position comes from layout.js.
 export const meta = { width: SCREEN.width, height: SCREEN.height, fluid: { short: 720 } };
 
-const VERSION = '1.1.3';
+const VERSION = '1.2.0';
 const WIN_NOTES = [523, 659, 784, 1047, 1319];
 const AUTO_GAMES = [{ lv: ['master', 'master'] }, { lv: ['master', 'expert'] }];
 const KEY = 'oq';
@@ -94,12 +95,14 @@ export async function createGame(env) {
 
   // ------------------------------------------------------------------------------ geometry
   const layNow = () => playLayout(TEXT_SCALES[S.textIdx]);
-  const geoNow = () => { const lay = layNow(); return boardGeo(lay.board.x, lay.board.y, lay.board.w); };
+  const geoNow = () => { const lay = layNow(); return v3.on && v3.geo ? v3.geo() : boardGeo(lay.board.x, lay.board.y, lay.board.w); };
   // Where captured stones fly to: the stone icon of each player's plate, in board units.
   const setTargets = (M) => {
-    const lay = layNow(), geo = boardGeo(lay.board.x, lay.board.y, lay.board.w);
+    const lay = layNow();
     M.trayAt = (who, k, quan) => {
       const i = who === 1 ? 1 : 0, r = lay.trays[i];
+      if (v3.on && r) { const s = traySlot(who, Math.max(0, k), quan); return [s[0], s[1]]; }
+      const geo = v3.on && v3.geo ? v3.geo() : boardGeo(lay.board.x, lay.board.y, lay.board.w);
       const [sx, sy] = r ? (quan ? trayQuan(r, k) : trayStone(r, Math.max(0, k))) : plateIcons(lay.chips[i]).dan;
       return geo.toLocal(sx, sy);
     };

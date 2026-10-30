@@ -70,7 +70,7 @@ export function button(ctx, r, label, o = {}) {
   const pressed = !!o.press, lip = kind === 'disabled' ? 0 : Math.max(3, Math.min(7, r.h * 0.075)), dy = pressed ? lip * 0.7 : 0;
   ctx.save();
   const body = { x: r.x, y: r.y + dy, w: r.w, h: r.h - lip + (pressed ? 0 : 0) };
-  const lacquer = { primary: ['#ff7656', '#e2483d', '#b62a2c', '#7c1820'], on: ['#4fe3cf', '#18b7a6', '#0f8b86', '#08605f'], danger: ['#e86a85', '#b9304a', '#8c2038', '#5c1426'], gold: ['#ffeaa6', '#f4cf6a', '#c99a38', '#8a5e1c'] }[kind];
+  const lacquer = { primary: ['#ffeaa6', '#f4cf6a', '#c99a38', '#8a5e1c'], on: ['#4fe3cf', '#18b7a6', '#0f8b86', '#08605f'], danger: ['#e86a85', '#b9304a', '#8c2038', '#5c1426'], gold: ['#ffeaa6', '#f4cf6a', '#c99a38', '#8a5e1c'] }[kind];
   if (!o.noShadow) { ctx.fillStyle = 'rgba(0,0,0,0.32)'; rrect(ctx, { x: r.x + 1, y: r.y + lip + 3 - (pressed ? 2 : 0), w: r.w - 2, h: r.h - lip }, rad); ctx.fill(); }
   if (lacquer) {
     // lip (the thickness of the button) then the face
@@ -88,13 +88,13 @@ export function button(ctx, r, label, o = {}) {
     if (!dis) { ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(255,240,200,0.18)'; rrect(ctx, { x: body.x + 2.5, y: body.y + 2.5, w: body.w - 5, h: body.h - 5 }, Math.max(2, rad - 2.5)); ctx.stroke(); }
   }
   if (pressed) { ctx.fillStyle = 'rgba(0,0,0,0.14)'; rrect(ctx, body, rad); ctx.fill(); }
-  const dark = kind === 'gold';
+  const dark = kind === 'gold' || kind === 'primary';
   const col = kind === 'disabled' ? 'rgba(255,240,220,0.4)' : dark ? '#2a1408' : '#fff6e6';
   const hasSub = !!o.sub, pad = o.icon ? body.h * 0.9 : 14;
   const cy = body.y + body.h / 2;
   if (o.icon) icon(ctx, o.icon, body.x + body.h * 0.5, cy, body.h * 0.4, col);
   const cx = body.x + (o.icon ? body.h * 0.9 + (body.w - body.h * 0.9) / 2 : body.w / 2);
-  txt(ctx, label, cx, body.y + body.h * (hasSub ? 0.36 : 0.5) + 1, size, col, { align: 'center', weight: 800, maxW: body.w - pad - 14, stroke: lacquer ? size * 0.12 : 0, strokeColor: lacquer ? 'rgba(60,8,12,0.45)' : undefined });
+  txt(ctx, label, cx, body.y + body.h * (hasSub ? 0.36 : 0.5) + 1, size, col, { align: 'center', weight: 800, maxW: body.w - pad - 14, stroke: lacquer ? size * 0.12 : 0, strokeColor: lacquer ? (dark ? 'rgba(255,240,190,0.35)' : 'rgba(60,8,12,0.45)') : undefined });
   if (hasSub) txt(ctx, o.sub, cx, body.y + body.h * 0.72, size * 0.6, dark ? 'rgba(40,20,8,0.8)' : 'rgba(255,240,215,0.78)', { align: 'center', weight: 600, maxW: body.w - pad - 14 });
   ctx.restore();
 }

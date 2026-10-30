@@ -6,6 +6,7 @@ import { drawPiece, drawCracks, drawGold, drawArtFlat, getArt, bakedPiece, bench
 import { snapInfo, knobPos, gildProgress, fmtTime, mendPct } from './play.js';
 import { DOCS } from './content.js';
 import { drawCredit } from './brand.js';
+import { v3, shardKey } from './v3.js';
 import { C, SANS, SERIF, rr, txt, para, panel, button, icon, stars, rgba } from './ui.js';
 
 export const metrics = { max: 0, rect: null };
@@ -39,6 +40,7 @@ export function settingIndex(S, id) {
 
 // ---- backgrounds ---------------------------------------------------------------------------------------------------------------
 function bench(ctx, w, h, S) {
+  if (v3.on) return;   // the 3D walnut bench is behind this canvas
   const g = ctx.createLinearGradient(0, 0, 0, h); g.addColorStop(0, '#171212'); g.addColorStop(0.55, '#0f0b0b'); g.addColorStop(1, '#090606');
   ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
   const pat = benchPattern(ctx); if (pat) { ctx.fillStyle = pat; ctx.fillRect(0, 0, w, h); }
@@ -53,6 +55,22 @@ const spaced = (ctx, str, x, y, track, o = {}) => {
   let cx = align === 'center' ? x - total / 2 : x;
   [...str].forEach((ch, i) => { ctx.fillText(ch, cx, y); cx += ws[i] + track; });
 };
+
+const v3All = (V) => v3.on && V.pieces.every((_, i) => v3.ready.has(shardKey(V, i)));
+const goldSig = (Q) => { let a = 0; for (const s of Q) for (const q of s) a += q; return (a * 50) | 0; };
+// the cloth frame drawn over the 3D mending cloth (a gold thread border); plain rectangle so it matches the 3D cloth exactly
+function clothFrame(ctx, r) {
+  ctx.save(); ctx.lineJoin = 'round';
+  ctx.lineWidth = 8; ctx.strokeStyle = 'rgba(14,10,8,0.85)'; ctx.strokeRect(r.x - 2, r.y - 2, r.w + 4, r.h + 4);
+  ctx.lineWidth = 2.4; ctx.strokeStyle = 'rgba(227,178,79,0.8)'; ctx.strokeRect(r.x + 8, r.y + 8, r.w - 16, r.h - 16);
+  ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(255,230,160,0.4)'; ctx.strokeRect(r.x + 14, r.y + 14, r.w - 28, r.h - 28);
+  ctx.restore();
+}
+// Register a vessel with the 3D layer: world point (V.bounds.cx, cy) sits at screen (x, y); `size` is the vessel's largest dimension on screen.
+function showMended3d(V, x, y, size, q, mat) {
+  const k = size / V.def.D, Q = q > 0 ? fullQ(V, q) : null;
+  v3.scene = { V, cam: { k, ax: x, ay: y, wx: V.bounds.cx, wy: V.bounds.cy }, pieces: V.pieces.map((pc, i) => ({ i, x: pc.hx, y: pc.hy, a: 0, lift: 0, z: i, placed: true })), gold: Q ? { Q, sig: 'm' + q.toFixed(2), crack: 0.5 } : null, mat };
+}
 
 // A mended vessel (art + cracks + gold) centred at cx, cy; `size` is the vessel's largest dimension on screen.
 export function drawMended(ctx, V, cx, cy, size, t, q = 1, o = {}) {
@@ -74,8 +92,10 @@ function drawTitle(ctx, S, w, h) {
   const sc = scaleOf(S), T = titleLayout(w, h, !!S.saved, sc), hero = T.hero, V = buildVessel(vesselById('moonjar'));
   const hx = hero.x + hero.w / 2, size = Math.min(hero.w * 0.7, hero.h * (T.mode === 'land' ? 0.62 : 0.56));
   const hy = hero.y + hero.h * (T.mode === 'land' ? 0.4 : 0.34);
-  const gl = ctx.createRadialGradient(hx, hy, 10, hx, hy, size * 0.95); gl.addColorStop(0, 'rgba(230,170,70,0.20)'); gl.addColorStop(1, 'rgba(230,170,70,0)'); ctx.fillStyle = gl; ctx.fillRect(hero.x, hero.y, hero.w, hero.h);
-  drawMended(ctx, V, hx, hy + Math.sin(S.t * 0.8) * 3, size, S.t, 1);
+  const gl = v3.on ? null : ctx.createRadialGradient(hx, hy, 10, hx, hy, size * 0.95); if (gl) gl.addColorStop(0, 'rgba(230,170,70,0.20)'); if (gl) { gl.addColorStop(1, 'rgba(230,170,70,0)'); ctx.fillStyle = gl; ctx.fillRect(hero.x, hero.y, hero.w, hero.h); }
+  const t3 = v3.on && (showMended3d(V, hx, hy, size, 1, { x: hero.x, y: hero.y, w: hero.w, h: hero.h }), v3All(V));
+  if (t3) clothFrame(ctx, { x: hero.x + 6, y: hero.y + 6, w: hero.w - 12, h: hero.h - 12 });
+  else drawMended(ctx, V, hx, hy + Math.sin(S.t * 0.8) * 3, size, S.t, 1);
   const ty = T.mode === 'land' ? hero.y + hero.h * 0.82 : hero.y + hero.h - 62;
   const ts = Math.min(hero.w * 0.15, 104), gr = ctx.createLinearGradient(0, ty - ts, 0, ty + ts * 0.3); gr.addColorStop(0, '#fff0c0'); gr.addColorStop(0.55, '#e8b858'); gr.addColorStop(1, '#a8741f');
   txt(ctx, 'KINTSUGI', hx, ty - ts * 0.15, { size: ts, weight: 700, color: gr, align: 'center', serif: true, maxW: hero.w - 30, shadow: 3 });
@@ -184,17 +204,23 @@ function drawSettings(ctx, S, w, h) {
 }
 
 // ---- play ---------------------------------------------------------------------------------------------------------------------------------------
-function drawGhost(ctx, V, def, P, mode, S) {
+function drawGhost(ctx, V, def, P, mode, S, ov = false) {
   const b = V.bounds;
   // soft table shadow under the vessel
   const sg = ctx.createRadialGradient(b.cx, b.y1, 4, b.cx, b.y1, b.w * 0.6); sg.addColorStop(0, 'rgba(0,0,0,.35)'); sg.addColorStop(1, 'rgba(0,0,0,0)');
-  if (!V.disc) { ctx.fillStyle = sg; ctx.beginPath(); ctx.ellipse(b.cx, b.y1 + 8, b.w * 0.55, 22, 0, 0, 7); ctx.fill(); }
+  if (!V.disc && !ov) { ctx.fillStyle = sg; ctx.beginPath(); ctx.ellipse(b.cx, b.y1 + 8, b.w * 0.55, 22, 0, 0, 7); ctx.fill(); }
   if (mode === 'off') return;
   ctx.save();
   if (mode === 'picture') {
-    const art = getArt(V); if (art) { ctx.globalAlpha = 0.2; ctx.drawImage(art.c, art.ox, art.oy, art.w, art.h); ctx.globalAlpha = 1; }
+    const art = getArt(V);
+    if (art) {
+      ctx.save();
+      if (ov) { ctx.beginPath(); V.pieces.forEach((pc, i) => { if (!P.pieces[i].placed) pc.poly.forEach(([x, y], k) => (k ? ctx.lineTo(x + pc.hx, y + pc.hy) : ctx.moveTo(x + pc.hx, y + pc.hy))); }); ctx.clip(); }   // 3D: only where a shard is still missing
+      ctx.globalAlpha = ov ? 0.34 : 0.2; ctx.drawImage(art.c, art.ox, art.oy, art.w, art.h); ctx.globalAlpha = 1; ctx.restore();
+    }
   } else if (mode === 'slots') {
-    path(ctx, V.sil); ctx.fillStyle = 'rgba(0,0,0,0.28)'; ctx.fill(); ctx.save(); ctx.clip();
+    if (!ov) { path(ctx, V.sil); ctx.fillStyle = 'rgba(0,0,0,0.28)'; ctx.fill(); }
+    ctx.save(); path(ctx, V.sil); ctx.clip();
     V.pieces.forEach((pc, i) => { if (P.pieces[i].placed) return; path(ctx, pc.poly.map(([x, y]) => [x + pc.hx, y + pc.hy])); ctx.fillStyle = 'rgba(0,0,0,0.38)'; ctx.fill(); ctx.strokeStyle = 'rgba(227,178,79,0.62)'; ctx.lineWidth = 2; ctx.stroke(); });
     ctx.restore();
   }
@@ -223,18 +249,27 @@ function drawPlay(ctx, S, w, h) {
   const P = S.P, def = vesselById(P.vid), V = buildVessel(def), L0 = playLayout(w, h, P.phase, def.N), L = P.phase === 'assemble' ? L0 : zoomLayout(L0, def.D, S.sceneT2), bd = L.board, u = S.u || 1;
   bench(ctx, w, h, S);
   // board surface
-  rr(ctx, bd.x - 6, bd.y - 6, bd.w + 12, bd.h + 12, 26); ctx.fillStyle = '#080505'; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(227,178,79,0.5)'; ctx.stroke();
-  rr(ctx, bd.x, bd.y, bd.w, bd.h, 20); const bg = ctx.createRadialGradient(bd.x + bd.w * 0.5, bd.y + bd.h * 0.45, 40, bd.x + bd.w / 2, bd.y + bd.h / 2, Math.max(bd.w, bd.h) * 0.7); bg.addColorStop(0, '#2a201c'); bg.addColorStop(1, '#130e0d'); ctx.fillStyle = bg; ctx.fill();
-  const pat = benchPattern(ctx); if (pat) { ctx.fillStyle = pat; ctx.fill(); }
+  // the 3D layer takes the whole mending cloth once at least the shards that are in play are baked; until then the flat board shows
+  const on3 = v3.on && P.pieces.every((pc, i) => v3.ready.has(shardKey(V, i)));
+  if (v3.on) {
+    const ws = P.pieces.map((pc, i) => ({ i, x: pc.x, y: pc.y, a: pc.a, lift: Math.max(S.drag && S.drag.i === i ? 1 : 0, (S.act && S.act.i === i ? 0.8 : 0)), z: pc.z, placed: !!pc.placed }));
+    v3.scene = { V, cam: { k: bd.k, ax: bd.x + (500 - bd.vx0) * bd.k, ay: bd.y + (500 - bd.vy0) * bd.k, wx: 500, wy: 500 }, pieces: ws, mat: { x: bd.x, y: bd.y, w: bd.w, h: bd.h },
+      gold: P.phase !== 'assemble' ? { Q: P.seamQ, sig: P.vid + goldSig(P.seamQ), crack: Math.min(1, S.sceneT2 * 1.2) * 0.8 } : null };
+  }
+  if (on3) clothFrame(ctx, bd);
+  else {
+    rr(ctx, bd.x - 6, bd.y - 6, bd.w + 12, bd.h + 12, 26); ctx.fillStyle = '#080505'; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(227,178,79,0.5)'; ctx.stroke();
+    rr(ctx, bd.x, bd.y, bd.w, bd.h, 20); const bg = ctx.createRadialGradient(bd.x + bd.w * 0.5, bd.y + bd.h * 0.45, 40, bd.x + bd.w / 2, bd.y + bd.h / 2, Math.max(bd.w, bd.h) * 0.7); bg.addColorStop(0, '#2a201c'); bg.addColorStop(1, '#130e0d'); ctx.fillStyle = bg; ctx.fill();
+    const pat = benchPattern(ctx); if (pat) { ctx.fillStyle = pat; ctx.fill(); }
+  }
   ctx.save(); rr(ctx, bd.x, bd.y, bd.w, bd.h, 20); ctx.clip(); ctx.translate(bd.x - bd.vx0 * bd.k, bd.y - bd.vy0 * bd.k); ctx.scale(bd.k, bd.k);
   const mode = P.phase === 'assemble' ? guideFor(S, def) : 'off';
-  drawGhost(ctx, V, def, P, mode, S);
+  drawGhost(ctx, V, def, P, mode, S, on3);
   // pieces that are in place
   let baked = 0;
-  P.pieces.forEach((pc, i) => { if (pc.placed) drawPiece(ctx, V, i, pc.x, pc.y, 0, { shadow: 0 }); });
+  if (!on3) P.pieces.forEach((pc, i) => { if (pc.placed) drawPiece(ctx, V, i, pc.x, pc.y, 0, { shadow: 0 }); });
   if (P.phase !== 'assemble') {
-    const ca = Math.min(1, S.sceneT2 * 1.2); drawCracks(ctx, V, ca);
-    drawGold(ctx, V, P.seamQ, S.t, S.prefs.calm === false);
+    if (!on3) { const ca = Math.min(1, S.sceneT2 * 1.2); drawCracks(ctx, V, ca); drawGold(ctx, V, P.seamQ, S.t, S.prefs.calm === false); }
     if (P.phase === 'gild' && !S.auto.on && !S.hint) {   // pulse at the start of the next unfinished crack
       const si = P.seamDone.findIndex((d) => !d);
       if (si >= 0 && !P.brush) { const p = V.seams[si].pts[0], a = 0.5 + 0.5 * Math.sin(S.t * 3.2); ctx.beginPath(); ctx.arc(p[0], p[1], (10 + a * 8) * u, 0, 7); ctx.strokeStyle = `rgba(255,226,150,${0.35 + a * 0.4})`; ctx.lineWidth = 2.4 * u; ctx.stroke(); }
@@ -255,7 +290,7 @@ function drawPlay(ctx, S, w, h) {
   for (const [pc, i] of loose) {
     if (!bakedPiece(V, i)) baked++;
     const lift = S.drag && S.drag.i === i ? 1 : 0, anim = S.act && S.act.i === i ? 1 : 0;
-    drawPiece(ctx, V, i, pc.x, pc.y, pc.a, { lift: Math.max(lift, anim * 0.8) });
+    if (!on3) drawPiece(ctx, V, i, pc.x, pc.y, pc.a, { lift: Math.max(lift, anim * 0.8) });
     const info = snapInfo(V, def, P, i);
     if (S.prefs.glow && (S.drag?.i === i || P.sel === i) && info.warm > 0.04) homeOutline(ctx, V, i, info.ok ? 'rgba(255,240,170,0.98)' : `rgba(255,205,110,${0.15 + info.warm * 0.7})`, (info.ok ? 4 : 2.6) * u, info.ok ? 'rgba(255,226,140,0.22)' : null);
   }
@@ -279,7 +314,7 @@ function drawPlay(ctx, S, w, h) {
   }
   drawParts(ctx, S);
   ctx.restore();
-  rr(ctx, bd.x, bd.y, bd.w, bd.h, 20); ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,0.55)'; ctx.stroke();
+  if (!on3) { rr(ctx, bd.x, bd.y, bd.w, bd.h, 20); ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,0.55)'; ctx.stroke(); }
 
   // header
   const nm = L.head;
@@ -355,8 +390,13 @@ function drawOver(ctx, S, w, h) {
   scrollBody(ctx, S, col, () => {
     const land = O.land && col.w > 900;
     const hs = land ? Math.min(col.h * 0.88, col.w * 0.4) : Math.min(col.w * 0.8, col.h * 0.4, 560), cx = land ? col.x + col.w * 0.27 : col.x + col.w / 2, cy = land ? col.y + col.h / 2 : col.y + hs / 2 + Math.max(24, (col.h - hs - 430 * k) / 3);
-    const gl = ctx.createRadialGradient(cx, cy, 10, cx, cy, hs * 0.85); gl.addColorStop(0, 'rgba(230,170,70,0.22)'); gl.addColorStop(1, 'rgba(230,170,70,0)'); ctx.fillStyle = gl; ctx.fillRect(cx - hs, cy - hs, hs * 2, hs * 2);
-    drawMended(ctx, V, cx, cy, hs * 0.82, S.t, Math.max(0.4, R0.mend / 100));
+    const q0 = Math.max(0.4, R0.mend / 100), sy = cy - S.scrollY;
+    const o3 = v3.on && (showMended3d(V, cx, sy, hs * 0.82, q0, { x: cx - hs * 0.72, y: sy - hs * 0.66, w: hs * 1.44, h: hs * 1.4 }), v3All(V));
+    if (o3) clothFrame(ctx, { x: cx - hs * 0.72, y: cy - hs * 0.66, w: hs * 1.44, h: hs * 1.4 });
+    else {
+      const gl = ctx.createRadialGradient(cx, cy, 10, cx, cy, hs * 0.85); gl.addColorStop(0, 'rgba(230,170,70,0.22)'); gl.addColorStop(1, 'rgba(230,170,70,0)'); ctx.fillStyle = gl; ctx.fillRect(cx - hs, cy - hs, hs * 2, hs * 2);
+      drawMended(ctx, V, cx, cy, hs * 0.82, S.t, q0);
+    }
     const tx = land ? col.x + col.w * 0.52 : col.x, tw = land ? col.w * 0.46 : col.w;
     let y = land ? col.y + Math.max(10, col.h / 2 - 190 * k) : cy + hs / 2 + 22;
     const ctr = land ? 'left' : 'center', ax = land ? tx : tx + tw / 2;

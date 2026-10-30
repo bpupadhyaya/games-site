@@ -117,7 +117,7 @@ export function titleWidgets(state) {
     const sn = state.saved, who = sn.cfg.mode === 'two' ? 'Two players' : `vs ${PROFILES[sn.cfg.opp].name}`;
     wd.push({ t: 'btn', id: 'resume', label: 'Continue match', sub: `${who} · ${sn.scores[0]}–${sn.scores[1]}`, primary: true, h: 92 });
   }
-  wd.push({ t: 'btn', id: 'play', label: 'Play vs Computer', primary: !state.saved, h: 92 });
+  wd.push({ t: 'btn', id: 'play', label: state.saved ? 'New match' : 'PLAY', primary: !state.saved, big: state.saved ? 1 : 1.5, h: 96 });
   wd.push({ t: 'btn', id: 'two', label: 'Two Players', row: 1 });
   wd.push({ t: 'btn', id: 'watch', label: 'Watch & Learn', row: 1 });
   wd.push({ t: 'btn', id: 'fold', label: 'Fold Workshop', row: 2 });
@@ -301,8 +301,8 @@ function drawFlowScreen(ctx, state, key) {
 }
 
 // The living background of the menus: the same floor and tiles as the game, with two tiles trading slaps.
-function attract(ctx, state, zone, dim = 0.2) {
-  const cam = makeCam(zone, 0.02);
+function attract(ctx, state, zone, dim = 0.2, pad = 0.02) {
+  const cam = makeCam(zone, pad);
   drawTable(ctx, cam, state.att, state.t, { W, H });
   scrim(ctx, dim);
   return cam;
@@ -318,7 +318,7 @@ export function renderTitle(ctx, state) {
   const fr = frameFor(state, 'title');
   if (!land()) {
     const top = fr.hero.top;
-    attract(ctx, state, fr.zone, 0.1);
+    attract(ctx, state, fr.zone, 0.1, -0.04);
     const g = ctx.createRadialGradient(W / 2, top + 150, 40, W / 2, top + 150, 430); g.addColorStop(0, 'rgba(20,8,2,0.66)'); g.addColorStop(1, 'rgba(20,8,2,0)'); ctx.fillStyle = g; ctx.fillRect(0, 0, W, top + 560);
     const ytop = fr.cols[0].top, g2 = ctx.createLinearGradient(0, ytop - 70, 0, ytop + 40); g2.addColorStop(0, 'rgba(20,10,4,0)'); g2.addColorStop(1, 'rgba(20,10,4,0.86)'); ctx.fillStyle = g2; ctx.fillRect(0, ytop - 70, W, H - ytop + 70);
     ctx.save(); ctx.translate(W / 2 - 320, top); heroArt().draw(ctx, 640); ctx.restore();
@@ -327,7 +327,7 @@ export function renderTitle(ctx, state) {
     return;
   }
   const hx = (fr.hero.x0 + fr.hero.x1) / 2, hw = fr.hero.x1 - fr.hero.x0;
-  attract(ctx, state, { x: fr.hero.x0, y: H * 0.24, w: hw, h: H * 0.74 }, 0.12);
+  attract(ctx, state, { x: fr.hero.x0, y: H * 0.24, w: hw, h: H * 0.74 }, 0.12, -0.06);
   const g = ctx.createRadialGradient(hx, 160, 30, hx, 160, 360); g.addColorStop(0, 'rgba(20,8,2,0.62)'); g.addColorStop(1, 'rgba(20,8,2,0)'); ctx.fillStyle = g; ctx.fillRect(fr.hero.x0, 0, hw, 560);
   const k = Math.min(1, hw / 640);
   ctx.save(); ctx.translate(hx - 320 * k, Math.max(host.t, 0) + 6); ctx.scale(k, k); heroArt().draw(ctx, 640); ctx.restore();

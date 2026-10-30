@@ -12,6 +12,17 @@ const rgba = (c, a) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
 const UI = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 let logo = null;
 export const setLogo = (img) => { logo = img; };
+// Title hero: a still of the real 3D scene (web/brand/hero.jpg) drawn with a slow push-in behind the title; the flat court is the fallback.
+let hero = null;
+export const setHero = (img) => { hero = img; };
+export const hasHero = () => !!(hero && hero.width);
+export function drawHero(ctx, r, t) {
+  if (!hasHero()) return false;
+  const k = Math.max(r.w / hero.width, r.h / hero.height) * (1.02 + 0.03 * (0.5 - 0.5 * Math.cos(Math.min(t, 40) * 0.16)));
+  const dw = hero.width * k, dh = hero.height * k, dx = r.x + (r.w - dw) / 2, dy = r.y + (r.h - dh) * 0.82;
+  ctx.save(); ctx.beginPath(); ctx.rect(r.x, r.y, r.w, r.h); ctx.clip(); ctx.drawImage(hero, dx, dy, dw, dh); ctx.restore();
+  return true;
+}
 
 // Brand gradient across a rectangle (left -> right: violet, blue, cyan).
 export function brandGradient(ctx, x0, y0, x1, y1, alpha = 1) {

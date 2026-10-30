@@ -50,7 +50,7 @@ export function createPresenter({ kitCanvas, quality = 'high' }) {
   const lum = (css) => { const m = /rgba?\(([\d.]+)[, ]+([\d.]+)[, ]+([\d.]+)/.exec(css || ''); return m ? 0.3 * +m[1] + 0.59 * +m[2] + 0.11 * +m[3] : 40; };
   function style(kind) {
     switch (kind) {
-      case 'primary': return { rim: mats.brass, face: mats.red };
+      case 'primary': return { rim: mats.brass, face: mats.gold };
       case 'active': return { rim: mats.brass, face: mats.teal };
       case 'plain': return { rim: mats.rimWood, face: mats.ivory };
       case 'disabled': return { rim: mats.slate, face: mats.slate };

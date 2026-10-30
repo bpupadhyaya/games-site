@@ -40,7 +40,7 @@ export function hitScreen(x, y, scroll) { return LAID.lay ? flowHit(LAID.lay, LA
 const heroArt = (k = 1) => {
   const d = host.back ? Math.max(0, Math.round((host.back + 14 / Math.max(0.05, host.px) + 6) / k - 52)) : 0;
   return {
-    t: 'art', h: Math.round((380 + d) * k),
+    t: 'art', h: Math.round((380 + d + Math.max(0, Math.min(330, (H - 1040) * 0.6))) * k),
     draw(ctx, w) {
       ctx.save(); ctx.scale(k, k); ctx.translate(0, d); ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
       const cx = w / k / 2;
@@ -60,15 +60,15 @@ export function titleWidgets(state, wide = false) {
   return [
     ...(wide ? [] : [heroArt(H < 1100 ? 0.78 : 1)]),
     { t: 'btn', id: 'ladder', label: 'Challenge Ladder', sub: lad.done >= LEVELS.length ? 'All 24 levels cleared' : `Level ${next + 1} next · ${lad.stars} stars`, primary: true, h: 88 },
-    { t: 'btn', id: 'shootout', label: "Rivals' Shootout", sub: `${state.record.rivalsBeaten | 0} of 5 rivals beaten`, h: 80 },
-    { t: 'btn', id: 'practice', label: 'Free Practice', row: 1 },
-    { t: 'btn', id: 'learn', label: 'Learn to play', row: 1 },
-    { t: 'btn', id: 'watch', label: 'Watch & Learn', sub: 'A computer kicker explains every kick' },
-    { t: 'btn', id: 'howto', label: 'How to Play', row: 2 },
-    { t: 'btn', id: 'rules', label: 'Rules', row: 2 },
-    { t: 'btn', id: 'about', label: 'About', row: 2 },
-    { t: 'btn', id: 'settings', label: 'Settings', row: 3 },
-    { t: 'btn', id: 'sound', label: state.settings.sound ? 'Sound: On' : 'Sound: Off', row: 3 },
+    { t: 'btn', dark: true, id: 'shootout', label: "Rivals' Shootout", sub: `${state.record.rivalsBeaten | 0} of 5 rivals beaten`, h: 80 },
+    { t: 'btn', dark: true, id: 'practice', label: 'Free Practice', row: 1 },
+    { t: 'btn', dark: true, id: 'learn', label: 'Learn to play', row: 1 },
+    { t: 'btn', dark: true, id: 'watch', label: 'Watch & Learn', sub: 'A computer kicker explains every kick' },
+    { t: 'btn', dark: true, id: 'howto', label: 'How to Play', row: 2 },
+    { t: 'btn', dark: true, id: 'rules', label: 'Rules', row: 2 },
+    { t: 'btn', dark: true, id: 'about', label: 'About', row: 2 },
+    { t: 'btn', dark: true, id: 'settings', label: 'Settings', row: 3 },
+    { t: 'btn', dark: true, id: 'sound', label: state.settings.sound ? 'Sound: On' : 'Sound: Off', row: 3 },
   ];
 }
 

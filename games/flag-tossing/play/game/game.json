@@ -4,7 +4,7 @@
   "tagline": "Throw, catch and wave heraldic flags in time with the drum.",
   "genre": "dexterity",
   "orientation": "any",
-  "version": "1.1.2",
+  "version": "1.2.0",
   "monetization": {
     "model": "premium",
     "priceUsd": 2.99,

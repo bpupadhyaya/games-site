@@ -27,10 +27,11 @@ const BTN_FILL = {
   active: ['#1b8f88', '#116660'],
   dark: ['rgba(22,36,74,0.86)', 'rgba(255,244,222,0.35)'],
   plain: ['#fff4de', 'rgba(34,56,107,0.45)'],
+  night: ['rgba(16,28,62,0.84)', 'rgba(244,196,96,0.7)'],
 };
 export function paintButton(ctx, r, o = {}) {
-  const { primary = false, active = false, disabled = false, dark = false } = o;
-  const k = disabled ? 'disabled' : primary ? 'primary' : active ? 'active' : dark ? 'dark' : 'plain';
+  const { primary = false, active = false, disabled = false, dark = false, night = false } = o;
+  const k = disabled ? 'disabled' : primary ? 'primary' : active ? 'active' : night ? 'night' : dark ? 'dark' : 'plain';
   const pressed = !disabled && PRESS.on && PRESS.x >= r.x && PRESS.x <= r.x + r.w && PRESS.y >= r.y && PRESS.y <= r.y + r.h;
   const [fill, edge] = BTN_FILL[k];
   const dy = pressed ? 3 : 0;
@@ -41,7 +42,7 @@ export function paintButton(ctx, r, o = {}) {
   if (pressed) { ctx.fillStyle = 'rgba(8,10,40,0.16)'; ctx.fill(); }
   ctx.lineWidth = 1.5; ctx.strokeStyle = edge; ctx.stroke();
   ctx.restore();
-  return { dy, light: primary || active || dark };
+  return { dy, light: primary || active || dark || night };
 }
 
 // A flat pill. opts: primary (vermilion), active (teal), disabled, sub (small second line), size (font px)
@@ -216,6 +217,22 @@ export function drawFlow(ctx, lay, top, bottom, scroll, o = {}) {
   }
   ctx.restore();
 }
+// small line icons for the secondary menu buttons (drawn centred at x, y in a box of size s)
+const ICONS = {
+  howto(ctx, x, y, s, col) { ctx.save(); ctx.strokeStyle = col; ctx.lineWidth = Math.max(2, s * 0.11); ctx.lineCap = 'round'; ctx.beginPath(); ctx.arc(x, y, s * 0.46, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(x, y - s * 0.1, s * 0.15, Math.PI * 1.05, Math.PI * 2.35); ctx.lineTo(x, y + s * 0.1); ctx.stroke(); ctx.fillStyle = col; ctx.beginPath(); ctx.arc(x, y + s * 0.26, s * 0.06, 0, 7); ctx.fill(); ctx.restore(); },
+  rules(ctx, x, y, s, col) { ctx.save(); ctx.strokeStyle = col; ctx.lineWidth = Math.max(2, s * 0.1); ctx.lineJoin = 'round'; const w = s * 0.42, h = s * 0.36;
+    ctx.beginPath(); ctx.moveTo(x, y - h + s * 0.06); ctx.quadraticCurveTo(x - w * 0.5, y - h - s * 0.04, x - w, y - h + s * 0.02); ctx.lineTo(x - w, y + h); ctx.quadraticCurveTo(x - w * 0.5, y + h - s * 0.06, x, y + h + s * 0.02);
+    ctx.quadraticCurveTo(x + w * 0.5, y + h - s * 0.06, x + w, y + h); ctx.lineTo(x + w, y - h + s * 0.02); ctx.quadraticCurveTo(x + w * 0.5, y - h - s * 0.04, x, y - h + s * 0.06); ctx.lineTo(x, y + h + s * 0.02); ctx.stroke(); ctx.restore(); },
+  about(ctx, x, y, s, col) { ctx.save(); ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = Math.max(2, s * 0.11); ctx.lineCap = 'round'; ctx.beginPath(); ctx.arc(x, y, s * 0.46, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x, y - s * 0.02); ctx.lineTo(x, y + s * 0.24); ctx.stroke(); ctx.beginPath(); ctx.arc(x, y - s * 0.2, s * 0.065, 0, 7); ctx.fill(); ctx.restore(); },
+  settings(ctx, x, y, s, col) { ctx.save(); ctx.fillStyle = col; ctx.beginPath(); const n = 8;
+    for (let i = 0; i < n * 2; i++) { const a = (i / (n * 2)) * Math.PI * 2, rr = s * (i % 2 ? 0.36 : 0.48); const a2 = a + Math.PI / (n * 2); ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); ctx.lineTo(x + Math.cos(a2) * rr, y + Math.sin(a2) * rr); }
+    ctx.closePath(); ctx.arc(x, y, s * 0.16, 0, Math.PI * 2, true); ctx.fill('evenodd'); ctx.restore(); },
+  sound(ctx, x, y, s, col) { ctx.save(); ctx.fillStyle = col; ctx.strokeStyle = col; ctx.lineWidth = Math.max(2, s * 0.09); ctx.lineCap = 'round'; const L = x - s * 0.42;
+    ctx.beginPath(); ctx.moveTo(L, y - s * 0.14); ctx.lineTo(L + s * 0.18, y - s * 0.14); ctx.lineTo(L + s * 0.42, y - s * 0.36); ctx.lineTo(L + s * 0.42, y + s * 0.36); ctx.lineTo(L + s * 0.18, y + s * 0.14); ctx.lineTo(L, y + s * 0.14); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.arc(x + s * 0.02, y, s * 0.2, -0.9, 0.9); ctx.stroke(); ctx.beginPath(); ctx.arc(x + s * 0.02, y, s * 0.38, -0.9, 0.9); ctx.stroke(); ctx.restore(); },
+};
 function drawButtonRect(ctx, r, it, wd) {
   const { disabled = false } = wd;
   const { dy, light } = paintButton(ctx, r, wd);
@@ -226,7 +243,17 @@ function drawButtonRect(ctx, r, it, wd) {
   const subLines = wd.sub ? (() => { ctx.font = `400 ${subFs(it.fs)}px ${FONT}`; const l = wrapLines(ctx, wd.sub, r.w - 28); ctx.font = `700 ${it.fs}px ${FONT}`; return l; })() : [];
   const total = it.lines.length * it.fs * 1.15 + subLines.length * subFs(it.fs) * 1.05;
   let y = r.y + dy + (r.h - total) / 2 + it.fs * 0.88;
-  it.lines.forEach((l) => { ctx.fillText(l, r.x + r.w / 2, y); y += it.fs * 1.15; });
+  // an optional small line icon left of a one-line label, only when label + icon fit with a margin
+  let cx = r.x + r.w / 2;
+  if (wd.icon && ICONS[wd.icon] && it.lines.length === 1 && !subLines.length) {
+    const lw = ctx.measureText(it.lines[0]).width, is = Math.round(it.fs * 0.95), gap = Math.round(it.fs * 0.4);
+    if (lw + is + gap + 24 <= r.w) {
+      const x0 = r.x + (r.w - lw - is - gap) / 2;
+      ICONS[wd.icon](ctx, x0 + is / 2, r.y + dy + r.h / 2, is, disabled ? 'rgba(235,238,255,0.55)' : light ? '#ffd88a' : C.indigo);
+      cx = x0 + is + gap + lw / 2;
+    }
+  }
+  it.lines.forEach((l) => { ctx.fillText(l, cx, y); y += it.fs * 1.15; });
   if (subLines.length) {
     ctx.font = `400 ${subFs(it.fs)}px ${FONT}`; ctx.globalAlpha = 0.85;
     y -= it.fs * 0.2;

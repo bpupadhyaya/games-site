@@ -3,6 +3,7 @@ import { createGame, meta } from './src/game.js';
 import { host, layoutFor } from './src/layout.js';
 import { setLogo } from './src/brand.js';
 import { createKotoEngine } from './audio/engine.js';
+import { v3 } from './src/v3.js';
 
 const canvas = document.getElementById('game');
 const engine = createKotoEngine();
@@ -65,4 +66,27 @@ const create = async (env) => {
 
 const af = new Image(); af.onload = () => setLogo(af); af.src = './brand/arcforge-af.png';
 
-boot({ createGame: create, meta, canvas, background: '#0d0c1c' }).then((b) => { gate = b.game; });
+
+// 3D presenter (the koto on tatami in a lamp-lit room, behind the kit canvas). The game boots at once on the flat 2D art; three.js is
+// fetched and the scene built in small slices after the first frames, then crossfades in. No WebGL, ?flat=1 or a lost context: the flat
+// art stays. The presenter only reads game state.
+let presenter = null, inner = null;
+const bg = { toString: () => (v3.on ? 'rgba(0,0,0,0)' : '#0d0c1c') };      // read by the kit every frame, so the switch is instant
+const wrap = (g) => Object.assign(Object.create(g), g, {
+  render(ctx, view) {
+    if (v3.on && presenter) { ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height); ctx.restore(); presenter.pre(); }
+    g.render(ctx, view);
+    if (v3.on && presenter) presenter.post();
+  },
+});
+boot({ createGame: async (env) => (inner = wrap(await create(env))), meta, canvas, background: bg }).then((b) => { gate = b.game; });
+if (q.has('dev')) { Object.defineProperty(window, '__p3', { get: () => presenter }); window.__v3 = v3; }
+if (!q.has('flat')) {
+  const start = () => import('./view3d/presenter.js').then((m) => m.createPresenter({ kitCanvas: canvas })).then((p) => {
+    if (!p.ok) return;
+    const go = () => { if (!inner) return setTimeout(go, 30); presenter = p; p.attach(inner); };
+    go();
+  }).catch((e) => console.warn('3D presenter unavailable; flat art stays', e));
+  requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(start, 30)));
+}
+

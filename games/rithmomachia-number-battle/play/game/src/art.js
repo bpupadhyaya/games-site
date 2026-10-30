@@ -39,14 +39,16 @@ export function drawTable(ctx, L, t = 0) {
 
 // ------------------------------------------------------------------------------------------------ the board
 // Painted in local units where one cell = 100. Grid position (u across, v down); the home camps depend on the orientation.
-function paintBoard(ctx, tall, flip) {
+export function paintBoard(ctx, tall, flip, o = {}) {   // o.surface: the 3D board's top texture (no slab edge, no baked light)
   const cols = tall ? 8 : 16, rows = tall ? 16 : 8, F = FRAME * 100, W = cols * 100 + 2 * F, H = rows * 100 + 2 * F, rnd = lcg(311);
   const rr = (x, y, w, h, r) => { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); };
   // the slab's lower edge (thickness)
   const th = THICK * 100;
+  if (!o.surface) {
   const eg = ctx.createLinearGradient(0, H - 10, 0, H + th); eg.addColorStop(0, '#4a2a1e'); eg.addColorStop(1, '#1d0f0b');
   ctx.fillStyle = eg; rr(0, 24, W, H - 24 + th, 20); ctx.fill();
   ctx.fillStyle = 'rgba(255,220,150,0.2)'; ctx.fillRect(18, H + 1, W - 36, 2.5);
+  }
   // frame: dark leather edge, gold band, lapis band with gold studs, fine gold line
   const fg = ctx.createLinearGradient(0, 0, W, H); fg.addColorStop(0, '#5a2c24'); fg.addColorStop(0.5, '#3d1c1a'); fg.addColorStop(1, '#2a1213');
   ctx.fillStyle = fg; rr(0, 0, W, H, 20); ctx.fill();
@@ -123,6 +125,7 @@ function paintBoard(ctx, tall, flip) {
   }
   ctx.restore();
   // soft light across the whole top
+  if (o.surface) return;
   const lgt = ctx.createLinearGradient(0, 0, W, H); lgt.addColorStop(0, 'rgba(255,245,215,0.16)'); lgt.addColorStop(0.5, 'rgba(255,245,215,0)'); lgt.addColorStop(1, 'rgba(0,0,0,0.12)');
   ctx.fillStyle = lgt; rr(0, 0, W, H, 20); ctx.fill();
 }

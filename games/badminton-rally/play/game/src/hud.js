@@ -31,7 +31,8 @@ function scoreboard(ctx, G, s, lay) {
   const pips = (left, x0, y, col, n, total) => { const need = Math.ceil(total / 2); if (need < 2) return; for (let i = 0; i < need; i++) pip(left ? x0 + i * 20 : x0 - i * 20, y, i < n, col); };
   const card = (i, x0, w, y, h, k, left) => {
     const serving = s.server === i && (s.phase === 'serve' || s.phase === 'rally');
-    ctx.fillStyle = TEAM[i]; roundPath(ctx, left ? x0 : x0 + w - 8, y + 8, 8, h - 16, 4); ctx.fill();
+    roundPath(ctx, x0, y + 2, w, h - 4, 14); const wg = ctx.createLinearGradient(0, y, 0, y + h); wg.addColorStop(0, 'rgba(74,46,26,0.94)'); wg.addColorStop(1, 'rgba(42,26,16,0.94)'); ctx.fillStyle = wg; ctx.fill(); ctx.lineWidth = 2.5; ctx.strokeStyle = '#c9a24a'; ctx.stroke();
+    ctx.fillStyle = TEAM[i]; roundPath(ctx, left ? x0 + 5 : x0 + w - 13, y + 12, 8, h - 24, 4); ctx.fill();
     ctx.textBaseline = 'alphabetic';
     const scoreFs = Math.round(52 * k); ctx.font = `800 ${scoreFs}px ${FONT}`;
     const sw = ctx.measureText(String(s.score[i])).width;

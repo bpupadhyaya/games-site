@@ -85,15 +85,17 @@ function build(w, h) {
       T.col = R(colX, y0, colW, y + sh - y0);
     } else {
       const drape = clamp(w * 0.11, 40, 150), bw = Math.min(S.w - 2 * drape - 24, 560), bx = S.x + (S.w - bw) / 2;
-      const total = bh + 16 + 12 + (bh + 12) * 2 + (sh + 12) * 2, creditH = 92;
+      // 4:3 tablets (compact): Practice and Watch and Learn share a row, so the hero scene keeps room for the bearers
+      const two = mode === 'compact';
+      const total = bh + 16 + 12 + (bh + 12) * (two ? 1 : 2) + (sh + 12) * 2, creditH = 92;
       const bottom = S.y + S.h - creditH;
       let y = bottom - total;
-      T.size = Math.min(104, (S.w - 40) / 6.2);
-      T.titleY = S.y + Math.max(80, (y - S.y) * 0.1);
+      T.size = Math.min(two ? 92 : 104, (S.w - 40) / 6.2);
+      T.titleY = S.y + Math.max(two ? 70 : 80, (y - S.y) * 0.1);
       T.play = R(bx, y, bw, bh + 16); y += bh + 16 + 12;
-      T.prac = R(bx, y, bw, bh); y += bh + 12;
-      T.auto = R(bx, y, bw, bh); y += bh + 12;
       const hw = (bw - 12) / 2;
+      if (two) { T.prac = R(bx, y, hw, bh); T.auto = R(bx + hw + 12, y, hw, bh); y += bh + 12; }
+      else { T.prac = R(bx, y, bw, bh); y += bh + 12; T.auto = R(bx, y, bw, bh); y += bh + 12; }
       T.how = R(bx, y, hw, sh); T.rules = R(bx + hw + 12, y, hw, sh); y += sh + 12;
       T.about = R(bx, y, hw, sh); T.settings = R(bx + hw + 12, y, hw, sh);
       const heroTop = T.titleY + T.size * 1.9;

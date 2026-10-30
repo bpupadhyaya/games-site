@@ -8,6 +8,7 @@ import { LESSONS } from './lessons.js';
 import { ABOUT, ABOUT_DOC } from './about.js';
 import { RULES_DOC } from './content.js';
 import { drawLockupImage, drawMoreLine } from './brand.js';
+import { v3 } from './v3.js';
 
 const FONT = '"Cormorant Garamond", Georgia, "Times New Roman", serif', UI = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 const TAU = Math.PI * 2;
@@ -55,6 +56,9 @@ function drawRuleBoard(ctx, state, snap, hi, cx, top, sc) {
 export function render(ctx, state, L) {
   const scene = state.scene, big = state.big, g = state.game, A = state.anim, B = L.board, BTN = L.BTN;
   const boardScene = scene === 'play' || scene === 'over' || scene === 'lesson' || scene === 'puzzle' || scene === 'autoplay' || scene === 'autoplay-over';
+  // 3D board showing (presenter alive): the table and board come from WebGL; this layer draws only the HUD, counts, labels and flourishes
+  const use3 = v3.on && (boardScene || scene === 'title');
+  v3.frame = null;
 
   const text = (str, x, y, size, color = CREAM, font = UI, weight = 700, align = 'center', shadow = true) => {
     ctx.textAlign = align; ctx.font = `${weight} ${size}px ${font}`;
@@ -133,11 +137,67 @@ export function render(ctx, state, L) {
   // a group of canonical-unit content (title art, result text) placed at {cx, top, sc}: canonical y `y0` maps to `top`
   const group = (G, y0) => { ctx.translate(G.cx, G.top); ctx.scale(G.sc, G.sc); ctx.translate(-360, -y0); };
 
+  // ---- 3D board: fill the hand-off, then draw the HUD bits (counts, tray labels, carried-seed badge, capture text) at the projected points ----
+  const P = (x, y, h = 0) => (v3.toScreen ? v3.toScreen(x, y, h) : { x: B.cx + (x - 360) * B.s, y: B.cy + (y - MID_Y) * B.s });
+  function fill3(pits, store, free, hide) { v3.wood = state.wood; v3.seedSet = state.seeds; v3.pits = pits; v3.store = store; v3.free = free; v3.hidePit = hide; v3.t = state.t; }
+  function draw3D(legal, labels) {
+    const set = state.seeds, pulse = state.calm ? 0.6 : 0.5 + 0.5 * Math.sin(state.t * 5), free = [], marks = []; let hide = -1;
+    for (const i of legal) marks.push({ pit: i, kind: 'legal', a: 0.5 + pulse * 0.5 });
+    if (state.hint && !A) marks.push({ pit: state.hint.pit, kind: 'hint', a: 0.6 + pulse * 0.4 });
+    if (A && A.phase === 'capwait') for (const c of A.r.captured) marks.push({ pit: c, kind: 'cap', a: 0.5 + Math.abs(Math.sin(A.timer * 14)) * 0.5 });
+    if (state.ref && !A) marks.push({ pit: state.ref.pit, kind: 'ref', a: 0.9 * (1 - state.ref.t / 0.6) });
+    if (state.kb && scene !== 'over') marks.push({ pit: g.turn === 0 ? state.cursor : 11 - state.cursor, kind: 'kb', a: 1 });
+    v3.marks = marks;
+    let carry = null, popup = null;
+    if (A) {
+      const r = A.r, o = pitPos(r.pit);
+      if (A.phase === 'lift' || A.phase === 'sow') {
+        let x, gy, h, hop = 0;
+        if (A.phase === 'lift') { const f = Math.min(1, A.timer / Math.max(0.01, state.calm ? 0.11 : 0.22)); x = o.x; gy = o.y; h = 30 * f; }
+        else {
+          const from = A.idx === 0 ? o : pitPos(r.path[A.idx - 1]), to = pitPos(r.path[Math.min(A.idx, r.path.length - 1)]), f = Math.min(1, A.timer / A.sd), e = f * f * (3 - 2 * f);
+          x = from.x + (to.x - from.x) * e; gy = from.y + (to.y - from.y) * e; hop = state.calm ? 0 : Math.sin(Math.PI * f) * 26; h = 30 + hop;
+        }
+        const n = Math.min(A.n, 9);
+        for (let k = 0; k < n; k++) { const s = slot(99, k, 30); free.push({ x: x + s.x * 0.5, y: gy + s.y * 0.45, h: h + (k % 3) * 6, v: s.v, rot: s.rot }); }
+        if (A.n > 0) carry = { x, y: gy, h: h + 52, n: A.n };
+      }
+      if (A.phase === 'cap') {
+        const c = r.captured[A.cap], p = pitPos(c), T = trayPos(r.player), f = Math.min(1, A.timer / Math.max(0.01, state.calm ? 0.17 : 0.34)), e = f * f * (3 - 2 * f), cnt = state.shown.pits[c];
+        hide = c;
+        for (let k = 0; k < cnt; k++) { const s = slot(c, k), tx = T.x + (k % 9 - 4) * 12; free.push({ x: p.x + s.x * 0.4 + (tx - p.x - s.x * 0.4) * e, y: p.y + s.y * 0.4 + (T.y - p.y - s.y * 0.4) * e, h: 12 + Math.sin(Math.PI * e) * 90, v: s.v, rot: s.rot + e * 6 }); }
+        popup = { text: `+${cnt}`, x: p.x, y: p.y, h: 70 + f * 40, a: 1 - f * 0.6 };
+      }
+    }
+    fill3(state.shown.pits, state.shown.store, free, hide);
+    ctx.save();
+    if (opts3.counts) {
+      ctx.textBaseline = 'middle';
+      for (let i = 0; i < 12; i++) {
+        const n = state.shown.pits[i]; if (n <= 0 || i === hide) continue; const p = pitPos(i), q = P(p.x, i < 6 ? p.y + PIT_R + 22 : p.y - PIT_R - 22, 0), sz = big ? 34 : 27;
+        ctx.textAlign = 'center'; ctx.font = `800 ${sz}px ${UI}`; ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(40,14,2,0.85)'; ctx.strokeText(String(n), q.x, q.y); ctx.fillStyle = '#ffecc0'; ctx.fillText(String(n), q.x, q.y);
+      }
+      ctx.textBaseline = 'alphabetic';
+      for (const pl of [0, 1]) {
+        const T = pl === 0 ? TRAY.bottom : TRAY.top, a = P(T.x + 24, T.y + 40, 0), b = P(T.x + T.w - 26, T.y + 45, 0);
+        text(labels[pl], a.x, a.y + 8, big ? 26 : 22, CREAM, UI, 700, 'left'); text(String(state.shown.store[pl]), b.x, b.y + 18, big ? 48 : 42, GOLD, FONT, 700, 'right');
+      }
+    }
+    if (carry) { const q = P(carry.x, carry.y, carry.h); ctx.fillStyle = 'rgba(30,10,2,0.9)'; ctx.beginPath(); ctx.arc(q.x, q.y, 16, 0, TAU); ctx.fill(); ctx.strokeStyle = GOLD; ctx.lineWidth = 2; ctx.stroke(); text(String(carry.n), q.x, q.y + 7, 20, '#ffe9b0', UI, 800, 'center', false); }
+    if (popup) { const q = P(popup.x, popup.y, popup.h); text(popup.text, q.x, q.y, 34, `rgba(255,224,130,${popup.a})`, FONT, 700); }
+    if (A && A.phase === 'end' && A.r.slam) { const q = P(360, MID_Y, 25); text('Grand slam: nothing is taken', q.x, q.y, 34, '#ffd7a0', FONT, 700); }
+    ctx.restore();
+  }
+  const opts3 = { counts: true };
+
   // ---- table -----------------------------------------------------------------------------------------------------------------------
-  drawTable(ctx, state.wood, L, boardScene && L.tall);
+  if (!use3) drawTable(ctx, state.wood, L, boardScene && L.tall);
 
   if (boardScene) {
-    ctx.save(); boardXform(); drawBoard(ctx, state.wood); ctx.restore();
+    if (use3) {
+      const bs = B.s, rw = Math.min(700 * bs * (L.wk || 1), L.U.w - 8);
+      v3.frame = { mode: 'play', rect: L.tall ? { x: 6, y: B.cy - 354, w: L.w - 12, h: 708 } : { x: B.cx - rw / 2, y: B.cy - 352 * bs, w: rw, h: 704 * bs } };
+    } else { ctx.save(); boardXform(); drawBoard(ctx, state.wood); ctx.restore(); }
     if (L.wide) { rpanel(L.leftCard, 0.42); rpanel(L.rightCard, 0.42); }
     // header lines: [text, role, colour] in reading order
     let head;
@@ -157,6 +217,12 @@ export function render(ctx, state, L) {
       const H = L.hdr, k = H.k, lp = scene === 'lesson' || scene === 'puzzle';
       if (H.mode === 'stack') {
         const first = { title: 48, sub: 28, gold: 40 }, gap = { title: { sub: 46, gold: 52, title: 60 }, sub: { title: 75, gold: 42, sub: 40 }, gold: { sub: 40, title: 60, gold: 40 } };
+        if (use3) {   // a wood-and-brass plaque behind the header lines
+          let ye = H.y, pv = null; for (const it of items) { ye += pv ? gap[pv][it[1]] * k : first[it[1]] * k; pv = it[1]; }
+          const pw = Math.min(H.maxW + 40, 640), pr = { x: H.cx - pw / 2, y: H.y + 6 * k, w: pw, h: ye - H.y + 20 * k - 6 * k };
+          ctx.save(); const gr = ctx.createLinearGradient(0, pr.y, 0, pr.y + pr.h); gr.addColorStop(0, 'rgba(96,52,24,0.92)'); gr.addColorStop(1, 'rgba(48,24,10,0.92)');
+          ctx.fillStyle = gr; ctx.beginPath(); ctx.roundRect(pr.x, pr.y, pr.w, pr.h, 18); ctx.fill(); ctx.strokeStyle = '#e6b64e'; ctx.lineWidth = 3; ctx.stroke(); ctx.restore();
+        }
         let y = H.y, prev = null;
         for (const [t, role, col] of items) {
           y += prev ? gap[prev][role] * k : first[role] * k;
@@ -183,6 +249,8 @@ export function render(ctx, state, L) {
       else if (scene === 'puzzle') { if (state.pz.status !== 'solved' && state.pz.wrong <= 0) legal = legalMoves(g); }
       else if (scene === 'autoplay') { if (state.ap && state.ap.phase === 'reveal') legal = state.ap.legal; }
     }
+    const labels = scene === 'autoplay' || scene === 'autoplay-over' ? ['Bottom seat', 'Top seat'] : scene === 'lesson' || scene === 'puzzle' ? ['You', 'Opponent'] : state.two ? ['Player one', 'Player two'] : ['You', 'Computer'];
+    if (use3) draw3D(legal, labels); else {
     ctx.save(); boardXform();
     // a moving chevron along the carved arrows: the direction of sowing
     if (!state.calm) { const f = (state.t * 0.5) % 1; for (const [y, d] of [[MID_Y - 26, -1], [MID_Y + 26, 1]]) { const x = d > 0 ? 190 + 340 * f : 530 - 340 * f; ctx.strokeStyle = `rgba(255,214,120,${0.9 * Math.sin(Math.PI * f)})`; ctx.lineWidth = 4.5; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath(); ctx.moveTo(x - d * 9, y - 9); ctx.lineTo(x + d * 9, y); ctx.lineTo(x - d * 9, y + 9); ctx.stroke(); } }
@@ -212,7 +280,7 @@ export function render(ctx, state, L) {
       }
       if (A.phase === 'end' && r.slam) text('Grand slam: nothing is taken', 360, MID_Y + 6, 34, '#ffd7a0', FONT, 700);
     }
-    ctx.restore();
+    ctx.restore(); }
     // message panel (a lesson's instruction stays up until the player has done it)
     const mr = scene === 'autoplay' ? L.msgA : L.msg, msz = big ? 34 : 28;
     if (state.msg && scene !== 'over') {
@@ -237,11 +305,16 @@ export function render(ctx, state, L) {
     if (scene === 'title' && T.card) rpanel(T.card, 0.4);
     ctx.save(); group(T.hero, 100);
     // the title: a smaller, real board under the name
+    const idle = { pits: [4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4], store: [0, 0] };
+    if (use3 && scene === 'title') {
+      const hs = T.hero, X = (x) => hs.cx + (x - 360) * hs.sc, Y = (y) => hs.top + (y - 100) * hs.sc;
+      v3.frame = { mode: 'title', rect: { x: X(95), y: Y(262), w: 530 * hs.sc, h: 480 * hs.sc } };
+      fill3(idle.pits, idle.store, [], -1);
+    } else {
     ctx.save(); ctx.translate(360, 300 - 400 * 0.6); ctx.scale(0.6, 0.6); ctx.translate(-360, 0);
     drawBoard(ctx, state.wood);
-    const idle = { pits: [4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4], store: [0, 0] };
     contents(idle, idle.store, { counts: false });
-    ctx.restore();
+    ctx.restore(); }
     text('Oware', 360, 196, 122, CREAM, FONT);
     text('The seed-sowing game of West Africa', 360, 250, 26, 'rgba(251,232,191,0.9)', FONT, 500);
     ctx.restore();

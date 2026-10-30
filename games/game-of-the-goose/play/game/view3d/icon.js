@@ -19,7 +19,7 @@ const tex = (c) => { const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.
 const gl = cv(SIZE);
 const renderer = new THREE.WebGLRenderer({ canvas: gl, antialias: true, alpha: true, preserveDrawingBuffer: true });
 renderer.setPixelRatio(1); renderer.setSize(SIZE, SIZE, false);
-renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = Number(q.get('exp') || 0.9);
+renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = Number(q.get('exp') || 0.62);
 renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap;
 
 const scene = new THREE.Scene();
@@ -29,7 +29,7 @@ Object.assign(key.shadow.camera, { left: -7, right: 7, top: 7, bottom: -7, near:
 const rim = new THREE.DirectionalLight(0x7fe6d8, 2.6); rim.position.set(6, 5, -8);
 const rim2 = new THREE.DirectionalLight(0xfff0d0, 1.2); rim2.position.set(-7, 4, -6);
 const fill = new THREE.DirectionalLight(0xb8c8ff, 0.5); fill.position.set(7, 3, 6);
-scene.fog = new THREE.Fog(0x1a0d05, Number(q.get('fogN') || 11), Number(q.get('fogF') || 22));
+scene.fog = new THREE.Fog(0x1a0d05, Number(q.get('fogN') || 9), Number(q.get('fogF') || 17));
 scene.add(new THREE.HemisphereLight(0xffe6c8, 0x3a2412, 0.12), key, key.target, rim, rim2, fill);
 const warm = new THREE.PointLight(0xffa860, 6, 12, 1.5); warm.position.set(-3.5, 3.0, 3.2); scene.add(warm);
 const spot = new THREE.SpotLight(0xffe2b0, 330, 0, 0.62, 0.85, 2); spot.position.set(-3.2, 8.5, 5.2); spot.target.position.set(0.4, 0.6, 0.4); spot.castShadow = true; spot.shadow.mapSize.set(4096, 4096); spot.shadow.bias = -0.0003; spot.shadow.normalBias = 0.03; scene.add(spot, spot.target);
@@ -54,7 +54,7 @@ for (let n = 1; n < FINAL; n++) {
 const gr = GARDEN_R * RW;
 const rimT = new THREE.Mesh(new THREE.TorusGeometry(gr + 0.03, 0.07, 12, 56), MAT.brass()); rimT.rotation.x = Math.PI / 2; rimT.position.y = 0.05; rimT.castShadow = true; scene.add(rimT);
 // hero: the great white goose, wings half-spread, head up
-const goose = makeGoose(); goose.scale.setScalar(2.7); goose.position.set(0.0, 0.0, -0.1); goose.rotation.y = -0.35; scene.add(goose);
+const goose = makeGoose(); goose.scale.setScalar(Number(q.get('gs') || 3.5)); goose.position.set(0.0, 0.0, -0.1); goose.rotation.y = -0.35; scene.add(goose);
 poseGoose(goose, 1.2, 0.0, 0.0);
 goose.userData.wings[0].rotation.x = -0.95; goose.userData.wings[1].rotation.x = 0.95;
 goose.userData.wings[0].rotation.y = 0.35; goose.userData.wings[1].rotation.y = -0.35;
@@ -63,15 +63,11 @@ goose.userData.neck.rotation.z = -0.1;
 const pip = (v) => { const c = cv(128), x = c.getContext('2d'); const g = x.createLinearGradient(0, 0, 128, 128); g.addColorStop(0, '#fffaf0'); g.addColorStop(1, '#e8d8ac'); x.fillStyle = g; x.fillRect(0, 0, 128, 128);
   const P = { 1: [[0, 0]], 2: [[-1, -1], [1, 1]], 3: [[-1, -1], [0, 0], [1, 1]], 4: [[-1, -1], [1, -1], [-1, 1], [1, 1]], 5: [[-1, -1], [1, -1], [0, 0], [-1, 1], [1, 1]], 6: [[-1, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [1, 1]] }[v];
   for (const [px, py] of P) { x.fillStyle = v === 1 ? '#a8342a' : '#2a1a10'; x.beginPath(); x.arc(64 + px * 32, 64 + py * 32, v === 1 ? 19 : 12, 0, TAU); x.fill(); } return c; };
-const dmats = [3, 4, 1, 6, 2, 5].map((v) => new THREE.MeshPhysicalMaterial({ map: tex(pip(v)), roughness: 0.3, clearcoat: 0.7, clearcoatRoughness: 0.15 }));
-for (const [x, z, ry, rx] of [[-1.55, 1.7, 0.5, 0.0], [-0.55, 2.35, -0.35, 0.0]]) {
-  const d = new THREE.Mesh(B.roundedBox(0.55, 0.55, 0.55, 0.08, 4), dmats); d.position.set(x, TILE_TOP + 0.275, z); d.rotation.set(rx, ry, 0); d.castShadow = d.receiveShadow = true; scene.add(d);
-}
-const pawn = makePawn(0); pawn.scale.setScalar(1.55); pawn.position.set(1.75, TILE_TOP, 1.75); pawn.rotation.y = 0.2; scene.add(pawn);
-
+const pawn0 = 0; const dmats = [3, 4, 1, 6, 2, 5].map((v) => new THREE.MeshPhysicalMaterial({ map: tex(pip(v)), roughness: 0.3, clearcoat: 0.7, clearcoatRoughness: 0.15 }));
+void dmats; void pawn0;
 
 const cam = new THREE.PerspectiveCamera(Number(q.get('fov') || 30), 1, 0.5, 100);
-const pitch = (Number(q.get('pitch') || 50) * Math.PI) / 180, dist = Number(q.get('dist') || 10.4), look = [Number(q.get('lx') || 0), Number(q.get('ly') || 0.45), Number(q.get('lz') || 0.55)];
+const pitch = (Number(q.get('pitch') || 22) * Math.PI) / 180, dist = Number(q.get('dist') || 10), look = [Number(q.get('lx') || 0), Number(q.get('ly') || 0.85), Number(q.get('lz') || 0)];
 cam.position.set(look[0] + Math.sin(0) * dist, look[1] + Math.sin(pitch) * dist, look[2] + Math.cos(pitch) * dist); cam.lookAt(...look);
 renderer.setClearColor(0x000000, 0); renderer.clear(); renderer.render(scene, cam);
 const subject = cv(SIZE); subject.getContext('2d').drawImage(gl, 0, 0);

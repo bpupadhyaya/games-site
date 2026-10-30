@@ -199,6 +199,24 @@ function composePortrait(L, kind, force) {
     next: R(bx + 265, barY, 395, BAR_H), share: R(bx + 265, barY, 395, BAR_H),
     apExit: R(bx + 60, barY, 141, BAR_H), apPause: R(bx + 213, barY, 141, BAR_H), apDec: R(bx + 366, barY, 141, BAR_H), apInc: R(bx + 519, barY, 141, BAR_H),
   };
+  // ---- play screen on a phone-shaped portrait screen: slim header, short stick tray, the board takes the rest (owner: the play area must dominate) ----
+  if (!kind && w < h && w <= h * 0.62 && (C.mode === 'tall' || C.mode === 'stack')) {
+    const y0 = Math.max(yTmin, 52);
+    C.hud = {
+      title: { x: fx + 410, y: y0 + 28, size: 52, maxW: 330 },
+      panels: [R(fx + 36, y0 + 44, 312, 76), R(fx + 372, y0 + 44, 312, 76)],
+      cap: { x: fx + 170, y: y0 + 26, size: 18 },
+      label: { x: fx + 360, y: y0 + 28 },
+    };
+    C.msg = { fixed: false, x: fx + 40, w: 640, y: y0 + 130 };
+    const ts = 0.72, trayY = barY - 10 - TRAYS.row.h * ts, R0 = y0 + 232, Rh = trayY - 10 - R0, s = Math.min(1.2, Rh / SIZEBOX.h);
+    C.board = { s, ox: w / 2 - 360 * s, oy: R0 + (Rh - SIZEBOX.h * s) / 2 - SIZEBOX.y * s };
+    C.camRect = R(w * 0.02, R0, w * 0.96, Rh);                      // 3D: the board is fitted to this (the tilted board may use the full width)
+    C.tray = { v: 'row', s: ts, x: w / 2 - TRAYS.row.w * ts / 2, y: trayY };
+    C.wallH = y0 + 232;
+    C.throwRect = R(C.tray.x - 20 * ts, C.tray.y - 40 * ts, TRAYS.row.w * ts + 40 * ts, TRAYS.row.h * ts + 60 * ts);
+    C.lamps = [[34, h * 0.42], [w - 34, h * 0.42], [34, h * 0.72], [w - 34, h * 0.72]];
+  }
   C.brand = null;
   return C;
 }

@@ -24,7 +24,7 @@ export function setPress(ptr) {
 // Western tack look: tooled leather (a top-lit gradient, a dark rim, a soft highlight and a row of stitches), denim for the main action.
 const BTN_FILL = {
   disabled: { g: ['#8d8c93', '#6f6e76', '#5a5961'], edge: '#3c3b42', stitch: 'rgba(255,255,255,0.28)', hi: 0.12 },
-  primary: { g: ['#4f8ed0', '#2f6fb0', '#1c4a7e'], edge: '#0f2c4d', stitch: 'rgba(255,246,214,0.85)', hi: 0.34 },
+  primary: { g: ['#ffdf84', '#f0b53c', '#c27f1a'], edge: '#5a3306', stitch: 'rgba(90,51,6,0.55)', hi: 0.42 },   // the one gold primary: brass-gold with a dark brown label
   active: { g: ['#46a77d', '#2f8a62', '#1d5c40'], edge: '#0f3524', stitch: 'rgba(255,246,214,0.8)', hi: 0.3 },
   dark: { g: ['#6a4a30', '#4a3020', '#33200f'], edge: '#1a0e05', stitch: 'rgba(224,184,120,0.7)', hi: 0.2 },
   plain: { g: ['#f6dcaa', '#e5bd7e', '#c99a58'], edge: '#5a3818', stitch: 'rgba(92,56,24,0.62)', hi: 0.5 },
@@ -49,6 +49,34 @@ export function leatherPlate(ctx, r, o = {}) {
     roundPath(ctx, r.x + 8, y + 8, r.w - 16, r.h - 16, Math.max(4, rad - 8)); ctx.stroke(); ctx.restore();
   }
 }
+
+// A wood plaque with a brass rim and corner rivets (the HUD plaques: scoreboard, clock). Grain lines are fixed per plaque size so it does not shimmer.
+export function woodPlate(ctx, r, o = {}) {
+  const rad = o.r ?? Math.min(16, r.h / 2.4), { x, y, w, h } = r;
+  roundPath(ctx, x, y + 4, w, h, rad); ctx.fillStyle = 'rgba(10,4,0,0.4)'; ctx.fill();
+  roundPath(ctx, x, y, w, h, rad);
+  const gr = ctx.createLinearGradient(0, y, 0, y + h); gr.addColorStop(0, '#6e4727'); gr.addColorStop(0.5, '#523320'); gr.addColorStop(1, '#3a2213');
+  ctx.fillStyle = gr; ctx.fill();
+  ctx.save(); roundPath(ctx, x, y, w, h, rad); ctx.clip();
+  let seed = Math.round(w * 7 + h * 13) | 1; const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+  ctx.lineWidth = 1.4;
+  for (let i = 0; i < Math.max(5, Math.round(h / 9)); i++) {
+    const yy = y + 4 + rnd() * (h - 8), a = 0.05 + rnd() * 0.08;
+    ctx.strokeStyle = rnd() < 0.5 ? `rgba(20,8,0,${a + 0.04})` : `rgba(255,220,170,${a})`;
+    ctx.beginPath(); ctx.moveTo(x, yy); ctx.bezierCurveTo(x + w * 0.3, yy + (rnd() - 0.5) * 6, x + w * 0.7, yy + (rnd() - 0.5) * 6, x + w, yy + (rnd() - 0.5) * 4); ctx.stroke();
+  }
+  const hg = ctx.createLinearGradient(0, y, 0, y + h * 0.45); hg.addColorStop(0, 'rgba(255,230,190,0.16)'); hg.addColorStop(1, 'rgba(255,230,190,0)');
+  ctx.fillStyle = hg; ctx.fillRect(x, y, w, h * 0.45);
+  ctx.restore();
+  // brass rim (lit top, dark bottom) and rivets
+  const br = ctx.createLinearGradient(0, y, 0, y + h); br.addColorStop(0, '#f3d27a'); br.addColorStop(0.5, '#c8963a'); br.addColorStop(1, '#7d5316');
+  ctx.lineWidth = 3.2; ctx.strokeStyle = br; roundPath(ctx, x + 1.6, y + 1.6, w - 3.2, h - 3.2, rad - 1); ctx.stroke();
+  ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(20,8,0,0.5)'; roundPath(ctx, x + 4, y + 4, w - 8, h - 8, Math.max(3, rad - 4)); ctx.stroke();
+  if (h >= 50) for (const [px, py] of [[x + 11, y + 11], [x + w - 11, y + 11], [x + 11, y + h - 11], [x + w - 11, y + h - 11]]) {
+    const rg = ctx.createRadialGradient(px - 1.2, py - 1.2, 0.5, px, py, 4.5); rg.addColorStop(0, '#fff0b8'); rg.addColorStop(1, '#8a5d18');
+    ctx.fillStyle = rg; ctx.beginPath(); ctx.arc(px, py, 3.6, 0, Math.PI * 2); ctx.fill();
+  }
+}
 export function paintButton(ctx, r, o = {}) {
   const { primary = false, active = false, disabled = false, dark = false } = o;
   const k = disabled ? 'disabled' : primary ? 'primary' : active ? 'active' : dark ? 'dark' : 'plain';
@@ -67,7 +95,7 @@ export function drawButton(ctx, r, label, opts = {}) {
   const { disabled = false, sub = null, size = 28, icon = null } = opts;
   const { dy, light } = paintButton(ctx, r, opts);
   ctx.save();
-  ctx.fillStyle = disabled ? 'rgba(235,238,255,0.55)' : light ? '#fffaf0' : C.ink;
+  ctx.fillStyle = disabled ? 'rgba(235,238,255,0.55)' : opts.primary ? '#2a1606' : light ? '#fffaf0' : C.ink;
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   let px = sub ? Math.round(size * 0.9) : size;
   const maxW = r.w - (icon ? 84 : 24);
@@ -81,7 +109,7 @@ export function drawButton(ctx, r, label, opts = {}) {
     while (ctx.measureText(sub).width > r.w - 24 && sp > MIN_FONT) { sp -= 1; ctx.font = `400 ${sp}px ${FONT}`; }
     ctx.globalAlpha = 0.85; ctx.fillText(sub, cx, r.y + dy + r.h / 2 + size * 0.5); ctx.globalAlpha = 1;
   }
-  if (icon) icon(ctx, r.x + 32, r.y + dy + r.h / 2, light && !disabled ? '#fffaf0' : C.ink);
+  if (icon) icon(ctx, r.x + 32, r.y + dy + r.h / 2, opts.primary ? '#2a1606' : light && !disabled ? '#fffaf0' : C.ink);
   ctx.restore();
 }
 
@@ -243,7 +271,7 @@ function drawButtonRect(ctx, r, it, wd) {
   const { disabled = false } = wd;
   const { dy, light } = paintButton(ctx, r, wd);
   ctx.save();
-  ctx.fillStyle = disabled ? 'rgba(235,238,255,0.55)' : light ? '#fffaf0' : C.ink;
+  ctx.fillStyle = disabled ? 'rgba(235,238,255,0.55)' : wd.primary ? '#2a1606' : light ? '#fffaf0' : C.ink;
   ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
   ctx.font = `700 ${it.fs}px ${FONT}`;
   const subLines = wd.sub ? (() => { ctx.font = `400 ${subFs(it.fs)}px ${FONT}`; const l = wrapLines(ctx, wd.sub, r.w - 28); ctx.font = `700 ${it.fs}px ${FONT}`; return l; })() : [];
@@ -257,7 +285,7 @@ function drawButtonRect(ctx, r, it, wd) {
     ctx.globalAlpha = 1;
   }
   if (wd.stars) {
-    ctx.font = `400 ${Math.max(MIN_FONT, Math.round(it.fs * 0.7))}px ${FONT}`; ctx.textAlign = 'right'; ctx.fillStyle = light ? '#ffe9a0' : '#a8301f';
+    ctx.font = `400 ${Math.max(MIN_FONT, Math.round(it.fs * 0.7))}px ${FONT}`; ctx.textAlign = 'right'; ctx.fillStyle = wd.primary ? '#7a3c00' : light ? '#ffe9a0' : '#a8301f';
     ctx.fillText('★'.repeat(wd.stars) + '☆'.repeat(5 - wd.stars), r.x + r.w - 16, r.y + dy + it.fs * 0.95);
   }
   ctx.restore();

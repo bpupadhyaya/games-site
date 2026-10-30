@@ -13,8 +13,16 @@ import { drawLockup, drawMoreLine } from './brand.js';
 import { THINK_STEPS } from './screens.js';
 import { humanTurn, flightPos, fromState } from './match.js';
 import { moveWords } from './explain.js';
+import { v3, flatAlpha, board3d } from './v3.js';
 
-const theme = (S) => themeById(S.themeId);
+// With the 3D room on, buttons and panels take warm ebony and teak tones so they sit in the lit majlis (the flat art keeps its own).
+const WARM = new Map();
+const theme = (S) => {
+  const th = themeById(S.themeId);
+  if (!v3.on) return th;
+  if (!WARM.has(th.id)) WARM.set(th.id, { ...th, btn: ['#4b2c19', '#371e10'], btnOn: ['#2f7f72', '#1f5a50'], panel: ['rgba(44,24,14,0.95)', 'rgba(24,12,7,0.97)'], stroke: 'rgba(240,189,88,0.6)' });
+  return WARM.get(th.id);
+};
 
 // Largest text size (<= start) whose wrapped lines fit w x h. Used by every HUD text so zoom never overflows.
 export function fitText(str, w, h, start, min = 18, lh = 1.28) {
@@ -27,6 +35,32 @@ export function fitText(str, w, h, start, min = 18, lh = 1.28) {
   return { lines, size: min, line: min * lh };
 }
 const fitOne = (str, w, start, min = 16) => { let s = start; while (s > min && tw(str, s) > w) s -= 1; return s; };
+
+// ----------------------------------------------------------------------------------------- backdrop
+// The flat painted backdrop; with the 3D scene on it fades out (crossfade) and a soft shade keeps text readable over the lit room.
+function bgDraw(ctx, S, th, t, glowY, w, h, kind) {
+  const a = flatAlpha();
+  if (a < 1) {
+    if (kind === 'doc') { ctx.fillStyle = 'rgba(12,7,4,0.5)'; ctx.fillRect(0, 0, w, h); }
+    else if (kind === 'title') {
+      const land = w > h, g = land ? ctx.createLinearGradient(0, 0, w, 0) : ctx.createLinearGradient(0, 0, 0, h);
+      if (land) { g.addColorStop(0, 'rgba(10,6,3,0.10)'); g.addColorStop(0.5, 'rgba(10,6,3,0.05)'); g.addColorStop(0.62, 'rgba(10,6,3,0.45)'); g.addColorStop(1, 'rgba(10,6,3,0.62)'); }
+      else { g.addColorStop(0, 'rgba(10,6,3,0.62)'); g.addColorStop(0.2, 'rgba(10,6,3,0.30)'); g.addColorStop(0.36, 'rgba(10,6,3,0)'); g.addColorStop(0.58, 'rgba(10,6,3,0.05)'); g.addColorStop(0.72, 'rgba(10,6,3,0.5)'); g.addColorStop(1, 'rgba(10,6,3,0.72)'); }
+      ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+      if (land) { const g2 = ctx.createLinearGradient(0, 0, 0, h * 0.4); g2.addColorStop(0, 'rgba(10,6,3,0.55)'); g2.addColorStop(1, 'rgba(10,6,3,0)'); ctx.fillStyle = g2; ctx.fillRect(0, 0, w * 0.62, h * 0.4); }
+    } else {
+      const g = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.45, w / 2, h / 2, Math.max(w, h) * 0.75);
+      g.addColorStop(0, 'rgba(10,6,3,0)'); g.addColorStop(1, 'rgba(10,6,3,0.42)'); ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+      // shade the header and the bottom toolbar so their text reads over the rug's woven border
+      const top = Math.min(h * 0.16, 260), gt = ctx.createLinearGradient(0, 0, 0, top); gt.addColorStop(0, 'rgba(10,6,3,0.75)'); gt.addColorStop(1, 'rgba(10,6,3,0)');
+      ctx.fillStyle = gt; ctx.fillRect(0, 0, w, top);
+      const gb = ctx.createLinearGradient(0, h - top, 0, h); gb.addColorStop(0, 'rgba(10,6,3,0)'); gb.addColorStop(1, 'rgba(10,6,3,0.7)'); ctx.fillStyle = gb; ctx.fillRect(0, h - top, w, top);
+    }
+  }
+  if (a <= 0) return;
+  ctx.save(); ctx.globalAlpha = a; background(ctx, th, t, glowY, w, h); ctx.restore();
+}
+
 
 // ----------------------------------------------------------------------------------------- documents
 function drawDocBlocks(ctx, S, ui, scroll) {
@@ -238,8 +272,12 @@ function drawHero(ctx, S, T, th) {
 
 function drawTitle(ctx, S, ui) {
   const th = theme(S), L = ui.L, T = ui.title;
-  background(ctx, th, S.t, T.board ? T.board.y + 200 : L.h * 0.4, L.w, L.h);
+  bgDraw(ctx, S, th, S.t, T.board ? T.board.y + 200 : L.h * 0.4, L.w, L.h, 'title');
   const M = S.attract;
+  // the 3D hero fills the room the title and the menu leave (portrait: between them; landscape: the left column under the title)
+  const mTop = ui.region ? ui.region.y : L.h * 0.6;
+  v3.hero = L.land ? { x: L.ins.l + 20, y: T.heroBottom + 10, w: (ui.region ? ui.region.x : L.w * 0.6) - L.ins.l - 50, h: L.h - L.ins.b - T.heroBottom - 30 }
+    : { x: L.w * 0.08, y: T.heroBottom + 10, w: L.w * 0.84, h: Math.max(120, mTop - T.heroBottom - 30) };
   if (M && T.board) drawMatchBoard(ctx, S, M, boardGeo(T.board.x, T.board.y, T.board.w), null, { noCounts: false });
   drawHero(ctx, S, T, th);
   drawDocBlocks(ctx, S, ui, S.scroll[ui.scrollKey] ?? 0);
@@ -248,7 +286,7 @@ function drawTitle(ctx, S, ui) {
 
 function drawDocScreen(ctx, S, ui) {
   const th = theme(S), L = ui.L;
-  background(ctx, th, S.t, 700, L.w, L.h);
+  bgDraw(ctx, S, th, S.t, 700, L.w, L.h, 'doc');
   if (ui.panel) panel(ctx, th, ui.panel.x, ui.panel.y, ui.panel.w, ui.panel.h, {});
   if (ui.art) drawArt(ctx, S, ui.art.name, ui.art.x, ui.art.y, ui.art.w, ui.art.h, {});
   drawDocBlocks(ctx, S, ui, S.scroll[ui.scrollKey] ?? 0);
@@ -276,8 +314,89 @@ function drawOverlay(ctx, S, ui) {
 // ------------------------------------------------------------------------------------------ the board in play
 const pulse = (S, rate = 5) => 0.5 + 0.5 * Math.sin(S.t * rate);
 
-// o: { auto, legal: bool, zoom }. Draws base, stones (the display state D), flights, the hand, marks and effects.
+// ------------------------------------------------------------------------------------------ the board in 3D
+// With the 3D presenter on, the board, pearls, handful and flights are drawn by view3d/presenter.js. This layer adds what reads best
+// flat on top of it: count labels and arrows at the projected points, and asks for rings/glows of light in the holes (v3.marks).
+const rgbOf = (c) => {
+  if (c[0] === '#') return [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16) / 255);
+  const m = c.match(/[\d.]+/g) ?? ['255', '255', '255']; return [0, 1, 2].map((i) => Number(m[i]) / 255);
+};
+const mRing = (i, col, a, grow = 0) => v3.marks.push({ cell: i, rgb: rgbOf(col), a, kind: 'ring', grow });
+const mFill = (i, col, a) => v3.marks.push({ cell: i, rgb: rgbOf(col), a: Math.min(1, a * 2.2), kind: 'fill' });
+const P = (i, lift = 0) => { const c = CELLS[i], p = v3.pt(c.cx, c.cy, lift); return { cx: p.x, cy: p.y, k: p.k }; };
+
+function pill(ctx, th, label, x, y, fs, edge, fill = 'rgba(8,4,2,0.78)', ink = th.ink) {
+  const w = Math.max(fs * 1.55, label.length * fs * 0.62 + fs * 0.85), h = fs + fs * 0.5;
+  ctx.fillStyle = fill; ctx.beginPath(); ctx.roundRect(x - w / 2, y - h / 2, w, h, h / 2); ctx.fill();
+  if (edge) { ctx.strokeStyle = edge; ctx.globalAlpha = 0.85; ctx.lineWidth = 1.6; ctx.stroke(); ctx.globalAlpha = 1; }
+  text(ctx, label, x, y + fs * 0.35, fs, ink, { weight: 800 });
+}
+
+function drawPathMarks3d(ctx, th, ev) {
+  let lap = -1;
+  const laps = [];
+  for (const e of ev) {
+    if (e.t === 'pick') { lap++; laps[lap] = { from: e.cell, to: e.cell }; }
+    else if (e.t === 'drop' && laps[lap]) laps[lap].to = e.cell;
+  }
+  ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.55)'; ctx.shadowBlur = 6;
+  laps.forEach((l, i) => { if (l.from !== l.to && (i === 0 || i === laps.length - 1)) arcArrow(ctx, P(l.from, 0.4), P(l.to, 0.4), i === 0 ? LANE[0] : LANE[1], i); });
+  ctx.restore();
+  laps.forEach((l, i) => mRing(l.from, i === 0 ? th.accent : i === laps.length - 1 ? LANE[1] : 'rgba(255,255,255,0.55)', 0.95, i === 0 ? 2 : 0));
+  for (const e of ev) if (e.t === 'capture') {
+    for (const c of e.cells) mRing(c, '#ffe27a', 1, 3);
+    const r = P(e.at, 0.6);
+    pill(ctx, th, `+${e.n}`, r.cx, r.cy - 28, 28, null, '#ffe27a', '#3a2108');
+  }
+}
+
+function drawMatchBoard3d(ctx, S, M, auto, o) {
+  const th = theme(S), D = M.D, A = M.A, pl = pulse(S), acc = th.accent, turn = M.st.turn, title = S.scene === 'title';
+  if (!M.over && !M.auto && !title) for (const i of CIRCUIT[turn]) mFill(i, acc, M.busy ? 0.02 : 0.05 + 0.03 * pl);
+  if (humanTurn(M) && !title) for (const i of CIRCUIT[turn]) if (D.cells[i] > 0) mRing(i, acc, 0.34 + 0.22 * pl);
+  if (S.kbd && humanTurn(M) && S.scene === 'play') { mFill(M.cur, acc, 0.22); mRing(M.cur, acc, 0.95, 2); }
+  if (M.flash >= 0) mFill(M.flash, '#ff6a5a', 0.45 * clamp01(M.flashT / 0.3));
+  if (M.capT > 0 && M.capCells) for (const c of M.capCells) mRing(c, '#ffe27a', clamp01(M.capT / 0.5), (1 - M.capT / 0.9) * 16);
+  if (M.ringT > 0 && M.ringCell >= 0) mRing(M.ringCell, '#ffe27a', clamp01(M.ringT / 0.5), (1 - M.ringT / 0.9) * 16);
+  const z = TEXT_SCALES[S.textIdx] ?? 1, mt = layoutNow(z).minText;
+  // count labels just in front of each hole, sized with the board's projected scale
+  if (!o.noCounts && !title) for (let i = 0; i < CELLS.length; i++) {
+    const n = D.cells[i]; if (!n) continue;
+    const c = CELLS[i], p = v3.pt(c.cx, c.cy + HOLE_R + 12, 0), fs = Math.max(mt, 19 * (1 + (z - 1) * 0.22) * Math.min(1.25, p.k));
+    pill(ctx, th, `${n}`, p.x, p.y, fs, th.own[c.owner - 1]);
+  }
+  // how many pearls the handful still holds
+  if (A && A.hand && A.hand.n > 1) {
+    const h = A.hand, al = S.alpha ?? 1, hx = h.px === undefined ? h.x : h.px + (h.x - h.px) * al, hy = h.py === undefined ? h.y : h.py + (h.y - h.py) * al;
+    const p = v3.pt(hx, hy, 6.2), fs = Math.max(mt, 22 * Math.min(1.25, p.k));
+    pill(ctx, th, `${h.n}`, p.x + 22 * p.k, p.y - 6 * p.k, fs, null, th.accent, th.primaryInk);
+  }
+  if (M.hint && !M.over && !M.busy) { drawPathMarks3d(ctx, th, play(M.st, M.hint.mv, true).ev); mRing(M.hint.mv.cell, acc, 0.6 + 0.4 * pl, 2); }
+  if (auto && auto.phase === 'reveal' && auto.plan) {
+    for (const c of auto.plan.cells) if (c !== auto.plan.mv.cell) mRing(c, 'rgba(160,190,255,0.9)', 0.5 + 0.2 * pl);
+    if (!M.busy) drawPathMarks3d(ctx, th, play(M.st, auto.plan.mv, true).ev);
+    mRing(auto.plan.mv.cell, acc, 0.8 + 0.2 * pl, 2); mFill(auto.plan.mv.cell, acc, 0.25 + 0.15 * pl);
+  }
+  if (auto && auto.phase === 'think' && auto.scan != null) mFill(auto.scan, 'rgba(255,255,255,0.8)', 0.08 + 0.08 * pl);
+  // capture sparks (the 3D layer draws its own landing glints, so the flat landing rings are left out)
+  for (const q of M.parts) {
+    if (q.shape === 'ring') continue;
+    const a = clamp01(q.life / (q.max * 0.6)), p = v3.pt(q.x, q.y, 1.2);
+    ctx.globalAlpha = a; ctx.fillStyle = q.color;
+    ctx.beginPath(); ctx.arc(p.x, p.y, q.size * (0.4 + 0.6 * a) * p.k, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
 function drawMatchBoard(ctx, S, M, geo, auto, o = {}) {
+  if (!board3d()) { drawMatchBoardFlat(ctx, S, M, geo, auto, o); return; }
+  const fa = flatAlpha();
+  if (fa > 0) { ctx.save(); ctx.globalAlpha = fa; drawMatchBoardFlat(ctx, S, M, geo, auto, { ...o, noCounts: true }); ctx.restore(); }
+  drawMatchBoard3d(ctx, S, M, auto, o);
+}
+
+// o: { auto, legal: bool, zoom }. Draws base, stones (the display state D), flights, the hand, marks and effects.
+function drawMatchBoardFlat(ctx, S, M, geo, auto, o = {}) {
   const th = theme(S), D = M.D, A = M.A;
   ctx.save();
   ctx.translate(geo.x, geo.y); ctx.scale(geo.sc, geo.sc);
@@ -464,7 +583,7 @@ const lay0y = (L) => (L.land ? L.h * 0.5 : Math.min(800, L.h * 0.51));
 function drawPlay(ctx, S) {
   const th = theme(S), M = S.match, z = TEXT_SCALES[S.textIdx];
   const Lv = layoutNow(z);
-  background(ctx, th, S.t, lay0y(Lv), Lv.w, Lv.h);
+  bgDraw(ctx, S, th, S.t, lay0y(Lv), Lv.w, Lv.h, 'play');
   const auto = S.scene === 'auto' ? S.auto : null;
   const { lay, geo } = playGeo(S);
   const title = M.lesson ? lessonText(M.lesson.id).title : tr('appName');
@@ -517,16 +636,16 @@ export function render(ctx, S, ui) {
     case 'title': drawTitle(ctx, S, ui); break;
     case 'setup': case 'learn': case 'howto': case 'rules': case 'about': case 'settings': drawDocScreen(ctx, S, ui); break;
     case 'demo-limit':
-      background(ctx, theme(S), S.t, 700, L.w, L.h);
+      bgDraw(ctx, S, theme(S), S.t, 700, L.w, L.h, 'doc');
       panel(ctx, theme(S), ui.panel.x, ui.panel.y, ui.panel.w, ui.panel.h, {});
       drawDocBlocks(ctx, S, ui, S.scroll[ui.scrollKey] ?? 0);
       drawFixed(ctx, S, ui.fixed);
       break;
     case 'play': case 'auto':
-      if (!S.match) { background(ctx, theme(S), S.t, 700, L.w, L.h); break; }
+      if (!S.match) { bgDraw(ctx, S, theme(S), S.t, 700, L.w, L.h, 'doc'); break; }
       drawPlay(ctx, S);
       break;
-    default: background(ctx, theme(S), S.t, 700, L.w, L.h);
+    default: bgDraw(ctx, S, theme(S), S.t, 700, L.w, L.h, 'doc');
   }
   if (S.overlay) drawOverlay(ctx, S, ui);
 }

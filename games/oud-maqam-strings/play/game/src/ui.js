@@ -36,9 +36,13 @@ export function button(ctx, r, label, o = {}) {
   const kind = o.kind ?? 'ghost', rad = o.rad ?? Math.min(22, r.h * 0.3), size = o.size ?? Math.min(34, r.h * 0.4);
   ctx.save();
   if (!o.noShadow) { ctx.fillStyle = 'rgba(0,0,0,0.28)'; rrect(ctx, { x: r.x, y: r.y + 4, w: r.w, h: r.h }, rad); ctx.fill(); }
-  const fills = { primary: '#e8a23a', ghost: 'rgba(255,240,220,0.08)', quiet: 'rgba(255,240,220,0.14)', on: '#35c7b8', danger: '#b9304a', gold: '#f0b94a', disabled: 'rgba(255,255,255,0.05)' };
+  // walnut plaques with a thin inlaid brass line (quiet, ghost); the primary is lamp-lit amber with a brass rim. Flat fills, no gloss.
+  const fills = { primary: '#eaa53c', ghost: 'rgba(30,17,9,0.80)', quiet: 'rgba(52,30,15,0.88)', on: '#35c7b8', danger: '#b9304a', gold: '#f0b94a', disabled: 'rgba(30,17,9,0.5)' };
   ctx.fillStyle = fills[kind] ?? fills.ghost; rrect(ctx, r, rad); ctx.fill();
-  if (kind === 'ghost' || kind === 'quiet' || kind === 'disabled') { ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(255,230,200,0.32)'; rrect(ctx, r, rad); ctx.stroke(); }
+  if (kind === 'ghost' || kind === 'quiet' || kind === 'disabled') {
+    ctx.lineWidth = 2; ctx.strokeStyle = kind === 'disabled' ? 'rgba(201,163,94,0.18)' : 'rgba(214,170,96,0.55)'; rrect(ctx, r, rad); ctx.stroke();
+    const i = Math.min(5, r.h * 0.08); ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(242,196,109,0.16)'; rrect(ctx, { x: r.x + i, y: r.y + i, w: r.w - i * 2, h: r.h - i * 2 }, Math.max(2, rad - i)); ctx.stroke();
+  } else if (kind === 'primary') { ctx.lineWidth = 2.5; ctx.strokeStyle = '#8a5a1a'; rrect(ctx, r, rad); ctx.stroke(); }
   if (o.press) { ctx.fillStyle = 'rgba(255,255,255,0.18)'; rrect(ctx, r, rad); ctx.fill(); }
   const dark = kind === 'primary' || kind === 'on' || kind === 'gold';
   const col = kind === 'disabled' ? 'rgba(255,240,220,0.4)' : dark ? ('#1a1208') : PAL.text;
@@ -53,8 +57,9 @@ export function button(ctx, r, label, o = {}) {
 export function panel(ctx, r, o = {}) {
   ctx.save();
   const rad = o.rad ?? 24;
-  ctx.fillStyle = o.fill ?? 'rgba(8,20,26,0.74)'; rrect(ctx, r, rad); ctx.fill();
-  ctx.lineWidth = 2; ctx.strokeStyle = o.stroke ?? 'rgba(255,230,200,0.18)'; rrect(ctx, r, rad); ctx.stroke();
+  ctx.fillStyle = o.fill ?? 'rgba(22,13,8,0.82)'; rrect(ctx, r, rad); ctx.fill();
+  ctx.lineWidth = 2; ctx.strokeStyle = o.stroke ?? 'rgba(214,170,96,0.4)'; rrect(ctx, r, rad); ctx.stroke();
+  const i = 6; ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(242,196,109,0.14)'; rrect(ctx, { x: r.x + i, y: r.y + i, w: r.w - i * 2, h: r.h - i * 2 }, Math.max(2, rad - i)); ctx.stroke();
   ctx.restore();
 }
 

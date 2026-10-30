@@ -101,7 +101,8 @@ function drawCourtView(ctx, state, rect, o = {}) {
 function drawScore(ctx, state, i) {
   const sc = state.sc, m = sc.match, r = PLAY.score[i], f = PLAY.fonts, col = TEAM_COL[i];
   const raiding = (sc.raid ? sc.raid.team : sc.pre ? sc.pre.team : m.raiding) === i;
-  panel(ctx, r.x, r.y, r.w, r.h, { r: 18, fill: 'rgba(10,22,28,0.90)', stroke: raiding ? col.light : 'rgba(255,255,255,0.18)', lw: raiding ? 3 : 2, shadow: false });
+  const wg = ctx.createLinearGradient(0, r.y, 0, r.y + r.h); wg.addColorStop(0, '#4a2e19'); wg.addColorStop(1, '#25150b');
+  panel(ctx, r.x, r.y, r.w, r.h, { r: 18, fill: wg, stroke: raiding ? '#f2b441' : 'rgba(205,160,80,0.55)', lw: raiding ? 3.5 : 2.5, shadow: true });
   ctx.fillStyle = col.main; roundPath(ctx, r.x, r.y, 12, r.h, 6); ctx.fill();
   ctx.textBaseline = 'alphabetic';
   const name = PLAY.compact ? col.name : teamName(state, i);

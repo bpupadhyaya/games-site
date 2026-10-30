@@ -70,10 +70,10 @@ export function drawButton(ctx, r, label, th, o = {}) {
   const d = press ? 0.22 : 0;
   if (primary) { g.addColorStop(0, mix(th.accent, '#000000', 0.04 + d)); g.addColorStop(1, mix(th.accent, '#000000', 0.16 + d)); }
   else if (active) { g.addColorStop(0, mix(th.accent2, '#000000', 0.04 + d)); g.addColorStop(1, mix(th.accent2, '#000000', 0.22 + d)); }
-  else { const k = press ? 0.06 : 0.14; g.addColorStop(0, `rgba(255,255,255,${k})`); g.addColorStop(1, `rgba(255,255,255,${k - 0.03})`); }
+  else { const base = lacquerOf(th); g.addColorStop(0, mix(base, '#000000', 0.0 + d)); g.addColorStop(1, mix(base, '#000000', 0.28 + d)); }
   ctx.fillStyle = g; ctx.fill();
   ctx.shadowColor = 'transparent';
-  ctx.lineWidth = 2; ctx.strokeStyle = primary ? INK : active ? 'rgba(255,255,255,0.75)' : 'rgba(255,255,255,0.4)'; ctx.stroke();
+  ctx.lineWidth = 2; ctx.strokeStyle = primary ? INK : active ? 'rgba(255,255,255,0.75)' : rgba(th.trim === '#2a5ac8' ? '#ffe27a' : th.trim, 0.55); ctx.stroke();
   if (pulse > 0) { roundPath(ctx, r.x - pulse * 6, y - pulse * 6, r.w + pulse * 12, r.h + pulse * 12, Math.min(28, r.h / 2.2)); ctx.lineWidth = 3; ctx.strokeStyle = `rgba(255,240,170,${0.7 * (1 - pulse)})`; ctx.stroke(); }
   ctx.fillStyle = primary ? INK : th.text; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   const base = Math.min(Math.min(34, r.h * 0.42) * scale, r.h * (sub ? 0.36 : 0.6));
@@ -89,26 +89,158 @@ export function drawButton(ctx, r, label, th, o = {}) {
   ctx.restore();
 }
 
+// Dark lacquered-wood colour for panels and secondary buttons in each theme (opaque, so they read over the table).
+const hexMix = (a, b, t) => { const p = hexRgb(a), q = hexRgb(b); return '#' + p.map((v, i) => Math.round(v + (q[i] - v) * t).toString(16).padStart(2, '0')).join(''); };
+export const lacquerOf = (th) => hexMix(th.bg[0], '#1a0c08', 0.4);
+// A plaque: lacquered panel with a thin gold inlay line, used for the HUD and info panels.
+export function drawPlaque(ctx, r, th, o = {}) {
+  const rad = o.rad ?? Math.min(22, r.h / 2.4);
+  ctx.save();
+  ctx.shadowColor = 'rgba(0,0,0,0.45)'; ctx.shadowBlur = 12; ctx.shadowOffsetY = 5;
+  roundPath(ctx, r.x, r.y, r.w, r.h, rad);
+  const base = o.fill ?? lacquerOf(th), g = ctx.createLinearGradient(0, r.y, 0, r.y + r.h);
+  g.addColorStop(0, mix(base, '#000000', 0.02)); g.addColorStop(1, mix(base, '#000000', 0.3));
+  ctx.globalAlpha *= o.alpha ?? 0.94; ctx.fillStyle = g; ctx.fill(); ctx.globalAlpha /= o.alpha ?? 0.94;
+  ctx.shadowColor = 'transparent';
+  ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(0,0,0,0.6)'; ctx.stroke();
+  const ins = Math.min(5, r.h * 0.1);
+  roundPath(ctx, r.x + ins, r.y + ins, r.w - ins * 2, r.h - ins * 2, Math.max(2, rad - ins));
+  ctx.lineWidth = 1.2; ctx.strokeStyle = rgba(th.trim === '#2a5ac8' ? '#ffe27a' : th.trim, o.line ?? 0.45); ctx.stroke();
+  ctx.restore();
+}
+
 // ---- backdrop -----------------------------------------------------------------------------------------------
-// t = seconds. Garland: papel-picado flags on a sagging string, swaying gently.
+// The world: a wooden fiesta table seen from above, a woven sarape runner across it, a warm lamp pool and the
+// papel picado above it (its shadows and coloured light drift over the table). The table layer is painted once per
+// screen size + theme into an offscreen canvas once 0.3 s of game time has passed (the first frames use the flat
+// gradient, so the title is never late), then cross-fades in over 0.45 s of game time. Later rebuilds (rotation) are instant. t = seconds. o: { garland: 'full'|'thin'|'none', w, h, dim (0..1 extra darkening for reading screens) }
+const TABLE = { key: '', cvs: null, at: 0, pending: '', prev: null };
+export const tableReady = () => !!TABLE.cvs;
 export function drawBackdrop(ctx, th, t, o = {}) {
   const { garland = 'full' } = o;
   W = o.w ?? 720; H = o.h ?? 1280;
-  const g = ctx.createLinearGradient(0, 0, 0, H);
-  g.addColorStop(0, th.bg[0]); g.addColorStop(0.55, th.bg[1]); g.addColorStop(1, th.bg[2]);
-  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-  const rg = ctx.createRadialGradient(W / 2, H * 0.42, 40, W / 2, H * 0.42, 700);
-  rg.addColorStop(0, th.glow); rg.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.fillStyle = rg; ctx.fillRect(0, 0, W, H);
-  // soft bokeh lights
-  for (let i = 0; i < 14; i++) {
-    const x = (i * 163 + 40) % W, y = 80 + ((i * 331) % Math.max(300, H - 160)), r = 14 + (i % 4) * 9, a = 0.05 + 0.04 * Math.sin(t * 0.8 + i);
-    ctx.fillStyle = `rgba(255,230,170,${a})`; ctx.beginPath(); ctx.arc(x, y, r, 0, 6.2832); ctx.fill();
+  const tbl = tableLayer(th, W, H, t);
+  const fade = tbl ? clamp01((t - TABLE.at) / 0.45) : 0;
+  if (fade < 1) {
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, th.bg[0]); g.addColorStop(0.55, th.bg[1]); g.addColorStop(1, th.bg[2]);
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
   }
-  if (th === THEMES.talavera) tilePattern(ctx, th);
-  petals(ctx, t, th);
+  if (tbl) {
+    ctx.save(); ctx.globalAlpha = fade; ctx.drawImage(tbl, 0, 0, W, H); ctx.restore();
+    lightPatches(ctx, t, th, fade);
+  }
+  if (o.dim) { ctx.fillStyle = `rgba(12,4,10,${o.dim})`; ctx.fillRect(0, 0, W, H); }
+  if (th === THEMES.talavera && !tbl) tilePattern(ctx, th);
   if (garland === 'full') garlandRow(ctx, t, th, 6, 74, 1);
   else if (garland === 'thin') garlandRow(ctx, t, th, 4, 30, 0.5);
+}
+// Coloured light that falls through the papel picado onto the table, drifting with the breeze (5 pre-blurred sprites).
+const PATCH = new Map();
+function patchSprite(col) {
+  if (PATCH.has(col)) return PATCH.get(col);
+  let c = null;
+  try {
+    c = new OffscreenCanvas(160, 120); const x = c.getContext('2d');
+    x.filter = 'blur(8px)'; x.fillStyle = col;
+    x.beginPath(); x.moveTo(26, 18); x.lineTo(134, 18); x.lineTo(134, 92);
+    for (let k = 0; k < 4; k++) { x.lineTo(134 - (k + 0.5) * 27, 80); x.lineTo(134 - (k + 1) * 27, 92); }
+    x.closePath(); x.fill();
+    x.globalCompositeOperation = 'destination-out'; x.beginPath(); x.arc(80, 50, 15, 0, 6.2832); x.fill();
+  } catch { c = null; }
+  PATCH.set(col, c); return c;
+}
+function lightPatches(ctx, t, th, a) {
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  const k = Math.min(W, H) / 720;
+  for (let i = 0; i < 5; i++) {
+    const sp = patchSprite(th.garland[i % th.garland.length]); if (!sp) break;
+    const bx = ((i * 0.23 + 0.08) % 1) * W, by = (0.12 + ((i * 0.37) % 1) * 0.8) * H;
+    const x = bx + Math.sin(t * 0.21 + i * 1.9) * 40 * k, y = by + Math.cos(t * 0.17 + i * 1.3) * 26 * k;
+    ctx.globalAlpha = a * (0.07 + 0.025 * Math.sin(t * 0.9 + i * 2.1));
+    ctx.setTransform(ctx.getTransform().translate(x, y).rotate(Math.sin(t * 0.3 + i) * 14).scale(2.6 * k, 2.6 * k));
+    ctx.drawImage(sp, -80, -60);
+    ctx.restore(); ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  }
+  ctx.restore();
+}
+// Build (or return) the painted table for this size + theme (presentation only: reads the game time t, changes no state).
+function tableLayer(th, w, h, t) {
+  if (typeof OffscreenCanvas === 'undefined') return null;
+  const key = `${Object.keys(THEMES).find((k) => THEMES[k] === th)}|${Math.round(w)}x${Math.round(h)}`;
+  if (TABLE.key === key && TABLE.cvs) return TABLE.cvs;
+  if (!TABLE.cvs && t < 0.3) return null; // first build waits until the title is on screen
+  try { const was = !!TABLE.cvs; TABLE.cvs = paintTable(th, w, h); TABLE.key = key; TABLE.at = was ? t - 1 : t; } catch { TABLE.cvs = null; }
+  return TABLE.cvs;
+}
+function srand(seed) { let a = seed >>> 0; return () => { a = (a + 0x6d2b79f5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+const TABLE_LOOK = {
+  fiesta: { wood: ['#3e2010', '#6a3c1c'], cloth: ['#1c0f1c', '#c8243c', '#f0a020', '#e8487a', '#18a090', '#f4e8c8', '#7a2a8a'], lamp: 'rgba(255,190,110,0.30)', tint: 'rgba(120,30,90,0.20)' },
+  noche: { wood: ['#2a1a12', '#40281a'], cloth: ['#0e1430', '#2a5ac8', '#ffd36a', '#7be0ff', '#e8487a', '#eef4ff', '#5a3ab0'], lamp: 'rgba(170,200,255,0.24)', tint: 'rgba(30,50,140,0.30)' },
+  jade: { wood: ['#33200e', '#4e3216'], cloth: ['#0c2a22', '#1f8a62', '#ffd84a', '#ff7a5a', '#7af0c8', '#fff4dc', '#c8243c'], lamp: 'rgba(255,225,140,0.28)', tint: 'rgba(10,90,60,0.22)' },
+  talavera: { wood: ['#36210f', '#553519'], cloth: ['#0a1a4a', '#2a5ac8', '#f4f8ff', '#ffe27a', '#ff8a5a', '#7ac0ff', '#16348a'], lamp: 'rgba(255,240,210,0.26)', tint: 'rgba(30,60,160,0.22)' },
+};
+function paintTable(th, w, h) {
+  const id = Object.keys(THEMES).find((k) => THEMES[k] === th) || 'fiesta', look = TABLE_LOOK[id];
+  const S = Math.min(1.6, 2048 / Math.max(w, h)), cw = Math.round(w * S), ch = Math.round(h * S);
+  const c = new OffscreenCanvas(cw, ch), x = c.getContext('2d'), r = srand(1234 + id.length * 77);
+  x.scale(S, S);
+  // planks run across the short side so a portrait screen shows several boards
+  const portrait = h >= w, len = portrait ? w : h, span = portrait ? h : w, pw = Math.max(110, Math.min(170, span / 7));
+  x.save(); if (!portrait) { x.translate(w, 0); x.rotate(Math.PI / 2); }
+  for (let p = 0, y0 = -r() * pw; y0 < span; p++, y0 += pw) {
+    const tone = 0.85 + r() * 0.3, gn = 46;
+    const g = x.createLinearGradient(0, y0, 0, y0 + pw); g.addColorStop(0, mix(look.wood[1], '#000000', 0.12 * tone)); g.addColorStop(0.5, mix(look.wood[1], look.wood[0], 0.5 - (tone - 1))); g.addColorStop(1, mix(look.wood[0], '#000000', 0.18));
+    x.fillStyle = g; x.fillRect(0, y0, len, pw);
+    x.save(); x.beginPath(); x.rect(0, y0, len, pw); x.clip();
+    for (let i = 0; i < gn; i++) {
+      const yy = y0 + r() * pw, amp = 1 + r() * 5, ph = r() * 6.28, fr = 0.006 + r() * 0.014, a = 0.08 + r() * 0.2, dark = r() < 0.72;
+      x.strokeStyle = dark ? `rgba(20,8,2,${a})` : `rgba(255,214,160,${a * 0.6})`; x.lineWidth = 0.6 + r() * 2.2; x.beginPath();
+      for (let s = 0; s <= len; s += 12) { const v = yy + Math.sin(s * fr + ph) * amp + Math.sin(s * fr * 2.9 + ph) * amp * 0.35; s ? x.lineTo(s, v) : x.moveTo(s, v); }
+      x.stroke();
+    }
+    if (r() < 0.6) { const kx = r() * len, ky = y0 + pw * (0.3 + r() * 0.4), kr = 7 + r() * 10; for (let q = 5; q > 0; q--) { x.strokeStyle = `rgba(25,10,3,${0.08 + 0.05 * q})`; x.lineWidth = 1.3; x.beginPath(); x.ellipse(kx, ky, kr * q * 0.55, kr * q * 0.24, 0, 0, 6.2832); x.stroke(); } }
+    x.restore();
+    x.fillStyle = 'rgba(8,3,1,0.75)'; x.fillRect(0, y0 - 1.5, len, 3); x.fillStyle = 'rgba(255,220,170,0.08)'; x.fillRect(0, y0 + 1.5, len, 1.5);
+  }
+  x.restore();
+  // woven sarape runner, laid diagonally across the table (most of it sits under the tabla)
+  {
+    const rw = Math.min(w, h) * 0.62, ang = portrait ? -0.36 : -0.2, L2 = Math.hypot(w, h) * 1.2;
+    x.save(); x.translate(w * 0.5, h * 0.52); x.rotate(ang);
+    x.shadowColor = 'rgba(0,0,0,0.55)'; x.shadowBlur = 24; x.shadowOffsetY = 8;
+    x.fillStyle = look.cloth[0]; x.fillRect(-L2 / 2, -rw / 2, L2, rw); x.shadowColor = 'transparent';
+    const bands = [[0, 0.04], [1, 0.12], [2, 0.025], [3, 0.06], [0, 0.012], [4, 0.08], [5, 0.014], [6, 0.07], [2, 0.025], [1, 0.16]];
+    const all = [...bands, ...bands.slice().reverse()]; const tot = all.reduce((a, b) => a + b[1], 0);
+    let yy = -rw / 2;
+    for (const [ci, f] of all) { const hh = (f / tot) * rw; x.fillStyle = look.cloth[ci]; x.fillRect(-L2 / 2, yy, L2, hh + 0.5); yy += hh; }
+    // weave: fine weft lines + a stepped diamond row in the middle band (sarape greca)
+    for (let v = -rw / 2; v < rw / 2; v += 2.4) { x.fillStyle = 'rgba(0,0,0,0.13)'; x.fillRect(-L2 / 2, v, L2, 0.9); }
+    for (let u = -L2 / 2; u < L2 / 2; u += 3) { x.fillStyle = 'rgba(255,255,255,0.05)'; x.fillRect(u, -rw / 2, 1, rw); }
+    x.fillStyle = mix(look.cloth[5], '#000000', 0.1);
+    for (let u = -L2 / 2; u < L2 / 2; u += 26) { x.beginPath(); x.moveTo(u, 0); x.lineTo(u + 9, -7); x.lineTo(u + 18, 0); x.lineTo(u + 9, 7); x.closePath(); x.fill(); }
+    x.fillStyle = 'rgba(14,5,8,0.46)'; x.fillRect(-L2 / 2, -rw / 2, L2, rw);
+    // selvedge: the tightly woven, slightly raised long edges
+    for (const e of [-1, 1]) { x.fillStyle = 'rgba(0,0,0,0.35)'; x.fillRect(-L2 / 2, e > 0 ? rw / 2 - 5 : -rw / 2, L2, 5); x.fillStyle = 'rgba(255,240,220,0.1)'; x.fillRect(-L2 / 2, e > 0 ? rw / 2 - 6 : -rw / 2 + 5, L2, 1); }
+    // soft folds
+    for (let k = 0; k < 4; k++) { const u = -L2 * 0.3 + k * L2 * 0.2 + r() * 40; const gg = x.createLinearGradient(u - 30, 0, u + 30, 0); gg.addColorStop(0, 'rgba(0,0,0,0)'); gg.addColorStop(0.5, 'rgba(0,0,0,0.16)'); gg.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = gg; x.fillRect(u - 30, -rw / 2, 60, rw); }
+    x.restore();
+  }
+  // a few loose pinto beans on the bare wood near the edges
+  for (let i = 0; i < 7; i++) {
+    const side = i % 2, bx = side ? w * (0.9 + r() * 0.07) : w * (0.03 + r() * 0.07), by = h * (0.15 + r() * 0.75);
+    drawBean(x, bx, by, 34 + r() * 6, r() * 6.28, 1);
+  }
+  // the lamp: warm pool in the middle, falling off to dark edges; theme tint keeps each theme's mood
+  x.globalCompositeOperation = 'soft-light'; x.fillStyle = look.tint.replace(/[\d.]+\)$/, '0.35)'); x.fillRect(0, 0, w, h);
+  x.globalCompositeOperation = 'source-over';
+  const cx = w * 0.5, cy = h * (portrait ? 0.5 : 0.48), R = Math.hypot(w, h) * 0.66;
+  let g = x.createRadialGradient(cx, cy, R * 0.05, cx, cy, R * 0.55); g.addColorStop(0, look.lamp); g.addColorStop(1, 'rgba(0,0,0,0)');
+  x.globalCompositeOperation = 'lighter'; x.fillStyle = g; x.fillRect(0, 0, w, h); x.globalCompositeOperation = 'source-over';
+  g = x.createRadialGradient(cx, cy, R * 0.3, cx, cy, R); g.addColorStop(0, 'rgba(10,3,6,0)'); g.addColorStop(0.72, 'rgba(10,3,6,0.4)'); g.addColorStop(1, 'rgba(6,2,4,0.78)');
+  x.fillStyle = g; x.fillRect(0, 0, w, h);
+  x.fillStyle = look.tint.replace(/[\d.]+\)$/, '0.08)'); x.fillRect(0, 0, w, h);
+  return c;
 }
 function tilePattern(ctx, th) {
   ctx.save(); ctx.globalAlpha = 0.09; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2;
@@ -128,30 +260,70 @@ function petals(ctx, t, th) {
   }
   ctx.restore();
 }
+// One papel picado flag, cut from tissue paper: a scalloped bottom, a border of punched dots, a central flower and
+// diamonds cut right through (the table shows through the holes), a fold crease. Baked once per colour.
+const FLAGS = new Map();
+function flagSprite(col) {
+  if (FLAGS.has(col)) return FLAGS.get(col);
+  let c = null;
+  try {
+    const FW = 120, FH = 96; c = new OffscreenCanvas(FW, FH); const x = c.getContext('2d');
+    x.beginPath(); x.moveTo(0, 0); x.lineTo(FW, 0); x.lineTo(FW, FH - 10);
+    for (let k = 0; k < 6; k++) { const xa = FW - k * (FW / 6); x.quadraticCurveTo(xa - FW / 12, FH + 4, xa - FW / 6, FH - 10); }
+    x.closePath();
+    const g = x.createLinearGradient(0, 0, FW, FH); g.addColorStop(0, mix(col, '#ffffff', 0.18)); g.addColorStop(0.5, col); g.addColorStop(1, mix(col, '#000000', 0.18));
+    x.fillStyle = g; x.fill();
+    x.fillStyle = 'rgba(0,0,0,0.12)'; x.fillRect(FW / 2 - 1, 0, 2, FH);           // the fold crease
+    x.fillStyle = 'rgba(255,255,255,0.14)'; x.fillRect(FW / 2 + 1, 0, 1.5, FH);
+    x.globalCompositeOperation = 'destination-out';
+    for (let i = 0; i < 9; i++) { x.beginPath(); x.arc(10 + i * 12.5, 12, 2.6, 0, 6.2832); x.fill(); }
+    for (let i = 0; i < 5; i++) { x.beginPath(); x.arc(10, 24 + i * 11, 2.4, 0, 6.2832); x.fill(); x.beginPath(); x.arc(FW - 10, 24 + i * 11, 2.4, 0, 6.2832); x.fill(); }
+    const cx = FW / 2, cy = FH * 0.48;
+    for (let p = 0; p < 8; p++) { const a = p * Math.PI / 4; x.beginPath(); x.ellipse(cx + Math.cos(a) * 14, cy + Math.sin(a) * 14, 8, 3.6, a, 0, 6.2832); x.fill(); }
+    x.beginPath(); x.arc(cx, cy, 4.5, 0, 6.2832); x.fill();
+    for (const dx of [-36, 36]) { x.beginPath(); x.moveTo(cx + dx, cy - 13); x.lineTo(cx + dx + 8, cy); x.lineTo(cx + dx, cy + 13); x.lineTo(cx + dx - 8, cy); x.closePath(); x.fill(); }
+    for (let k = 0; k < 6; k++) { x.beginPath(); x.moveTo(8 + k * 18.5, FH - 22); x.lineTo(14 + k * 18.5, FH - 28); x.lineTo(20 + k * 18.5, FH - 22); x.closePath(); x.fill(); }
+  } catch { c = null; }
+  FLAGS.set(col, c); return c;
+}
 function garlandRow(ctx, t, th, count, drop, alpha) {
   const flagW = Math.min(W, 720) / (count * 2) * 1.8 * (alpha < 1 ? 0.7 : 1);
-  const n = Math.ceil(W / (flagW + 4)) + 1;
-  ctx.save(); ctx.globalAlpha = alpha < 1 ? 0.9 : 1;
+  const n = Math.ceil(W / (flagW + 4)) + 1, fh = drop * 0.72, full = alpha >= 1;
+  const sprites = typeof OffscreenCanvas !== 'undefined' && !!TABLE.cvs; // plain flags until the table is ready (fast first frame)
+  ctx.save();
+  if (TABLE.cvs && full) { // the flags' shadows fall on the table below them (lamp light from the upper left)
+    const k = Math.min(W, 720) / 720, sx = 12 * k, sy = drop * 0.55;
+    ctx.fillStyle = 'rgba(0,0,0,0.24)';
+    for (let i = 0; i < n; i++) {
+      const cx = i * (flagW + 4) + flagW / 2 - 6 + sx, sag = 4 + Math.sin(cx / W * Math.PI) * 14 + sy, sway = Math.sin(t * 1.3 + i * 0.7 - 0.4) * 0.07;
+      ctx.save(); ctx.translate(cx, sag); ctx.rotate(sway); ctx.beginPath(); ctx.moveTo(-flagW / 2, 0); ctx.lineTo(flagW / 2, 0); ctx.lineTo(flagW / 2, fh); ctx.lineTo(-flagW / 2, fh); ctx.closePath(); ctx.fill(); ctx.restore();
+    }
+  }
   ctx.strokeStyle = 'rgba(255,240,210,0.55)'; ctx.lineWidth = 2;
   ctx.beginPath();
   for (let x = -10; x <= W + 10; x += 10) { const y = 4 + Math.sin(x / W * Math.PI) * 14; x === -10 ? ctx.moveTo(x, y) : ctx.lineTo(x, y); }
   ctx.stroke();
   for (let i = 0; i < n; i++) {
-    const cx = i * (flagW + 4) + flagW / 2 - 6, sag = 4 + Math.sin(cx / W * Math.PI) * 14, sway = Math.sin(t * 1.3 + i * 0.7) * 0.07;
-    const col = th.garland[i % th.garland.length], fh = drop * 0.72;
+    const cx = i * (flagW + 4) + flagW / 2 - 6, sag = 4 + Math.sin(cx / W * Math.PI) * 14, ph = t * 1.3 + i * 0.7, sway = Math.sin(ph) * 0.07;
+    const col = th.garland[i % th.garland.length];
     ctx.save(); ctx.translate(cx, sag); ctx.rotate(sway);
-    ctx.beginPath(); ctx.moveTo(-flagW / 2, 0); ctx.lineTo(flagW / 2, 0); ctx.lineTo(flagW / 2, fh);
-    const sc = 4, sw = flagW / sc;
-    for (let k = 0; k < sc; k++) { ctx.lineTo(flagW / 2 - (k + 0.5) * sw, fh - 8); ctx.lineTo(flagW / 2 - (k + 1) * sw, fh); }
-    ctx.closePath();
-    ctx.fillStyle = col; ctx.globalAlpha = 0.92 * (alpha < 1 ? 0.9 : 1); ctx.fill();
-    ctx.globalAlpha = 0.35; ctx.fillStyle = '#1a0830';
-    if (alpha >= 1) {
-      ctx.beginPath(); ctx.arc(0, fh * 0.4, flagW * 0.17, 0, 6.2832); ctx.fill();
-      for (let k = -1; k <= 1; k += 2) { ctx.beginPath(); ctx.moveTo(k * flagW * 0.32, fh * 0.2); ctx.lineTo(k * flagW * 0.42, fh * 0.3); ctx.lineTo(k * flagW * 0.32, fh * 0.4); ctx.lineTo(k * flagW * 0.22, fh * 0.3); ctx.closePath(); ctx.fill(); }
-      ctx.beginPath(); ctx.moveTo(-flagW * 0.28, fh * 0.72); ctx.lineTo(0, fh * 0.62); ctx.lineTo(flagW * 0.28, fh * 0.72); ctx.lineTo(0, fh * 0.8); ctx.closePath(); ctx.fill();
+    const sp = sprites ? flagSprite(col) : null;
+    if (sp) {
+      const flutter = 1 - 0.06 * (0.5 + 0.5 * Math.sin(ph * 1.7 + 1)); // tissue paper catches the breeze: it narrows as it turns
+      ctx.globalAlpha = full ? 0.93 : 0.8; ctx.scale(flutter, 1); ctx.drawImage(sp, -flagW / 2, 0, flagW, fh);
+    } else {
+      ctx.beginPath(); ctx.moveTo(-flagW / 2, 0); ctx.lineTo(flagW / 2, 0); ctx.lineTo(flagW / 2, fh); ctx.lineTo(-flagW / 2, fh); ctx.closePath();
+      ctx.fillStyle = col; ctx.globalAlpha = 0.9; ctx.fill();
     }
     ctx.restore();
+  }
+  if (full) { // string lights between the flags: warm bulbs with a soft halo that breathes
+    for (let i = 0; i <= n; i += 1) {
+      const bx = i * (flagW + 4) - 8, by = 6 + Math.sin(bx / W * Math.PI) * 14, f = 0.75 + 0.25 * Math.sin(t * 2.1 + i * 1.7);
+      ctx.globalAlpha = 0.5 * f; const hg = ctx.createRadialGradient(bx, by, 0, bx, by, 26); hg.addColorStop(0, 'rgba(255,214,140,0.9)'); hg.addColorStop(1, 'rgba(255,190,110,0)');
+      ctx.fillStyle = hg; ctx.fillRect(bx - 26, by - 26, 52, 52);
+      ctx.globalAlpha = 1; ctx.fillStyle = '#fff2c8'; ctx.beginPath(); ctx.ellipse(bx, by + 3, 4.5, 6, 0, 0, 6.2832); ctx.fill();
+    }
   }
   ctx.restore();
 }
@@ -229,19 +401,42 @@ export function drawCard(ctx, id, x, y, w, h, o = {}) {
 }
 
 // ---- beans ----------------------------------------------------------------------------------------------------------------
+// A real pinto bean (the traditional marker): kidney shape, beige with red-brown mottling, a pale hilum on the inner
+// curve, a soft gloss, and a contact shadow cast down-right (the lamp is upper-left). Sprites are baked once per variant.
+const BEANS = new Map();
+function beanSprite(v) {
+  if (BEANS.has(v)) return BEANS.get(v);
+  let c = null;
+  try {
+    const S = 96; c = new OffscreenCanvas(S, S); const x = c.getContext('2d'), r = srand(91 + v * 13);
+    x.translate(S / 2, S / 2);
+    const shape = () => { x.beginPath(); x.moveTo(0, -40); x.bezierCurveTo(26, -40, 30, -10, 26, 10); x.bezierCurveTo(22, 34, 8, 41, -2, 41); x.bezierCurveTo(-20, 41, -26, 24, -20, 6); x.bezierCurveTo(-15, -6, -22, -16, -18, -28); x.bezierCurveTo(-15, -37, -8, -40, 0, -40); x.closePath(); };
+    shape(); const g = x.createRadialGradient(-6, -12, 2, 0, 0, 44); g.addColorStop(0, '#f6dcb8'); g.addColorStop(0.55, '#e0b48a'); g.addColorStop(1, '#a8714a'); x.fillStyle = g; x.fill();
+    x.save(); shape(); x.clip();
+    for (let i = 0; i < 30; i++) { x.fillStyle = `rgba(${150 + r() * 40},${58 + r() * 24},${40 + r() * 14},${0.6 + r() * 0.35})`; x.beginPath(); const ex = (r() - 0.5) * 56, ey = (r() - 0.5) * 84; for (let q = 0; q < 6; q++) { const a = q / 6 * 6.2832, rr = (2.5 + r() * 5) * (q % 2 ? 0.6 : 1); q ? x.lineTo(ex + Math.cos(a) * rr * 1.4, ey + Math.sin(a) * rr) : x.moveTo(ex + Math.cos(a) * rr * 1.4, ey + Math.sin(a) * rr); } x.closePath(); x.fill(); }
+    const sh = x.createRadialGradient(-8, -16, 6, 4, 8, 50); sh.addColorStop(0, 'rgba(0,0,0,0)'); sh.addColorStop(1, 'rgba(30,12,4,0.55)'); x.fillStyle = sh; x.fillRect(-48, -48, 96, 96);
+    x.restore();
+    x.fillStyle = 'rgba(255,246,226,0.85)'; x.beginPath(); x.ellipse(-19, 0, 2.6, 7, 0.15, 0, 6.2832); x.fill();
+    x.fillStyle = 'rgba(255,250,236,0.55)'; x.beginPath(); x.ellipse(-4, -20, 5, 11, -0.35, 0, 6.2832); x.fill();
+    shape(); x.lineWidth = 1.6; x.strokeStyle = 'rgba(60,26,10,0.7)'; x.stroke();
+  } catch { c = null; }
+  BEANS.set(v, c); return c;
+}
 export function drawBean(ctx, cx, cy, size, rot, t01 = 1) {
-  // t01: 0 -> just dropped (large, falling), 1 -> settled
-  const e = easeOutBack(clamp01(t01)), sc = 1 + (1 - clamp01(t01)) * 0.9, dy = (1 - e) * -size * 0.9;
+  // t01: 0 -> just dropped (large, falling), 1 -> settled. Falls with a squash on landing and a little settle wobble.
+  const k = clamp01(t01), e = easeOutBack(k), sc = 1 + (1 - k) * 0.9, dy = (1 - e) * -size * 0.9, lift = 1 - k;
+  const sq = k > 0.7 && k < 1 ? 1 - Math.sin((k - 0.7) / 0.3 * Math.PI) * 0.08 : 1;
+  const v = Math.abs(Math.round(rot * 100)) % 4, sp = typeof OffscreenCanvas !== 'undefined' ? beanSprite(v) : null;
   ctx.save();
-  ctx.translate(cx, cy + dy); ctx.rotate(rot); ctx.scale(sc * (0.85 + 0.15 * e), sc);
-  ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(size * 0.06, size * 0.1, size * 0.34, size * 0.46, 0, 0, 6.2832); ctx.fill();
-  const g = ctx.createRadialGradient(-size * 0.1, -size * 0.18, 2, 0, 0, size * 0.5);
-  g.addColorStop(0, '#d89a5c'); g.addColorStop(0.45, '#9a5a30'); g.addColorStop(1, '#4a2410');
-  ctx.fillStyle = g; ctx.strokeStyle = '#2a1008'; ctx.lineWidth = Math.max(1.5, size * 0.04);
-  ctx.beginPath(); ctx.ellipse(0, 0, size * 0.32, size * 0.46, 0, 0, 6.2832); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = 'rgba(255,235,200,0.55)'; ctx.beginPath(); ctx.ellipse(-size * 0.1, -size * 0.2, size * 0.07, size * 0.15, -0.3, 0, 6.2832); ctx.fill();
-  ctx.strokeStyle = 'rgba(40,16,8,0.5)'; ctx.lineWidth = Math.max(1, size * 0.025);
-  ctx.beginPath(); ctx.moveTo(size * 0.02, -size * 0.3); ctx.quadraticCurveTo(size * 0.12, 0, size * 0.02, size * 0.3); ctx.stroke();
+  // contact shadow: tight + dark when resting, wide + faint while in the air
+  ctx.save(); ctx.translate(cx + size * (0.07 + lift * 0.25), cy + size * (0.1 + lift * 0.35)); ctx.rotate(rot);
+  ctx.fillStyle = `rgba(0,0,0,${0.38 - lift * 0.22})`; ctx.beginPath(); ctx.ellipse(0, 0, size * (0.3 + lift * 0.12), size * (0.43 + lift * 0.12), 0, 0, 6.2832); ctx.fill(); ctx.restore();
+  ctx.translate(cx, cy + dy); ctx.rotate(rot); ctx.scale(sc * (0.85 + 0.15 * e) / sq, sc * sq);
+  if (sp) { const b = size * 1.06; ctx.drawImage(sp, -b / 2, -b / 2, b, b); }
+  else {
+    ctx.fillStyle = '#c99a6a'; ctx.strokeStyle = '#3a1a08'; ctx.lineWidth = Math.max(1.5, size * 0.04);
+    ctx.beginPath(); ctx.ellipse(0, 0, size * 0.3, size * 0.44, 0, 0, 6.2832); ctx.fill(); ctx.stroke();
+  }
   ctx.restore();
 }
 
@@ -250,7 +445,12 @@ export function drawBean(ctx, cx, cy, size, rot, t01 = 1) {
 export function drawFrame(ctx, g, th, o = {}) {
   const rad = g.fr * 1.3;
   ctx.save();
-  ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 22; ctx.shadowOffsetY = 8;
+  // the board has thickness: a darker edge below, and a soft shadow thrown down-right on the table
+  const thk = Math.max(4, g.fr * 0.42);
+  ctx.shadowColor = 'rgba(0,0,0,0.6)'; ctx.shadowBlur = 30; ctx.shadowOffsetX = thk * 1.4; ctx.shadowOffsetY = thk * 2.6;
+  roundPath(ctx, g.x, g.y + thk, g.w, g.h, rad); ctx.fillStyle = mix(th.frame[1], '#000000', 0.45); ctx.fill();
+  ctx.shadowColor = 'transparent'; ctx.shadowOffsetX = 0;
+  roundPath(ctx, g.x, g.y + thk, g.w, g.h, rad); ctx.lineWidth = 2; ctx.strokeStyle = INK; ctx.stroke();
   roundPath(ctx, g.x, g.y, g.w, g.h, rad);
   const gr = ctx.createLinearGradient(0, g.y, 0, g.y + g.h);
   gr.addColorStop(0, th.frame[0]); gr.addColorStop(1, th.frame[1]);
@@ -269,6 +469,10 @@ export function drawFrame(ctx, g, th, o = {}) {
     for (const xx of [g.x + g.fr * 0.5, g.x + g.w - g.fr * 0.5]) { ctx.beginPath(); ctx.moveTo(xx - g.fr * 0.2, y - step * 0.3); ctx.lineTo(xx + g.fr * 0.2, y); ctx.lineTo(xx - g.fr * 0.2, y + step * 0.3); ctx.closePath(); ctx.fill(); }
   }
   ctx.globalAlpha = 1;
+  // lit bevel: highlight on the upper-left lip, shade on the lower-right
+  ctx.save(); roundPath(ctx, g.x + 2.5, g.y + 2.5, g.w - 5, g.h - 5, rad - 2); ctx.clip();
+  const bv = ctx.createLinearGradient(g.x, g.y, g.x + g.w, g.y + g.h); bv.addColorStop(0, 'rgba(255,240,210,0.28)'); bv.addColorStop(0.35, 'rgba(255,240,210,0)'); bv.addColorStop(0.75, 'rgba(0,0,0,0)'); bv.addColorStop(1, 'rgba(0,0,0,0.25)');
+  ctx.fillStyle = bv; ctx.fillRect(g.x, g.y, g.w, g.h); ctx.restore();
   roundPath(ctx, g.x + g.fr - 3, g.y + g.fr - 3, g.w - g.fr * 2 + 6, g.h - g.fr * 2 + 6, 6);
   ctx.fillStyle = 'rgba(20,6,26,0.55)'; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = INK; ctx.stroke();
   ctx.restore();
@@ -292,7 +496,7 @@ export function drawTabla(ctx, g, tabla, marks, dead, th, t, o = {}) {
     }
     if (isMarked) {
       const bt = o.beanT ? o.beanT[i] ?? 9 : 9;
-      drawBean(ctx, r.x + g.tile / 2, r.y + g.tile * 0.44, g.tile * 0.44, ((i * 37) % 60) * 0.02 - 0.5, bt / 0.35);
+      drawBean(ctx, r.x + g.tile * 0.53, r.y + g.tile * 0.45, g.tile * 0.34, ((i * 37) % 60) * 0.02 - 0.5, bt / 0.35);
     }
     if (o.outline && o.outline.includes(i) && !isMarked) {
       const a = 0.55 + 0.35 * Math.sin(t * 6);
@@ -313,6 +517,9 @@ export function drawTabla(ctx, g, tabla, marks, dead, th, t, o = {}) {
     }
     void callable;
   }
+  ctx.save(); roundPath(ctx, g.x, g.y, g.w, g.h, g.fr * 1.3); ctx.clip();
+  const lg = ctx.createLinearGradient(g.x, g.y, g.x + g.w, g.y + g.h); lg.addColorStop(0, 'rgba(255,236,200,0.10)'); lg.addColorStop(0.5, 'rgba(255,236,200,0)'); lg.addColorStop(1, 'rgba(20,6,0,0.14)');
+  ctx.fillStyle = lg; ctx.fillRect(g.x, g.y, g.w, g.h); ctx.restore();
 }
 
 // Small tabla for a computer player: just status dots, with the pattern's best set outlined.

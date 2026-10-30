@@ -6,6 +6,7 @@ import { settingsItems } from './settings.js';
 import { VARIANTS, NAMES, START, pieceCount } from './rules.js';
 import { LEVELS } from './ai.js';
 import { drawCredit, drawLockup, drawMoreLine, drawBadgeStack, edgeStroke } from './brand.js';
+import { v3, flatAlpha } from './v3.js';
 
 const FONT = '"Cormorant Garamond", "Hiragino Mincho ProN", Georgia, "Times New Roman", serif';
 const UI = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
@@ -45,6 +46,9 @@ export function render(ctx, state, L) {
     return ls.length;
   };
   const panel = (r, rad = 18, fill = 'rgba(8,12,28,0.62)', stroke = 'rgba(242,208,138,0.22)', brand = true) => {
+    // over the lit 3D room the cards are dark lacquer trays (warm, more opaque) instead of night-blue glass
+    if (v3.on && fill.startsWith('rgba(8,12,28,')) fill = `rgba(24,14,8,${Math.min(0.9, parseFloat(fill.slice(13)) + 0.2)})`;
+    else if (v3.on && fill.startsWith('rgba(14,18,40,')) fill = 'rgba(30,18,10,0.95)';
     ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, rad); ctx.fillStyle = fill; ctx.fill(); ctx.strokeStyle = stroke; ctx.lineWidth = 2; ctx.stroke();
     if (brand) edgeStroke(ctx, r, rad, 0.38);
   };
@@ -54,7 +58,7 @@ export function render(ctx, state, L) {
     const rad = Math.min(18, r.h / 3);
     ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.beginPath(); ctx.roundRect(r.x + 2, r.y + 5, r.w, r.h, rad); ctx.fill();
     const gr = ctx.createLinearGradient(0, r.y, 0, r.y + r.h);
-    if (o.primary) { gr.addColorStop(0, '#f0643c'); gr.addColorStop(1, '#a8240f'); } else if (o.on) { gr.addColorStop(0, '#6a5224'); gr.addColorStop(1, '#3d2d10'); } else { gr.addColorStop(0, '#34406a'); gr.addColorStop(1, '#1a2140'); }
+    if (o.primary) { gr.addColorStop(0, '#f0643c'); gr.addColorStop(1, '#a8240f'); } else if (o.on) { gr.addColorStop(0, '#6a5224'); gr.addColorStop(1, '#3d2d10'); } else if (v3.on) { gr.addColorStop(0, '#4c3220'); gr.addColorStop(1, '#25150b'); } else { gr.addColorStop(0, '#34406a'); gr.addColorStop(1, '#1a2140'); }
     ctx.fillStyle = gr; ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, rad); ctx.fill();
     ctx.strokeStyle = o.primary ? 'rgba(255,214,150,0.8)' : 'rgba(242,208,138,0.55)'; ctx.lineWidth = 2; ctx.stroke();
     ctx.strokeStyle = 'rgba(255,255,255,0.10)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.roundRect(r.x + 3, r.y + 3, r.w - 6, r.h - 6, Math.max(2, rad - 3)); ctx.stroke();
@@ -78,7 +82,10 @@ export function render(ctx, state, L) {
   const hit = (r, id, v) => ui.hits.push({ r, id, v });
 
   // ---------------------------------------------------------------- scenes
-  drawTable(ctx, L, state.t);
+  // With the 3D scene on, the lit shogi-ban shows through: clear the kit canvas and fade the flat table out (crossfade).
+  const fa = flatAlpha();
+  if (v3.on) { ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height); ctx.restore(); }
+  if (fa > 0) { ctx.save(); ctx.globalAlpha = fa; drawTable(ctx, L, state.t); ctx.restore(); }
   if (!state.calm) motes(ctx, L, state.t);
 
   if (scene === 'title' || scene === 'demo-limit') drawTitle();
@@ -132,7 +139,8 @@ export function render(ctx, state, L) {
     else fitText("Japan's sandwich chess", cx, py + sub * 1.7 + ts * 0.36, ts * 0.3, r.w - 20, 'rgba(242,208,138,0.88)', FONT, 700);
     // the animated demonstration: a sandwich, forever
     const top = py + sub * 1.7 + ts * 0.62, room = r.y + r.h - top;
-    if (room > 90) heroBoard(R(r.x, top + 6, r.w, room - 22));
+    v3.hero = room > 90 ? R(r.x, top + 6, r.w, room - 16) : null;
+    if (room > 90 && fa > 0) { ctx.save(); ctx.globalAlpha = fa; heroBoard(R(r.x, top + 6, r.w, room - 22)); ctx.restore(); }
   }
 
   function heroBoard(r) {
@@ -192,8 +200,9 @@ export function render(ctx, state, L) {
     // side cards in landscape
     if (L.land) { if (L.leftCard) panel(L.leftCard, 18); panel(L.rightCard, 18); }
 
-    // ---- the board scene (shaken a little on a capture)
-    ctx.save();
+    // ---- the board scene (shaken a little on a capture). Under the 3D layer it fades out; the 3D presenter draws board and pieces.
+    ctx.save(); ctx.globalAlpha = fa;
+    if (fa > 0) {
     if (a && a.caps.length && !state.calm && a.t > a.glide && a.t < a.glide + 0.35) { const f = (a.t - a.glide) / 0.35; ctx.translate(Math.sin(f * 46) * (1 - f) * cell * 0.045, Math.cos(f * 38) * (1 - f) * cell * 0.03); }
     drawBoard(ctx, B, wood);
     // last move
@@ -259,12 +268,36 @@ export function render(ctx, state, L) {
     // a dragged piece follows the finger
     if (dragging) drawPiece(ctx, g.board[state.sel] || g.turn, style, state.drag.x, state.drag.y - cell * 0.15, cell, { lift: 0.9, flip: L.flip, glow: 0.9 });
     if (state.kb && !over) { const p = L.sq(state.cursor); ctx.strokeStyle = '#7dff9a'; ctx.lineWidth = 4; ctx.strokeRect(p.x - cell / 2 + 3, p.y - cell / 2 + 3, cell - 6, cell - 6); }
+    }
     ctx.restore();
+    if (v3.on && v3.pt) marks3d(cell);
 
     // ---- furniture
     if (isLesson) lessonBox(); else plates();
     buttonsFor();
     if (over) overlay();
+  }
+
+  // Marks that float above the 3D board (projected from the tilted board): danger marks, capture counts on target squares, the '+N'.
+  function marks3d(cell) {
+    const over = scene === 'over';
+    if (state.marks && !over && !a && state.danger) for (const i of state.danger) { if (!g.board[i] || (state.drag && i === state.sel)) continue; const p = v3.pt(i, 1.2), c2 = cell * p.k; dangerMark(p.x + c2 * 0.32, p.y - c2 * 0.3, c2); }
+    if (state.sel >= 0 && !a && !over) for (const m of state.selMoves) {
+      if (!m.caps) continue;
+      const p = v3.pt(m.to, 0.2), c2 = cell * p.k, s = Math.round(c2 * 0.3);
+      ctx.fillStyle = '#e23c24'; ctx.beginPath(); ctx.arc(p.x + c2 * 0.3, p.y - c2 * 0.3, s * 0.56, 0, TAU); ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,0.85)'; ctx.lineWidth = 1.5; ctx.stroke();
+      text(String(m.caps), p.x + c2 * 0.3, p.y - c2 * 0.3 + s * 0.2, s * 0.72, '#fff', UI, 800);
+    }
+    if (a && a.caps.length && !state.calm && a.t > a.glide) {
+      const f = (a.t - a.glide) / 0.8;
+      if (f < 1) {
+        const p1 = v3.pt(a.to, 1), c2 = cell * p1.k, e2 = ease(Math.min(1, f * 1.4)), fs = Math.round(c2 * 0.62);
+        ctx.save(); ctx.globalAlpha = Math.min(1, (1 - f) * 2.2);
+        ctx.lineWidth = fs * 0.14; ctx.strokeStyle = 'rgba(40,16,4,0.9)'; ctx.lineJoin = 'round'; ctx.font = `800 ${fs}px ${UI}`; ctx.textAlign = 'center';
+        const tx = p1.x, ty = p1.y - c2 * (0.7 + 0.8 * e2);
+        ctx.strokeText(`+${a.caps.length}`, tx, ty); ctx.fillStyle = '#ffd24a'; ctx.fillText(`+${a.caps.length}`, tx, ty); ctx.restore();
+      }
+    }
   }
 
   function dangerMark(x, y, cell) {
@@ -384,7 +417,7 @@ export function render(ctx, state, L) {
     const D = L.doc, panelR = D.panel, vp = D.viewport, kind = state.doc.kind;
     ctx.fillStyle = 'rgba(6,8,18,0.55)'; ctx.fillRect(0, 0, L.w, L.h);
     ctx.beginPath(); ctx.roundRect(panelR.x, panelR.y, panelR.w, panelR.h, 26);
-    const pg = ctx.createLinearGradient(0, panelR.y, 0, panelR.y + panelR.h); pg.addColorStop(0, 'rgba(36,34,64,0.84)'); pg.addColorStop(1, 'rgba(12,14,30,0.9)');
+    const pg = ctx.createLinearGradient(0, panelR.y, 0, panelR.y + panelR.h); if (v3.on) { pg.addColorStop(0, 'rgba(46,30,18,0.92)'); pg.addColorStop(1, 'rgba(20,12,7,0.95)'); } else { pg.addColorStop(0, 'rgba(36,34,64,0.84)'); pg.addColorStop(1, 'rgba(12,14,30,0.9)'); }
     ctx.fillStyle = pg; ctx.fill(); ctx.strokeStyle = 'rgba(242,208,138,0.32)'; ctx.lineWidth = 2; ctx.stroke();
     edgeStroke(ctx, panelR, 26, 0.4);
     const heading = { rules: 'Rules', how: 'How to Play', about: 'About', settings: 'Settings' }[kind];

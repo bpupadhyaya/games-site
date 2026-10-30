@@ -8,6 +8,7 @@ import { LESSONS } from './lessons.js';
 import { makeDaily, bestScore, moveScore, starsFor, DAILY_THROWS } from './daily.js';
 import { screenButtons, readerGeo, RULES_PAGES, HOW_PAGES, ABOUT_PAGES, TEXT_SCALES, AP_THINK_STEPS } from './ui.js';
 import { render as draw } from './view.js';
+import { v3 } from './v3.js';
 
 // Fluid viewport (kit >= 1.7): the short side is always 720 units; meta.width / height are live and follow the screen (layout.js applyLayout).
 export const meta = { width: 720, height: 1560, fluid: { short: 720 } };
@@ -314,9 +315,10 @@ export function createGame(env) {
 
   // ---- hitting things -------------------------------------------------------------------------------
   function pawnAt(x, y) {
-    const g = state.g, Z = BOARD.S / 680; let best = null, bd = Math.max(30, 38 * Z);
+    const g = state.g, Z = BOARD.S / 680, on = v3.on && v3.frame && v3.toScreen; let best = null, bd = on ? Math.max(32, 0.85 * v3.cellPx) : Math.max(30, 38 * Z);
     g.players.forEach((_, q) => g.pos[q].forEach((p, i) => {
-      const s = posXY(g, q, i, p), d = Math.hypot(s.x - x, s.y - 16 * Z - y);
+      // 3D: a tap on the pawn's body (about one square above its foot on the screen) picks it, through the tilted view
+      const s = posXY(g, q, i, p), d = on ? ((t) => Math.hypot(t.x - x, t.y - y))(v3.toScreen(s.x, s.y, 0.95)) : Math.hypot(s.x - x, s.y - 16 * Z - y);
       if (d < bd) { bd = d; best = { pl: q, i, p }; }
     }));
     return best;
@@ -327,7 +329,7 @@ export function createGame(env) {
     if (state.phase !== 'choose') return;
     if (state.sel >= 0) { // a tap on the destination confirms too
       const m = state.opts.find((o) => o.i === state.sel);
-      if (m) { const d = posXY(g, m.pl, m.i, m.to), Z = BOARD.S / 680; if (Math.hypot(d.x - x, d.y - 14 * Z - y) < Math.max(26, 30 * Z)) { play(m); return; } }
+      if (m) { const d = posXY(g, m.pl, m.i, m.to), Z = BOARD.S / 680, on = v3.on && v3.frame && v3.toScreen, e = on ? v3.toScreen(d.x, d.y, 0.4) : { x: d.x, y: d.y - 14 * Z }; if (Math.hypot(e.x - x, e.y - y) < (on ? Math.max(30, 0.8 * v3.cellPx) : Math.max(26, 30 * Z))) { play(m); return; } }
     }
     const pw = pawnAt(x, y);
     if (!pw) { state.sel = -1; say(`You threw ${state.roll.value}. TAP one of the glowing pawns.`); return; }

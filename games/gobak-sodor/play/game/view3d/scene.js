@@ -21,7 +21,7 @@ export function paintCourtGround(g, ln, pitch, k) {
   g.save(); g.scale(k, k);
   // packed earth with big soft mottling (sun-baked patches, damp patches)
   g.beginPath(); g.roundRect(x0, y0, x1 - x0, y1 - y0, 30); g.clip();
-  const base = g.createLinearGradient(0, y0, 0, y1); base.addColorStop(0, '#cf9d52'); base.addColorStop(0.5, '#c98f45'); base.addColorStop(1, '#bd813a');
+  const base = g.createLinearGradient(0, y0, 0, y1); base.addColorStop(0, '#c98638'); base.addColorStop(0.5, '#c07a2c'); base.addColorStop(1, '#b06c22');
   g.fillStyle = base; g.fillRect(x0, y0, x1 - x0, y1 - y0);
   for (let i = 0; i < 70; i++) {
     const x = x0 + r() * (x1 - x0), y = y0 + r() * (y1 - y0), rad = 40 + r() * 110, warm = r() > 0.5;

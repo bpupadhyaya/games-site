@@ -156,6 +156,12 @@ export async function createGame(env) {
   }
 
   // ------------------------------------------------------------------------------ camera
+  // A half sheet is a 1:2 strip: lay it across the board when that costs little zoom (so the paper spans the width of a phone). Other folds keep viewRoll.
+  function rollOf(P, board) {
+    if (P.n !== 1) return viewRoll(P.n);
+    const wedge = planOf(P).wedge;
+    return fitTarget(board, wedge, Math.PI / 2, 0.12).S > 0.7 * fitTarget(board, wedge, 0, 0.12).S ? Math.PI / 2 : 0;
+  }
   function camTarget(P, board) {
     const sheetPts = SHEETS[P.sheet].pts;
     const plan = P.n ? planOf(P) : null;
@@ -165,11 +171,11 @@ export async function createGame(env) {
       const k = P.fk, b = [...pointsOf(st[k].polys), ...pointsOf(st[k + 1].polys)];
       return { ...fitTarget(board, b, 0, 0.18), tilt: 0.42, roll: 0, yaw: 0 };
     }
-    if (P.phase === 'cut') return { ...fitTarget(board, plan.wedge, viewRoll(P.n), 0.12), tilt: 0.2, roll: viewRoll(P.n), yaw: 0 };
+    if (P.phase === 'cut') return { ...fitTarget(board, plan.wedge, rollOf(P, board), 0.12), tilt: 0.2, roll: rollOf(P, board), yaw: 0 };
     if (P.phase === 'unfolding' || P.phase === 'refolding') {
       const k = P.uk, b = [...pointsOf(st[k].polys), ...pointsOf(st[k + 1].polys)];
       const frac = steps ? (P.phase === 'unfolding' ? k / steps : (steps - k) / steps) : 0;
-      return { ...fitTarget(board, b, 0, 0.18), tilt: 0.42, roll: viewRoll(P.n) * clamp(frac, 0, 1), yaw: 0 };
+      return { ...fitTarget(board, b, 0, 0.18), tilt: 0.42, roll: rollOf(P, board) * clamp(frac, 0, 1), yaw: 0 };
     }
     return { ...fitTarget(board, sheetPts, 0, 0.16), tilt: 0.34, roll: 0, yaw: 0.16 * Math.sin(S.t * 0.7) };
   }

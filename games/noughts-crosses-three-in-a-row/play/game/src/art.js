@@ -18,6 +18,8 @@ export const clamp01 = (v) => Math.max(0, Math.min(1, v));
 export const ease = (t) => 1 - (1 - t) ** 3;
 export const backOut = (t) => { const c = 1.9; return 1 + (c + 1) * (t - 1) ** 3 + c * (t - 1) ** 2; };
 
+import { v3, flatAlpha } from './v3.js';
+
 // ---------------------------------------------------------------------------------------------------- themes
 // bg: three background stops; slab: board face (top, bottom) and edge; X / O: piece colours (base, highlight, shadow).
 export const THEMES = [
@@ -73,6 +75,19 @@ export function text(ctx, str, x, y, size, color = '#fff', o = {}) {
 const FLECKS = Array.from({ length: 30 }, (_, i) => [((i * 97) % 211) / 211, ((i * 53) % 173) / 173, 0.6 + ((i * 31) % 7) / 7, ((i * 13) % 11) / 11]);
 
 export function background(ctx, th, t, glowY = 700, W = 720, H = 1560, glowX = W / 2) {
+  if (v3.on) {
+    // the 3D scene is the backdrop: the flat art fades out during the crossfade; text screens get a dark veil, play and the title a soft vignette
+    const fa = flatAlpha();
+    if (fa > 0.01) { ctx.save(); ctx.globalAlpha = fa; flatBackground(ctx, th, t, glowY, W, H, glowX); ctx.restore(); }
+    if (v3.veil > 0.01) { ctx.fillStyle = alpha(th.bg[1].length === 7 ? th.bg[1] : '#100d0b', v3.veil * (1 - fa)); ctx.fillRect(0, 0, W, H); }
+    const vg = ctx.createLinearGradient(0, 0, 0, H);
+    vg.addColorStop(0, 'rgba(0,0,0,0.5)'); vg.addColorStop(0.2, 'rgba(0,0,0,0)'); vg.addColorStop(0.62, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.66)');
+    ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
+    return;
+  }
+  flatBackground(ctx, th, t, glowY, W, H, glowX);
+}
+function flatBackground(ctx, th, t, glowY, W, H, glowX) {
   const g = ctx.createLinearGradient(0, 0, 0, H);
   g.addColorStop(0, th.bg[0]); g.addColorStop(0.5, th.bg[1]); g.addColorStop(1, th.bg[2]);
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
@@ -291,6 +306,9 @@ export function boardGeo(mode, x, y, side) {
   return { x, y, side, m, cell, n, centers, mode, d: cell * (mode === 'terni' ? 0.5 : 0.7) };
 }
 
+// The board geometry the 2D layer should use: the projection of the tilted 3D board when a WebGL scene is alive, else the flat one.
+export const geoFor = (mode, x, y, side) => (v3.on && v3.geo ? v3.geo(mode, x, y, side) : boardGeo(mode, x, y, side));
+
 const VEINS = [
   [[0.05, 0.2], [0.3, 0.1], [0.55, 0.35], [0.95, 0.22]],
   [[0.0, 0.62], [0.35, 0.5], [0.6, 0.8], [1.0, 0.7]],
@@ -485,5 +503,25 @@ export function drawWinLine(ctx, th, geo, line, k, who, o = {}) {
   ctx.shadowBlur = 10;
   ctx.strokeStyle = o.misere ? '#ffd2c8' : th.win; ctx.lineWidth = geo.cell * 0.06;
   ctx.beginPath(); ctx.moveTo(a[0] - ex, a[1] - ey); ctx.lineTo(x1 + (e >= 1 ? ex : 0), y1 + (e >= 1 ? ey : 0)); ctx.stroke();
+  ctx.restore();
+}
+
+// Height map for the 3D board (grey = surface, black = carved): grooves, nodes and the Greek-key band, drawn into a square canvas.
+export function drawBoardBump(ctx, geo, th) {
+  const { side, m, cell, n, centers, mode } = geo, gw = Math.max(5, side * 0.016) * 1.25;
+  ctx.fillStyle = '#9a9a9a'; ctx.fillRect(0, 0, side, side);
+  let seed = 11; const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
+  for (let i = 0; i < 9000; i++) { ctx.fillStyle = `rgba(${rnd() < 0.5 ? '255,255,255' : '0,0,0'},${0.04 + rnd() * 0.07})`; ctx.fillRect(rnd() * side, rnd() * side, 1 + rnd() * 2.5, 1 + rnd() * 2.5); }
+  ctx.save(); ctx.strokeStyle = '#000'; ctx.lineCap = 'round'; ctx.lineWidth = gw; ctx.filter = `blur(${gw * 0.22}px)`;
+  const seg = (a, b) => { ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke(); };
+  if (mode === 'terni') {
+    for (const [a, b] of [[0, 2], [3, 5], [6, 8], [0, 6], [1, 7], [2, 8], [0, 8], [2, 6]]) seg(centers[a], centers[b]);
+    ctx.fillStyle = '#000'; for (const c of centers) { ctx.beginPath(); ctx.arc(c[0], c[1], gw * 2.2, 0, Math.PI * 2); ctx.fill(); }
+  } else {
+    for (let k = 1; k < n; k++) { const p = m + cell * k; seg([p, m * 0.6], [p, side - m * 0.6]); seg([m * 0.6, p], [side - m * 0.6, p]); }
+  }
+  ctx.restore();
+  ctx.save(); ctx.filter = `blur(${Math.max(0.6, side * 0.0012)}px)`; ctx.globalAlpha = 0.9;
+  meanderBorder(ctx, { groove: '#000', edge: '#000', kind: 'wood' }, 0, 0, side, side * 0.06);
   ctx.restore();
 }

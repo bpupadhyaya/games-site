@@ -517,7 +517,7 @@ function drawTitle(ctx, s, w, h) {
   if (!on) drawCloth(ctx, geo, { puck: clamp(ph / cyc, 0, 1) * 0.8, t: s.t, seed: 3 });
   const order = [6, 0, 1, 2, 3, 4, 5];
   order.forEach((ri, k) => {
-    const run = P.runs[ri], start = 0.4 + k * 0.95, u = clamp((ph - start) / 0.9, 0, 1) * run.len;
+    const run = P.runs[ri], start = 0.4 + k * 0.95, u = clamp((ph - start) / 0.72, 0, 1) * run.len;
     if (on) {
       if (u <= 0) fr.chalk.push({ dashes: dashesFor(run, 0), tint: threadColor(run.color), ri, glow: false });
       else { fr.sewn.push({ id: `${ri}:0`, dashes: dashesFor(run, 0), upTo: u >= run.len - 1e-6 ? 1e9 : u, slot: run.color, run, ri }); fr.targets.push([ri, u / run.len]); }
@@ -527,6 +527,12 @@ function drawTitle(ctx, s, w, h) {
       const p = sewPoint(run, run.opts[0], u), p0 = sewPoint(run, run.opts[0], Math.max(0, u - 0.05)), p1 = sewPoint(run, run.opts[0], Math.min(run.len, u + 0.25)), ang = Math.atan2(p1[1] - p0[1], p1[0] - p0[0]) || 0;
       if (on) { fr.needle = { x: p[0], y: p[1], ang, slot: run.color, mode: 'sew' }; fr.hand = true; }
       else needle(ctx, geo.X(p[0]), geo.Y(p[1]), Math.max(12, geo.s * 0.3), ang, run.color);
+    }
+    // between two rows the needle is lifted across to the next row's start (the hand never lets go of it)
+    const nx = order[k + 1];
+    if (on && nx !== undefined && ph >= start + 0.72 && ph < start + 1.0 && !fr.needle) {
+      const nr = P.runs[nx], h = clamp((ph - start - 0.72) / 0.23, 0, 1), a = sewPoint(run, run.opts[0], run.len), b = sewPoint(nr, nr.opts[0], 0);
+      fr.needle = { x: a[0] + (b[0] - a[0]) * h, y: a[1] + (b[1] - a[1]) * h, ang: Math.atan2(b[1] - a[1], b[0] - a[0]) || 0, slot: run.color, mode: 'hop', hop: h }; fr.hand = true;
     }
   });
   if (on) { fr.puck = clamp(ph / cyc, 0, 1) * 0.8; fr.props = true; fr.hero = true; fr.rect = hero; v3.frame = fr; }

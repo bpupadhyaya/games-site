@@ -223,3 +223,14 @@ export function flowHit(lay, top, scroll, x, y) {
   }
   return null;
 }
+
+// Hand-off between the 2D layer (view.js, menus.js) and the optional 3D presenter (view3d/presenter.js).
+// The simulation never reads this. The presenter flips `on` only while a WebGL context is alive and the lit court is built;
+// with it off every screen draws exactly as before (the baked 2D court is the fallback). `mix` (0..1) crossfades the baked
+// court out while the 3D court fades in, so the switch never pops.
+export const v3 = {
+  on: false,
+  mix: 0,
+  vw: 720,        // virtual width of the current frame (view.js keeps it current)
+  hero: null,     // { x, y, r } where the title emblem wants the 3D balls this frame (menus.js), virtual units
+};

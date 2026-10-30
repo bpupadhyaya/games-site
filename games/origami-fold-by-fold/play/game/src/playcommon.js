@@ -44,7 +44,7 @@ export function camOf(P, board) {
 }
 
 // Zoom so that `b` (bounds in sheet units) fits the paper area, never larger than a gently enlarged full sheet.
-export function fitTarget(board, b, extra = 0.34) {
+export function fitTarget(board, b, extra = 0.14) {
   const fy = 0.95;
   const fit = (w, h) => Math.min(board.w / (w + extra), board.h / (h * fy + extra));
   const S = Math.min(fit(b.w, b.h), fit(1, 1) * 1.45);

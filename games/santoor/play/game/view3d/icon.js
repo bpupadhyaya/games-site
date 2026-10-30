@@ -17,7 +17,7 @@ scene.add(new THREE.HemisphereLight(0xffe2bc, 0x3a1e12, 0.6), key, key.target, r
 const lamp = new THREE.PointLight(0xffa860, 900, 2000, 1); lamp.position.set(-420, -260, 160); scene.add(lamp);
 // carpet
 M.carpetTex.repeat.set(4, 4); M.carpetBump.repeat.set(4, 4);
-const cm = M.carpet.clone(); cm.color.set('#7a6a68'); const carpet = new THREE.Mesh(new THREE.PlaneGeometry(2600, 2600), cm); carpet.receiveShadow = true; scene.add(carpet);
+const cm = M.carpet.clone(); cm.color.set('#4a3c3a'); const carpet = new THREE.Mesh(new THREE.PlaneGeometry(2600, 2600), cm); carpet.receiveShadow = true; scene.add(carpet);
 // instrument (rotated a little so the zigzag reads)
 const hb = 240, len = 640, rh = len / 8, m = 16, half = (ly) => hb + (hb * 0.62 - hb) * Math.min(1, Math.max(0, ly / len));
 const S = buildSantoor({ hb, len, rh, m, half }, M);
@@ -35,8 +35,8 @@ mal(1, 9); mal(0, 4);
 // petals
 const pg = petalGeometry(), r = rngOf(7);
 for (let i = 0; i < 26; i++) { const p = new THREE.Mesh(pg, new THREE.MeshStandardMaterial({ color: ['#f2a33a', '#ff8a2a', '#ffc24a'][i % 3], side: THREE.DoubleSide, roughness: 0.6, emissive: '#3a1400', emissiveIntensity: 0.4 })); const a = r() * TAU, d = 300 + r() * 380; p.position.set(Math.cos(a) * d * 0.9, Math.sin(a) * d * 0.7, 2); p.rotation.z = r() * TAU; p.scale.set(18, 36, 1); p.castShadow = true; scene.add(p); }
-const cam = new THREE.PerspectiveCamera(30, 1, 100, 6000), pitch = (Number(q.get('pitch') || 52) * Math.PI) / 180, dist = Number(q.get('dist') || 1500);
-cam.position.set(0, -Math.cos(pitch) * dist, Math.sin(pitch) * dist); cam.up.set(0, 0, 1); cam.lookAt(40, 30, 10);
+const cam = new THREE.PerspectiveCamera(30, 1, 100, 6000), pitch = (Number(q.get('pitch') || 52) * Math.PI) / 180, dist = Number(q.get('dist') || 1420);
+cam.position.set(0, -Math.cos(pitch) * dist, Math.sin(pitch) * dist); cam.up.set(0, 0, 1); cam.lookAt(30, -5, 10);
 scene.background = null; renderer.setClearColor(0x000000, 0); renderer.render(scene, cam);
 const subject = cv(SIZE); subject.getContext('2d').drawImage(gl, 0, 0);
 // backdrop: warm lamp bokeh behind, glow, vignette
@@ -49,7 +49,7 @@ for (let i = 0; i < 24; i++) { const x = rnd() * SIZE, y = rnd() * SIZE, rr = SI
 ctx.globalCompositeOperation = 'source-over';
 ctx.drawImage(subject, 0, 0);
 ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.filter = `blur(${SIZE * 0.014}px)`; ctx.globalAlpha = 0.14; ctx.drawImage(subject, 0, 0); ctx.restore();
-const v = ctx.createRadialGradient(SIZE / 2, SIZE / 2, SIZE * 0.32, SIZE / 2, SIZE / 2, SIZE * 0.75); v.addColorStop(0, 'rgba(8,2,2,0)'); v.addColorStop(1, 'rgba(6,2,4,0.7)'); ctx.fillStyle = v; ctx.fillRect(0, 0, SIZE, SIZE);
+const v = ctx.createRadialGradient(SIZE / 2, SIZE / 2, SIZE * 0.32, SIZE / 2, SIZE / 2, SIZE * 0.75); v.addColorStop(0, 'rgba(8,2,2,0)'); v.addColorStop(1, 'rgba(6,2,4,0.82)'); ctx.fillStyle = v; ctx.fillRect(0, 0, SIZE, SIZE);
 const fin = cv(1024), fx = fin.getContext('2d'); fx.imageSmoothingQuality = 'high'; fx.drawImage(out, 0, 0, 1024, 1024);
 window.__icon = () => fin.toDataURL('image/png'); window.__iconJpeg = () => fin.toDataURL('image/jpeg', 0.93);
 document.title = 'ready';

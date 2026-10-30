@@ -7,7 +7,8 @@ const AY = 0.10;     // ankle height of a flat foot
 const BAR = [0.22, 0.97, 0.42];   // handlebar in character space (x = avatar's left), relative to the plank top
 
 export async function loadMusher(V3, { quality = 'high', top = '#c8402a', trim = '#f2e6d0' } = {}) {
-  const h = await loadHuman({ character: 'athlete_m', kit: { top, bottoms: '#27303f', socks: '#e8e4da', shoes: '#2b2118', trim }, skin: 'light', hair: 'brown', lod: quality === 'high' ? 0 : 1 });
+  const h = await loadHuman({ character: 'athlete_m', kit: { top, bottoms: '#27303f', socks: '#e8e4da', shoes: '#2b2118', trim }, skin: 'light', hair: 'brown', top: 'long' });
+  h.lodAuto = false;   // full detail always: the musher is close to the camera
   h.groundClamp = 'off'; h.footPlanting = false;
   const body = ({ lean, hip, y = -0.06, z = 0, neck = -10, twist = 0, side = 0 }) => ({
     Pelvis: { pos: [0, y, z], flex: hip, twist: twist * 0.3, side },

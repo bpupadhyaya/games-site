@@ -1,4 +1,5 @@
 // Character sheets used for screenshots and visual checks (seeds 9101, 9107-9110).
+import { island, painted, on as v3on } from './v3.js';
 import { W, H, PAL, sky, finish, filigree, light, motes, shadow } from './stage.js';
 import { figure, poses, tenCrowned, throne, stridePose, cycleLength } from './puppets.js';
 import { portrait } from './portraits.js';
@@ -89,7 +90,7 @@ import { sun, sea, skyline, clouds, stars, vignette, rays } from './stage.js';
 
 export function renderIcon(ctx, t) {
   const Y = 420, S = 720;
-  ctx.fillStyle = '#05030a'; ctx.fillRect(0, 0, W, H);
+  if (!v3on()) { ctx.fillStyle = '#05030a'; ctx.fillRect(0, 0, W, H); }
   ctx.save(); ctx.beginPath(); ctx.rect(0, Y, S, S); ctx.clip(); ctx.translate(0, Y - 0);
   sky(ctx, PAL.dusk.sky, null);
   stars(ctx, 0.8, t, 0, 260);
@@ -97,7 +98,7 @@ export function renderIcon(ctx, t) {
   light(ctx, 470, 500, 430, '255,170,100', 0.6);
   rays(ctx, { x: 470, y: 500, dir: -Math.PI / 2, n: 9, len: 800, spread: 2.4, rgb: '255,196,120', alpha: 0.2 });
   clouds(ctx, { y: 120, h: 200, scroll: 0, color: 'rgba(90,40,90,0.55)', n: 4, seed: 3 });
-  skyline(ctx, { base: 640, scroll: 40, color: '#2a1438', seed: 5, h: 120, gap: 100, kind: 'lanka', lit: '255,200,110', t: 0 });
+  painted(ctx, island(ctx, 520, 636, 470, 1), () => skyline(ctx, { base: 640, scroll: 40, color: '#2a1438', seed: 5, h: 120, gap: 100, kind: 'lanka', lit: '255,200,110', t: 0 }));
   sea(ctx, { y: 632, t: 0, scroll: 0, colors: ['#3a2a5e', '#2a1f4e', '#1d163e', '#140f2e', '#0c0920'], crest: '255,190,130', bottom: S + 40 });
   light(ctx, 330, 320, 320, '255,205,130', 0.45);
   figure(ctx, { x: 300, y: 430, s: 1.9, hi: true, kind: 'leaper', prop: 'mace', cape: '#2b8a62', pose: poses.fly(0.4) });

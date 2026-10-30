@@ -11,6 +11,7 @@ import { pieceTip, riskyTargets, threatText, explainMove, hangingNote, dangerNot
 import { invalidateArt } from './art.js';
 import { invalidatePieces, warmPiece } from './pieces.js';
 import { render, readerMetrics } from './view.js';
+import { v3 } from './v3.js';
 
 // Fluid (kit 1.7+): the short side is always 720 units; the kit keeps meta.width/height live and every position comes from layoutFor().
 export const meta = { width: 720, height: 1560, fluid: { short: 720 } };
@@ -308,7 +309,9 @@ export function createGame(env) {
   function boardPointer(p0) {
     // Pointer in screen units -> canonical board space (the board is drawn under a scale + offset, see layout.js).
     const BL = lay().board(boardKind());
-    const p = { ...p0, x: (p0.x - BL.ox) / BL.s, y: (p0.y - BL.oy) / BL.s };
+    // With the 3D board on, the point is found on the tilted board (presentation only: the same squares, the same rules).
+    const u = v3.on && v3.unproj ? v3.unproj(p0.x, p0.y) : null;
+    const p = u ? { ...p0, x: u.x, y: u.y } : { ...p0, x: (p0.x - BL.ox) / BL.s, y: (p0.y - BL.oy) / BL.s };
     const d = state.drag;
     if (p.pressed && !state.anim) {
       const s = squareAt(p.x, p.y, flip());

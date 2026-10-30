@@ -328,7 +328,7 @@ function drawOverlay3D(ctx, state, run, g3) {
 export function renderPlay(ctx, state) {
   const run = state.run, L = layoutOf(state), cam = camFor(state, run, L);
   const watch = run.mode === 'watch';
-  const g3 = FX.gl && FX.gl.active ? FX.gl.solve(cam, { yaw: -9, pitch: 7 }) : null;
+  const g3 = FX.gl && FX.gl.active ? FX.gl.solve(cam, { yaw: -9, pitch: cam.stage.w < cam.stage.h * 1.05 ? 17 : 7, zoom: cam.stage.w < cam.stage.h * 1.05 ? 1.18 : 1 }) : null;
   if (g3) drawOverlay3D(ctx, state, run, g3);
   else {
     // sky behind the HUD for tall screens

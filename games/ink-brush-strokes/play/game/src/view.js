@@ -1,5 +1,6 @@
 // Drawing for every screen. render() is the single entry point; the painting screens live in playview.js, text screens in docview.js.
-import { PAL, UI, DISPLAY, CJK, rgba, drawBackdrop, paperImage, drawMount, paintSeal, drawBrush, drawStar, mk } from './art.js';
+import { PAL, UI, DISPLAY, CJK, rgba, drawBackdrop, paperImage, drawMount, paintSeal, drawBrush, drawStar, mk, sheetBegin } from './art.js';
+import { v3, flatAlpha } from './v3.js';
 import { txt, button, panel, rrect, chip, icon, wrap } from './ui.js';
 import { renderDoc } from './docview.js';
 import { renderPlay } from './playview.js';
@@ -63,11 +64,18 @@ export function workImage(h, w) {
   return e;
 }
 
+let meta3 = null;
 export function render(ctx, st, L, view, meta, h) {
+  meta3 = meta; if (st.scene !== 'practice' && st.scene !== 'free') v3.map.active = false;
   const { w, h: hh } = L, sc = st.scene;
   if (sc === 'practice' || sc === 'free') { renderPlay(ctx, st, L, view, meta, h); drawToast(ctx, st, L); return; }
   meta.previewBadge = null;
-  drawBackdrop(ctx, w + 20, hh + 20, st.t, st.prefs.calm ? 1 : 0);
+  // 3D on: the title and painting screens show the desk with the sheet on it; every other screen shows the empty desk (felt, ink stone, dropper) under a dark veil.
+  if (sc !== 'title') v3.want = v3.on ? { kind: 'bare', rect: { x: 0, y: 0, w, h: hh }, free: true, brush: null, fin: 0 } : null;
+  if (sc !== 'title' && v3.on && flatAlpha() > 0.01) { ctx.save(); ctx.globalAlpha = flatAlpha(); drawBackdrop(ctx, w + 20, hh + 20, st.t, st.prefs.calm ? 1 : 0); ctx.restore(); }
+  else if (sc === 'title' && v3.on) { if (flatAlpha() > 0.01) { ctx.save(); ctx.globalAlpha = flatAlpha(); drawBackdrop(ctx, w + 20, hh + 20, st.t, st.prefs.calm ? 1 : 0); ctx.restore(); } }
+  else if (!v3.on) drawBackdrop(ctx, w + 20, hh + 20, st.t, st.prefs.calm ? 1 : 0);
+  if (sc !== 'title' && v3.on) { ctx.fillStyle = 'rgba(7,11,13,0.64)'; ctx.fillRect(-10, -10, w + 20, hh + 20); }
   if (sc === 'title') renderTitle(ctx, st, L, h);
   else if (sc === 'lessons') renderLessons(ctx, st, L, h);
   else if (sc === 'gallery') renderGallery(ctx, st, L, h);
@@ -107,15 +115,24 @@ function settingsBlocks(st) {
 // ---- title ---------------------------------------------------------------------------------------------------------------------------------------------
 function renderTitle(ctx, st, L, h) {
   const T = L.title, S = L.S, wide = L.mode === 'wide', hero = T.hero;
-  // hero: a mounted sheet on which the brush paints a character by itself
-  drawMount(ctx, hero, Math.max(10, hero.w * 0.03));
-  const pimg = paperImage(PAGE.w, PAGE.h, 1.25);
-  if (pimg) ctx.drawImage(pimg, hero.x, hero.y, hero.w, hero.h);
-  else { ctx.fillStyle = PAL.paper; ctx.fillRect(hero.x, hero.y, hero.w, hero.h); }
-  const hl = h.layer('hero'); drawLayer(ctx, hl, hero);
-  const k = hero.w / PAGE.w;
-  ctx.save(); ctx.globalCompositeOperation = 'multiply'; paintSeal(ctx, 'ink', hero.x + hero.w * 0.84, hero.y + hero.h * 0.9, hero.w * 0.15, 0.04, 3, 1); ctx.restore();
-  if (st.hero.end <= 0 && st.hero.pause <= 0 && !st.prefs.calm) drawBrush(ctx, hero.x + st.hero.x * k, hero.y + st.hero.y * k, hero.w * 0.035, 0.9, 0.95, true);
+  // hero: a mounted sheet on which the brush paints a character by itself (with 3D on: the same sheet lies on the 3D desk)
+  const k = hero.w / PAGE.w, heroBrush = st.hero.end <= 0 && st.hero.pause <= 0 && !st.prefs.calm;
+  const paintHero = (g) => {
+    const pimg = paperImage(PAGE.w, PAGE.h, 1.25);
+    if (pimg) g.drawImage(pimg, hero.x, hero.y, hero.w, hero.h);
+    else { g.fillStyle = PAL.paper; g.fillRect(hero.x, hero.y, hero.w, hero.h); }
+    drawLayer(g, h.layer('hero'), hero);
+    g.save(); g.globalCompositeOperation = 'multiply'; paintSeal(g, 'ink', hero.x + hero.w * 0.84, hero.y + hero.h * 0.9, hero.w * 0.15, 0.04, 3, 1); g.restore();
+  };
+  if (v3.on) {
+    paintHero(sheetBegin(v3, hero, (meta3 && meta3.cssPerUnit) || 0));
+    v3.want = { kind: 'hero', rect: hero, free: false, brush: heroBrush ? { x: hero.x + st.hero.x * k, y: hero.y + st.hero.y * k, down: true, load: 0.9, tone: 0.95, size: hero.w * 0.035 } : null, fin: 0 };
+    const fa = flatAlpha(); if (fa > 0.01) { ctx.save(); ctx.globalAlpha = fa; drawMount(ctx, hero, Math.max(10, hero.w * 0.03)); paintHero(ctx); ctx.restore(); }
+  } else {
+    drawMount(ctx, hero, Math.max(10, hero.w * 0.03));
+    paintHero(ctx);
+    if (heroBrush) drawBrush(ctx, hero.x + st.hero.x * k, hero.y + st.hero.y * k, hero.w * 0.035, 0.9, 0.95, true);
+  }
   const tcx = T.titleX, size = T.size;
   titleText(ctx, tcx, T.titleY, size, 'INK BRUSH', null);
   txt(ctx, 'Grind the ink. Load the brush. Make the stroke.', tcx, T.titleY + size * 0.72, Math.max(24, size * 0.19), PAL.text, { align: 'center', weight: 600, stroke: 5, maxW: (wide ? T.col.x - S.x : S.w) - 40 });

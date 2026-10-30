@@ -13,7 +13,7 @@ export const ABOUT = [
     'Small hands can win: a careful, close slam often beats a wild one.',
   ] },
   { title: 'Credits', p: [
-    'The hand and the onlooking children are drawn with the Arcforge view3d layer: characters derived from the Microsoft Rocketbox Avatar Library (MIT licence, Copyright (c) 2020 Microsoft; textures repainted). 3D rendering by three.js (MIT). Full licence text ships in vendor3d/LICENSES.md.',
+    'The thrower\'s hand is modelled for this game; the onlooking children are drawn with the Arcforge view3d layer. 3D rendering by three.js (MIT). Full licence text ships in vendor3d/LICENSES.md.',
   ] },
   { title: 'This version', p: [
     'Menko plays on a wooden tray on a veranda at dusk, lit like a real room. Every disc has an original design; there are twenty-four to find. The floor shows where a slam may land and the chance that each rival disc flips, so every slam is a decision you can read.',

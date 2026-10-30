@@ -2,6 +2,7 @@ import { boot } from './kit/index.js';
 import { createGame, meta, wheelInput } from './src/game.js';
 import { host } from './src/layout.js';
 import { setLogo, setLockup } from './src/brand.js';
+import { v3 } from './src/v3.js';
 
 const canvas = document.getElementById('game');
 
@@ -20,10 +21,19 @@ window.addEventListener('safeinsets', syncHost);
 canvas.addEventListener('wheel', (e) => { e.preventDefault(); wheelInput.dy += e.deltaY * (720 / Math.max(1, Math.min(window.innerWidth, window.innerHeight))) * (e.deltaMode === 1 ? 16 : 1); }, { passive: false });
 
 // Dev tools only (?dev=1 or the app's Developer toggle): expose the game object for the layout/resize check scripts.
-const create = async (env) => { const game = await createGame(env); if (env.config.dev) window.__ng = game; return game; };
+const create = async (env) => { const game = await createGame(env); if (env.config.dev) { window.__ng = game; window.__v3 = v3; } return game; };
 
 // The Arcforge badge and the themed lockup (see src/brand.js): optional, the title reads without them.
 const af = new Image(); af.onload = () => setLogo(af); af.src = './brand/arcforge-af.png';
 const lk = new Image(); lk.onload = () => setLockup(lk); lk.src = './brand/arcforge-lockup.png';
 
-boot({ createGame: create, meta, canvas, background: '#000' });
+// 3D presenter (carved frame, ceramic card, lacquer tiles behind the kit canvas). The game boots at once on the flat 2D art; three.js is
+// fetched afterwards and the play screen switches to 3D. No WebGL, ?flat=1 or a lost context: the flat art stays.
+let presenter = null;
+const bg = { toString: () => (v3.on ? 'rgba(0,0,0,0)' : '#000') };   // read by the kit every frame
+const wrap = (g) => { const r = g.render.bind(g); g.render = (ctx, view) => { v3.frame = null; r(ctx, view); if (presenter) presenter.frame(); }; return g; };
+boot({ createGame: async (env) => wrap(await create(env)), meta, canvas, background: bg });
+if (!/[?&]flat=1/.test(location.search)) {
+  const start = () => import('./view3d/presenter.js').then((m) => m.createPresenter({ kitCanvas: canvas })).then((p) => { if (p.ok) presenter = p; }).catch((e) => console.warn('3D presenter unavailable; flat art stays', e));
+  requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(start, 30)));
+}

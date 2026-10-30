@@ -24,3 +24,7 @@ const lk = new Image(); lk.onload = () => setLockup(lk); lk.src = './brand/arcfo
 const af = new Image(); af.onload = () => setLogo(af); af.src = './brand/arcforge-af.png';
 
 boot({ createGame: create, meta, canvas, background: '#0a0605' });
+// 3D maze (view3d/presenter.js): loaded after the flat title has painted. No WebGL or a failure: the flat 2D art stays (src/scene.js).
+requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(() => {
+  import('./view3d/presenter.js').then((m) => m.createPresenter({ kitCanvas: canvas })).catch((e) => console.warn('3D maze unavailable; flat art stays', e));
+}, 30)));

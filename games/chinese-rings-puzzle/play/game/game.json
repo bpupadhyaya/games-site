@@ -4,7 +4,7 @@
   "tagline": "Free the nine rings from the bar, one legal move at a time.",
   "genre": "mechanical ring-and-bar puzzle",
   "orientation": "any",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "monetization": {
     "model": "premium",
     "priceUsd": 2.99,

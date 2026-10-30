@@ -79,7 +79,7 @@ export const paraHeight = (ctx, s, w, size, weight = 500, lh = 1.32) => wrap(ctx
 export const rr = (ctx, x, y, w, h, r) => { ctx.beginPath(); ctx.roundRect(x, y, w, h, Math.max(0, Math.min(r, w / 2, h / 2))); };
 export function panel(ctx, r, { radius = 22, fill = T.panel, line = T.line } = {}) {
   const solid = /rgba?\(1[0-9],\s*2[0-9]/.test(fill);
-  plaque(ctx, r, { radius, tint: solid ? 'rgba(18,24,42,0.94)' : (mode3d.on ? 'rgba(18,24,44,0.55)' : 'rgba(255,255,255,0.07)'), edge: line && line !== T.line ? line : 'rgba(226,184,110,0.5)', shadow: solid });
+  plaque(ctx, r, { radius, tint: solid ? 'rgba(40,27,17,0.96)' : (mode3d.on ? 'rgba(40,27,17,0.72)' : 'rgba(255,255,255,0.07)'), edge: line && line !== T.line ? line : 'rgba(226,184,110,0.5)', shadow: solid });
 }
 export function background(ctx, w, h) {
   const g = ctx.createLinearGradient(0, 0, 0, h);
@@ -89,16 +89,26 @@ export function background(ctx, w, h) {
 }
 
 // Carved plaque: dark slate with a brass edge, an inner shadow and a soft drop shadow (the HUD's panels and bars).
-export function plaque(ctx, r, { radius = 16, tint = 'rgba(14,20,40,0.78)', edge = 'rgba(226,184,110,0.55)', shadow = true } = {}) {
+export function plaque(ctx, r, { radius = 16, tint = 'rgba(46,30,18,0.9)', edge = 'rgba(226,184,110,0.8)', shadow = true } = {}) {
   ctx.save();
-  if (shadow) { ctx.shadowColor = 'rgba(0,0,0,0.45)'; ctx.shadowBlur = 14; ctx.shadowOffsetY = 4; }
+  if (shadow) { ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 14; ctx.shadowOffsetY = 4; }
   rr(ctx, r.x, r.y, r.w, r.h, radius); ctx.fillStyle = tint; ctx.fill();
   ctx.restore();
   const g = ctx.createLinearGradient(0, r.y, 0, r.y + r.h);
-  g.addColorStop(0, 'rgba(255,255,255,0.13)'); g.addColorStop(0.35, 'rgba(255,255,255,0.02)'); g.addColorStop(1, 'rgba(0,0,0,0.28)');
+  g.addColorStop(0, 'rgba(255,214,150,0.16)'); g.addColorStop(0.4, 'rgba(120,70,30,0.05)'); g.addColorStop(1, 'rgba(0,0,0,0.34)');
   rr(ctx, r.x, r.y, r.w, r.h, radius); ctx.fillStyle = g; ctx.fill();
-  ctx.lineWidth = 1.6; ctx.strokeStyle = edge; ctx.stroke();
-  rr(ctx, r.x + 2.5, r.y + 2.5, r.w - 5, r.h - 5, Math.max(2, radius - 2.5)); ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.stroke();
+  // wood grain
+  if (r.h > 24) {
+    ctx.save(); rr(ctx, r.x, r.y, r.w, r.h, radius); ctx.clip(); ctx.globalAlpha = 0.16; ctx.strokeStyle = '#d9a866'; ctx.lineWidth = 1;
+    for (let i = 0; i < 4; i++) { const gy = r.y + r.h * (0.2 + i * 0.2); ctx.beginPath(); ctx.moveTo(r.x, gy); ctx.bezierCurveTo(r.x + r.w * 0.3, gy - 3, r.x + r.w * 0.65, gy + 4, r.x + r.w, gy - 1); ctx.stroke(); }
+    ctx.restore();
+  }
+  // brass rim (double line: bright outer, dark inner groove)
+  rr(ctx, r.x, r.y, r.w, r.h, radius); ctx.lineWidth = 2.4; ctx.strokeStyle = edge; ctx.stroke();
+  rr(ctx, r.x + 1.2, r.y + 1.2, r.w - 2.4, r.h - 2.4, Math.max(2, radius - 1.2)); ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(255,240,200,0.28)'; ctx.stroke();
+  rr(ctx, r.x + 3.5, r.y + 3.5, r.w - 7, r.h - 7, Math.max(2, radius - 3.5)); ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(0,0,0,0.4)'; ctx.stroke();
+  // brass rivets on larger plaques
+  if (r.h > 40 && r.w > 120) { ctx.fillStyle = '#e8c36c'; for (const [ox, oy] of [[10, 10], [r.w - 10, 10], [10, r.h - 10], [r.w - 10, r.h - 10]]) { ctx.beginPath(); ctx.arc(r.x + ox, r.y + oy, 2.6, 0, Math.PI * 2); ctx.fill(); } }
 }
 
 // Button as a carved wooden plaque with a brass rim and depth; pressed = a quick sink. kind: 'solid' | 'accent' (brass) | 'ghost'.

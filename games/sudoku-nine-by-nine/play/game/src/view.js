@@ -6,6 +6,7 @@ import { conflict, wrong, remaining, filled, fmtTime, PAR_SECONDS } from './play
 import { PEERS, HOUSES, HOUSES_OF, bit, digitsOf, boxOf, rowOf, colOf, TECH_NAME } from './sudoku.js';
 import { DOCS, GRADE_INFO } from './content.js';
 import { drawFigure } from './figures.js';
+import { v3 } from './v3.js';
 
 export const metrics = { max: 0, view: 0, rect: null };   // scroll body of the current screen, filled in each frame
 export const SETTINGS = [
@@ -38,7 +39,7 @@ const smooth = (t) => t * t * (3 - 2 * t);
 
 export function render(ctx, s, view) {
   const w = view.width, h = view.height, T = theme();
-  background(ctx, w, h, s.t);
+  if (v3.on && s.scene === 'play') ctx.clearRect(0, 0, w, h); else background(ctx, w, h, s.t);   // the 3D desk shows through on the play screen
   metrics.max = 0; metrics.rect = null;
   const sc = s.scene;
   if (sc === 'title') drawTitle(ctx, s, w, h);
@@ -83,10 +84,13 @@ function hintMarks(s) {
 
 function drawBoard(ctx, s, L) {
   const T = theme(), b = L.board, P = s.P, B = b.size, hm = s.hint?.stage === 'mistake' ? s.hint : null, marks = hintMarks(s);
-  rr(ctx, b.x - 2, b.y, B + 4, B + 6, B * 0.045); ctx.fillStyle = 'rgba(0,0,0,0.32)'; ctx.fill();
-  rr(ctx, b.x, b.y, B, B, B * 0.04); ctx.fillStyle = T.tray; ctx.fill();
-  ctx.lineWidth = Math.max(2, B * 0.006); ctx.strokeStyle = T.rim; ctx.stroke();
-  b.plates.forEach((pl) => { rr(ctx, pl.x, pl.y, pl.w, pl.h, B * 0.018); ctx.fillStyle = T.dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.12)'; ctx.fill(); });
+  const D3 = v3.on, fr = D3 ? { b, T, cells: new Array(81), t: s.t, paused: s.paused } : null;
+  if (!D3) {
+    rr(ctx, b.x - 2, b.y, B + 4, B + 6, B * 0.045); ctx.fillStyle = 'rgba(0,0,0,0.32)'; ctx.fill();
+    rr(ctx, b.x, b.y, B, B, B * 0.04); ctx.fillStyle = T.tray; ctx.fill();
+    ctx.lineWidth = Math.max(2, B * 0.006); ctx.strokeStyle = T.rim; ctx.stroke();
+    b.plates.forEach((pl) => { rr(ctx, pl.x, pl.y, pl.w, pl.h, B * 0.018); ctx.fillStyle = T.dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.12)'; ctx.fill(); });
+  }
   const cell = b.s, win = s.winT > 0;
   for (let i = 0; i < 81; i++) {
     const r = b.cells[i], st = cellState(s, i);
@@ -103,7 +107,9 @@ function drawBoard(ctx, s, L) {
     if (wl > 0) face = mix(face, win ? '#ffd45a' : T.same, 0.55 * wl);
     const lift = Math.max(st.lift * 0.8, wl);
     const sk = s.fx.shake[i], dx = sk < 0.4 ? Math.sin(sk * 70) * cell * 0.06 * (1 - sk / 0.4) : 0;
-    const f = tile(ctx, r.x + dx, r.y, cell, face, T.side, lift, { flat: false });
+    let f;
+    if (D3) { f = { x: r.x + dx, y: r.y, w: cell, h: cell }; fr.cells[i] = { x: f.x, y: f.y, face, lift }; }
+    else f = tile(ctx, r.x + dx, r.y, cell, face, T.side, lift, { flat: false });
     if (st.ring) { rr(ctx, f.x - 1.5, f.y - 1.5, f.w + 3, f.h + 3, cell * 0.19); ctx.lineWidth = Math.max(2.5, cell * 0.06); ctx.strokeStyle = st.ring; ctx.stroke(); }
     if (s.paused) continue;
     const v = P.v[i], pp = s.fx.pop[i], pop = pp < 0.26 ? 1 + 0.3 * Math.sin((Math.PI * pp) / 0.26) : 1;
@@ -125,6 +131,7 @@ function drawBoard(ctx, s, L) {
       }
     }
   }
+  if (D3) { v3.frame = fr; v3.frameT = s.t; }
   for (const p of s.sparks) { ctx.globalAlpha = Math.max(0, 1 - p.t / p.life); ctx.fillStyle = p.c; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 7); ctx.fill(); }
   ctx.globalAlpha = 1;
 }

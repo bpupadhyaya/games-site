@@ -35,9 +35,27 @@ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
   project was obtained from mocap.cs.cmu.edu. The database was created with funding from NSF EIA-0196217." BVH conversion
   by Bruce Hahne (cgspeed.com). Used: kick (subject 74), throw (subject 15), golf swing (subject 64), retargeted to a different skeleton.
 
+## Crowd textures
+
+The spectator faces, fabric weaves and blob shadows of the crowd layer (`crowd3d`) are procedurally generated at runtime
+(no third-party artwork, photographs or characters are used or copied).
+
 ## Software
 
 * three.js, Copyright (c) 2010-2024 three.js authors, MIT License (https://threejs.org), including the addons GLTFLoader,
   SkeletonUtils and RoomEnvironment.
 * meshoptimizer decoder (MeshoptDecoder), Copyright (c) 2016-2024 Arseny Kapoulkine, MIT License
   (https://github.com/zeux/meshoptimizer), bundled through three.js.
+
+## Scenery images (assets/scenery)
+
+The backdrops, skies, bands, ground textures and cut-outs in `assets/scenery` are derived works made from a private
+reference set of computer-generated landscape images supplied by the project owner, who authorised their use and
+modification for these games (crops, mirroring, colour grading, mattes, procedural re-synthesis). The reference set itself is
+not included or redistributed; no text, logos or UI from it are present. `catalogue.json` records the provenance of each file.
+
+## Horse: Quaternius "White Horse" (CC0)
+
+The shared horse (`horse3d`) is derived from the "White Horse" model of Quaternius' Ultimate Animated Animals pack (CC0 1.0, public domain),
+obtained through poly.pizza. The mesh was subdivided, reshaped and re-rigged; coats, mane, tail, tack and all gaits are procedural.
+Credit courtesy only: "Horse model based on work by Quaternius (CC0)".

@@ -284,6 +284,7 @@ export function surfaceMats() {
     wood: phys({ map: boardTex('#2c170e', '#1a0c07', 4), color: '#ffffff', roughness: 0.78, clearcoat: 0 }),
     field: phys({ map: boardTex('#1c1010', '#0e0707', 8), color: '#ffffff', roughness: 0.7, clearcoat: 0 }),
     ivory: phys({ map: boardTex('#f1e2bb', '#dcc58f', 6), color: '#ffffff', roughness: 0.7, clearcoat: 0 }),
+    gold: phys({ color: '#e8a312', roughness: 0.4, clearcoat: 0.4, clearcoatRoughness: 0.3, emissive: '#7a4300', emissiveIntensity: 0.35 }),
     red: phys({ color: '#b8301a', roughness: 0.4, clearcoat: 0.5, clearcoatRoughness: 0.3 }),
     teal: phys({ color: '#14766e', roughness: 0.4, clearcoat: 0.5, clearcoatRoughness: 0.3 }),
     slate: phys({ color: '#2a3340', roughness: 0.85 }),

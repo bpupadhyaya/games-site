@@ -47,8 +47,8 @@ const BTN = {
   gold: { top: '#ffe9a0', mid: '#ffc94d', bot: '#d29a2e', rim: '#6a4a00', text: '#06182c' },
   on: { top: '#7ff0e6', mid: '#27c4c0', bot: '#13827f', rim: '#064a48', text: '#06182c' },
   danger: { top: '#ff8a9a', mid: '#d03a5a', bot: '#8a1630', rim: '#4a0816', text: '#fff4de' },
-  ghost: { top: 'rgba(52,84,140,0.82)', mid: 'rgba(22,44,88,0.88)', bot: 'rgba(8,20,46,0.92)', rim: 'rgba(255,214,122,0.55)', text: PAL.text },
-  quiet: { top: 'rgba(60,100,150,0.86)', mid: 'rgba(26,56,100,0.9)', bot: 'rgba(10,28,56,0.94)', rim: 'rgba(143,240,230,0.6)', text: PAL.text },
+  ghost: { top: '#6a4024', mid: '#46280f', bot: '#2a1608', rim: '#d9a640', text: PAL.text },
+  quiet: { top: '#5d3a22', mid: '#3d2410', bot: '#24130a', rim: '#a8d8cf', text: PAL.text },
   disabled: { top: 'rgba(60,70,90,0.5)', mid: 'rgba(40,48,68,0.55)', bot: 'rgba(24,30,46,0.6)', rim: 'rgba(255,255,255,0.14)', text: 'rgba(255,240,220,0.4)' },
 };
 export function button(ctx, r, label, o = {}) {
@@ -77,16 +77,42 @@ export function button(ctx, r, label, o = {}) {
   ctx.restore();
 }
 
-// Panels: indigo glass with a double brass hairline and a soft drop shadow.
+// Panels: lit walnut plaques with a polished brass rim, grain, a top light and four brass studs (the game's carved-wood chrome).
+// o.fill (an rgba string) only sets how opaque the wood is: dialogs pass a heavy fill, HUD plaques stay a little translucent.
+const WOOD_A = (fill) => { const m = /rgba?\([^)]*?,\s*([\d.]+)\)\s*$/.exec(fill || ''); return m ? Math.max(0.82, Math.min(0.98, +m[1])) : 0.9; };
+function brassRim(ctx, r, rad, lw) {
+  const g = ctx.createLinearGradient(r.x, r.y, r.x, r.y + r.h);
+  g.addColorStop(0, '#ffe7a3'); g.addColorStop(0.35, '#d9a640'); g.addColorStop(0.7, '#8d5f1b'); g.addColorStop(1, '#c58f35');
+  ctx.lineWidth = lw; ctx.strokeStyle = g; rrect(ctx, r, rad); ctx.stroke();
+}
 export function panel(ctx, r, o = {}) {
   ctx.save();
-  const rad = o.rad ?? 24;
-  ctx.fillStyle = 'rgba(0,0,0,0.3)'; rrect(ctx, { x: r.x + 2, y: r.y + 5, w: r.w - 4, h: r.h }, rad); ctx.fill();
+  const rad = o.rad ?? 24, al = WOOD_A(o.fill);
+  ctx.fillStyle = 'rgba(0,0,0,0.38)'; rrect(ctx, { x: r.x + 2, y: r.y + 6, w: r.w - 4, h: r.h }, rad); ctx.fill();
   const g = ctx.createLinearGradient(0, r.y, 0, r.y + r.h);
-  if (o.fill) { ctx.fillStyle = o.fill; } else { g.addColorStop(0, 'rgba(18,36,72,0.82)'); g.addColorStop(1, 'rgba(6,16,38,0.86)'); ctx.fillStyle = g; }
-  rrect(ctx, r, rad); ctx.fill();
-  ctx.lineWidth = 2.5; ctx.strokeStyle = o.stroke ?? 'rgba(255,214,122,0.5)'; rrect(ctx, r, rad); ctx.stroke();
-  ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(255,255,255,0.16)'; rrect(ctx, { x: r.x + 4, y: r.y + 4, w: r.w - 8, h: r.h - 8 }, Math.max(2, rad - 4)); ctx.stroke();
+  g.addColorStop(0, `rgba(86,50,26,${al})`); g.addColorStop(0.5, `rgba(52,29,15,${al})`); g.addColorStop(1, `rgba(30,16,9,${al})`);
+  ctx.fillStyle = g; rrect(ctx, r, rad); ctx.fill();
+  ctx.save(); rrect(ctx, r, rad); ctx.clip();
+  // grain: long thin darker and lighter streaks, deterministic per panel size
+  let sd = Math.floor(r.w * 7 + r.h * 13) % 997 || 1; const rnd = () => { sd = (sd * 48271) % 2147483647; return sd / 2147483647; };
+  const n = Math.min(14, Math.max(4, Math.round(r.h / 9)));
+  for (let i = 0; i < n; i++) {
+    const y = r.y + rnd() * r.h, x0 = r.x + rnd() * r.w * 0.3, x1 = r.x + r.w * (0.55 + rnd() * 0.45);
+    ctx.lineWidth = 0.8 + rnd() * 1.4; ctx.strokeStyle = rnd() > 0.5 ? 'rgba(20,9,3,0.28)' : 'rgba(255,190,120,0.07)';
+    ctx.beginPath(); ctx.moveTo(x0, y); ctx.bezierCurveTo(x0 + (x1 - x0) * 0.3, y + (rnd() - 0.5) * 5, x0 + (x1 - x0) * 0.7, y + (rnd() - 0.5) * 5, x1, y + (rnd() - 0.5) * 3); ctx.stroke();
+  }
+  const top = ctx.createLinearGradient(0, r.y, 0, r.y + Math.min(r.h * 0.55, 90)); top.addColorStop(0, 'rgba(255,214,150,0.22)'); top.addColorStop(1, 'rgba(255,214,150,0)');
+  ctx.fillStyle = top; ctx.fillRect(r.x, r.y, r.w, Math.min(r.h * 0.55, 90));
+  ctx.restore();
+  brassRim(ctx, r, rad, 3.5);
+  ctx.lineWidth = 1.2; ctx.strokeStyle = 'rgba(20,8,0,0.55)'; rrect(ctx, { x: r.x + 4, y: r.y + 4, w: r.w - 8, h: r.h - 8 }, Math.max(2, rad - 4)); ctx.stroke();
+  if (r.h >= 70 && r.w >= 120) {
+    const q = Math.min(rad * 0.55, 12) + 3;
+    for (const [sx, sy] of [[r.x + q, r.y + q], [r.x + r.w - q, r.y + q], [r.x + q, r.y + r.h - q], [r.x + r.w - q, r.y + r.h - q]]) {
+      const sg = ctx.createRadialGradient(sx - 1, sy - 1, 0.5, sx, sy, 3.6); sg.addColorStop(0, '#fff1c0'); sg.addColorStop(0.5, '#d9a640'); sg.addColorStop(1, '#6e4710');
+      ctx.fillStyle = sg; ctx.beginPath(); ctx.arc(sx, sy, 3.2, 0, Math.PI * 2); ctx.fill();
+    }
+  }
   ctx.restore();
 }
 

@@ -2,6 +2,7 @@
 import { W, H, HAND, BTN, SET, CLOTH, DECK, PILE, MSG, HDR, INSTR, SEAT, OPP, LV, READER, ROUND, POSTER, deckPos, pilePos, handPos, seatPos, tableGrid, slotPos, titleRows, inRect, TEXT_SCALES, AP_THINK_STEPS } from './layout.js';
 import { drawCredit, drawMoreLine, drawLockupImage } from './brand.js';
 import { drawTable, drawCard, drawSuitIcon, CW, CH, TAU } from './art.js';
+import { v3 } from './v3.js';
 import { captures, rankOf, teamOf, RANK_NAMES } from './rules.js';
 import { LEVELS } from './engine.js';
 import { LESSONS } from './lessons.js';
@@ -70,11 +71,21 @@ export function render(ctx, state) {
   };
   const panel = (x, y, w, h, alpha = 0.86) => { ctx.save(); ctx.fillStyle = `rgba(30,10,6,${alpha})`; rrect(x, y, w, h, 22); ctx.fill(); ctx.strokeStyle = 'rgba(243,207,122,0.8)'; ctx.lineWidth = 2.5; ctx.stroke(); ctx.strokeStyle = 'rgba(243,207,122,0.25)'; ctx.lineWidth = 1.2; rrect(x + 6, y + 6, w - 12, h - 12, 17); ctx.stroke(); ctx.restore(); };
   const ring = (x, y, w, h, rgb, a, lw = 5) => { ctx.save(); ctx.strokeStyle = `rgba(${rgb},${a})`; ctx.lineWidth = lw; ctx.shadowColor = `rgba(${rgb},${a})`; ctx.shadowBlur = 16; rrect(x - w / 2 - 4, y - h / 2 - 4, w + 8, h + 8, 16); ctx.stroke(); ctx.restore(); };
-  const card = (id, x, y, w, rot, o = {}) => drawCard(ctx, id, x, y, w, rot, { french, ...o });
-  const backStack = (x, y, w, n) => { for (let k = Math.min(n, 3) - 1; k >= 0; k--) card(-1, x + k * 3, y - k * 3, w, 0, { shadow: k === 0 }); };
+  // 3D: on a table screen the cards are handed to the presenter (real slabs with shadows) in virtual units; everywhere else they are painted flat.
+  v3.active = v3.on && (boardScene || scene === 'title'); v3.cards.length = 0; v3.sky = LV.sky;
+  const base3 = v3.active ? ctx.getTransform() : null;
+  const card = (id, x, y, w, rot, o = {}) => {
+    if (!base3) return drawCard(ctx, id, x, y, w, rot, { french, ...o });
+    const m = ctx.getTransform();
+    if (m.a === base3.a && m.b === base3.b && m.c === base3.c && m.d === base3.d && m.e === base3.e && m.f === base3.f) { v3.cards.push({ id, x, y, w, rot, lift: !!o.lift, french }); return; }
+    const r = base3.inverse().multiply(m), p = r.transformPoint({ x, y });
+    v3.cards.push({ id, x: p.x, y: p.y, w: w * Math.hypot(r.a, r.b), rot: rot + Math.atan2(r.b, r.a), lift: !!o.lift, french });
+  };
+  const backStack = (x, y, w, n) => { for (let k = Math.min(n, 3) - 1; k >= 0; k--) drawCard(ctx, -1, x + k * 3, y - k * 3, w, 0, { french, shadow: k === 0 }); };   // chips sit under a 2D plaque: always flat
 
   // ---- table --------------------------------------------------------------------------------------------------------
   const decor = !boardScene && wide ? { x: 20, y: LV.sky + 14, w: w - 40, h: h - LV.sky - 28 } : CLOTH;
+  v3.cloth = v3.active ? decor : null;
   drawTable(ctx, state.t, state.calm, { w, h, cloth: decor, sky: LV.sky });
 
   if (boardScene) {

@@ -11,6 +11,7 @@
 //   side   landscape-ish: a wall-coloured status panel on the left (title, pips, message, dice, 2x2 buttons), the board on the right.
 // Menus: `L.wide` (landscape or squarish) = two columns; otherwise one column that tightens on short portrait screens.
 import { BAR, OFF } from './rules.js';
+import { v3 } from './v3.js';
 export { BAR, OFF };
 export const BX0 = 8, BX1 = 712, BY0 = 206, BY1 = 1358;           // the board block in B (frame plus both trays)
 export const FRAME = { x: 8, y: 262, w: 704, h: 1038 };          // outer edge of the wooden frame
@@ -46,13 +47,17 @@ export function setSize(w, h) {
 }
 export const layoutFor = setSize;
 
+// 3D hook: while the WebGL scene is on, the presenter installs `pt` (B point -> screen) and `inv` (screen -> B point on the board plane).
+export const proj = { pt: null, inv: null };
 // where a point of B (bx, by) is on the screen
 export function toScreen(bx, by) {
+  if (proj.pt) return proj.pt(bx, by);
   const t = L.bt;
   return t.rot ? { x: t.ox + t.s * (by - BY0), y: t.oy + t.s * (BX1 - bx) } : { x: t.ox + t.s * (bx - BX0), y: t.oy + t.s * (by - BY0) };
 }
 // and back: a screen point as a point of B
 export function toBoard(x, y) {
+  if (proj.inv) return proj.inv(x, y);
   const t = L.bt;
   return t.rot ? { x: BX1 - (y - t.oy) / t.s, y: BY0 + (x - t.ox) / t.s } : { x: BX0 + (x - t.ox) / t.s, y: BY0 + (y - t.oy) / t.s };
 }
@@ -84,6 +89,12 @@ export function barPos(side, k, n) {
   const step = n <= 5 ? D + 2 : (MID - IN.y0 - 60 - D) / (n - 1), y0 = 6 + R;
   return toScreen(CH.cx, MID + (side === 0 ? 1 : -1) * (y0 + k * step));
 }
+// the same places in B space (for the 3D scene)
+export function barB(side, k, n) {
+  const step = n <= 5 ? D + 2 : (MID - IN.y0 - 60 - D) / (n - 1), y0 = 6 + R;
+  return { x: CH.cx, y: MID + (side === 0 ? 1 : -1) * (y0 + k * step) };
+}
+export const offB = (side, k) => ({ x: 64 + k * 40, y: side === 0 ? TRAY.me.y + TRAY.me.h / 2 : TRAY.opp.y + TRAY.opp.h / 2 });
 export const offPos = (side, k) => toScreen(64 + k * 40, side === 0 ? TRAY.me.y + TRAY.me.h / 2 : TRAY.opp.y + TRAY.opp.h / 2);
 export const trayCenter = (side) => { const T = side === 0 ? TRAY.me : TRAY.opp; return toScreen(T.x + T.w / 2, T.y + T.h / 2); };
 // the bounding box (screen) of a B-space rect
@@ -179,7 +190,7 @@ function build(w, h, key) {
   out.diceTap = R_(dice.x, dice.y - 6, dice.w, dice.h + 12);
   out.status = dice.think;
   const memo = new Map();
-  out.titleFor = (hasSave) => { const kk = !!hasSave; if (!memo.has(kk)) memo.set(kk, titleLayout(out, kk)); return memo.get(kk); };
+  out.titleFor = (hasSave) => { const d3 = v3.on, kk = (hasSave ? 'a' : 'b') + (d3 ? '3' : ''); if (!memo.has(kk)) memo.set(kk, titleLayout(out, !!hasSave, d3)); return memo.get(kk); };
   out.setup = setupLayout(out);
   out.doc = docLayout(out);
   out.settings = settingsLayout(out);
@@ -190,7 +201,7 @@ function build(w, h, key) {
 }
 
 // ---- title ------------------------------------------------------------------------------------------------------------------------
-function titleLayout(Lx, hasSave) {
+function titleLayout(Lx, hasSave, d3 = false) {
   const { w, h, st, sb, k, ux0, ux1, uy0, uy1 } = Lx;
   const T = { rows: {}, tiles: [], wide: Lx.wide };
   const rowsH = { resume: 76, play: 92, auto: 78, small: 66, settings: 66 };
@@ -214,8 +225,13 @@ function titleLayout(Lx, hasSave) {
     T.lockup = R_(cx - lkW / 2, y + 6, lkW, lkH);                       // bottom-centre, directly under the last menu row
     T.stats = { x: cx, y: T.lockup.y + lkH + 38, w: cw - 20, size: 21 }; T.msg = { x: cx, y: T.stats.y + 40, w: cw - 20, size: 21 };
     // spread leftover height: nudge everything down a little when the screen is much taller than the content
-    const bottom = h - sb - 10, push = Math.max(0, (bottom - (T.msg.y + 14)) * 0.45);
-    if (push > 1) shiftTitle(T, push);
+    const bottom = h - sb - 10, slack = bottom - (T.msg.y + 14);
+    if (d3) {
+      // 3D title: the three game tiles give way to the live scene (the hero); everything below it moves down by the slack
+      const extra = clamp(slack * 0.85, 0, 520), mv = (r) => { if (r) r.y += extra; };
+      T.tag.y += extra; Object.values(T.rows).forEach(mv); T.stats.y += extra; T.msg.y += extra; mv(T.lockup);
+      const y0 = T.meander.y + 22; T.hero = R_(ux0, y0, ux1 - ux0, Math.max(150, T.tag.y - 30 - y0));
+    } else { const push = Math.max(0, slack * 0.45); if (push > 1) shiftTitle(T, push); }
   } else {
     const gapC = 28, leftW = Math.min((ux1 - ux0) * 0.52, 700), rightW = ux1 - ux0 - leftW - gapC;
     const cxL = ux0 + leftW / 2, cxR = ux1 - rightW / 2, rw = Math.min(480, rightW - 20);
@@ -238,6 +254,7 @@ function titleLayout(Lx, hasSave) {
     const lkW = Math.min(rw, lkW0);
     T.lockup = R_(cxR - lkW / 2, y + 2, lkW, lkW * 327 / 1200); y += lkH0 + 14;
     T.stats = { x: cxR, y: y + 22, w: rightW - 20, size: 21 }; T.msg = { x: cxR, y: y + 58, w: rightW - 20, size: 21 };
+    if (d3) { T.tag.y = T.meander.y + 44; const y0 = T.tag.y + 24; T.hero = R_(cxL - leftW / 2, y0, leftW, Math.max(150, uy1 - y0 - 4)); }
   }
   return T;
 }

@@ -159,26 +159,27 @@ function buildTitle(L, hasSave) {
   if (memo[hasSave]) return memo[hasSave];
   const { w, h, U, ins } = L, T = { rows: {}, hero: null, card: null, lockup: null };
   const names = [hasSave ? ['resume'] : null, ['play'], ['two', 'learn'], ['auto'], ['rules', 'how'], ['about', 'settings']].filter(Boolean);
-  const n = names.length;
-  const place = (x0, aw, y0, pitch, bh) => names.forEach((row, i) => {
-    const y = y0 + i * pitch;
-    if (row.length === 1) T.rows[row[0]] = R(x0, y, aw, bh);
-    else { const cw = (aw - 12) / 2; T.rows[row[0]] = R(x0, y, cw, bh); T.rows[row[1]] = R(x0 + cw + 12, y, cw, bh); }
-  });
+  const n = names.length, BIG = 0.34;                       // the Play row is taller than the rest: one dominant gold button
+  const place = (x0, aw, y0, pitch, bh) => { let y = y0; names.forEach((row) => {
+    const hh = row[0] === 'play' ? bh + pitch * BIG : bh;
+    if (row.length === 1) T.rows[row[0]] = R(x0, y, aw, hh);
+    else { const cw = (aw - 12) / 2; T.rows[row[0]] = R(x0, y, cw, hh); T.rows[row[1]] = R(x0 + cw + 12, y, cw, hh); }
+    y += pitch + (row[0] === 'play' ? pitch * BIG : 0);
+  }); };
   if (!L.land) {
     const lock = 64, bottom = h - Math.max(14, ins.b + 6), bw = Math.min(U.w - 56, 560);
     const minP = clamp(Math.round(46 / (ins.px || 0.6)) + 12, 58, 98);
-    const pitch = clamp((bottom - lock - (U.y0 + 470)) / n, minP, 98), bh = pitch - 12;
-    const y0 = bottom - lock - n * pitch + 12;
+    const pitch = clamp((bottom - lock - (U.y0 + 470)) / (n + BIG), minP, 98), bh = pitch - 12;
+    const y0 = bottom - lock - (n + BIG) * pitch + 12;
     place(U.x0 + (U.w - bw) / 2, bw, y0, pitch, bh);
     T.lockup = { x: w / 2, y: bottom - 14 };
     const zoneTop = Math.max(ins.t + 8, ins.back ? ins.t + 60 : 0), zone = y0 - 12 - zoneTop;
     T.hero = R(U.x0 + 10, zoneTop, U.w - 20, zone);
   } else {
     const aw = clamp(w * 0.38, 380, 560), ax = U.x1 - aw - 16, lock = 56;
-    const pitch = Math.min(92, (U.h - 40 - lock) / n), bh = pitch - 12, y0 = U.y0 + (U.h - n * pitch - lock) / 2 + 6;
+    const pitch = Math.min(92, (U.h - 40 - lock) / (n + BIG)), bh = pitch - 12, y0 = U.y0 + (U.h - (n + BIG) * pitch - lock) / 2 + 6;
     place(ax + 24, aw - 48, y0, pitch, bh);
-    T.card = R(ax, y0 - 24, aw, n * pitch + lock + 28);
+    T.card = R(ax, y0 - 24, aw, (n + BIG) * pitch + lock + 28);
     T.lockup = { x: ax + aw / 2, y: T.card.y + T.card.h - 14 };
     T.hero = R(U.x0 + 10, U.y0 + 10, ax - U.x0 - 30, U.h - 20);
   }

@@ -13,6 +13,7 @@ import {
 import { LEVEL_COUNT, createThinker, chooseMove } from './engine.js';
 import { LESSONS, lessonBoard, lessonSolutions, cloneGame } from './lessons.js';
 import { THEME_ORDER, invalidateArt, warmArt } from './art.js';
+import { v3 } from './v3.js';
 import { render, pageScroll } from './view.js';
 
 // Fluid: the kit keeps meta.width / meta.height live (short side 720 units); layout.js re-lays everything out from them.
@@ -488,7 +489,10 @@ export function createGame(env) {
     }
     state.scroll = Math.max(0, Math.min(max, state.scroll));
   }
-  function boardPointer(p) {
+  function boardPointer(p0) {
+    // With the 3D board on, the point is found on the tilted board (presentation only: the same squares, the same rules).
+    const u = v3.on && v3.unproj ? v3.unproj(p0.x, p0.y) : null;
+    const p = u ? { ...p0, x: u.x, y: u.y } : p0;
     const d = state.drag;
     if (p.pressed && state.canAct) {
       const s = squareAt(p.x, p.y, state.flip);

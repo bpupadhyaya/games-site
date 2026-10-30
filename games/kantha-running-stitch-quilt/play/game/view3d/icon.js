@@ -64,12 +64,12 @@ view.cloth.settle(); for (let i = 0; i < 20; i++) view.apply(fr, 1 / 30, 0);
 const hand = await createNeedleHand(scene, { skin: q.get('skin') || '#8c5b40' });
 const n = view.nstate, d = new THREE.Vector3(0.75, 0, 0.66).normalize();
 const grip = n.tip.clone().addScaledVector(n.dir, 0.032);
-for (let i = 0; i < 30; i++) hand.update(grip, d, true, 0.05, 0);
+for (let i = 0; i < 30; i++) hand.update(grip, d, true, 0.05, 0, n.dir, 0.0015);
 hand.setShadow(true);
 
 const cam = new THREE.PerspectiveCamera(Number(q.get('fov') || 30), 1, 0.02, 6);
 const tgt = new THREE.Vector3(Number(q.get('tx') || n.tip.x * 0.55), Number(q.get('ty') || 0.0), Number(q.get('tz') || n.tip.z * 0.55));
-const yaw = Number(q.get('yaw') || -0.55), pitch = Number(q.get('pitch') || 0.58), dist = Number(q.get('dist') || 0.5);
+const yaw = Number(q.get('yaw') || -0.2), pitch = Number(q.get('pitch') || 0.74), dist = Number(q.get('dist') || 0.56);
 cam.position.set(tgt.x + Math.sin(yaw) * Math.cos(pitch) * dist, tgt.y + Math.sin(pitch) * dist, tgt.z + Math.cos(yaw) * Math.cos(pitch) * dist);
 cam.lookAt(tgt);
 function render() {

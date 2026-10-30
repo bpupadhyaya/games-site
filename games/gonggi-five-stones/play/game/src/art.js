@@ -2,6 +2,7 @@
 // Pure canvas drawing. World units: the mat is 660 x 800.
 import { R, WORLD } from './sim.js';
 import { roundPath } from './ui.js';
+import { rec } from './v3.js';
 
 const TAU = Math.PI * 2;
 
@@ -36,6 +37,7 @@ const PATCH_COL = [
   ['#f0e3c6', '#8c4c80', '#3b4f94'],
 ];
 export function drawMat(ctx, t = 0) {
+  if (rec.on) return;            // 3D: the cloth is a lit mesh
   const { w, h } = WORLD;
   ctx.save();
   // soft contact shadow
@@ -93,6 +95,7 @@ const soft = (ctx, x, y, rx, ry, a) => {
   ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, rx, 0, TAU); ctx.fill(); ctx.restore();
 };
 export function drawShadow(ctx, x, y, z = 0, scale = 1) {
+  if (rec.on) return;
   const k = 1 + z / 520;
   soft(ctx, x + 5 + z * 0.12, y + 11 + z * 0.06, R * 1.25 * k * scale, R * 0.95 * k * scale, 0.5 / (1 + z / 140));
 }
@@ -100,6 +103,19 @@ export function drawShadow(ctx, x, y, z = 0, scale = 1) {
 // One pebble. o: { z, glow (0-1), ring (colour), alpha, scale, spin }
 export function drawStone(ctx, s, o = {}) {
   const z = o.z ?? 0, sc = (o.scale ?? 1) * (1 + z / 380);
+  if (rec.on) {
+    // 3D: the pebble itself is a lit mesh; only its marks (glow pool, selection ring) lie on the cloth
+    rec.stones.push({ id: s.id, x: s.x, y: s.y, z, rot: (s.rot ?? 0) + (o.spin ?? 0), scale: o.scale ?? 1, alpha: o.alpha ?? 1 });
+    ctx.save(); ctx.globalAlpha = o.alpha ?? 1;
+    if (o.glow) {
+      const g = ctx.createRadialGradient(s.x, s.y, R * 0.5, s.x, s.y, R * 2.2);
+      g.addColorStop(0, `rgba(255,236,170,${0.5 * o.glow})`); g.addColorStop(1, 'rgba(255,236,170,0)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(s.x, s.y, R * 2.2, 0, TAU); ctx.fill();
+    }
+    if (o.ring) { ctx.strokeStyle = o.ring; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(s.x, s.y, R * 1.45, 0, TAU); ctx.stroke(); }
+    ctx.restore();
+    return;
+  }
   const P = STONE_PAL[s.id % 5];
   if (!o.noShadow) drawShadow(ctx, s.x, s.y, z, o.scale ?? 1);
   const x = s.x, y = s.y - z * 0.55;
@@ -144,6 +160,15 @@ export function drawTrail(ctx, trail) {
 }
 export function drawHand(ctx, x, y, o = {}) {
   const r = (o.r ?? 30) * (1 - 0.22 * (o.closed ?? 0)), a = o.alpha ?? 1;
+  if (rec.on) {
+    // 3D: the palm is a glass ring hovering over the cloth; a warm pool of light under it
+    rec.hands.push({ x, y, r, glow: o.glow ?? 0, alpha: a });
+    ctx.save(); ctx.globalAlpha = a;
+    const g = ctx.createRadialGradient(x, y, r * 0.2, x, y, r * 2);
+    g.addColorStop(0, `rgba(255,236,190,${0.32 + 0.3 * (o.glow ?? 0)})`); g.addColorStop(1, 'rgba(255,236,190,0)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r * 2, 0, TAU); ctx.fill(); ctx.restore();
+    return;
+  }
   ctx.save(); ctx.globalAlpha = a;
   soft(ctx, x + 3, y + 22, r * 1.1, r * 0.7, 0.35);
   const g = ctx.createRadialGradient(x, y, r * 0.2, x, y, r * 1.9);
@@ -171,6 +196,7 @@ export function drawRoute(ctx, pts, o = {}) {
   ctx.restore();
 }
 export function drawBadge(ctx, x, y, label, o = {}) {
+  if (rec.on) { rec.marks.push({ kind: 'badge', x, y, label, fill: o.fill ?? '#e2503c', r: o.r ?? 17 }); return; }
   ctx.save();
   const r = o.r ?? 17;
   ctx.fillStyle = o.fill ?? '#e2503c'; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();

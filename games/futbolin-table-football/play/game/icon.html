@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>icon</title><style>html,body{margin:0;background:#120804}</style></head>
+<body>
+<script type="module">
+// App icon, rendered from the game's own 3D models (dev/render-icon.mjs). One subject: a red man striking the ball, low over the field.
+import { THREE, board3d as B } from './vendor3d/index.js';
+import * as M from './view3d/models.js';
+import { ROD_Y } from './src/consts.js';
+const q = new URLSearchParams(location.search), size = +(q.get('size') || 2048);
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+const scene = new THREE.Scene();
+B.createEnvironment(renderer, scene, { intensity: 0.55 });
+scene.fog = new THREE.Fog(0x1a0c05, 0.55, 2.4);
+const { U, FY } = M, mats = M.makeMaterials();
+scene.add(M.buildRoom(mats), M.buildTable(mats));
+scene.add(M.buildBushings(mats, ROD_Y.map((y) => y * U)));
+// the hero rod (your attack, three men) mid-kick, and the rival midfield behind it
+const hero = M.buildRod(mats, 'att', 0, { col: '#d8452e', trim: '#ffe6bf' }); hero.slide.position.set(0.0, hero.slide.position.y, 0.04); hero.spin.rotation.x = 0.62; scene.add(hero.slide);
+const rival = M.buildRod(mats, 'mid', 1, { col: '#2f6fd6', trim: '#d8e6ff' }); rival.slide.position.set(0.07, rival.slide.position.y, 0.34); rival.spin.rotation.x = 0.05; scene.add(rival.slide);
+const { ball, shadow } = M.buildBall(); ball.position.set(-0.004, FY + 0.022, -0.045); ball.rotation.set(0.5, 0.8, 0.2); shadow.position.set(-0.004, FY + 0.0015, -0.045); scene.add(ball, shadow);
+// light: warm lamp key from above-left, a hot rim from behind for the silhouette, soft ambience
+scene.add(new THREE.HemisphereLight(0xffdcb8, 0x2a160a, 0.5));
+const key = new THREE.DirectionalLight(0xffe0b0, 1.6); key.position.set(-0.6, FY + 1.5, -0.7); key.target.position.set(0, FY, 0); key.castShadow = true;
+key.shadow.mapSize.set(2048, 2048); Object.assign(key.shadow.camera, { left: -0.4, right: 0.4, top: 0.4, bottom: -0.4, near: 0.3, far: 4 }); key.shadow.bias = -0.0002; key.shadow.radius = 3;
+scene.add(key, key.target);
+const rim = new THREE.DirectionalLight(0xffb070, 3.2); rim.position.set(0.3, FY + 0.45, 1.2); scene.add(rim);
+const rim2 = new THREE.PointLight(0xffc890, 1.4, 1.2, 1.5); rim2.position.set(-0.2, FY + 0.3, 0.35); scene.add(rim2);
+const lamp = M.buildLamp(); lamp.position.set(-0.25, FY + 0.6, 0.9); scene.add(lamp);
+// café lights far behind the table, out of focus (warm bokeh for depth)
+{ const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d'), g = x.createRadialGradient(64, 64, 0, 64, 64, 64);
+  g.addColorStop(0, 'rgba(255,255,255,0.9)'); g.addColorStop(0.55, 'rgba(255,255,255,0.35)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 0, 128, 128);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+  [[-0.55, 0.2, 1.9, 0.26, '#ffb35c'], [-0.12, 0.27, 2.4, 0.34, '#ff9440'], [0.32, 0.17, 1.7, 0.2, '#ffd28a'], [0.62, 0.25, 2.2, 0.3, '#ffb35c'], [0.12, 0.13, 1.5, 0.12, '#ffe0a8'], [-0.85, 0.16, 1.6, 0.18, '#ff8a3a'], [0.95, 0.15, 1.8, 0.2, '#ffc070']]
+    .forEach(([x0, y0, z0, r0, col]) => { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, color: col, transparent: true, opacity: 0.8, depthWrite: false, fog: false })); s.position.set(x0, FY + y0, z0); s.scale.set(r0, r0, 1); scene.add(s); }); }
+const cam = new THREE.PerspectiveCamera(30, 1, 0.01, 10);
+cam.position.set(0.17, FY + 0.15, -0.33); cam.lookAt(0.0, FY + 0.06, 0.05);
+renderer.shadowMap.enabled = true;
+B.renderIcon({ scene, camera: cam, size, renderer, background: '#140904', bloom: 0.2, vignette: 0.6, exposure: 0.85 });
+</script>
+</body>
+</html>

@@ -22,7 +22,7 @@ export function render(ctx, state, L = curLayout()) {
   if (sc === 'title') { drawTitle(ctx, state, R, L); return; }
   if (panelScene) { drawBackdropScene(ctx, state, L); scrim(ctx, L, 0.46); drawPanelScene(ctx, state, R, z, L); return; }
   const auto = sc === 'autoplay' || sc === 'autoplay-over';
-  drawArena(ctx, state, L.play.scene, { R });
+  drawArena(ctx, state, L.play.scene, { R, tight: true, charroScale: !L.land && L.h / L.w > 1.7 ? 1.5 : 1 });
   drawHud(ctx, state, R, L, auto);
   if (sc === 'play' || sc === 'autoplay') {
     if (!state.menuOpen) for (const b of screenButtons(state, L)) R.button(b);
@@ -96,15 +96,15 @@ const plate = (ctx, x, y, w, h, r = 16, fill = 'rgba(28,27,58,0.93)', edge = GOL
 
 // ---- the arena ------------------------------------------------------------------------------------------------------------------
 // Geometry of the lienzo inside a scene rectangle. All the game's scene coordinates are fractions of `sc`.
-export function geom(sc) {
+export function geom(sc, tight = false) {
   const k = clamp(Math.min(sc.w / 640, sc.h / 470), 0.45, 2.1);
   const gy = sc.y + Math.round(sc.h * 0.5);
-  const railY = sc.y + sc.h * 0.745, footY = sc.y + sc.h * 0.955;
+  const a3 = arena3d(), tg = tight && a3;
+  const railY = sc.y + sc.h * (tg ? 0.6 : 0.745), footY = sc.y + sc.h * (tg ? 0.91 : 0.955);
   const charX = sc.x + Math.max(sc.w * 0.17, 100 * k);
   const railL = sc.x + sc.w * 0.08, railW = sc.w * 0.84;
   const kt = k * 0.78;
-  const s = Math.min(railW / 9.5, sc.h / 6.8);                       // px per metre on the horse lane (the 3D scene's scale)
-  const a3 = arena3d();
+  const s = Math.min(railW / (tg ? 7.0 : 9.5), sc.h / 6.8);                       // px per metre on the horse lane (the 3D scene's scale)
   return { k, kt, s, sc, gy, railY, footY, charX, railL, railW, gateX: railL + railW * GATE, neckY: railY - (a3 ? 1.5 * s : 118 * kt), X: (x) => railL + railW * x };
 }
 
@@ -112,7 +112,7 @@ const arena3d = () => { const a = globalThis.__arena3d; return a && a.draw ? a :
 const PHASE = (state) => state.t * (3.2 + 11 * (state.spin ?? 0.3));
 
 export function drawArena(ctx, state, sc, o = {}) {
-  const g = geom(sc), t = state.t, calm = state.prefs.calm, R = o.R;
+  const g = geom(sc, o.tight), t = state.t, calm = state.prefs.calm, R = o.R;
   ctx.save(); ctx.beginPath(); ctx.rect(sc.x, sc.y, sc.w, sc.h); ctx.clip();
   if (state.shake > 0 && !calm) ctx.translate(Math.sin(t * 90) * 3 * state.shake * 4, 0);
   const run = o.demoRun || (state.run && (state.scene === 'play' || state.scene === 'autoplay') ? state.run : null);
@@ -176,7 +176,7 @@ function draw3D(ctx, A3, state, g, sc, run, inRun, o) {
   let horse = null;
   if (run) { const p = targetPos(state, run, o); horse = { frac: p.x, dir: run.dir, caught: !!state.caught }; }
   else if (!o.noParked) horse = { frac: 0.9, dir: -1, parked: true };
-  const geo = { sc, railL: g.railL, railW: g.railW, railY: g.railY, footY: g.footY, charX: g.charX, k: g.k, charroScale: o.charroScale || 1 };
+  const geo = { sc, railL: g.railL, railW: g.railW, railY: g.railY, footY: g.footY, charX: g.charX, k: g.k, s: g.s, charroScale: o.charroScale || 1 };
   return !!A3.draw(ctx, geo, { t, calm: state.prefs.calm, charro: { arm, lean, step, crouch, circle: trickId ? 0.8 : 1 }, horse, gateFrac: GATE, items });
 }
 

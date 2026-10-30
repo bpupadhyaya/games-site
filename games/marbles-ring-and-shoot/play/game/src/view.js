@@ -5,6 +5,7 @@ import { RR, RA, RT, R_S, R_T, targets, shooterOf, valueOf, onLine } from './sim
 import { drawBackdrop, drawArena, drawMarble, specOf, SIDE, FONT } from './art.js';
 import { PROFILES } from './opponents.js';
 import { roundPath, panel, drawButton, wrapLines } from './ui.js';
+import { v3 } from './v3.js';
 
 const TAU = Math.PI * 2;
 export const layoutOf = (state) => playLayout(TEXT_SCALES[state.settings.textIdx], !!(state.m && state.m.cfg.mode === 'watch'));
@@ -27,19 +28,29 @@ function fitText(ctx, options, px, maxW, weight = 700) {
 // o: { cx, cy, scale, hand (side whose shooter is in hand, glow the shooting line), over(ctx) }
 export function drawTable(ctx, state, w, parts, o = {}) {
   const sc = o.scale ?? 1, cx = o.cx ?? W / 2, cy = o.cy ?? H / 2;
-  drawBackdrop(ctx, W, H, cx, cy);
-  ctx.save(); ctx.translate(cx, cy); ctx.scale(sc, sc);
-  drawArena(ctx);
-  if (o.hand !== undefined) drawLineGlow(ctx, state, o.hand);
+  // the lit scene (when ready) draws backdrop, arena and marbles behind this canvas; publish where the table is
+  const a3 = v3.on ? v3.alpha : 0, lock = !!o.lock;
+  v3.drawn = true; v3.table = { w, cx, cy, sc, lock, hand: o.hand, active: o.active, t: state.t };
   const list = w.balls.filter((b) => b.mode === 'live').sort((a, b) => a.y - b.y);
   const t = state.t;
-  for (const b of list) {
-    const act = o.active === b.id;
-    drawMarble(ctx, b.x, b.y, b.r, specOf(b), { rot: b.rot, ra: b.ra, heat: b.heat, lift: act ? 4 + 1.6 * Math.sin(t * 5) : 0 });
-    if (b.kind === 'shooter' && (b.vx !== 0 || b.vy !== 0 || true)) drawShooterTag(ctx, b, t, act);
+  if (a3 < 0.999) {
+    ctx.save(); if (a3 > 0) ctx.globalAlpha = 1 - a3;
+    drawBackdrop(ctx, W, H, cx, cy);
+    ctx.translate(cx, cy); ctx.scale(sc, sc);
+    drawArena(ctx);
+    if (o.hand !== undefined) drawLineGlow(ctx, state, o.hand);
+    for (const b of list) {
+      const act = o.active === b.id;
+      drawMarble(ctx, b.x, b.y, b.r, specOf(b), { rot: b.rot, ra: b.ra, heat: b.heat, lift: act ? 4 + 1.6 * Math.sin(t * 5) : 0 });
+    }
+    ctx.restore();
   }
-  if (o.over) o.over(ctx);
-  drawParts(ctx, parts);
+  ctx.save(); ctx.translate(cx, cy); ctx.scale(sc, sc);
+  if (lock || a3 < 0.5) {
+    for (const b of list) if (b.kind === 'shooter') drawShooterTag(ctx, b, t, o.active === b.id);
+    if (o.over) o.over(ctx);
+    drawParts(ctx, parts);
+  }
   ctx.restore();
 }
 function drawShooterTag(ctx, b, t, active) {
@@ -283,7 +294,7 @@ export function renderPlay(ctx, state) {
   const sh = m.phase === 'aim' ? shooterOf(w, m.turn) : null;
   const handSide = sh && sh.hand && state.humanTurn && !state.paused ? m.turn : undefined;
   drawTable(ctx, state, w, state.parts, {
-    cx: L.board.cx + (state.sx || 0), cy: L.board.cy + (state.sy || 0), scale: L.board.s, hand: handSide, active: m.phase === 'aim' && sh ? sh.id : undefined,
+    cx: L.board.cx + (state.sx || 0), cy: L.board.cy + (state.sy || 0), scale: L.board.s, hand: handSide, lock: true, active: m.phase === 'aim' && sh ? sh.id : undefined,
     over: (c) => { drawAim(c, state); },
   });
   drawHud(ctx, state);

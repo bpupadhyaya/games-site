@@ -13,6 +13,7 @@ export const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 // px = css pixels per virtual unit (type never goes below ~11 css px); dpr = device pixel ratio (sprite resolution).
 export const host = { t: 0, r: 0, b: 0, l: 0, back: 0, px: 0.6, dpr: 2 };
 
+const PORTRAIT_FILL = 0.97;
 const cache = new Map();
 export function layoutFor(w, h, n = 5) {
   w = Math.round(w); h = Math.round(h);
@@ -33,9 +34,9 @@ function build(w, h, ins, n) {
   const place = (rect, k) => { const sw = G.W * k, sh = G.H * k; L.sc = { ox: rect.x + (rect.w - sw) / 2, oy: rect.y + (rect.h - sh) / 2, k, G }; L.scene = R(L.sc.ox, L.sc.oy, sw, sh); };
   if (!land) {
     const pad = 12, backRes = ins.back ? 62 : 0, top0 = Math.max(ins.t + 8, backRes ? ins.t + backRes : 0);
-    const TB = clamp(Math.round(U.h * 0.17), 150, 230), lampsH = 64, barY = h - Math.max(ins.b, 10) - BH - 12, pw = U.w - 2 * pad;
+    const TB = clamp(Math.round(U.h * 0.15), 140, 200), lampsH = 64, barY = h - Math.max(ins.b, 10) - BH - 12, pw = U.w - 2 * pad;
     const availH = barY - GAP - top0 - TB - lampsH - 3 * GAP;
-    const k = Math.min(pw / G.W, availH / G.H, 2.5);
+    const k = Math.min(pw * PORTRAIT_FILL / G.W, availH / G.H, 2.8);              // a little air at both ends so the whole puzzle (base ends too) shows
     const sceneH = G.H * k, free = Math.max(0, availH - sceneH), air = free / 4;
     let y = top0 + air * 0.6;
     L.top = R(U.x0 + pad, y, pw, TB);                                      // chips + message (play) / lesson text
@@ -54,7 +55,7 @@ function build(w, h, ins, n) {
     const pad = 12, bandH = clamp(Math.round(U.h * 0.3), 150, 250);
     const topY = ins.back ? Math.max(U.y0 + 8, L.backBox.y + 40) : U.y0 + 8;
     const availH = U.y1 - bandH - 16 - topY, availW = U.w - 2 * pad;
-    const k = Math.min(availW / G.W, availH / G.H, 2.4);
+    const k = Math.min(availW * 0.92 / G.W, availH / G.H, 2.4);
     place(R(U.x0 + pad, topY, availW, availH), k);
     const by = U.y1 - bandH - 8, bw = U.w - 2 * pad;
     L.band = R(U.x0 + pad, by, bw, bandH);

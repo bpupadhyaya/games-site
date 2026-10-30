@@ -42,10 +42,40 @@ export function drawButton(ctx, r, label, { primary = false, disabled = false, s
     const bh = r.h * 0.4, bw = r.h * 0.11, cx = r.x + r.w / 2, cy = r.y + r.h / 2;
     ctx.beginPath(); ctx.roundRect(cx - bw * 1.7, cy - bh / 2, bw, bh, 3); ctx.roundRect(cx + bw * 0.7, cy - bh / 2, bw, bh, 3); ctx.fill();
   } else if (label) {
-    const fs = fitSize(ctx, label, r.w - 24, size, 800, 16);
+    const ink = primary ? '#3a2606' : '#fff8e0', ic = icon ? Math.min(r.h * 0.42, 30) : 0, gap = icon ? ic * 0.45 : 0;
+    const fs = fitSize(ctx, label, r.w - 24 - ic - gap, size, 800, 16);
     ctx.font = `800 ${fs}px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillStyle = primary ? '#3a2606' : '#fff8e0'; ctx.fillText(label, r.x + r.w / 2, r.y + r.h / 2 + 1);
+    const tw = ctx.measureText(label).width, x0 = r.x + r.w / 2 - (tw + ic + gap) / 2, cy = r.y + r.h / 2;
+    if (icon) drawIcon(ctx, icon, x0 + ic / 2, cy, ic, ink);
+    ctx.fillStyle = ink; ctx.fillText(label, x0 + ic + gap + tw / 2, cy + 1);
   }
+  ctx.restore();
+}
+
+// Small line icons for the menu buttons (drawn, no image files): play, watch (Auto Play), book (Rules), home (menu), retry.
+function drawIcon(ctx, kind, cx, cy, sz, ink) {
+  ctx.save(); ctx.translate(cx, cy); ctx.strokeStyle = ink; ctx.fillStyle = ink; ctx.lineWidth = Math.max(2.5, sz * 0.11); ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  const h = sz / 2;
+  if (kind === 'play') { ctx.beginPath(); ctx.moveTo(-h * 0.55, -h * 0.75); ctx.lineTo(h * 0.8, 0); ctx.lineTo(-h * 0.55, h * 0.75); ctx.closePath(); ctx.fill(); }
+  else if (kind === 'auto') { ctx.beginPath(); ctx.ellipse(0, 0, h, h * 0.6, 0, 0, TAU); ctx.stroke(); ctx.beginPath(); ctx.arc(0, 0, h * 0.3, 0, TAU); ctx.fill(); }
+  else if (kind === 'rules') { ctx.beginPath(); ctx.moveTo(0, -h * 0.6); ctx.quadraticCurveTo(-h * 0.5, -h * 0.85, -h, -h * 0.6); ctx.lineTo(-h, h * 0.75); ctx.quadraticCurveTo(-h * 0.5, h * 0.5, 0, h * 0.75); ctx.quadraticCurveTo(h * 0.5, h * 0.5, h, h * 0.75); ctx.lineTo(h, -h * 0.6); ctx.quadraticCurveTo(h * 0.5, -h * 0.85, 0, -h * 0.6); ctx.lineTo(0, h * 0.75); ctx.stroke(); }
+  else if (kind === 'home') { ctx.beginPath(); ctx.moveTo(-h, -h * 0.05); ctx.lineTo(0, -h * 0.9); ctx.lineTo(h, -h * 0.05); ctx.moveTo(-h * 0.7, -h * 0.3); ctx.lineTo(-h * 0.7, h * 0.8); ctx.lineTo(h * 0.7, h * 0.8); ctx.lineTo(h * 0.7, -h * 0.3); ctx.stroke(); }
+  else if (kind === 'retry') { ctx.beginPath(); ctx.arc(0, 0, h * 0.75, -Math.PI * 0.35, Math.PI * 1.45); ctx.stroke(); ctx.beginPath(); ctx.moveTo(h * 0.95, -h * 0.85); ctx.lineTo(h * 0.62, -h * 0.25); ctx.lineTo(h * 0.05, -h * 0.62); ctx.closePath(); ctx.fill(); }
+  ctx.restore();
+}
+
+// The title lettering: gilded, bevelled letters with a soft drop shadow (no image files).
+function goldTitle(ctx, str, x, y, maxW, size) {
+  const fs = fitSize(ctx, str, maxW, size, 900, 40);
+  ctx.save(); ctx.font = `900 ${fs}px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; ctx.lineJoin = 'round';
+  ctx.shadowColor = 'rgba(10,20,10,0.55)'; ctx.shadowBlur = fs * 0.18; ctx.shadowOffsetY = fs * 0.06;
+  ctx.lineWidth = fs * 0.14; ctx.strokeStyle = '#4a2a0c'; ctx.strokeText(str, x, y);
+  ctx.shadowColor = 'transparent';
+  ctx.fillStyle = '#7a4a14'; ctx.fillText(str, x, y + fs * 0.035);                 // the bevel's dark lower edge
+  const g = ctx.createLinearGradient(0, y - fs * 0.8, 0, y + fs * 0.05);
+  g.addColorStop(0, '#fffbe6'); g.addColorStop(0.35, '#ffe28a'); g.addColorStop(0.6, '#f2b53c'); g.addColorStop(1, '#b8741e');
+  ctx.fillStyle = g; ctx.fillText(str, x, y);
+  ctx.globalCompositeOperation = 'source-atop'; ctx.globalAlpha = 0.5; ctx.lineWidth = fs * 0.025; ctx.strokeStyle = '#fffbe6'; ctx.strokeText(str, x, y - fs * 0.02);
   ctx.restore();
 }
 
@@ -119,15 +149,15 @@ export function drawHud(ctx, s, L, { auto = false } = {}) {
 export function drawTitle(ctx, L, { level, name, best, dev, lockDown }) {
   const T = L.title, B = L.btn.title;
   const tmax = T.title.max || L.w - 40;
-  fitText(ctx, 'Perch', T.title.x, T.title.y, tmax, T.title.size, '#fff', 800, 40);
+  goldTitle(ctx, 'Perch', T.title.x, T.title.y, tmax, T.title.size);
   if (L.land) wrapText(ctx, 'Read the stone. Choose your moment.', T.tag.x, T.tag.y, T.tag.max, T.tag.size, T.tag.size + 8, '#fff8e0', 700);
   else fitText(ctx, 'Read the stone. Choose your moment.', T.tag.x, T.tag.y, T.tag.max, T.tag.size, '#fff8e0', 700);
   const cx = L.land ? T.title.x : L.w / 2, mx = L.land ? T.title.max : L.w - 60;
   if (level > 1 || dev) fitText(ctx, 'Level ' + level + ' · ' + name, cx, T.levelY, mx, 36, '#ffe27a', 800, 18);
   if (best > 0) fitText(ctx, 'Best ' + best, cx, T.statY, mx, 30, '#fff', 700, 18);
-  drawButton(ctx, B.play, level > 1 ? 'Play · Level ' + level : 'Play', { primary: true, size: 44 });
-  drawButton(ctx, B.auto, 'Auto Play', { size: 30 });
-  drawButton(ctx, B.rules, 'Rules', { size: 30 });
+  drawButton(ctx, B.play, level > 1 ? 'Play · Level ' + level : 'Play', { primary: true, size: 44, icon: 'play' });
+  drawButton(ctx, B.auto, 'Auto Play', { size: 30, icon: 'auto' });
+  drawButton(ctx, B.rules, 'Rules', { size: 30, icon: 'rules' });
   if (lockup && lockup.width) { ctx.save(); ctx.fillStyle = lockDown ? 'rgba(255,226,122,0.55)' : 'rgba(12,22,40,0.55)'; ctx.beginPath(); ctx.roundRect(T.lockup.x - 12, T.lockup.y - 6, T.lockup.w + 24, T.lockup.h + 12, (T.lockup.h + 12) / 2); ctx.fill(); ctx.globalAlpha = 1; ctx.drawImage(lockup, T.lockup.x, T.lockup.y, T.lockup.w, T.lockup.h); ctx.restore(); }
   if (dev) {
     drawButton(ctx, B.devPrev, '‹', { size: 36 }); drawButton(ctx, B.devNext, '›', { size: 36 });
@@ -141,8 +171,8 @@ export function drawPause(ctx, L) {
   const c = L.pauseCard; ctx.fillStyle = 'rgba(16,24,40,0.9)'; ctx.beginPath(); ctx.roundRect(c.x, c.y, c.w, c.h, 28); ctx.fill();
   ctx.strokeStyle = 'rgba(255,226,122,0.5)'; ctx.lineWidth = 3; ctx.stroke();
   drawText(ctx, 'Paused', L.pauseTitle.x, L.pauseTitle.y, 84, '#ffe27a');
-  drawButton(ctx, L.btn.pause.resume, 'Resume', { primary: true, size: 42 });
-  drawButton(ctx, L.btn.pause.menu, 'Main Menu', { size: 32 });
+  drawButton(ctx, L.btn.pause.resume, 'Resume', { primary: true, size: 42, icon: 'play' });
+  drawButton(ctx, L.btn.pause.menu, 'Main Menu', { size: 32, icon: 'home' });
 }
 
 // ---- result -----------------------------------------------------------------------------------------------------------------
@@ -151,7 +181,7 @@ export function drawResult(ctx, L, s, { won, lock, label, auto = false, starsN =
   ctx.fillStyle = won ? 'rgba(30,20,50,0.5)' : 'rgba(15,25,45,0.55)'; ctx.fillRect(0, 0, L.w, L.h);
   const lx = L.land ? R.cxL : R.cx, rx = L.land ? R.cxR : R.cx, mw = L.land ? R.colMax : Math.min(L.w - 60, 640);
   const star = (y) => { for (let i = 0; i < 3; i++) drawText(ctx, '★', lx + (i - 1) * 96, y, 84, i < starsN ? '#ffe27a' : 'rgba(255,255,255,0.3)'); };
-  fitText(ctx, won ? 'Sunset!' : 'Ruffled!', lx, k.title, mw, won ? 100 : 96, won ? '#ffd27a' : '#fff', 800, 40);
+  if (won) goldTitle(ctx, 'Sunset!', lx, k.title, mw, 100); else fitText(ctx, 'Ruffled!', lx, k.title, mw, 96, '#fff', 800, 40);
   if (auto) fitText(ctx, 'Auto Play · Level ' + s.level + ' · ' + s.name, lx, k.sub, mw, 30, '#fff8e0', 700, 16);
   else fitText(ctx, won ? 'Level ' + s.level + ' cleared' : 'Level ' + s.level + ' · ' + Math.round(s.t) + ' of ' + s.duration + ' s', lx, k.sub, mw, won ? 42 : 36, '#fff', 700, 18);
   if (won && !auto) star(k.stars);
@@ -159,8 +189,8 @@ export function drawResult(ctx, L, s, { won, lock, label, auto = false, starsN =
   const stats = won && !auto ? `${s.hits === 0 ? 'Not a feather ruffled' : s.hits + ' hit' + (s.hits > 1 ? 's' : '')} · ${s.closeCalls} close calls` : `${s.dodges} dodges · ${s.closeCalls} close calls`;
   fitText(ctx, stats, rx, k.stats, L.land ? R.colMax : mw, 30, '#fff', 700, 16);
   const again = won ? B.againW : B.again, menu = won ? B.menuW : B.menu;
-  drawButton(ctx, again, label, { primary: true, size: 40, disabled: lock > 0 });
-  drawButton(ctx, menu, auto ? 'Exit' : 'Main Menu', { size: 32 });
+  drawButton(ctx, again, label, { primary: true, size: 40, disabled: lock > 0, icon: won && !auto ? 'play' : 'retry' });
+  drawButton(ctx, menu, auto ? 'Exit' : 'Main Menu', { size: 32, icon: 'home' });
   if (!auto) drawMoreLine(ctx, rx, won ? R.moreWon : R.moreOver, 22);
 }
 

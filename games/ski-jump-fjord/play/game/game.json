@@ -4,7 +4,7 @@
   "tagline": "Fly the fjord, land the telemark",
   "genre": "timing sport",
   "orientation": "any",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "monetization": {
     "model": "premium",
     "priceUsd": 2.99,

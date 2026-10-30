@@ -135,6 +135,13 @@ export class Horse3D {
     for (const m of this.meshes) {
       const cls = m.userData.cls;
       paintCoat(m.geometry, cls, this.coat);
+      // 'high' quality: the sheen lobe is ADDED on top of the vertex-coloured diffuse. A white sheen turned black/bay coats grey-white at
+      // grazing angles and under a bright environment (icon renders). Real hair sheen carries the hair colour: tint it by the coat.
+      const mt = m.material;
+      if (mt && mt.isMeshPhysicalMaterial && mt.sheen > 0 && mt.sheenColor) {
+        const b = new THREE.Color(this.coat.body);
+        mt.sheenColor.copy(b).lerp(new THREE.Color('#ffffff'), 0.18);
+      }
     }
     if (this.hair) this.hair.setColors(this.coat);
     return this;
@@ -472,6 +479,9 @@ export async function loadHorse(spec = {}) {
     m.userData.cls = prims[0].name;
     const cls = prims[0].name;
     const gloss = cls === 'eye' || cls === 'eyewhite';
+    // SkeletonUtils.clone shares the BufferGeometry between every horse; setCoat writes the `color` attribute, so without a private copy
+    // the last coat painted wins for all horses (and disposing one horse freed the buffers of the others). A clone is ~0.3 MB per horse.
+    m.geometry = m.geometry.clone();
     m.material = (quality === 'high' ? new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: gloss ? 0.15 : 0.62, metalness: 0, sheen: gloss ? 0 : 0.55, sheenRoughness: 0.5, sheenColor: new THREE.Color('#ffffff'), clearcoat: gloss ? 1 : 0.14, clearcoatRoughness: gloss ? 0.03 : 0.45 })
       : new THREE.MeshStandardMaterial({ vertexColors: true, roughness: gloss ? 0.2 : 0.7, metalness: 0 }));
     m.castShadow = spec.castShadow !== false; m.receiveShadow = true;

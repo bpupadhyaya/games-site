@@ -1,6 +1,6 @@
 // Everything that is drawn each frame. Reads `state` (see game.js) and changes nothing.
 // All motion is a function of state.pulse (the fixed-step clock) and the start times in state.fx.
-import { V, POS, BOARD, FRAME, COLS, ROWS, HUD, MODE_SWITCH, HINT_BTN, COLOR_BTN, NEW_BTN, MENU_BTN, PAUSE_BTN, AUTO_EXIT_BTN, RESULT_CARD, SHIELD_BTN, RESULT_MENU_BTN, RESULT_MENU_BTN_WIDE, AGAIN_BTN, AGAIN_BTN_WIDE, PLAY_BTN, TITLE_COLOR_BTN, TITLE_RULES_BTN, TITLE_AUTO_BTN, HERO, RULES_PANEL, RULES_BACK_BTN, TEXT_DEC_BTN, TEXT_INC_BTN, SCROLLBAR, TEXT_SCALES, THINK_STEPS, SIBLINGS, host, chipRect, useLayout } from './layout.js';
+import { V, POS, BOARD, FRAME, COLS, ROWS, HUD, MODE_SWITCH, HINT_BTN, COLOR_BTN, NEW_BTN, MENU_BTN, PAUSE_BTN, AUTO_EXIT_BTN, RESULT_CARD, SHIELD_BTN, RESULT_MENU_BTN, RESULT_MENU_BTN_WIDE, AGAIN_BTN, AGAIN_BTN_WIDE, PLAY_BTN, TITLE_COLOR_BTN, TITLE_RULES_BTN, TITLE_AUTO_BTN, HERO, RULES_PANEL, RULES_BACK_BTN, TEXT_DEC_BTN, TEXT_INC_BTN, SCROLLBAR, TEXT_SCALES, THINK_STEPS, SIBLINGS, host, chipRect, useLayout, v3, flatAlpha } from './layout.js';
 import { drawLockup } from './brand.js';
 import { palette, alpha, THEMES } from './themes.js';
 import { RULES } from './content.js';
@@ -359,8 +359,9 @@ function glassPanel(ctx, r, radius = 28) {
   rr(ctx, r.x, r.y, r.w, r.h, radius);
   ctx.fillStyle = g;
   ctx.fill();
-  ctx.strokeStyle = 'rgba(255,255,255,0.2)';
-  ctx.lineWidth = 2;
+  // over the 3D desk the panels take the tray's brass edge, so HUD and board read as one set
+  ctx.strokeStyle = v3.on ? 'rgba(222,174,82,0.62)' : 'rgba(255,255,255,0.2)';
+  ctx.lineWidth = v3.on ? 2.5 : 2;
   ctx.stroke();
 }
 
@@ -391,7 +392,7 @@ function drawButton(ctx, r, label, o = {}) {
   rr(ctx, x, y, r.w, r.h - lip, radius);
   ctx.fillStyle = k.bottom;   // flat face
   ctx.fill();
-  ctx.strokeStyle = k.rim;
+  ctx.strokeStyle = v3.on && (!o.kind || o.kind === 'glass') ? 'rgba(222,174,82,0.55)' : k.rim;
   ctx.lineWidth = 2.5;
   ctx.stroke();
 
@@ -561,9 +562,9 @@ function drawLogo(ctx, pal, cx, y, size, t, intro, maxW = 640) {
 
 // The small solved-looking corner of a board on the title: it shows the whole idea of the game
 // (numbers, a sure mine being flagged, a sure safe tile) and never stops moving.
-const HERO_MINES = [3, 15, 20, 24];
-const HERO_HIDDEN = new Set([3, 4, 15, 20, 24]);
-const HERO_FLAGGED = new Set([3, 15, 24]);
+export const HERO_MINES = [3, 15, 20, 24];
+export const HERO_HIDDEN = new Set([3, 4, 15, 20, 24]);
+export const HERO_FLAGGED = new Set([3, 15, 24]);
 function heroNumber(i) {
   const n = HERO.n;
   let c = 0;
@@ -638,8 +639,15 @@ function drawTitle(ctx, state, pal, extra) {
   const fx = state.fx;
   const T = POS.title;
   const intro = 10; // the front door is complete on the very first frame; idle motion carries it
-  drawCompass(ctx, pal, T.compass.x, T.compass.y, T.compass.r, t);
-  drawBuoyMine(ctx, pal, T.buoy.x, T.buoy.y, t);
+  const fa = flatAlpha(); // with the 3D scene on, the compass, the buoy mine and the hero board are real objects behind this layer
+  if (fa > 0) {
+    ctx.save();
+    ctx.globalAlpha = fa;
+    drawCompass(ctx, pal, T.compass.x, T.compass.y, T.compass.r, t);
+    drawBuoyMine(ctx, pal, T.buoy.x, T.buoy.y, t);
+    drawHero(ctx, pal, t, intro);
+    ctx.restore();
+  }
   drawLogo(ctx, pal, T.logo.x, T.logo.y, T.logo.size, t, intro, T.logo.maxW ?? 640);
   const a = clamp01((intro - 0.3) / 0.4);
   ctx.save();
@@ -647,8 +655,6 @@ function drawTitle(ctx, state, pal, extra) {
   text(ctx, 'No-guess minesweeper', T.tag1.x, T.tag1.y, T.tag1.size, pal.ink, 600);
   text(ctx, 'Every board solves by logic alone.', T.tag2.x, T.tag2.y, T.tag2.size, pal.inkSoft, 500);
   ctx.restore();
-
-  drawHero(ctx, pal, t, intro);
 
   const b = easeOut(clamp01((intro - 0.45) / 0.45));
   ctx.save();
@@ -675,7 +681,7 @@ function drawTitle(ctx, state, pal, extra) {
 function drawDemoLimit(ctx, state, pal) {
   const t = state.pulse;
   const T = POS.title;
-  drawCompass(ctx, pal, T.compass.x, T.compass.y, T.compass.r, t);
+  if (!v3.on) drawCompass(ctx, pal, T.compass.x, T.compass.y, T.compass.r, t);
   const cw = Math.min(640, V.w - 80);
   const card = { x: (V.w - cw) / 2, y: Math.min(T.logo.y + 130, V.h - 380), w: cw, h: 360 };
   drawLogo(ctx, pal, V.w / 2, T.logo.y, T.logo.size, t, 10, cw);
@@ -767,6 +773,16 @@ function drawHud(ctx, state, pal, extra, rect = HUD, mode = POS.hudMode) {
 }
 
 function drawBoard(ctx, state, pal) {
+  // The 3D tray (view3d/presenter.js) draws the board, its rings and the blast while it is on; the flat board only crossfades out.
+  const fa = flatAlpha();
+  if (fa <= 0) return;
+  ctx.save();
+  ctx.globalAlpha = fa;
+  drawFlatBoard(ctx, state, pal);
+  ctx.restore();
+}
+
+function drawFlatBoard(ctx, state, pal) {
   const t = state.pulse;
   const fx = state.fx;
   const lost = state.scene === 'lost';
@@ -1500,7 +1516,13 @@ function drawRulesPage(ctx, state, pal) {
 export function draw(ctx, state, extra) {
   useLayout(extra.w, extra.h);
   const pal = palette(state.theme);
-  drawBackground(ctx, pal, state.pulse);
+  const fa = flatAlpha();
+  if (fa > 0) {
+    ctx.save();
+    ctx.globalAlpha = fa;
+    drawBackground(ctx, pal, state.pulse);
+    ctx.restore();
+  }
   if (state.scene === 'title') drawTitle(ctx, state, pal, extra);
   else if (state.scene === 'demo-limit') drawDemoLimit(ctx, state, pal);
   else if (state.scene === 'rules') drawRulesPage(ctx, state, pal);

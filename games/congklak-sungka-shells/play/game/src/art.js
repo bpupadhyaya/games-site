@@ -44,6 +44,7 @@ function paintGround(ctx, W, H) {
   const sun = ctx.createRadialGradient(120, 160, 30, 200, 300, 1100); sun.addColorStop(0, 'rgba(255,200,110,0.42)'); sun.addColorStop(0.5, 'rgba(255,170,80,0.10)'); sun.addColorStop(1, 'rgba(255,170,80,0)');
   ctx.fillStyle = sun; ctx.fillRect(0, 0, W, H);
   const sh = ctx.createLinearGradient(0, H * 0.5, W, H); sh.addColorStop(0, 'rgba(8,6,20,0)'); sh.addColorStop(1, 'rgba(8,6,20,0.5)'); ctx.fillStyle = sh; ctx.fillRect(0, 0, W, H);
+  const vg = ctx.createRadialGradient(W / 2, H * 0.48, Math.min(W, H) * 0.35, W / 2, H * 0.48, Math.hypot(W, H) * 0.62); vg.addColorStop(0, 'rgba(6,4,16,0)'); vg.addColorStop(1, 'rgba(6,4,16,0.55)'); ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
   // parang-style diagonal bands top and bottom
   const bT = W > H ? 44 : 92, bB = W > H ? 30 : 54;
   for (const [y, h] of [[0, bT], [H - bB, bB]]) {
@@ -87,6 +88,10 @@ export function carve(ctx, path, x, y, w, h, k) {      // a concave carved hollo
   cg.addColorStop(0, `rgba(130,80,38,${0.6 * k})`); cg.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = cg; ctx.fillRect(x, y, w, h);
   ctx.strokeStyle = 'rgba(20,8,2,0.28)'; ctx.lineWidth = 1.2;
   for (let n = 0; n < 5; n++) { ctx.beginPath(); ctx.ellipse(x + w / 2 + 3, y + h / 2 + 3, Math.max(4, w / 2 - 6 - n * 5), Math.max(4, h / 2 - 6 - n * 5), 0, 0, TAU); ctx.stroke(); }
+  // inner shadow: the upper-left lip throws a soft shade into the hollow, so each house reads as a deep carved bowl
+  // (the stroke is drawn far off-screen and only its shadow, offset back into the clip, lands on the hollow)
+  { const m = Math.min(w, h), far = 4000, kk = (ctx.getTransform?.()?.a) || 1; ctx.save(); ctx.translate(far, 0); path(ctx); ctx.shadowColor = 'rgba(8,2,0,0.75)'; ctx.shadowBlur = m * 0.2 * kk; ctx.shadowOffsetX = (-far + m * 0.07) * kk; ctx.shadowOffsetY = m * 0.09 * kk;
+    ctx.lineWidth = m * 0.2; ctx.strokeStyle = '#000'; ctx.stroke(); ctx.restore(); }
   ctx.restore();
   ctx.save(); path(ctx); ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(10,3,0,0.6)'; ctx.stroke(); ctx.restore();
 }
@@ -162,6 +167,14 @@ function paintBoard(ctx, wood) {
   ctx.strokeStyle = 'rgba(30,12,4,0.5)'; ctx.lineWidth = 2.4; ctx.beginPath(); ctx.moveTo(360, cy0); ctx.lineTo(360, cy1); ctx.stroke();
   ctx.strokeStyle = 'rgba(255,214,150,0.35)'; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(362, cy0); ctx.lineTo(362, cy1); ctx.stroke();
   for (let i = 0; i < 7; i++) { const y = posXY(i).y - PITCH_HALF; drop(ctx, 360, y + 0); }
+  // oiled-teak sheen: a soft diagonal band of light across the rim and the playing surface, plus a darker lower-right falloff
+  ctx.save(); hullPath(ctx); ctx.clip();
+  const sh = ctx.createLinearGradient(HULL.cx - HULL.A, T + 120, HULL.cx + 40, T + 520);
+  sh.addColorStop(0, 'rgba(255,236,190,0)'); sh.addColorStop(0.45, 'rgba(255,236,190,0.13)'); sh.addColorStop(0.6, 'rgba(255,246,215,0.07)'); sh.addColorStop(1, 'rgba(255,236,190,0)');
+  ctx.fillStyle = sh; ctx.fillRect(0, T, W, B - T);
+  const dk = ctx.createLinearGradient(HULL.cx - 100, T, HULL.cx + HULL.A, B); dk.addColorStop(0.45, 'rgba(10,3,0,0)'); dk.addColorStop(1, 'rgba(10,3,0,0.30)');
+  ctx.fillStyle = dk; ctx.fillRect(0, T, W, B - T);
+  ctx.restore();
 }
 const PITCH_HALF = 44;
 function drop(ctx, x, y) {

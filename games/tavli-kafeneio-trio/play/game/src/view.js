@@ -1,6 +1,7 @@
 // Everything drawn per frame. Reads `state` (see game.js) and changes nothing. The heavy art (table, board, checkers, dice faces)
 // lives in cached sprites (art.js, sprites.js), so a frame is only a few dozen drawImage calls.
-import { L, host, D, R, IN, CH, MID, PLEN, SLOT, TRAY, pointGeom, stackB, stackPos, barPos, offPos, trayCenter, toScreen, applyBoard, boardRect, TEXT_SCALES, THINK_STEPS } from './layout.js';
+import { L, host, D, R, IN, CH, MID, PLEN, SLOT, TRAY, pointGeom, stackB, stackPos, barPos, barB, offB, offPos, trayCenter, toScreen, toBoard, applyBoard, boardRect, TEXT_SCALES, THINK_STEPS } from './layout.js';
+import { v3 } from './v3.js';
 import { BAR, OFF, PORTES, PLAKOTO, FEVGA, VARIANTS, pips, top, height, idxAt, distAt } from './rules.js';
 import { drawStatic, rr, lin, meander } from './art.js';
 import { drawChecker, drawChip, drawDie, drawLock, SET_NAMES } from './sprites.js';
@@ -23,8 +24,9 @@ let MINF = 11;                                          // smallest text, in vir
 export function render(ctx, st) {
   const c = ctx, sc = st.scene, t = st.t, calm = st.calm;
   MINF = Math.min(19, Math.max(11, 11 / Math.max(0.2, host.px || 0.6)));
-  drawStatic(c);
-  if (!calm) { c.fillStyle = `rgba(255,200,120,${0.025 + 0.012 * Math.sin(t * 1.7) + 0.008 * Math.sin(t * 5.3)})`; c.fillRect(0, 0, L.w, Math.min(520, L.h)); }
+  v3.rec = null; v3.tray = null; v3.hero = null;
+  if (!v3.on) drawStatic(c);
+  if (!calm && !v3.on) { c.fillStyle = `rgba(255,200,120,${0.025 + 0.012 * Math.sin(t * 1.7) + 0.008 * Math.sin(t * 5.3)})`; c.fillRect(0, 0, L.w, Math.min(520, L.h)); }
 
   const text = (s, x, y, size, color = '#f6ecd0', font = UI, weight = 700, align = 'center', shadow = false) => {
     size = Math.max(size, MINF);
@@ -90,7 +92,7 @@ export function render(ctx, st) {
 
 const scaleOf = (st) => TEXT_SCALES[clampI(st.textScaleIdx ?? 0, 0, TEXT_SCALES.length - 1)];
 // the veil over the table on menu screens; on a tall portrait screen the wall (and the game title on it) stays clear above it
-function veil(c, a, outer) { const y0 = outer ? Math.min(L.wall.h, L.h * 0.25) : 0; c.fillStyle = `rgba(8,22,42,${a})`; c.fillRect(0, y0, L.w, L.h - y0); }
+function veil(c, a, outer) { if (v3.on) a *= 0.8; const y0 = outer ? Math.min(L.wall.h, L.h * 0.25) : 0; c.fillStyle = `rgba(8,22,42,${a})`; c.fillRect(0, y0, L.w, L.h - y0); }
 function outerTitle(c, U, P, size = 96) { U.text('Tavli', L.w / 2, P.y - 100, size, '#f8efd2', FONT, 700, 'center', true); U.text('Τάβλι', L.w / 2, P.y - 52, 32, '#e8c56a', GREEK, 700); }
 
 // ---- title ------------------------------------------------------------------------------------------------------------------
@@ -109,13 +111,14 @@ function miniGame(c, st, kind, r) {
 }
 function drawTitle(c, st, U) {
   const S = scaleOf(st), calm = st.calm, T = L.titleFor(!!st.saved);
-  veil(c, 0.84, !T.wide && L.h >= 1300);
-  const g = c.createRadialGradient(T.cx, T.titleY - 20, 20, T.cx, T.titleY + 60, 520); g.addColorStop(0, 'rgba(255,214,140,0.22)'); g.addColorStop(1, 'rgba(255,214,140,0)'); c.fillStyle = g; c.fillRect(0, 0, L.w, Math.min(L.h, 700));
+  if (!v3.on) veil(c, 0.84, !T.wide && L.h >= 1300);
+  if (v3.on) titleScene3d(c, st, T);
+  else { const g = c.createRadialGradient(T.cx, T.titleY - 20, 20, T.cx, T.titleY + 60, 520); g.addColorStop(0, 'rgba(255,214,140,0.22)'); g.addColorStop(1, 'rgba(255,214,140,0)'); c.fillStyle = g; c.fillRect(0, 0, L.w, Math.min(L.h, 700)); }
   U.text('Tavli', T.cx + 2, T.titleY + 4, T.titleSize, 'rgba(0,0,0,0.55)', FONT, 700);
   U.text('Tavli', T.cx, T.titleY, T.titleSize, '#f8efd2', FONT, 700);
   U.text('Τάβλι', T.cx, T.greekY, T.greekSize, '#e8c56a', GREEK, 700);
   meander(c, T.meander.x, T.meander.y, T.meander.w, T.meander.h, { color: '#e8c56a', width: 1.5, shadow: false });
-  T.tiles.forEach((r, i) => {
+  if (!v3.on) T.tiles.forEach((r, i) => {
     const bob = calm ? 0 : Math.sin(st.t * 1.4 + i * 1.7) * 3, rr_ = { x: r.x, y: r.y + bob, w: r.w, h: r.h };
     const sc = miniGame(c, st, i, rr_);
     U.text(GREEK_NAMES[i], r.x + r.w / 2, rr_.y + 120 * sc, 30 * Math.max(sc, 0.8), '#f8efd2', GREEK, 700);
@@ -136,6 +139,13 @@ function drawTitle(c, st, U) {
 }
 
 // ---- setup ------------------------------------------------------------------------------------------------------------------
+// 3D title: the live scene fills T.hero; soft navy scrims keep the title, the tagline and the menu rows readable over it
+function titleScene3d(c, st, T) {
+  v3.hero = T.hero;
+  const g = c.createLinearGradient(0, 0, 0, T.hero.y + 40); g.addColorStop(0, 'rgba(6,18,38,0.78)'); g.addColorStop(1, 'rgba(6,18,38,0)'); c.fillStyle = g; c.fillRect(0, 0, L.w, T.hero.y + 40);
+  if (T.wide) { const g2 = c.createLinearGradient(L.w * 0.5, 0, L.w, 0); g2.addColorStop(0, 'rgba(6,18,38,0)'); g2.addColorStop(0.5, 'rgba(6,18,38,0.82)'); g2.addColorStop(1, 'rgba(6,18,38,0.9)'); c.fillStyle = g2; c.fillRect(L.w * 0.5, 0, L.w * 0.5, L.h); }
+  else { const y0 = T.tag.y - 110, g3 = c.createLinearGradient(0, y0, 0, y0 + 150); g3.addColorStop(0, 'rgba(6,18,38,0)'); g3.addColorStop(1, 'rgba(6,18,38,0.8)'); c.fillStyle = g3; c.fillRect(0, y0, L.w, 150); c.fillStyle = 'rgba(6,18,38,0.8)'; c.fillRect(0, y0 + 150, L.w, L.h - y0 - 150); }
+}
 function drawSetup(c, st, U) {
   const S = Math.min(scaleOf(st), 1.35), su = st.setup, SU = L.setup, P = SU.panel, k2 = SU.modeScale;
   veil(c, 0.84, SU.outer);
@@ -291,12 +301,12 @@ function trayText(c, str, bx, by, size, color, weight = 700, align = 'center', s
 }
 function homeBars(c, st) {
   const v = st.g.v;
-  c.save(); applyBoard(c);
+  if (!v3.on) { c.save(); applyBoard(c);
   const bar = (x, y0, y1, col) => { c.fillStyle = col; rrect(c, x, y0, 5, y1 - y0, 2.5); c.fill(); c.strokeStyle = 'rgba(0,0,0,0.5)'; c.lineWidth = 1; c.stroke(); };
   bar(CH.x0 - 9, IN.y0 + 6 * SLOT + 6, IN.y1 - 6, '#f4ecd2');                       // your home: points 1-6 (left column, bottom)
   if (v === FEVGA) bar(CH.x1 + 4, IN.y0 + 6, IN.y0 + 6 * SLOT - 6, '#3a2d22');        // the rival's home: points 13-18
   else bar(CH.x1 + 4, IN.y0 + 6 * SLOT + 6, IN.y1 - 6, '#3a2d22');                  // points 19-24
-  c.restore();
+  c.restore(); }
   if (v === FEVGA) {
     c.font = `800 ${Math.max(11, MINF * 0.8)}px ${UI}`; c.textAlign = 'center'; c.fillStyle = 'rgba(255,240,200,0.8)';
     for (const i of [23, 11]) { const gm = pointGeom(i), p = toScreen(gm.edge + gm.dir * (PLEN + 15), gm.y + (L.rot ? 0 : 17)); c.fillText('HEAD', p.x, p.y + (L.rot ? 5 : 0)); }
@@ -304,12 +314,18 @@ function homeBars(c, st) {
 }
 
 function drawBoardScene(c, st, U) {
-  const g = st.g, set = st.set, sc = st.scene, t = st.t, calm = st.calm, a = st.anim, v = g.v, sS = L.s, Hd = L.hdr;
+  const g = st.g, set = st.set, sc = st.scene, t = st.t, calm = st.calm, a = st.anim, v = g.v, Hd = L.hdr;
   const pulse = calm ? 0.5 : 0.5 + 0.5 * Math.sin(t * 5);
   const S = Math.min(scaleOf(st), 1.5);
   const twoUp = st.two || st.autoMode;
-
-  // ---- header --------------------------------------------------------------------------------------------------------------
+  const R3 = v3.on ? (v3.rec = { set, pieces: [], dests: [], rings: [], moves: [], mover: null, hitMover: null, drag: null, calm, trayGlow: 0, hint: [] }) : null;
+  const pB = (q) => toBoard(q.x, q.y);                                  // a screen point of the flat layer as a point of the board (3D)
+  const sS = v3.on ? projScale() : L.s;
+  // ---- header
+  if (R3) {                                                           // 3D: the title, pips and match line sit on a dark plaque over the table
+    if (Hd.mode === 'stack') { const y0 = L.st + 4, y1 = Hd.banner.y - 8; const gp = c.createLinearGradient(0, y0, 0, y1); gp.addColorStop(0, 'rgba(6,20,42,0.92)'); gp.addColorStop(1, 'rgba(8,28,58,0.86)'); c.fillStyle = gp; rrect(c, L.ux0, y0, L.ux1 - L.ux0, y1 - y0, 20); c.fill(); c.strokeStyle = 'rgba(240,214,140,0.7)'; c.lineWidth = 2; c.stroke(); }
+    else { const gp = c.createLinearGradient(0, 0, 0, L.h); gp.addColorStop(0, 'rgba(6,20,42,0.94)'); gp.addColorStop(1, 'rgba(8,28,58,0.9)'); c.fillStyle = gp; c.fillRect(0, 0, L.wall.w, L.h); c.fillStyle = 'rgba(240,214,140,0.7)'; c.fillRect(L.wall.w - 2, 0, 2, L.h); }
+  }
   U.text(VARIANTS[v].name, Hd.titleX, Hd.titleY, Hd.titleSize, '#f8efd2', FONT, 700, 'center', true);
   U.text(GREEK_NAMES[v], Hd.titleX, Hd.greekY, Hd.greekSize, '#e8c56a', GREEK, 700);
   if (Hd.mode === 'stack') {
@@ -348,6 +364,7 @@ function drawBoardScene(c, st, U) {
   for (let s = 0; s < 2; s++) {
     let n = g.off[s]; if (a && a.hide && a.hide.kind === 'off' && a.hide.side === s && !a.done) n -= 1;
     for (let k = 0; k < n; k++) {
+      if (R3) { const b = offB(s, k); R3.pieces.push({ x: b.x, y: b.y, s, off: true, key: 900 + s * 20 + k }); continue; }
       const p = offPos(s, k);
       c.save(); c.translate(p.x, p.y); if (L.rot) c.rotate(-Math.PI / 2); c.scale(Math.max(sS, 0.5), Math.max(sS, 0.5)); drawChip(c, set, s, 0, 0); c.restore();
     }
@@ -355,16 +372,18 @@ function drawBoardScene(c, st, U) {
     if (!g.off[s] && !(s === 0 && bearOff)) trayText(c, twoUp ? `${s ? 'Dark' : 'Light'} bear-off tray` : s === 0 ? 'Your bear-off tray' : 'Rival’s bear-off tray', T.x + T.w / 2, cyT + 6, 17, 'rgba(255,235,190,0.34)');
     if (g.off[s] && g.off[s] < 10) trayText(c, `${g.off[s]} off`, T.x + T.w - 14, cyT + 8, 22, 'rgba(255,240,200,0.92)', 700, 'right', true);
   }
+  if (bearOff && R3) R3.trayGlow = 0.35 + pulse * 0.65;
   if (bearOff) {
-    const T = TRAY.me; c.save(); applyBoard(c);
+    const T = TRAY.me; if (!R3) { c.save(); applyBoard(c);
     c.fillStyle = `rgba(255,222,120,${0.16 + pulse * 0.2})`; rrect(c, T.x - 4, T.y - 4, T.w + 8, T.h + 8, 12); c.fill();
-    c.strokeStyle = `rgba(255,232,140,${0.6 + pulse * 0.4})`; c.lineWidth = 2.5 / Math.max(sS, 0.6); c.stroke(); c.restore();
+    c.strokeStyle = `rgba(255,232,140,${0.6 + pulse * 0.4})`; c.lineWidth = 2.5 / Math.max(sS, 0.6); c.stroke(); c.restore(); }
     if (g.off[0] < 12) trayText(c, 'BEAR OFF HERE', T.x + T.w / 2, T.y + T.h / 2 + 8, 22, 'rgba(255,244,210,0.95)', 800, 'center', true);
   }
   homeBars(c, st);
 
   // ---- highlights on the points -----------------------------------------------------------------------------------------------
-  if (st.dests.some((d) => d.to < 24)) {
+  if (R3) for (const d of st.dests) { if (d.to < 24) R3.dests.push(d.to); }
+  else if (st.dests.some((d) => d.to < 24)) {
     c.save(); applyBoard(c);
     for (const d of st.dests) if (d.to < 24) {
       const gm = pointGeom(d.to), y0 = gm.y - SLOT / 2 + 3, y1 = gm.y + SLOT / 2 - 3, tx = gm.edge + gm.dir * PLEN;
@@ -381,13 +400,19 @@ function drawBoardScene(c, st, U) {
   const drawStack = (idx) => {
     const val = g.board[idx]; if (!val) return;
     const side = val > 0 ? 0 : 1, nTop = Math.abs(val), pinS = g.pin[idx], H_ = nTop + (pinS ? 1 : 0), base = pinS ? 1 : 0;
-    if (pinS) { const p0 = stackPos(idx, 0, H_, true); drawChecker(c, set, pinS - 1, p0.x, p0.y, sS); }
+    if (pinS) { if (R3) { const b0 = stackB(idx, 0, H_, true); R3.pieces.push({ x: b0.x, y: b0.y, s: pinS - 1, lvl: 0, key: idx * 20 }); } else { const p0 = stackPos(idx, 0, H_, true); drawChecker(c, set, pinS - 1, p0.x, p0.y, sS); } }
     for (let k = 0; k < nTop; k++) {
       const kk = k + base;
       if (k === nTop - 1 && a && !a.done && a.hide && a.hide.kind === 'pt' && a.hide.idx === idx && a.hide.side === side) continue;
       if (dragFrom === idx && k === nTop - 1) continue;
       const p = stackPos(idx, kk, H_, !!pinS), topC = k === nTop - 1;
       const lift = topC && st.sel === idx ? 12 * sS : 0;
+      if (R3) {
+        const b = stackB(idx, kk, H_, !!pinS);
+        R3.pieces.push({ x: b.x, y: b.y, s: side, lvl: pinS || H_ > 3 ? kk : 0, dir: pointGeom(idx).dir, lift: topC && st.sel === idx ? 12 : 0, key: idx * 20 + kk, sel: topC && st.sel === idx, src: topC && sources.has(idx) && st.sel !== idx && !calm && !st.drag?.on });
+        if (topC && H_ > 5) badge(c, p.x, p.y, H_, sS);
+        continue;
+      }
       drawChecker(c, set, side, p.x, p.y, sS, lift);
       if (topC && H_ > 5) badge(c, p.x, p.y, H_, sS);
       if (topC && sources.has(idx) && st.sel !== idx && !calm && !st.drag?.on) { c.strokeStyle = `rgba(255,232,140,${0.25 + pulse * 0.5})`; c.lineWidth = lw; c.beginPath(); c.arc(p.x, p.y, rR + 3, 0, TAU); c.stroke(); }
@@ -396,12 +421,13 @@ function drawBoardScene(c, st, U) {
     if (pinS) { const b0 = stackB(idx, 0, H_, true), g0 = pointGeom(idx), lp = toScreen(b0.x - g0.dir * 18, b0.y + 22); drawLock(c, lp.x, lp.y, 0.9 * sS); }
   };
   for (let i = 0; i < 24; i++) drawStack(i);
-  if (a && !a.done && a.ghost && a.t < a.dur) drawChecker(c, set, a.ghost.side, a.ghost.pos.x, a.ghost.pos.y, sS);
+  if (a && !a.done && a.ghost && a.t < a.dur) { if (R3) { const b = pB(a.ghost.pos); R3.pieces.push({ x: b.x, y: b.y, s: a.ghost.side, lvl: 0, key: 880 }); } else drawChecker(c, set, a.ghost.side, a.ghost.pos.x, a.ghost.pos.y, sS); }
   for (let s = 0; s < 2; s++) {
     const n = g.bar[s], hideOne = a && !a.done && a.hit && a.hit.side === s ? 1 : 0;
     for (let k = 0; k < n - hideOne; k++) {
       if (st.drag?.on && dragFrom === BAR && s === 0 && k === n - 1) continue;
       const p = barPos(s, k, n), topC = k === n - 1;
+      if (R3) { const b = barB(s, k, n); R3.pieces.push({ x: b.x, y: b.y, s, lvl: 0, lift: topC && st.sel === BAR && s === 0 ? 12 : 0, key: 600 + s * 20 + k, sel: topC && st.sel === BAR && s === 0, src: topC && s === 0 && sources.has(BAR) && st.sel !== BAR }); if (topC && n > 5) badge(c, p.x, p.y, n, sS); continue; }
       drawChecker(c, set, s, p.x, p.y, sS, topC && st.sel === BAR && s === 0 ? 12 * sS : 0);
       if (topC && n > 5) badge(c, p.x, p.y, n, sS);
       if (topC && s === 0 && sources.has(BAR)) { c.strokeStyle = `rgba(255,232,140,${0.4 + pulse * 0.5})`; c.lineWidth = lw * 1.2; c.beginPath(); c.arc(p.x, p.y - (st.sel === BAR ? 12 * sS : 0), rR + 3, 0, TAU); c.stroke(); }
@@ -410,14 +436,16 @@ function drawBoardScene(c, st, U) {
   if (v === PORTES && g.bar[0] + g.bar[1] > 0) { const p = toScreen(CH.cx, MID + 4); U.text('BAR', p.x, p.y + (L.rot ? 5 : 0), 15 * Math.max(sS, 0.85), 'rgba(240,214,140,0.75)', UI, 800); }
   // landing markers: where the checker would sit, and HIT / PIN tags
   for (const d of st.dests) if (d.to < 24) {
-    const p = landSlot(g, 0, d.to);
-    c.strokeStyle = `rgba(255,240,170,${0.6 + pulse * 0.4})`; c.lineWidth = lw * 1.2; c.setLineDash([7, 6]); c.beginPath(); c.arc(p.x, p.y, rR - 2, 0, TAU); c.stroke(); c.setLineDash([]);
+    const p = landSlot(g, 0, d.to), dd0 = (st.legal || []).find((x) => x.from === d.from && x.to === d.to);
+    if (R3) { const b = pB(p); R3.rings.push({ kind: 'land', x: b.x, y: b.y, hit: !!(dd0 && dd0.hit) }); }
+    else { c.strokeStyle = `rgba(255,240,170,${0.6 + pulse * 0.4})`; c.lineWidth = lw * 1.2; c.setLineDash([7, 6]); c.beginPath(); c.arc(p.x, p.y, rR - 2, 0, TAU); c.stroke(); c.setLineDash([]); }
     const dd = (st.legal || []).find((x) => x.from === d.from && x.to === d.to);
     const tz = Math.max(15 * Math.max(sS, 0.8), MINF);
     if (dd && dd.hit) { c.fillStyle = 'rgba(255,100,70,0.95)'; c.font = `800 ${tz}px ${UI}`; c.textAlign = 'center'; c.fillText('HIT', p.x, p.y + tz * 0.33); }
     if (dd && dd.pin) { c.fillStyle = 'rgba(255,214,110,0.98)'; c.font = `800 ${tz}px ${UI}`; c.textAlign = 'center'; c.fillText('PIN', p.x, p.y + tz * 0.33); }
   }
   const ring = (f, to, col = '#7dffb0') => {
+    if (R3) { R3.moves.push({ from: pB(f), to: pB(to) }); return; }
     c.strokeStyle = col; c.lineWidth = lw * 1.6; c.beginPath(); c.arc(f.x, f.y, rR + 5, 0, TAU); c.stroke();
     c.setLineDash([10, 8]); c.beginPath(); c.moveTo(f.x, f.y); c.lineTo(to.x, to.y); c.stroke(); c.setLineDash([]);
     c.fillStyle = `rgba(125,255,176,${0.25 + pulse * 0.3})`; c.beginPath(); c.arc(to.x, to.y, rR + 4, 0, TAU); c.fill(); c.strokeStyle = col; c.beginPath(); c.arc(to.x, to.y, rR + 4, 0, TAU); c.stroke();
@@ -425,9 +453,10 @@ function drawBoardScene(c, st, U) {
   // Auto Play's REVEAL: every step of the move about to be played
   if (st.autoReveal) { const { side, steps } = st.autoReveal; for (const h of steps) ring(topSlot(g, side, h.from), landSlot(g, side, h.to)); }
   if (st.hint) { const h = st.hint; ring(topSlot(g, 0, h.from), landSlot(g, 0, h.to)); }
-  if (st.drag && st.drag.on) drawChecker(c, set, 0, st.drag.x, st.drag.y, 1.14 * sS, 16 * sS);
-  if (a && !a.done) drawMover(c, st, a, set);
-  if (st.cursorOn && st.cursor != null) { const p = cursorPos(st.cursor, g); c.strokeStyle = '#7de0ff'; c.lineWidth = lw * 1.4; c.setLineDash([6, 5]); c.beginPath(); c.arc(p.x, p.y, rR + 8, 0, TAU); c.stroke(); c.setLineDash([]); }
+  if (st.drag && st.drag.on) { if (R3) R3.drag = pB(st.drag); else drawChecker(c, set, 0, st.drag.x, st.drag.y, 1.14 * sS, 16 * sS); }
+  if (a && !a.done) drawMover(c, st, a, set, R3, pB);
+  if (st.cursorOn && st.cursor != null && R3) { const p = cursorPos(st.cursor, g), b = pB(p); R3.rings.push({ kind: 'cursor', x: b.x, y: b.y }); }
+  else if (st.cursorOn && st.cursor != null) { const p = cursorPos(st.cursor, g); c.strokeStyle = '#7de0ff'; c.lineWidth = lw * 1.4; c.setLineDash([6, 5]); c.beginPath(); c.arc(p.x, p.y, rR + 8, 0, TAU); c.stroke(); c.setLineDash([]); }
   drawFx(c, st);
 
   // ---- dice and buttons ---------------------------------------------------------------------------------------------------------
@@ -471,6 +500,8 @@ function landSlot(g, side, to) {
 }
 export { topSlot, landSlot };
 
+// screen pixels (virtual units) per board unit at the middle of the board, relative to one: the flat art's `L.s` when the board is projected
+function projScale() { const a = toScreen(360, MID), b = toScreen(360 + 100, MID), c2 = toScreen(360, MID + 100); return Math.max(0.3, (Math.hypot(b.x - a.x, b.y - a.y) + Math.hypot(c2.x - a.x, c2.y - a.y)) / 200); }
 function badge(c, x, y, n, sS = 1) {
   const r = 15 * Math.max(sS, 0.8);
   c.fillStyle = 'rgba(8,22,44,0.88)'; c.beginPath(); c.arc(x, y, r, 0, TAU); c.fill(); c.strokeStyle = '#e6c56a'; c.lineWidth = 1.5; c.stroke();
@@ -483,8 +514,19 @@ function cursorPos(cu, g) {
   return topSlot(g, 0, cu);
 }
 
-function drawMover(c, st, a, set) {
-  const sS = L.s, rR = R * sS;
+function drawMover(c, st, a, set, R3, pB) {
+  const sS = R3 ? projScale() : L.s, rR = R * sS;
+  if (R3) {                                                           // 3D: positions in board space, lift in flat-art units; the presenter draws the hop
+    if (a.t < a.dur) {
+      const f = Math.min(1, a.t / a.dur), e = a.kind === 'refuse' ? refuseCurve(f, a) : ease(f), A = pB(a.from), B = pB(a.to);
+      const shake = a.kind === 'refuse' && !st.calm && f > 0.36 && f < 0.64 ? Math.sin(f * 90) * 5 : 0;
+      R3.mover = { x: A.x + (B.x - A.x) * e + shake, y: A.y + (B.y - A.y) * e, s: a.side, lift: Math.sin(Math.PI * Math.min(1, f)) * (a.kind === 'refuse' ? 14 : 30) + 8, key: 700, f, kind: a.kind, hit: !!(a.hit || a.pin), fx: a.kind === 'move' && (a.hit || a.pin) && f > 0.86 ? (f - 0.86) * 7 : 0 };
+    } else if (a.hit) {
+      const f = Math.min(1, (a.t - a.dur) / a.hitDur), e = ease(f), h = a.hit, A = pB(h.from), B = pB(h.to);
+      R3.hitMover = { x: A.x + (B.x - A.x) * e, y: A.y + (B.y - A.y) * e, s: h.side, lift: Math.sin(Math.PI * f) * 44 + 4, key: 701, f };
+    }
+    return;
+  }
   if (a.t < a.dur) {
     const f = Math.min(1, a.t / a.dur), e = a.kind === 'refuse' ? refuseCurve(f, a) : ease(f);
     const shake = a.kind === 'refuse' && !st.calm && f > 0.36 && f < 0.64 ? Math.sin(f * 90) * 5 : 0;
@@ -516,9 +558,10 @@ function drawFx(c, st) {
 
 // ---- dice -------------------------------------------------------------------------------------------------------------------------
 function drawDice(c, st, U, pulse) {
-  const d = st.dice, Dc = L.dice, REST = Dc.rest;
+  const d = st.dice, Dc = L.dice, REST = Dc.rest, D3 = v3.on;
+  if (D3) v3.tray = { rect: { x: Dc.x - 10, y: Dc.y - 10, w: Dc.w + 20, h: Dc.h + 20 }, DI: Dc, ready: st.phase === 'roll' && st.scene !== 'over' && (st.g.turn === 0 || st.two), pulse, dice: [] };
   if (!d.vals) {
-    for (let i = 0; i < 2; i++) drawDie(c, [4, 2][i], REST[i], Dc.cy, { rot: i ? 0.12 : -0.1, ivory: st.g.turn === 0 || st.two });
+    for (let i = 0; i < 2; i++) { if (D3) v3.tray.dice.push({ v: [4, 2][i], x: REST[i], y: Dc.cy, rot: i ? 0.12 : -0.1, ivory: st.g.turn === 0 || st.two, lift: 0, f: 1 }); else drawDie(c, [4, 2][i], REST[i], Dc.cy, { rot: i ? 0.12 : -0.1, ivory: st.g.turn === 0 || st.two }); }
     if (st.phase === 'roll') {
       c.fillStyle = `rgba(255,225,130,${0.14 + pulse * 0.16})`; rrect(c, Dc.x + 12, Dc.y + 12, Dc.w - 24, Dc.h - 24, 10); c.fill();
       const mine = st.g.turn === 0 || st.two, pr = Dc.prompt;
@@ -545,7 +588,8 @@ function drawDice(c, st, U, pulse) {
       if (u < 0.82) face = 1 + Math.floor(hash(Math.floor(u * 22) * 3 + i) * 6);
     }
     const used = st.left && st.phase !== 'rolling' && !st.left.includes(vals[i]) && vals[0] !== vals[1];
-    drawDie(c, face, x, y, { rot, sq, lift, dim: !!used, ivory: d.side === 0 });
+    if (D3) v3.tray.dice.push({ v: face, x, y, rot, lift, dim: !!used, ivory: d.side === 0, f: roll && roll.t < roll.dur ? roll.t / roll.dur : 1, i });
+    else drawDie(c, face, x, y, { rot, sq, lift, dim: !!used, ivory: d.side === 0 });
   }
   if (vals[0] === vals[1] && st.left && !(roll && roll.t < roll.dur)) U.text(`× ${st.left.length}`, Dc.mul.x, Dc.mul.y, 30, '#ffe9a8', UI, 800, 'left', true);
 }

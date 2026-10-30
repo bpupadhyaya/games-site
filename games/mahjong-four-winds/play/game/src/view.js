@@ -1,11 +1,13 @@
 // The table: everything drawn during a hand. Reads state, changes nothing. Tiles are placed by the tween objects in
 // `rs.vis` (game.js); art is cached sprites (tiles.js), so a frame is a few hundred drawImage calls.
-import { W, H, GEO, BTN, CHIPS, AUTO_STEP, AUTO_THINK_STEPS, inRect, claimSlots, chowSlots, pillRect, hubRect, callPos, host } from './layout.js';
+import { W, H, GEO, HANDZONE_Y, BTN, CHIPS, AUTO_STEP, AUTO_THINK_STEPS, inRect, claimSlots, chowSlots, pillRect, hubRect, callPos, host } from './layout.js';
 import { DISPLAY, UI, CJKF, GOLD, IVORY, INK, TAU, tx, txFit, wrap, rr, btn, panel, drawTable, drawTileAt, tileByKind, windGlyph } from './draw.js';
 import { drawMoreLine } from './brand.js';
 import { minUnits, setTextScale } from './draw.js';
 import { kindOf, kindName, seatWind, windName, wallLeft, pointsFor, POINTS } from './rules.js';
 import { LEVELS } from './ai.js';
+import { v3 } from './v3.js';
+import { getLang } from './tiles.js';
 
 export const NAMES = ['You', 'Mei', 'Lin', 'Jun'];
 // During Auto Play nobody is "you" - seat 0 is just another computer seat, driven the same as the
@@ -54,6 +56,18 @@ function hub(ctx, S, pulse) {
   ctx.restore();
 }
 
+// 3D: the centre plaque is painted into an offscreen canvas and laid on the table by the presenter (it changes rarely, so the key says when).
+let hubCv = null;
+function hub3(S, pulse) {
+  const { cx, cy, s } = hubRect(), h = S.h, key = `${wallLeft(h)}|${h.wind}|${h.turn}|${S.ui.ph === 'result' ? 1 : 0}|${s.toFixed(2)}|${Math.round(pulse * 4)}|${getLang()}`;
+  if (!hubCv && typeof OffscreenCanvas !== 'undefined') hubCv = new OffscreenCanvas(256, 256);
+  if (!hubCv) return;
+  if (!v3.hub || v3.hub.key !== key) {
+    const g = hubCv.getContext('2d'); g.clearRect(0, 0, 256, 256); g.save(); g.translate(128 - cx, 128 - cy); hub(g, S, Math.round(pulse * 4) / 4); g.restore();
+    v3.hub = { canvas: hubCv, cx, cy, s, key, ver: (v3.hub ? v3.hub.ver : 0) + 1 };
+  } else { v3.hub.cx = cx; v3.hub.cy = cy; v3.hub.s = s; }
+}
+
 function plates(ctx, S, pulse) {
   const h = S.h, m = S.match;
   for (let p = 0; p < 4; p++) {
@@ -61,7 +75,7 @@ function plates(ctx, S, pulse) {
     ctx.save();
     if (active) { ctx.fillStyle = `rgba(255,224,130,${0.18 + 0.16 * pulse})`; rr(ctx, r.x - 6, r.y - 6, r.w + 12, r.h + 12, 26); ctx.fill(); }
     ctx.fillStyle = 'rgba(0,0,0,0.4)'; rr(ctx, r.x, r.y + 4, r.w, r.h, 22); ctx.fill();
-    const g = ctx.createLinearGradient(0, r.y, 0, r.y + r.h); g.addColorStop(0, 'rgba(12,70,53,0.95)'); g.addColorStop(1, 'rgba(4,36,27,0.95)');
+    const g = ctx.createLinearGradient(0, r.y, 0, r.y + r.h); if (v3.on) { g.addColorStop(0, 'rgba(112,64,34,0.97)'); g.addColorStop(1, 'rgba(52,28,13,0.97)'); } else { g.addColorStop(0, 'rgba(12,70,53,0.95)'); g.addColorStop(1, 'rgba(4,36,27,0.95)'); }
     ctx.fillStyle = g; rr(ctx, r.x, r.y, r.w, r.h, 22); ctx.fill();
     ctx.strokeStyle = active ? GOLD : 'rgba(241,207,122,0.4)'; ctx.lineWidth = active ? 3 : 2; rr(ctx, r.x + 1, r.y + 1, r.w - 2, r.h - 2, 21); ctx.stroke();
     windGlyph(ctx, seatWind(h, p), r.x + 32, r.y + r.h / 2, 21, { dealer: h.dealer === p });
@@ -79,7 +93,15 @@ export function renderTiles(ctx, S, rs) {
   const list = [...rs.vis.values()].sort((a, b) => a.z - b.z);
   const lastTile = h.last ? h.last.tile : ui.lastDisc ?? -1, pulse = 0.5 + 0.5 * Math.sin(S.t * 5);
   const hintTile = ui.hint ? ui.hint.tile : ui.autoHint ? ui.autoHint.tile : -1;
-  for (const v of list) {
+  if (v3.on) {
+    const slot = h.slot;
+    for (const v of list) {
+      const tg = rs.T && rs.T.get(v.id), dragging = !!(ui.drag && ui.drag.id === v.id && ui.ph === 'human');
+      const hand = dragging || !!(tg && tg.hand && v.y >= HANDZONE_Y);
+      const hint = v.id === hintTile ? 0.5 + 0.4 * pulse : 0;
+      v3.tiles.push({ id: v.id, kind: kindOf(v.id), x: v.x, y: v.y, w: v.w, rot: v.rot, f: v.f, lift: v.lift || 0, wall: !!v.wall, level: v.wall && slot ? slot[v.id] & 1 : 0, hand, glow: v.id === lastTile && v.river ? 0.5 + 0.3 * pulse : hint, sel: v.id === ui.selId && ui.selId >= 0 && hand, z: v.z });
+    }
+  } else for (const v of list) {
     const kind = kindOf(v.id);
     const glow = v.id === lastTile && v.river ? 0.5 + 0.3 * pulse : v.id === hintTile ? 0.5 + 0.4 * pulse : 0;
     const w = v.w;
@@ -132,7 +154,8 @@ export function renderPlay(ctx, S, rs) {
   drawTable(ctx, GEO.inlay);
   const ui = S.ui, pulse = 0.5 + 0.5 * Math.sin(S.t * 4), big = S.prefs.big ? 1.18 : 1, wide = GEO.wide;
   header(ctx, S);
-  hub(ctx, S, pulse);
+  if (v3.on) hub3(S, pulse); else hub(ctx, S, pulse);
+  v3.mode = 'play';
   plates(ctx, S, pulse);
   renderTiles(ctx, S, rs);
 

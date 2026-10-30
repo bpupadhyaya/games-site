@@ -72,7 +72,7 @@ export async function createPresenter({ kitCanvas, meta, quality = pickQuality()
   (async () => {
     try {
       const { createThrower } = await import('./thrower.js');
-      const t = await createThrower({ lod: quality === 'high' ? 0 : 'medium' });
+      const t = await createThrower({ lod: 0 });
       t.root.position.set(-0.85, 0, 2.3); t.human.setFacing(Math.PI + 0.38);
       scene.add(t.root); t.root.visible = false; stage.track(t.human);
       holdDisc = makeDisc(0); holdDisc.scale.setScalar(1);

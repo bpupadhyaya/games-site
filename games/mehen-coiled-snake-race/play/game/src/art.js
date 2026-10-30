@@ -2,6 +2,7 @@
 // Plain canvas 2D. Nothing here changes game state. The big relief texture of the board is baked in bake.js.
 import { TRACK, isSafe } from './rules.js';
 import { trackGeo, pathBetween, SPIRAL } from './geo.js';
+import { v3, flatAlpha } from './v3.js';
 
 export let W = 720, H = 1560;
 export function setSize(w, h) { W = w; H = h; }
@@ -75,7 +76,19 @@ export function text(ctx, str, x, y, size, color = '#fff', o = {}) {
 const FLECKS = Array.from({ length: 34 }, (_, i) => [((i * 97) % 211) / 211, ((i * 53) % 173) / 173, 0.6 + ((i * 31) % 7) / 7, ((i * 13) % 11) / 11]);
 
 // Deep stone colour, a warm torch glow behind the board, courses of masonry (very faint), drifting dust, a vignette.
-export function background(ctx, th, t, glowY = 700, courses = false, glowX = W / 2) {
+export function background(ctx, th, t, glowY = 700, courses = false, glowX = W / 2, scrim = 0.28) {
+  if (v3.on) {
+    // over the 3D workshop: only a soft night vignette (readability), and the flat art fading out during the crossfade
+    const fa = flatAlpha();
+    if (fa > 0.01) { ctx.save(); ctx.globalAlpha = fa; background3(ctx, th, t, glowY, courses, glowX); ctx.restore(); }
+    const vr = Math.max(W, H) * 0.72, vg = ctx.createRadialGradient(W / 2, H / 2, vr * 0.5, W / 2, H / 2, vr);
+    vg.addColorStop(0, `rgba(2,6,16,${scrim * 0.35})`); vg.addColorStop(1, `rgba(2,6,16,${scrim + 0.3})`);
+    ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
+    return;
+  }
+  background3(ctx, th, t, glowY, courses, glowX);
+}
+function background3(ctx, th, t, glowY, courses, glowX) {
   const g = ctx.createLinearGradient(0, 0, 0, H);
   g.addColorStop(0, th.bg[0]); g.addColorStop(0.5, th.bg[1]); g.addColorStop(1, th.bg[2]);
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
@@ -117,6 +130,18 @@ export function panel(ctx, th, x, y, w, h, o = {}) {
   const hg = ctx.createLinearGradient(x + 20, 0, x + w - 20, 0);
   hg.addColorStop(0, 'rgba(99,102,241,0)'); hg.addColorStop(0.25, 'rgba(99,102,241,0.7)'); hg.addColorStop(0.6, 'rgba(59,130,246,0.7)'); hg.addColorStop(0.85, 'rgba(45,212,191,0.7)'); hg.addColorStop(1, 'rgba(45,212,191,0)');
   ctx.fillStyle = hg; ctx.fillRect(x + 20, y + 1.5, w - 40, 2);
+  if (v3.on) studs(ctx, th, x, y, w, h, o.r ?? 26);
+}
+// Over the 3D workshop the panels read as bronze-edged plaques: an inner bevel line and four studs.
+export function studs(ctx, th, x, y, w, h, r = 26) {
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255,226,170,0.13)'; ctx.lineWidth = 1.5; rr(ctx, x + 6, y + 6, w - 12, h - 12, Math.max(6, r - 6)); ctx.stroke();
+  const d = Math.max(9, Math.min(15, r * 0.55));
+  for (const [px, py] of [[x + d, y + d], [x + w - d, y + d], [x + d, y + h - d], [x + w - d, y + h - d]]) {
+    const g = ctx.createRadialGradient(px - 1.2, py - 1.2, 0.5, px, py, 4.2); g.addColorStop(0, '#fff0b8'); g.addColorStop(0.55, '#c99a3a'); g.addColorStop(1, '#5a3d10');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(px, py, 4, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.restore();
 }
 
 // Flat buttons: one solid fill, a hairline border, a darker underside strip when at rest. No gloss shape.
@@ -422,7 +447,7 @@ export function arrow(ctx, color, x0, y0, x1, y1, lw = 6) {
 // A small diagram of the whole track for the Rules pages: the spiral of cells with resting stones marked, optional lions and
 // highlights. opts: { cells: {cell: paletteIndex}, hl: [cells], arrows: [[from, to]], numbers: bool, dots: [cells] }
 export function drawMiniTrack(ctx, th, x, y, side, opts = {}) {
-  const g = trackGeo(x, y, side);
+  const g = trackGeo(x, y, side, true);
   ctx.save();
   ctx.fillStyle = alpha(th.edge.length === 7 ? th.edge : '#6e4f30', 0.9); ctx.beginPath(); ctx.roundRect(x, y, side, side, Math.max(0, side * 0.06)); ctx.fill();
   ctx.strokeStyle = 'rgba(255,255,255,0.14)'; ctx.lineWidth = 1.5; ctx.stroke();

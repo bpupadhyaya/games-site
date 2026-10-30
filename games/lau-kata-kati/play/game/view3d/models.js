@@ -274,7 +274,7 @@ export function buildEnvironment({ matBase = '#7a2a1e' } = {}) {
   const g = new THREE.Group();
   // the mat under the board
   const matTex = tex(matCanvas(matBase, 1024));
-  const mat = new THREE.Mesh(new THREE.PlaneGeometry(15, 14), new THREE.MeshStandardMaterial({ map: matTex, color: '#b9a98c', roughness: 1 }));
+  const mat = new THREE.Mesh(new THREE.PlaneGeometry(15, 14), new THREE.MeshStandardMaterial({ map: matTex, color: '#7d6a50', roughness: 1 }));
   mat.rotation.x = -Math.PI / 2; mat.position.y = 0.006; mat.receiveShadow = true; g.add(mat);
   // thickness of the mat edge + fringe
   const edge = new THREE.Mesh(new THREE.BoxGeometry(15, 0.03, 14), new THREE.MeshStandardMaterial({ color: '#8c6a30', roughness: 1 })); edge.position.y = -0.012; g.add(edge);

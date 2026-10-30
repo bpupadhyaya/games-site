@@ -1,5 +1,6 @@
 // Drawing for the playing screens: the stage (lanes, notes, drums, sticks, sparks), the HUD, free play and calibration.
-import { PAL, UI, DISPLAY, rgba, drawBackdrop, drawFloor, drawDrum, drawSticks, drawBell, drawNote, drawPopup, drawParticles, drawLane } from './art.js';
+import { v3, flatAlpha } from './v3.js';
+import { PAL, UI, DISPLAY, rgba, drawBackdrop, drawFloor, drawDrum, drawDrumFx, drawEmbers, drawSticks, drawBell, drawNote, drawPopup, drawParticles, drawLane } from './art.js';
 import { txt, headerTitle, button, panel, rrect, chip, icon } from './ui.js';
 import { menuRects } from './layout.js';
 import { SPEEDS, DRUMS, PIECES, ENSEMBLE, barDur, comboMult } from './music.js';
@@ -41,9 +42,11 @@ export function drawStage(ctx, st, L, sess, G, o) {
   const pl = o.pl;
   ctx.save();
   if (sess.shake > 0.01 && !st.prefs.calm) ctx.translate(Math.sin(st.t * 90) * sess.shake * 4, Math.cos(st.t * 80) * sess.shake * 3);
-  drawBackdrop(ctx, w + 20, h + 20, st.t, pulse);
   const rowH = G.rowH, floorTop = G.floorTop ?? G.cyBase - rowH * 0.2;
-  drawFloor(ctx, w, h, floorTop, G.ax + G.aw / 2, pulse);
+  v3.mode = 'play'; v3.floorTop = floorTop; v3.pulse = pulse; v3.t = st.t;
+  const fa = flatAlpha();
+  if (fa > 0.01) { ctx.save(); ctx.globalAlpha *= fa; drawBackdrop(ctx, w + 20, h + 20, st.t, pulse); drawFloor(ctx, w, h, floorTop, G.ax + G.aw / 2, pulse); ctx.restore(); }
+  else if (v3.on) drawEmbers(ctx, w, h, st.t, 14);
   const appr = SPEEDS[st.prefs.speedIdx].approach;
   const info = G.drums.map(() => ({ prev: [-9, -9], next: [99999, 99999] }));
   info[4] = { prev: [-9, -9], next: [99999, 99999] };
@@ -103,8 +106,10 @@ export function drawStage(ctx, st, L, sess, G, o) {
     }
     const ensOnly = pl && !mine;
     const dim = ensOnly ? clamp((t - s.fireT - 1.4) / 0.8, 0, 1) * 0.5 : 0;
-    drawDrum(ctx, dr.cx, dr.cy, dr.rx, d, { flash: s.flash, zone: s.zone, kx: s.kx, ky: s.ky, rip: s.rip, incD, incK, dim, lift: s.flash * 3 });
-    drawSticks(ctx, dr, lv, li.glow, prevLifts[d]);
+    const dst = { flash: s.flash, zone: s.zone, kx: s.kx, ky: s.ky, rip: s.rip, incD, incK, dim, lift: s.flash * 3 };
+    v3.drums.push({ kind: d, cx: dr.cx, cy: dr.cy, rx: dr.rx, flash: s.flash, zone: s.zone, dim, lift: dst.lift, sticks: [{ lift: lv[0], glow: li.glow[0] }, { lift: lv[1], glow: li.glow[1] }] });
+    if (fa > 0.01) { ctx.save(); ctx.globalAlpha *= fa; drawDrum(ctx, dr.cx, dr.cy, dr.rx, d, dst); drawSticks(ctx, dr, lv, li.glow, prevLifts[d]); ctx.restore(); }
+    if (v3.on) drawDrumFx(ctx, dr.cx, dr.cy, dr.rx, dst);
     prevLifts[d] = lv.slice();
   }
   if (o.bell) {
@@ -262,7 +267,8 @@ function wrapText(ctx, s, x, y, maxW, lh, col) {
 // ---- calibration ------------------------------------------------------------------------------------------------------------------------------------------
 export function renderCalib(ctx, st, L) {
   const c = st.cal, C = L.calib, S = L.S;
-  drawBackdrop(ctx, L.w + 20, L.h + 20, st.t, c.pulse);
+  v3.mode = 'env'; v3.pulse = c.pulse; v3.t = st.t; v3.floorTop = L.h * 0.72;
+  if (flatAlpha() > 0.01) { ctx.save(); ctx.globalAlpha *= flatAlpha(); drawBackdrop(ctx, L.w + 20, L.h + 20, st.t, c.pulse); ctx.restore(); }
   button(ctx, C.back, 'Back', { icon: 'back', kind: 'ghost', size: 28 });
   txt(ctx, 'Calibrate', S.x + S.w / 2, S.y + 110 + 30, 54, PAL.gold, { align: 'center', font: DISPLAY, weight: 400, stroke: 8 });
   const p = C.pad;

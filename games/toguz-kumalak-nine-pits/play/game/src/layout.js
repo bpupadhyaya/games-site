@@ -8,6 +8,8 @@
 //   compact  portrait but shorter (small phones, portrait tablets, squarish windows): the same stack, tighter.
 //   side     landscape up to ~1.7:1: the board on the right, one card on the left (status, message, buttons).
 //   wide     landscape beyond 1.7:1: a status card left, the board in the middle, a button card right.
+import { v3 } from './v3.js';
+
 export const W = 720, H = 1560;                           // canonical art space (cached art layers are painted in it)
 export const RX = 30, RY = 42, PITCH = 68, X0 = 88;
 export const ROW_Y = { top: 612, bottom: 888 };
@@ -31,10 +33,13 @@ const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
 // Board group transform: canonical (cx, cy) -> screen (bt.ox + cx * bt.s, bt.oy + cy * bt.s).
 export const toScreen = (L, p) => ({ x: L.bt.ox + p.x * L.bt.s, y: L.bt.oy + p.y * L.bt.s });
-export const pitScreen = (L, i) => toScreen(L, pitPos(i));
+// With the 3D board on, a pit's screen point is its projection (the board is tilted); otherwise the flat transform.
+export const pitScreen = (L, i) => { if (v3.on && v3.pt) { const p = pitPos(i), q = v3.pt(p.x, p.y, -1); return { x: q.x, y: q.y }; } return toScreen(L, pitPos(i)); };
 // nearest pit to a tap (generous: the whole pit band counts), or -1
 export function pitNear(L, x, y) {
-  const cx = (x - L.bt.ox) / L.bt.s, cy = (y - L.bt.oy) / L.bt.s;
+  let cx = (x - L.bt.ox) / L.bt.s, cy = (y - L.bt.oy) / L.bt.s;
+  const u = v3.on && v3.unproject ? v3.unproject(x, y) : null;     // the tilted 3D board: the point on the playing face under the tap
+  if (u) { cx = u.x; cy = u.y; }
   let best = -1, bd = 1e9;
   for (let i = 0; i < 18; i++) {
     const p = pitPos(i), dx = Math.abs(cx - p.x), dy = Math.abs(cy - p.y);

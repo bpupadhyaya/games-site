@@ -4,6 +4,7 @@ import { txt, button, panel, rrect, chip, icon, wrap } from './ui.js';
 import { menuRects } from './layout.js';
 import { SPEEDS, TUNINGS, I, comboMult, cycleBeat } from './music.js';
 import { drawBadgeStack, edgeStroke } from './brand.js';
+import { flatAlpha } from './v3.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
@@ -19,9 +20,13 @@ export function drawStage(ctx, st, L, sess, rack, pl) {
   const { w, h } = L, t = sess.t, pulse = sess.pulse;
   ctx.save();
   if (sess.shake > 0.01 && !st.prefs.calm) ctx.translate(Math.sin(st.t * 90) * sess.shake * 4, Math.cos(st.t * 80) * sess.shake * 3);
-  drawBackdrop(ctx, w + 20, h + 20, st.t, pulse);
-  const floorTop = rack.top - 18;
-  drawFloor(ctx, w, h, floorTop, rack.ax + rack.aw / 2, pulse);
+  const fa = flatAlpha();                                                  // 0 while the 3D instrument is drawn behind this canvas
+  ctx.globalAlpha = fa;
+  if (fa > 0) {
+    drawBackdrop(ctx, w + 20, h + 20, st.t, pulse);
+    drawFloor(ctx, w, h, rack.top - 18, rack.ax + rack.aw / 2, pulse);
+  }
+  ctx.globalAlpha = 1;
   const appr = SPEEDS[st.prefs.speedIdx].approach;
   const lanes = pl ? pl.lanes : [];
   const tun = TUNINGS[pl ? pl.piece.tuning : sess.tuning];
@@ -47,8 +52,9 @@ export function drawStage(ctx, st, L, sess, rack, pl) {
       }
     }
   }
-  // the instrument
-  if (rack.frame) drawFrame(ctx, rack.frame);
+  // the instrument (flat art; the 3D layer has its own)
+  ctx.globalAlpha = fa;
+  if (rack.frame && fa > 0) drawFrame(ctx, rack.frame);
   const nextIn = new Map();                                                // 0..1: how close the next note on each lane is
   if (pl) {
     for (const inst of lanes) {
@@ -56,12 +62,13 @@ export function drawStage(ctx, st, L, sess, rack, pl) {
     }
   }
   for (const it of rack.items) {
+    if (fa <= 0) break;
     const s = sess.ins[it.inst], inc = nextIn.get(it.inst) || 0, dim = pl && !lanes.includes(it.inst) ? (it.kind === 'bar' ? 0.5 : 0.35) : 0;
     if (it.kind === 'bar') drawBar(ctx, it, { flash: s.flash, ring: s.ring, inc, dim, ens: s.ens, t: st.t, label: st.prefs.labels ? tun.numerals[it.inst] : null });
     else drawGong(ctx, it, it.kind, { flash: s.flash, ring: s.ring, inc, dim, ens: s.ens, age: s.age, swing: s.flash * Math.sin(st.t * 30) });
   }
   // mallets over the bars
-  if (rack.kind === 'bars' || rack.kind === 'free') {
+  if (fa > 0 && (rack.kind === 'bars' || rack.kind === 'free')) {
     const bars = rack.items.filter((q) => q.kind === 'bar');
     if (bars.length) {
       const size = Math.max(14, bars[0].w * 0.3);
@@ -70,12 +77,13 @@ export function drawStage(ctx, st, L, sess, rack, pl) {
         const rx = rack.ax + rack.aw / 2 + dir * rack.cell * 0.9, rest = { cx: rx, cy: bars[0].cy, h: bars[0].h };
         const tg = it ?? rest, since = t - hd.t;
         const lift = it ? (since < 0.05 ? 0 : clamp((since - 0.05) / 0.28, 0, 1) * 0.5) : 0.5;
-        ctx.save(); ctx.globalAlpha = 0.95;
+        ctx.save(); ctx.globalAlpha = 0.95 * fa;
         drawMallet(ctx, tg.cx + dir * size * 0.5, tg.cy - tg.h * 0.34 - size * 0.5, size, lift, dir, since < 0.1 ? 1 - since / 0.1 : 0);
         ctx.restore();
       });
     }
   }
+  ctx.globalAlpha = 1;
   // notes fall over the instrument's far edge
   if (pl) {
     const lo = lowerBound(pl.ev, t - 0.3);

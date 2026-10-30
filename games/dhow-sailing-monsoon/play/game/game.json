@@ -3,7 +3,7 @@
   "title": "Dhow Sailing",
   "genre": "Sailing and monsoon trade journey",
   "orientation": "any",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "monetization": {
     "model": "premium",
     "priceUsd": 3.99,

@@ -4,7 +4,7 @@
   "tagline": "The Greek coffeehouse trio",
   "genre": "backgammon variants",
   "orientation": "any",
-  "version": "1.1.4",
+  "version": "1.2.0",
   "monetization": {
     "model": "premium",
     "priceUsd": 3.99,

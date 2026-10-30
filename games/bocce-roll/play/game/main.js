@@ -27,4 +27,24 @@ canvas.addEventListener('wheel', (e) => { if (!theGame) return; e.preventDefault
 const af = new Image(); af.onload = () => setLogo(af); af.src = './brand/arcforge-af.png';
 const lock = new Image(); lock.onload = () => setLockup(lock); lock.src = './brand/arcforge-lockup.png';
 
-boot({ createGame: create, meta, canvas, background: '#0b2a1a' });
+// The lit 3D court (view3d/presenter.js) sits behind the transparent kit canvas. The kit boots at once on the baked 2D court; the
+// 3D layer is imported and built only after the first frames (never before boot), then crossfades in. With no WebGL, a failed
+// import or a lost context, the 2D court simply stays (and comes back on context loss).
+let presenter = null;
+const q = new URLSearchParams(location.search);
+const start3d = () => {
+  if (q.has('flat')) return;
+  import('./view3d/presenter.js')
+    .then((m) => m.createPresenter({ kitCanvas: canvas, getGame: () => theGame }))
+    .then((p) => { if (p && p.ok) { presenter = p; if (theGame && theGame.getState && q.has('dev')) window.__p3 = p; } })
+    .catch((e) => console.warn('3D court unavailable; 2D court kept', e));
+};
+boot({
+  createGame: async (env) => {
+    const game = await create(env);
+    return Object.assign({}, game, {
+      render(ctx, view) { game.render(ctx, view); if (presenter) presenter.frame(game.getState(), view); },
+    });
+  },
+  meta, canvas, background: 'rgba(0,0,0,0)',
+}).then(() => { const go = () => setTimeout(start3d, q.has('now3d') ? 0 : 350); if (window.requestIdleCallback) requestIdleCallback(go, { timeout: 900 }); else go(); });

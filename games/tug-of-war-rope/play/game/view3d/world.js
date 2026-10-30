@@ -190,48 +190,22 @@ export function buildWorld(V3, stage) {
     const m = new THREE.Mesh(merged(geoParts), vmat({ side: THREE.DoubleSide })); m.castShadow = false; group.add(m);
   }
 
-  function clearScenery() { while (scenery.children.length) { const c = scenery.children.pop(); c.traverse((o) => { if (o.geometry) o.geometry.dispose(); if (o.material && !o.material.shared) { if (o.material.map) o.material.map.dispose(); o.material.dispose(); } }); } out.flags = []; out.lanterns = []; out.crowd = null; }
+  function clearScenery() { if (out.crowd && out.crowd.dispose) out.crowd.dispose(); while (scenery.children.length) { const c = scenery.children.pop(); c.traverse((o) => { if (o.geometry) o.geometry.dispose(); if (o.material && !o.material.shared) { if (o.material.map) o.material.map.dispose(); o.material.dispose(); } }); } out.flags = []; out.lanterns = []; out.crowd = null; }
 
-  // crowd: instanced simple spectators, standing in arcs behind the lane; they cheer when told to
-  function buildCrowd(group, spots, palette) {
-    const NC = spots.length; if (!NC) return null;
-    const bodyG = new THREE.CapsuleGeometry(0.2, 0.4, 4, 10); bodyG.scale(1.12, 1, 0.78); bodyG.translate(0, 1.08, 0);
-    const legG = merged([{ geo: new THREE.CylinderGeometry(0.078, 0.066, 0.74, 7), matrix: place(-0.09, 0.37, 0), color: '#ffffff' }, { geo: new THREE.CylinderGeometry(0.078, 0.066, 0.74, 7), matrix: place(0.09, 0.37, 0), color: '#ffffff' }]);
-    const headG = new THREE.SphereGeometry(0.135, 10, 8); headG.translate(0, 1.6, 0);
-    const hairG = new THREE.SphereGeometry(0.145, 10, 6, 0, Math.PI * 2, 0, Math.PI * 0.58); hairG.translate(0, 1.615, -0.005);
-    const armG = new THREE.CapsuleGeometry(0.04, 0.42, 3, 6); armG.translate(0, -0.27, 0);
-    const mk = (g, n, c, vc) => { const m = new THREE.InstancedMesh(g, lam(c, vc ? { vertexColors: true } : {}), n); m.frustumCulled = false; m.castShadow = false; group.add(m); return m; };
-    const bodies = mk(bodyG, NC, 0xffffff), heads = mk(headG, NC, 0xffffff), legs = mk(legG, NC, 0xffffff, true), arms = mk(armG, NC * 2, 0xffffff), hairs = mk(hairG, NC, 0xffffff);
-    const skin = ['#e8c3a2', '#d9a982', '#b98563', '#f1d3b8', '#8f5f43', '#6b4530'];
-    const hairC = ['#1b1714', '#2a1d14', '#4a3220', '#7a5a3a', '#c7a468', '#9a9a9a', '#9c4a26', '#111111'];
-    const trouser = ['#2a2d36', '#3b4256', '#5a4a38', '#26402f', '#4a3a58', '#1f2a44'];
-    const c = new THREE.Color(), R = rnd(99);
-    spots.forEach((p, i) => {
-      p.ph = R() * 6.28; p.sc = 0.9 + R() * 0.22; bodies.setColorAt(i, c.set(palette[(R() * palette.length) | 0])); const sk = skin[(R() * skin.length) | 0]; heads.setColorAt(i, c.set(sk));
-      arms.setColorAt(i * 2, c.set(sk)); arms.setColorAt(i * 2 + 1, c.set(sk)); hairs.setColorAt(i, c.set(hairC[(R() * hairC.length) | 0])); legs.setColorAt(i, c.set(trouser[(R() * trouser.length) | 0]));
-    });
-    const mtx = new THREE.Matrix4(), qq = new THREE.Quaternion(), ee = new THREE.Euler(), scl = V(), p0 = V(), p1 = V();
-    const api = {
-      cheer: 0, t: 0,
-      update(dt, cheer) {
-        this.t += dt; this.cheer += (cheer - this.cheer) * Math.min(1, dt * 4);
-        for (let i = 0; i < NC; i++) {
-          const b = spots[i];
-          const bob = Math.abs(Math.sin(this.t * (2.2 + (i % 5) * 0.25) + b.ph)) * (0.025 + 0.22 * this.cheer);
-          ee.set(0, b.rot, 0); qq.setFromEuler(ee); scl.set(b.sc, b.sc * (1 + this.cheer * 0.03), b.sc); p0.set(b.x, b.y + bob, b.z);
-          mtx.compose(p0, qq, scl); bodies.setMatrixAt(i, mtx); heads.setMatrixAt(i, mtx); legs.setMatrixAt(i, mtx); hairs.setMatrixAt(i, mtx);
-          for (let k = 0; k < 2; k++) {
-            const sd = k ? 1 : -1, ce = Math.max(0, Math.min(1, (this.cheer - 0.3) / 0.7)), lift = ce * (2.6 + Math.sin(this.t * 7 + b.ph + k) * 0.5);
-            ee.set(0, b.rot, sd * (0.08 + lift)); qq.setFromEuler(ee); ee.set(0, b.rot, 0);
-            const off = p1.set(sd * 0.25 * b.sc, 1.3 * b.sc, 0).applyEuler(ee);
-            mtx.compose(V(p0.x + off.x, p0.y + off.y, p0.z + off.z), qq, scl.set(b.sc, b.sc, b.sc)); arms.setMatrixAt(i * 2 + k, mtx);
-          }
-        }
-        for (const m of [bodies, heads, legs, arms, hairs]) m.instanceMatrix.needsUpdate = true;
-      },
+  // crowd: the shared view3d crowd (real faces, clothes, idle motion); they cheer when the mood rises
+  const CULTURE = { harvest: ['european_village', 'american_rural'], river: ['south_asian', 'east_asian'], meadow: ['nordic', 'european_village'], seaside: ['mediterranean', 'african'], lantern: ['east_asian', 'south_asian'], grand: ['latin_american', 'middle_eastern', 'african'] };
+  function buildCrowd(group, spots, id) {
+    if (!spots.length) return null;
+    const q = stage.quality || 'medium';
+    let cr = null;
+    try {
+      cr = V3.createCrowd3d(stage, { points: spots.map((p) => ({ x: p.x, y: p.y, z: p.z, yaw: p.rot })), count: spots.length, seed: 7 + id.length, culture: CULTURE[id] || 'european_village', quality: q === 'high' ? 'high' : q === 'low' ? 'low' : 'medium', look: 'natural', excitement: 0.1, props: { flag: 0.05, phone: 0.05, child: 0.05 }, blobShadows: true });
+    } catch (e) { console.warn('crowd3d failed', e); return null; }
+    let last = 0;
+    return {
+      update(dt, cheer) { cr.update(dt); cr.setExcitement(0.08 + 0.85 * cheer); if (cheer > 0.85 && last <= 0.85) cr.react('cheer', { origin: [0, 0, 0], radius: 60, intensity: 1 }); last = cheer; },
+      dispose() { try { cr.dispose(); } catch (e) { /* ignore */ } },
     };
-    api.update(0, 0);
-    return api;
   }
   const arcSpots = (R, n, zMin, zMax, endMin, endMax, y0 = 0, faceCentre = true) => {
     const spots = [];
@@ -369,7 +343,7 @@ export function buildWorld(V3, stage) {
       for (let r = 0; r < 5; r++) for (let i = 0; i < 26; i++) spots.push({ x: -16 + i * 1.27 + (r % 2) * 0.5, y: 0.7 + r * 0.7, z: -8.4 - r * 1.1, rot: 0 });
       for (const sd of [-1, 1]) for (let r = 0; r < 4; r++) for (let i = 0; i < 9; i++) spots.push({ x: sd * (10.6 + r * 1.1), y: 0.7 + r * 0.7, z: -5.4 + i * 1.35, rot: -sd * Math.PI / 2 });
     } else spots = arcSpots(R, info.crowd, 6.2, 11, 11.5, 15);
-    out.crowd = buildCrowd(scenery, spots, info.palette);
+    out.crowd = buildCrowd(scenery, spots, id);
     stage.setLighting('day', { exposure: look.exp, hemi: look.hemi, keyI: look.keyI, key: look.key, sky: look.sky, fog: look.fog, hemiSky: look.sky, hemiGround: look.gnd });
     stage.setSky(look.fog, look.fog, { near: look.fogN, far: look.fogF });
     stage.scene.background = null;

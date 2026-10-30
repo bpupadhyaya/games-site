@@ -1,3 +1,4 @@
+import { v3 } from './v3.js';
 // Geometry, as a function of the LIVE screen size (kit 1.7 fluid viewport: the short side is always 720 units).
 // The board is authored on a canonical 720 x 1560 canvas (pits, trays, frame: the constants below, also used by art.js).
 // `layoutFor(w, h)` places everything else for the real size and maps the canonical board onto the screen with one uniform
@@ -108,9 +109,11 @@ function playLayout(L) {
   let geo = L.geo = TALL;
   const board = L.board = { s: 1, cx: 360, cy: MID_Y + oy };
   const toScreen = (x, y) => ({ x: board.cx + (x - geo.mid.x) * board.s, y: board.cy + (y - geo.mid.y) * board.s });
-  L.pitScreen = (i) => { const p = geo.pit(i); return toScreen(p.x, p.y); };
+  L.pitScreen = (i) => { const p = geo.pit(i); if (v3.on && v3.at) { const q = v3.at(p.x, p.y, 0); return { x: q.x, y: q.y }; } return toScreen(p.x, p.y); };
   L.pitNear = (x, y) => {                       // nearest house to a tap (generous: the whole row band counts), or -1
-    const s = board.s, cx = (x - board.cx) / s + geo.mid.x, cy = (y - board.cy) / s + geo.mid.y, lim = geo.long ? geo.pitR * 1.5 : 46;
+    const s = board.s, lim = geo.long ? geo.pitR * 1.5 : 46;
+    let cx = (x - board.cx) / s + geo.mid.x, cy = (y - board.cy) / s + geo.mid.y;
+    if (v3.on && v3.toBoard) { const b = v3.toBoard(x, y); if (!b) return -1; cx = b[0]; cy = b[1]; }   // the 3D board: the tap's ray meets the playing surface
     let best = -1, bd = 1e9;
     for (let i = 0; i < 14; i++) {
       const p = geo.pit(i), dx = Math.abs(cx - p.x), dy = Math.abs(cy - p.y);

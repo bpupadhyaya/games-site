@@ -53,8 +53,9 @@ export async function createShow({ quality = 'medium', base, nBear = 3 } = {}) {
   stage.setSky(null, null);
   const FOG = new THREE.Fog(0xe6c39a, 22, 85);
   const L = stage.lights;
-  L.hemi.color.set(0xbcd0f0); L.hemi.groundColor.set(0x8a6038); L.hemi.intensity = 1.05;
-  L.key.color.set(0xffd7a0); L.key.intensity = 3.6;
+  const HEMI = 0.86;                  // less flat fill, a stronger low sun: shapes model, shadows read
+  L.hemi.color.set(0xbcd0f0); L.hemi.groundColor.set(0x8a6038); L.hemi.intensity = HEMI;
+  L.key.color.set(0xffd29a); L.key.intensity = 4.2;
   L.rim.color.set(0xa9c0ff); L.rim.intensity = 1.2;
   stage._shadowOffset.set(-6.5, 7.5, 6.5);
   stage.setShadowTarget(0, 0.8, 0);
@@ -105,7 +106,7 @@ export async function createShow({ quality = 'medium', base, nBear = 3 } = {}) {
   {
     let seed = 7; const rr = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
     for (let r = 0; r < SR.ROWS; r++) {
-      const rad = SR.R0 + (r + 0.62) * SR.GAP, n = Math.round((low ? 11 : 17) + r * 3);
+      const rad = SR.R0 + (r + 0.62) * SR.GAP, n = Math.round((low ? 9 : 12) + r * 2);
       const a0 = Math.PI * 0.5 + 0.2, a1 = Math.PI * 1.5 - 0.2;
       for (let k = 0; k < n; k++) {
         const a = a0 + ((k + 0.3 + rr() * 0.4) / n) * (a1 - a0);
@@ -201,6 +202,7 @@ export async function createShow({ quality = 'medium', base, nBear = 3 } = {}) {
     cam.projectionMatrixInverse.copy(cam.projectionMatrix).invert();
     api.fitted = key;
     api.cxRef = cxRef;
+    api.footFrac = clamp(foot / h, 0.3, 1);
   }
 
   stage.onContextLost(() => { api.lost = true; });
@@ -300,7 +302,7 @@ export async function createShow({ quality = 'medium', base, nBear = 3 } = {}) {
     api.pxPerM = H / BODY_M;
     api.camX = frame.camX ?? 0;
     api.pitch = frame.pitch ?? 8; api.D = frame.D ?? 9;
-    api.farScale = frame.farScale ?? 0.5; api.windX = frame.windX; api.iconMode = frame.mode === 'icon';
+    api.farScale = frame.farScale ?? 0.4; api.windX = frame.windX; api.iconMode = frame.mode === 'icon';
     { const cg = scene.children.find((c) => c.name === 'crowd3d'); if (cg) cg.visible = !frame.noCrowd; for (const st of piazza.steps) st.visible = !frame.noCrowd; for (const r of piazza.rails) r.visible = !frame.noCrowd; for (const m of musicians) { m.h.root.visible = !frame.noCrowd; for (const v of Object.values(m.props)) (v.mesh || v).visible = !frame.noCrowd; } }
     const m = ctx.getTransform();
     const pxPerUnit = Math.hypot(m.a, m.b);
@@ -458,7 +460,7 @@ export async function createShow({ quality = 'medium', base, nBear = 3 } = {}) {
     if (you >= 0) { ring.position.x = people[who[you]].sm.x ? people[who[you]].sm.x.x : 0; ring.position.z = 0; ring.material.opacity = 0.55 + 0.3 * Math.sin(api.t * 3); }
     // world: torches, banners, bunting, crowd
     piazza.update(api.t, dt, { calm: frame.calm, beat: frame.beatFlash || 0 });
-    L.hemi.intensity = 1.05 + (frame.beatFlash || 0) * 0.12;
+    L.hemi.intensity = HEMI + (frame.beatFlash || 0) * 0.12;
     if (frame.cheer && frame.cheer.id !== api.cheerId) { api.cheerId = frame.cheer.id; crowd.react(frame.cheer.kind || 'cheer', { origin: [0, 0, -4], radius: 40, intensity: frame.cheer.intensity ?? 1 }); }
     crowd.update(dt);
     renderTwoPass(ctx, w, h, devW, devH);
@@ -477,6 +479,14 @@ export async function createShow({ quality = 'medium', base, nBear = 3 } = {}) {
     return out;
   };
 
+  // the far-world grade: less saturation and contrast, a warm golden haze strongest at the height of the stands (where the crowd stands)
+  const FAR_GRADE = 'saturate(0.76) contrast(0.92) brightness(0.95)';
+  function hazeFar(g, hw, hh) {
+    const fy = api.footFrac ?? 0.8;
+    const gr = g.createLinearGradient(0, 0, 0, hh * fy);
+    gr.addColorStop(0, 'rgba(255,214,150,0.05)'); gr.addColorStop(0.55, 'rgba(250,196,128,0.13)'); gr.addColorStop(0.92, 'rgba(236,170,110,0.2)'); gr.addColorStop(1, 'rgba(236,170,110,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, hw, hh * fy);
+  }
   function renderTwoPass(ctx, w, h, devW, devH) {
     const r = stage.renderer, gl = r.domElement;
     if (api.quality === 'low') {
@@ -494,7 +504,10 @@ export async function createShow({ quality = 'medium', base, nBear = 3 } = {}) {
         scene.fog = FOG; r.setClearColor(0xe6c39a, 1);
         r.setViewport(0, 0, hw, hh); r.setScissorTest(false); r.render(scene, cam);
         const target = fc || (api.farCanvas = Object.assign(globalThis.document.createElement('canvas'), { width: hw, height: hh }));
-        const tg = target.getContext('2d'); tg.drawImage(gl, 0, devH - hh, hw, hh, 0, 0, hw, hh);
+        const tg = target.getContext('2d');
+        // aerial perspective: the far world (palazzo, stands, crowd) is graded a little softer and warmer than the performers, so they read first
+        tg.filter = FAR_GRADE; tg.drawImage(gl, 0, devH - hh, hw, hh, 0, 0, hw, hh); tg.filter = 'none';
+        hazeFar(tg, hw, hh);
         api.farKey = api.fitted;
       }
       ctx.drawImage(api.farCanvas, 0, 0, hw, hh, -12, -12, w + 24, h + 24);

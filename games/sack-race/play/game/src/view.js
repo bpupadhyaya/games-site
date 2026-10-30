@@ -241,7 +241,6 @@ export function renderPlay(ctx, state) {
   }
   ctx.restore();
   const adv = (state.think && state.think.adv) || (state.dec && state.dec.adv) || null;
-  if (L.land) { ctx.save(); ctx.fillStyle = 'rgba(8,36,22,0.84)'; ctx.fillRect(L.px0 - 12, 0, W - L.px0 + 12, H); ctx.restore(); }
   drawProgress(ctx, L, race);
   drawZones(ctx, L, state, race, race.over ? null : adv);
   drawGauge(ctx, L, race, race.over ? null : adv);

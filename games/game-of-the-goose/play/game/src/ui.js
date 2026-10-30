@@ -47,6 +47,11 @@ export function button(ctx, r, label, o = {}) {
   if (o.hot) { ctx.lineWidth = 4; ctx.strokeStyle = PAL.goldHi; rrect(ctx, { x: r.x - 3, y: r.y - 3, w: r.w + 6, h: r.h + 6 }, rad + 3); ctx.stroke(); }
   const dark = kind === 'gold' || kind === 'parch';
   const col = kind === 'disabled' ? 'rgba(247,233,200,0.4)' : dark ? PAL.ink : kind === 'primary' || kind === 'on' ? '#fff6dc' : PAL.text;
+  if (o.stack && o.icon) {      // icon over a small label (compact tile)
+    icon(ctx, o.icon, r.x + r.w / 2, r.y + r.h * 0.38, Math.min(r.h * 0.26, r.w * 0.2), col);
+    txt(ctx, label, r.x + r.w / 2, r.y + r.h * 0.79, size, col, { align: 'center', maxW: r.w - 8 });
+    ctx.restore(); return;
+  }
   const hasSub = !!o.sub, pad = o.icon ? r.h * 0.9 : 14;
   if (o.icon) icon(ctx, o.icon, r.x + r.h * 0.5, r.y + r.h / 2, r.h * 0.4, col);
   const cx = r.x + (o.icon ? r.h * 0.9 + (r.w - r.h * 0.9) / 2 : r.w / 2);
@@ -77,6 +82,10 @@ export function icon(ctx, name, cx, cy, s, col = PAL.text) {
   else if (name === 'bulb') { ctx.beginPath(); ctx.arc(cx, cy - s * 0.15, s * 0.5, 0, Math.PI * 2); ctx.stroke(); ctx.beginPath(); ctx.moveTo(cx - s * 0.22, cy + s * 0.55); ctx.lineTo(cx + s * 0.22, cy + s * 0.55); ctx.stroke(); ctx.beginPath(); ctx.moveTo(cx - s * 0.15, cy + s * 0.78); ctx.lineTo(cx + s * 0.15, cy + s * 0.78); ctx.stroke(); }
   else if (name === 'eye') { ctx.beginPath(); ctx.moveTo(cx - s * 0.75, cy); ctx.quadraticCurveTo(cx, cy - s * 0.85, cx + s * 0.75, cy); ctx.quadraticCurveTo(cx, cy + s * 0.85, cx - s * 0.75, cy); ctx.stroke(); ctx.beginPath(); ctx.arc(cx, cy, s * 0.24, 0, Math.PI * 2); ctx.fill(); }
   else if (name === 'dice') { ctx.beginPath(); ctx.roundRect(cx - s * 0.6, cy - s * 0.6, s * 1.2, s * 1.2, s * 0.22); ctx.stroke(); for (const [px, py] of [[-0.25, -0.25], [0.25, 0.25], [0, 0]]) { ctx.beginPath(); ctx.arc(cx + px * s, cy + py * s, s * 0.1, 0, Math.PI * 2); ctx.fill(); } }
+  else if (name === 'book') { ctx.beginPath(); ctx.moveTo(cx, cy - s * 0.5); ctx.quadraticCurveTo(cx - s * 0.45, cy - s * 0.75, cx - s * 0.85, cy - s * 0.55); ctx.lineTo(cx - s * 0.85, cy + s * 0.55); ctx.quadraticCurveTo(cx - s * 0.45, cy + s * 0.35, cx, cy + s * 0.6); ctx.quadraticCurveTo(cx + s * 0.45, cy + s * 0.35, cx + s * 0.85, cy + s * 0.55); ctx.lineTo(cx + s * 0.85, cy - s * 0.55); ctx.quadraticCurveTo(cx + s * 0.45, cy - s * 0.75, cx, cy - s * 0.5); ctx.moveTo(cx, cy - s * 0.5); ctx.lineTo(cx, cy + s * 0.6); ctx.stroke(); }
+  else if (name === 'rules') { ctx.beginPath(); ctx.roundRect(cx - s * 0.55, cy - s * 0.75, s * 1.1, s * 1.5, s * 0.14); ctx.stroke(); for (const dy of [-0.35, 0, 0.35]) { ctx.beginPath(); ctx.moveTo(cx - s * 0.3, cy + dy * s); ctx.lineTo(cx + s * 0.3, cy + dy * s); ctx.stroke(); } }
+  else if (name === 'info') { ctx.beginPath(); ctx.arc(cx, cy, s * 0.8, 0, Math.PI * 2); ctx.stroke(); ctx.beginPath(); ctx.arc(cx, cy - s * 0.38, s * 0.1, 0, Math.PI * 2); ctx.fill(); ctx.beginPath(); ctx.moveTo(cx, cy - s * 0.1); ctx.lineTo(cx, cy + s * 0.45); ctx.stroke(); }
+  else if (name === 'gear') { ctx.beginPath(); ctx.arc(cx, cy, s * 0.38, 0, Math.PI * 2); ctx.stroke(); for (let k = 0; k < 8; k++) { const a = (k / 8) * Math.PI * 2; ctx.beginPath(); ctx.moveTo(cx + Math.cos(a) * s * 0.55, cy + Math.sin(a) * s * 0.55); ctx.lineTo(cx + Math.cos(a) * s * 0.82, cy + Math.sin(a) * s * 0.82); ctx.stroke(); } }
   else if (name === 'menu') { for (const dy of [-0.45, 0, 0.45]) { ctx.beginPath(); ctx.moveTo(cx - s * 0.6, cy + dy * s); ctx.lineTo(cx + s * 0.6, cy + dy * s); ctx.stroke(); } }
   ctx.restore();
 }

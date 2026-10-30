@@ -24,14 +24,14 @@ export function createAnimator(V3, { base, lod = 0, onHuman = null } = {}) {
   const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
   const A = { humans: [], hurleys: [], helmetM: [], st: [], events: [], ready: false };
 
-  function helmetMount(h) {
+  function helmetMount(h, drop = 0.115, k = 0.92) {
     const f = h.boneFrame('Head');
     const q = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(f.left.normalize(), f.up.normalize(), f.fwd.normalize()));
     const box = h.headBox;
     const c = box ? box.getCenter(V()) : V(0.07, 0, 0);
     const upExt = box ? Math.max(box.max.dot(f.up), box.min.dot(f.up)) : 0.2;
     const top = c.clone().addScaledVector(f.up, upExt - c.dot(f.up));
-    return new THREE.Matrix4().compose(top.addScaledVector(f.up, -0.115), q, V(0.92, 0.92, 0.92));
+    return new THREE.Matrix4().compose(top.addScaledVector(f.up, -drop), q, V(k, k, k));
   }
 
   A.build = async function build() {
@@ -52,6 +52,23 @@ export function createAnimator(V3, { base, lod = 0, onHuman = null } = {}) {
       if (onHuman) onHuman(h, i);
     }
     A.ready = true;
+  };
+
+  // Swap player i for a real athlete (sleeved shirt) in place: same slot, same clips, same hurley, so the sim and the contact layer never notice.
+  A.upgrade = async function upgrade(i) {
+    const old = A.humans[i]; if (!old) return null;
+    const team = i < 6 ? 0 : 1, gk = i % 6 === 0;
+    const h = await loadHuman({ character: 'athlete_m', base, kit: gk ? GK_KITS[team] : KITS[team], skin: SKINS[i], hair: HAIRS[i] === 'grey' ? 'brown' : HAIRS[i], legs: 'shorts', top: 'long', lod });
+    h.groundClamp = 'auto'; h.footPlanting = true;
+    buildHurlClips(h, undefined, i);
+    const hurley = new THREE.Group(); hurley.userData.sweet = HURLEY_SWEET;
+    h.attach(hurley, 'R', 'bat', { slide: 0.19 });
+    A.helmetM[i] = helmetMount(h, 0.025, 1.0);
+    h.play('h_idle', { fade: 0, startPhase: (i * 0.37) % 1 });
+    h.on('contact', (e) => { A.events.push({ i, clip: e.clip, time: e.time, act: A.st[i] ? A.st[i].act : -1 }); });
+    h.root.position.copy(old.root.position); h.root.rotation.copy(old.root.rotation); h.root.visible = old.root.visible;
+    A.humans[i] = h; A.hurleys[i] = hurley;
+    return { old, h };
   };
 
   // one animation step at display time Tp. snapAt(arr, i, fallback) gives interpolated x / z / f; ballW is the interpolated ball in world coordinates.

@@ -637,6 +637,7 @@ export function createGame(env) {
     },
     render(ctx, view) {
       const L = layoutFor(view?.width ?? meta.width, view?.height ?? meta.height);
+      ctx.clearRect(-64, -64, L.w + 128, L.h + 128);   // the canvas is transparent: the 3D court (or the page) shows where nothing is drawn
       switch (state.scene) {
         case 'title': renderTitle(ctx, state, L); break;
         case 'setup': renderSetup(ctx, state, L); break;

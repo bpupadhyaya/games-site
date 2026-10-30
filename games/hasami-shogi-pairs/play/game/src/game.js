@@ -9,6 +9,7 @@ import { LESSONS } from './content.js';
 import { isOpen, UNLOCK } from './settings.js';
 import { WOOD_KEYS, STYLE_KEYS } from './art.js';
 import { render, ui, docMetrics } from './view.js';
+import { squareAt } from './v3.js';
 
 // Fluid viewport (kit 1.7.0): the short side is always 720 units and the long side follows the screen, in portrait and landscape.
 export const meta = { width: 720, height: 1560, fluid: { short: 720 } };
@@ -253,10 +254,10 @@ export function createGame(env) {
     }
     // board: tap to select / move, or press-drag-release
     const L = lay(); let m = null;
-    if (p.pressed) { m = pressSquare(L.squareAt(p.x, p.y)); drag0 = state.sel >= 0 && !m ? { x: p.x, y: p.y } : null; }
+    if (p.pressed) { m = pressSquare(squareAt(L, p.x, p.y)); drag0 = state.sel >= 0 && !m ? { x: p.x, y: p.y } : null; }
     if (!m && p.down && drag0 && state.sel >= 0) { if (state.drag || Math.hypot(p.x - drag0.x, p.y - drag0.y) > L.cell * 0.28) state.drag = { x: p.x, y: p.y }; }
     if (!m && p.released && drag0) {
-      if (state.drag) { const i = L.squareAt(p.x, p.y); state.drag = null; if (i >= 0 && i !== state.sel) { if (state.selMoves.some((q) => q.to === i)) m = { from: state.sel, to: i }; else if (state.game.board[i] === 0) { const r = tryMove(state.game, state.sel, i); say(r.error); } } }
+      if (state.drag) { const i = squareAt(L, p.x, p.y); state.drag = null; if (i >= 0 && i !== state.sel) { if (state.selMoves.some((q) => q.to === i)) m = { from: state.sel, to: i }; else if (state.game.board[i] === 0) { const r = tryMove(state.game, state.sel, i); say(r.error); } } }
       drag0 = null;
     }
     if (!p.down) { state.drag = null; }
@@ -284,7 +285,7 @@ export function createGame(env) {
       return;
     }
     if (!p.pressed) return;
-    const m = pressSquare(lay().squareAt(p.x, p.y)); if (!m) return;
+    const m = pressSquare(squareAt(lay(), p.x, p.y)); if (!m) return;
     const g = state.game, goal = l.goal, mid = (m.from + m.to) / 2, dist = Math.abs(m.to - m.from);
     let ok = false;
     if (goal.type === 'to') ok = m.to === goal.to;

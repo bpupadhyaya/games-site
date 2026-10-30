@@ -47,8 +47,12 @@ function build(w, h, nMenu) {
     if (mode === 'wide') {
       const colW = clamp(w * 0.25, 260, 380), gx = 18, rows = Math.ceil(nMenu / 2), bx = S.x + S.w - 40 - colW * 2 - gx;
       T.title = R(S.x + 30, S.y + S.h * 0.16, bx - S.x - 70, S.h * 0.5);
-      T.buttons = []; const y0 = S.y + Math.max(30, (S.h - rows * (bh + 14) + 14 - 80) / 2);
-      for (let i = 0; i < nMenu; i++) T.buttons.push(R(bx + (i % 2) * (colW + gx), y0 + Math.floor(i / 2) * (bh + 14), colW, bh));
+      // the first entry (Begin / Continue) spans both columns and stands taller; the rest form a tidy two-column grid
+      const rows2 = 1 + Math.ceil((nMenu - 1) / 2), ph = Math.round(bh * 1.18);
+      T.buttons = []; const y0 = S.y + Math.max(30, (S.h - rows2 * (bh + 14) - (ph - bh) + 14 - 80) / 2);
+      T.buttons.push(R(bx, y0, colW * 2 + gx, ph));
+      for (let i = 1; i < nMenu; i++) T.buttons.push(R(bx + ((i - 1) % 2) * (colW + gx), y0 + ph + 14 + Math.floor((i - 1) / 2) * (bh + 14), colW, bh));
+      void rows;
       { const cw = Math.min(colW * 1.6, 360); T.credit = R(bx + colW + gx / 2 - cw / 2, S.y + S.h - cw * 0.272 - 14, cw, cw * 0.272); }
     } else {
       const gapB = 12, n = nMenu, total1 = n * bh + (n - 1) * gapB, cols = total1 <= S.h * 0.5 ? 1 : 2, rows = Math.ceil(n / cols);
@@ -56,7 +60,12 @@ function build(w, h, nMenu) {
       const total = rows * bh + (rows - 1) * gapB, creditH = Math.min(120, S.h * 0.08), bottom = S.y + S.h - creditH - 26;
       const top = Math.max(S.y + S.h * (mode === 'tall' ? 0.34 : 0.3), bottom - total);
       T.title = R(S.x + 24, S.y + (mode === 'tall' ? S.h * 0.08 : S.h * 0.05), S.w - 48, top - S.y - (mode === 'tall' ? S.h * 0.08 : S.h * 0.05) - 10);
-      T.buttons = []; for (let i = 0; i < n; i++) T.buttons.push(R(S.x + (S.w - totalW) / 2 + (i % cols) * (bw + gapB), top + Math.floor(i / cols) * (bh + gapB), bw, bh));
+      T.buttons = [];
+      if (cols === 2) {   // primary spans both columns; secondary entries in a two-column grid below it
+        const ph = Math.round(bh * 1.12), top2 = Math.max(S.y + S.h * (mode === 'tall' ? 0.34 : 0.3), bottom - (ph + gapB + Math.ceil((n - 1) / 2) * (bh + gapB) - gapB));
+        T.buttons.push(R(S.x + (S.w - totalW) / 2, top2, totalW, ph));
+        for (let i = 1; i < n; i++) T.buttons.push(R(S.x + (S.w - totalW) / 2 + ((i - 1) % 2) * (bw + gapB), top2 + ph + gapB + Math.floor((i - 1) / 2) * (bh + gapB), bw, bh));
+      } else for (let i = 0; i < n; i++) T.buttons.push(R(S.x + (S.w - totalW) / 2 + (i % cols) * (bw + gapB), top + Math.floor(i / cols) * (bh + gapB), bw, bh));
       const cw = Math.min(380, S.w * 0.6); T.credit = R(S.x + (S.w - cw) / 2, S.y + S.h - creditH - 10, cw, cw * 0.272);
     }
     L.title = T;

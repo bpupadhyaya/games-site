@@ -6,6 +6,7 @@
 //   wide     landscape: info card on the left, board in the middle, button card on the right (a single left card on 4:3 screens).
 // The board itself is always drawn in its canonical coordinates (the slab square SLAB, grid GRID) inside a transform
 // (`L.board`: slab top-left on screen + scale), so art.js / the stone code never needs to know where the board is.
+import { v3 } from './v3.js';
 export const W = 720, H = 1560;                         // canonical art space (the original phone layout)
 export const SLAB = { x: 24, y: 424, w: 672, h: 672 };
 export const GRID = { x: 60, y: 460, size: 600 };
@@ -25,17 +26,18 @@ export const host = { t: 0, r: 0, b: 0, l: 0, back: 0, px: 0.6 };
 const R = (x, y, w, h) => ({ x, y, w, h });
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const cache = new Map();
-export function layoutFor(w, h) {
+export const live = { slim: false };                    // set by game.js each frame: true on the play/result screens (slim header, full-width board)
+export function layoutFor(w, h, slim = live.slim) {
   w = Math.round(w); h = Math.round(h);
-  const key = `${w}x${h}|${Math.round(host.t)},${Math.round(host.r)},${Math.round(host.b)},${Math.round(host.l)},${Math.round(host.back)}`;
+  const key = `${slim ? 's' : 'r'}${w}x${h}|${Math.round(host.t)},${Math.round(host.r)},${Math.round(host.b)},${Math.round(host.l)},${Math.round(host.back)}`;
   let L = cache.get(key);
-  if (!L) { L = build(w, h, { ...host }); L.key = key; cache.set(key, L); if (cache.size > 40) cache.delete(cache.keys().next().value); }
+  if (!L) { L = build(w, h, { ...host }, !!slim); L.key = key; cache.set(key, L); if (cache.size > 40) cache.delete(cache.keys().next().value); }
   return L;
 }
 
-function build(w, h, ins) {
+function build(w, h, ins, slim) {
   const land = w >= h, tall = !land && h >= 1540, mode = land ? 'wide' : tall ? 'tall' : 'compact';
-  const L = { w, h, land, tall, mode, ins };
+  const L = { w, h, land, tall, mode, ins, slim };
   const bb = ins.back ? Math.max(ins.back, 56) : 0;
   L.backBox = ins.back ? R(ins.l, ins.t, bb + 8, bb + 8) : R(0, 0, 0, 0);
   const U = L.U = { x0: ins.l, y0: ins.t, x1: w - ins.r, y1: h - ins.b }; U.w = U.x1 - U.x0; U.h = U.y1 - U.y0;
@@ -51,15 +53,29 @@ function build(w, h, ins) {
 
   if (!land) {
     // ---- portrait: header, board, [trays], message slot, bar ----
-    const Ht = tall ? Math.max(192 + oy, backBottom + 2) : Math.max(ins.t + 44, backBottom + 2);
-    L.hdr = R(24, Ht, 672, 214); L.labelY = Ht - 16; L.titleY = tall ? Ht - 64 : 0;
-    const top = Ht + 214 + 18, msgSlot = tall ? 64 : 94, avail = barY - 16 - top;
+    const hdrH = slim ? 112 : 214;
+    const Ht = tall ? Math.max((slim ? 150 : 192) + oy, backBottom + 2) : Math.max(ins.t + 44, backBottom + 2);
+    L.hdr = R(24, Ht, 672, hdrH); L.labelY = Ht - 16; L.titleY = tall ? Ht - 64 : 0;
+    const top = Ht + hdrH + (slim ? 12 : 18), msgSlot = tall ? 64 : 94, avail = barY - 16 - top;
     let s = 1, trays = false;
-    if (avail >= 672 + 34 + 150 + 30 + 64) trays = true;
-    else if (avail < 672 + 30 + msgSlot) s = Math.max(0.5, (avail - 30 - msgSlot) / 672);
-    B.s = s; B.x = (w - 672 * s) / 2; B.y = top;
-    const bottom = top + 672 * s;
-    if (trays) L.trays = [R(40, bottom + 34, 310, 150), R(370, bottom + 34, 310, 150)];
+    if (slim) {
+      // play screen: the board takes the full width; two slim captured-stone trays under it when the screen is tall enough
+      const trayH = 100, pad = 26;
+      s = clamp((avail - pad - msgSlot) / 672, 0.5, 1.05);
+      let extra = Math.max(0, avail - (672 * s + pad + msgSlot));
+      trays = extra >= trayH + 20;
+      if (trays) extra -= trayH + 20;
+      B.s = s; B.x = (w - 672 * s) / 2; B.y = top + extra * 0.25;
+      const bottom = B.y + 672 * s;
+      L.area = R(w * 0.04, B.y + 10, w * 0.92, 672 * s - 20);                       // where the 3D grid is fitted (the flat slab keeps B)
+      if (trays) L.trays = [R(24, bottom + 14 + extra * 0.25, 330, trayH), R(366, bottom + 14 + extra * 0.25, 330, trayH)];
+    } else {
+      if (avail >= 672 + 34 + 150 + 30 + 64) trays = true;
+      else if (avail < 672 + 30 + msgSlot) s = Math.max(0.5, (avail - 30 - msgSlot) / 672);
+      B.s = s; B.x = (w - 672 * s) / 2; B.y = top;
+      const bottom = top + 672 * s;
+      if (trays) L.trays = [R(40, bottom + 34, 310, 150), R(370, bottom + 34, 310, 150)];
+    }
     L.msgBottom = barY - 10; L.msg = R(40, 0, 640, 0);
     Object.assign(BTN, {
       menu: R(60, barY, 190, barH), undo: R(265, barY, 190, barH), hint: R(470, barY, 190, barH),
@@ -110,10 +126,11 @@ function build(w, h, ins) {
   // ---- board transform helpers ----
   const toCanon = (x, y) => ({ x: (x - B.x) / B.s + SLAB.x, y: (y - B.y) / B.s + SLAB.y });
   L.squareAt = (n, x, y) => {
+    if (v3.on && v3.pick) return v3.pick(n, x, y);                         // the tilted 3D rock (presenter ray cast)
     const p = toCanon(x, y), c = cellSize(n), cx = Math.floor((p.x - GRID.x) / c), cy = Math.floor((p.y - GRID.y) / c);
     return cx < 0 || cy < 0 || cx >= n || cy >= n ? -1 : cx + n * cy;
   };
-  L.cellScreen = (n, i) => { const p = cellCenter(n, i); return { x: B.x + (p.x - SLAB.x) * B.s, y: B.y + (p.y - SLAB.y) * B.s }; };
+  L.cellScreen = (n, i) => { if (v3.on && v3.pt) return v3.pt(n, i); const p = cellCenter(n, i); return { x: B.x + (p.x - SLAB.x) * B.s, y: B.y + (p.y - SLAB.y) * B.s }; };
 
   // ---- reference pages (How to play / About / Rules): header row, scrolling reader card, nav row ----
   {

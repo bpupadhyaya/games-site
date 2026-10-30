@@ -33,6 +33,14 @@ function tag(ctx, x, y, text, col = '#ffd54a', size = 20) {
   ctx.fillStyle = '#fff6e4'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(text, x, y - size * 0.25 + 1); ctx.restore();
 }
 
+// dark wood plaque with a brass edge (the scoreboard look); edge colour marks the team
+function woodPlaque(ctx, x, y, w, h, edge) {
+  ctx.save(); roundPath(ctx, x, y + 3, w, h, 14); ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fill();
+  const wg = ctx.createLinearGradient(0, y, 0, y + h); wg.addColorStop(0, '#4a2e19'); wg.addColorStop(1, '#25150b');
+  roundPath(ctx, x, y, w, h, 14); ctx.fillStyle = wg; ctx.fill(); ctx.lineWidth = 2.5; ctx.strokeStyle = 'rgba(222,176,92,0.8)'; ctx.stroke();
+  ctx.restore();
+}
+
 function scoreboard(ctx, G, s, lay) {
   const m = lay.m, th = lay.topH, wide = lay.wide, kw = wide ? 0.85 : 1;
   const g = ctx.createLinearGradient(0, 0, 0, th + 30); g.addColorStop(0, 'rgba(4,16,10,0.9)'); g.addColorStop(1, 'rgba(4,16,10,0)');
@@ -40,6 +48,7 @@ function scoreboard(ctx, G, s, lay) {
   const m1 = Math.min(m, 1.6) * kw, ms = wide ? lay.sm : m, y0 = wide ? host.t + 8 : 14;
   for (const i of [0, 1]) {
     const left = i === 0, col = left ? lay.board.left : lay.board.right, x0 = col.x;
+    woodPlaque(ctx, x0 - 6, y0 - 8, col.w + 6, 22 * m1 + 52 * ms + 20, i === 0 ? '#e0533f' : '#4f8fe6');
     ctx.fillStyle = TEAM_COL[i]; roundPath(ctx, x0, y0, 9, wide ? th - y0 - 16 : th - 40, 4); ctx.fill();
     const ax = left ? x0 + 20 : x0 + col.w - 6;
     ctx.textAlign = left ? 'left' : 'right'; ctx.textBaseline = 'alphabetic';
@@ -48,6 +57,7 @@ function scoreboard(ctx, G, s, lay) {
     ctx.font = `800 ${Math.round(54 * ms)}px ${FONT}`; ctx.fillText(String(pts(s.score[i])), ax, y0 + 22 * m1 + 52 * ms);
   }
   const mc = Math.min(m, 1.5) * kw, cx = lay.board.clock.x + lay.board.clock.w / 2, yb = (wide ? host.t + 26 : 40) + 30 * mc;
+  woodPlaque(ctx, cx - 82 * mc, yb - 44 * mc, 164 * mc, 70 * mc, '#f2b441');
   ctx.textAlign = 'center'; ctx.fillStyle = '#fff6e4'; ctx.font = `800 ${Math.round(42 * mc)}px ${FONT}`;
   ctx.fillText(fmtClock(s.clock), cx, yb);
   ctx.fillStyle = '#ffd97a'; ctx.font = `700 ${minFont(Math.round(19 * mc))}px ${FONT}`;
@@ -70,10 +80,10 @@ function stickAndButtons(ctx, G, s, lay, cs, ctxInfo) {
     const pressed = down ? 3 : 0;
     ctx.beginPath(); ctx.arc(c.cx, c.cy + 5, c.r, 0, TAU); ctx.fillStyle = 'rgba(4,16,10,0.4)'; ctx.fill();
     ctx.beginPath(); ctx.arc(c.cx, c.cy + pressed, c.r, 0, TAU);
-    ctx.fillStyle = !on ? 'rgba(160,185,170,0.30)' : primary ? '#d8472c' : '#1f9d6a'; ctx.fill();
-    ctx.lineWidth = 2; ctx.strokeStyle = !on ? 'rgba(255,255,255,0.3)' : primary ? '#8f2a15' : '#146f4a'; ctx.stroke();
+    ctx.fillStyle = !on ? 'rgba(160,185,170,0.30)' : primary ? '#f2b441' : '#1f9d6a'; ctx.fill();
+    ctx.lineWidth = 2; ctx.strokeStyle = !on ? 'rgba(255,255,255,0.3)' : primary ? '#7a4e0e' : '#146f4a'; ctx.stroke();
     if (down) { ctx.fillStyle = 'rgba(4,16,10,0.18)'; ctx.fill(); }
-    ctx.fillStyle = on ? '#fffaf0' : 'rgba(235,245,238,0.6)'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = on ? (primary ? '#2a1704' : '#fffaf0') : 'rgba(235,245,238,0.6)'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     let px = Math.round(c.r * 0.36); ctx.font = `800 ${px}px ${FONT}`;
     while (ctx.measureText(label).width > c.r * 1.7 && px > Math.max(11, minFont(11))) { px--; ctx.font = `800 ${px}px ${FONT}`; }
     ctx.fillText(label, c.cx, c.cy + pressed - (sub ? c.r * 0.08 : 0));

@@ -1,6 +1,7 @@
 // All reusable drawing: themes, the felt table, wooden kegs, the linen bag, cardboard cards, chips and small UI pieces.
 // Pure: reads values, never mutates game state. Deterministic (no clock: animation time comes from the caller).
 import { COLS, ROWS, CELLS } from './rules.js';
+import { v3, recording, flatAlpha, rec } from './v3.js';
 
 export const hexRgb = (h) => { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
 export const mix = (a, b, k) => { const x = hexRgb(a), y = hexRgb(b); return `rgb(${x.map((v, i) => Math.round(v + (y[i] - v) * k)).join(',')})`; };
@@ -58,13 +59,19 @@ export function drawButton(ctx, r, label, th, o = {}) {
   ctx.shadowColor = 'rgba(0,0,0,0.45)'; ctx.shadowBlur = press ? 4 : 12; ctx.shadowOffsetY = press ? 2 : 5;
   roundPath(ctx, r.x, y, r.w, r.h, Math.min(22, r.h / 2.5));
   const d = press ? 0.2 : 0;
-  if (o.solid && !(primary || active || danger)) { ctx.fillStyle = mix(th.bg[2], th.bg[1], 0.3); ctx.fill(); }
+  if (v3.on && !(primary || active || danger)) {   // over the 3D table: an opaque lacquered plaque in the table's colours, thin gold inlay
+    const g = ctx.createLinearGradient(0, y, 0, y + r.h); g.addColorStop(0, mix(th.bg[1], '#000000', press ? 0.45 : 0.3)); g.addColorStop(1, mix(th.bg[2], '#000000', press ? 0.4 : 0.25));
+    ctx.fillStyle = g; ctx.fill(); ctx.shadowColor = 'transparent';
+    ctx.lineWidth = 2; ctx.strokeStyle = rgba(th.accent, 0.55); ctx.stroke();
+  } else if (o.solid && !(primary || active || danger)) { ctx.fillStyle = mix(th.bg[2], th.bg[1], 0.3); ctx.fill(); }
   if (primary || active || danger) {
     const base = danger ? th.accent2 : primary ? th.accent : th.accent2;
     ctx.fillStyle = mix(base, '#000000', 0.08 + d);
-  } else ctx.fillStyle = `rgba(255,255,255,${press ? 0.07 : 0.13})`;
-  ctx.fill(); ctx.shadowColor = 'transparent';
-  ctx.lineWidth = 2; ctx.strokeStyle = primary ? 'rgba(20,10,0,0.7)' : active ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.38)'; ctx.stroke();
+  } else if (!v3.on) ctx.fillStyle = `rgba(255,255,255,${press ? 0.07 : 0.13})`;
+  if (!(v3.on && !(primary || active || danger))) {
+    ctx.fill(); ctx.shadowColor = 'transparent';
+    ctx.lineWidth = 2; ctx.strokeStyle = primary ? 'rgba(20,10,0,0.7)' : active ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.38)'; ctx.stroke();
+  }
   if (pulse > 0) { roundPath(ctx, r.x - pulse * 7, y - pulse * 7, r.w + pulse * 14, r.h + pulse * 14, Math.min(26, r.h / 2.1)); ctx.lineWidth = 3; ctx.strokeStyle = `rgba(255,240,170,${0.7 * (1 - pulse)})`; ctx.stroke(); }
   ctx.fillStyle = primary ? '#1c1004' : th.text; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   const base = Math.min(Math.min(34, r.h * 0.42) * scale, r.h * (sub ? 0.36 : 0.6)), maxW = r.w - 20, fl = Math.min(fontFloor.u, r.h * 0.5);
@@ -75,6 +82,16 @@ export function drawButton(ctx, r, label, th, o = {}) {
   } else { const s = fitPx(ctx, label, maxW, Math.max(fl, base), 700, false, fl); ctx.font = font(s); ctx.fillText(label, r.x + r.w / 2, y + r.h / 2 + 1); }
   ctx.restore();
 }
+
+
+// 3D hand-off: while the 3D table is live, the bag, tray, kegs and cards are recorded for the presenter instead of painted (during the
+// short crossfade they are still painted, fading out). Returns true when the caller should skip its flat painting.
+function handOff(ctx, o) {
+  if (!recording()) return false;
+  rec(ctx, o);
+  return flatAlpha() <= 0;
+}
+function fading(ctx) { if (recording()) ctx.globalAlpha *= flatAlpha(); }
 
 // ---- the table backdrop ----------------------------------------------------------------------------------------------------
 export const look = { flat: false };   // main.js sets flat for store screenshots (?shot=1): no felt grain, so the JPEGs stay small
@@ -93,6 +110,18 @@ function felt() {
   return feltTile;
 }
 export function drawBackdrop(ctx, th, t, w, h, o = {}) {
+  if (v3.on) {   // the 3D table shows through: clear the kit canvas, then fade the flat felt out during the crossfade
+    ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height); ctx.restore();
+    // the lamp's pool: the room falls off into shadow toward the screen edges
+    const vg = ctx.createRadialGradient(w / 2, h * 0.45, Math.min(w, h) * 0.42, w / 2, h * 0.5, Math.max(w, h) * 0.78);
+    vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(6,3,1,0.55)'); ctx.fillStyle = vg; ctx.fillRect(0, 0, w, h);
+    if (flatAlpha() <= 0) return;
+  }
+  ctx.save(); fading(ctx);
+  drawBackdropFlat(ctx, th, t, w, h, o);
+  ctx.restore();
+}
+function drawBackdropFlat(ctx, th, t, w, h, o) {
   const g = ctx.createLinearGradient(0, 0, 0, h);
   g.addColorStop(0, th.bg[0]); g.addColorStop(0.5, th.bg[1]); g.addColorStop(1, th.bg[2]);
   ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
@@ -121,8 +150,9 @@ export function drawBackdrop(ctx, th, t, w, h, o = {}) {
 // own axis (the painted number slides across the belly and fades round the back). dim 0..1 darkens. glow 0..1 adds a warm rim.
 export function drawKeg(ctx, cx, cy, size, n, o = {}) {
   const { rot = 0, spin = 0, dim = 0, glow = 0, alpha = 1, shadow = true, label = true } = o;
+  if (handOff(ctx, { kind: 'keg', x: cx, y: cy, size, n, rot, spin, dim, glow, alpha, anim: o.anim || null })) return;
   const L = size, H = size * 0.74, he = H * 0.4, hm = H * 0.5, ex = L * 0.075;
-  ctx.save(); ctx.translate(cx, cy); ctx.rotate(rot); ctx.globalAlpha *= alpha;
+  ctx.save(); fading(ctx); ctx.translate(cx, cy); ctx.rotate(rot); ctx.globalAlpha *= alpha;
   if (shadow) { ctx.save(); ctx.rotate(-rot); ctx.fillStyle = 'rgba(0,0,0,0.32)'; ctx.beginPath(); ctx.ellipse(size * 0.04, size * 0.46, size * 0.46, size * 0.1, 0, 0, PI2); ctx.fill(); ctx.restore(); }
   if (glow > 0) { ctx.shadowColor = `rgba(255,214,120,${glow})`; ctx.shadowBlur = size * 0.5; }
   const body = () => {
@@ -169,8 +199,9 @@ export function drawKeg(ctx, cx, cy, size, n, o = {}) {
 // ---- the linen bag -------------------------------------------------------------------------------------------------------------------
 // shake 0..1 rocks the bag. (cx, cy) = the bag's centre, size = height.
 export function drawBag(ctx, cx, cy, size, t, shake = 0, th) {
+  if (handOff(ctx, { kind: 'bag', x: cx, y: cy, size, shake, t })) return;
   const w = size * 0.82, h = size;
-  ctx.save(); ctx.translate(cx, cy + h * 0.05); ctx.rotate(Math.sin(t * 38) * 0.07 * shake + Math.sin(t * 1.1) * 0.012);
+  ctx.save(); fading(ctx); ctx.translate(cx, cy + h * 0.05); ctx.rotate(Math.sin(t * 38) * 0.07 * shake + Math.sin(t * 1.1) * 0.012);
   ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(0, h * 0.5, w * 0.5, h * 0.07, 0, 0, PI2); ctx.fill();
   const bag = () => {
     ctx.beginPath(); ctx.moveTo(-w * 0.2, -h * 0.34);
@@ -197,7 +228,8 @@ export function drawBag(ctx, cx, cy, size, t, shake = 0, th) {
 
 // A wooden tray the current keg lands on. r = rect.
 export function drawTray(ctx, r, th) {
-  ctx.save();
+  if (handOff(ctx, { kind: 'tray', r: { ...r } })) return;
+  ctx.save(); fading(ctx);
   roundPath(ctx, r.x, r.y, r.w, r.h, Math.min(r.w, r.h) * 0.18);
   const g = ctx.createLinearGradient(0, r.y, 0, r.y + r.h); g.addColorStop(0, '#8a5a2c'); g.addColorStop(1, '#4a2c12');
   ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 16; ctx.shadowOffsetY = 6; ctx.fillStyle = g; ctx.fill(); ctx.shadowColor = 'transparent';
@@ -241,7 +273,14 @@ export function cellAtCard(g, px, py) {
 // o: { marks, dead, chipT[], seed, hint:[cells], hintCol, flash:{cell,t,kind}, winRows:[rows], t, dim, label, open:[numbers] }
 export function drawCard(ctx, r, card, th, o = {}) {
   const g = cardGeom(r), { marks = [], dead = [], chipT = [], t = 0 } = o;
-  ctx.save();
+  if (recording()) {
+    const id = o.id ?? `s${o.seed ?? 0}`;
+    rec(ctx, { kind: 'card', id, r: { ...r }, card, th, marks, dead, chipT, label: o.label, pi: o.pi ?? 0, ci: o.ci ?? 0, dim: o.dim || 0 });
+    const proj = v3.cards.get(id);
+    if (proj) cardMarks3d(ctx, g, r, o, proj);
+    if (flatAlpha() <= 0) return;
+  }
+  ctx.save(); fading(ctx);
   ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = Math.min(18, r.h * 0.06); ctx.shadowOffsetY = Math.min(7, r.h * 0.03);
   roundPath(ctx, r.x, r.y, r.w, r.h, Math.min(14, g.cw * 0.4));
   ctx.fillStyle = th.paper; ctx.fill(); ctx.shadowColor = 'transparent';
@@ -297,6 +336,37 @@ export function drawCard(ctx, r, card, th, o = {}) {
     ctx.lineWidth = 4; ctx.strokeStyle = `rgba(255,214,70,${0.6 + 0.4 * k})`; ctx.stroke(); ctx.restore();
   }
   if (o.dim) { roundPath(ctx, r.x, r.y, r.w, r.h, Math.min(14, g.cw * 0.4)); ctx.fillStyle = `rgba(10,6,2,${o.dim})`; ctx.fill(); }
+  ctx.restore();
+}
+
+// Hints, flashes, open-call edges and winning rows over the 3D card: drawn in device pixels at the projected corners of each cell.
+function quadPath(ctx, proj, r, x, y, w, h, inset = 0) {
+  const u0 = (x - r.x + inset) / r.w, v0 = (y - r.y + inset) / r.h, u1 = (x + w - r.x - inset) / r.w, v1 = (y + h - r.y - inset) / r.h;
+  const a = proj(u0, v0), b = proj(u1, v0), c = proj(u1, v1), d = proj(u0, v1);
+  ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.lineTo(c.x, c.y); ctx.lineTo(d.x, d.y); ctx.closePath();
+  return Math.hypot(b.x - a.x, b.y - a.y) / Math.max(1e-6, w);   // device px per unit along the top edge
+}
+function cardMarks3d(ctx, g, r, o, proj) {
+  const t = o.t ?? 0, marks = o.marks ?? [];
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.lineJoin = 'round';
+  const k = (v3.base ? v3.base.a : 1);
+  if (o.hintCol != null) { quadPath(ctx, proj, r, g.gx + o.hintCol * g.cw, g.gy, g.cw, g.ch * ROWS); ctx.fillStyle = `rgba(255,214,90,${0.22 + 0.16 * Math.sin(t * 7)})`; ctx.fill(); }
+  if (o.open) for (let i = 0; i < CELLS; i++) {
+    const n = (o.card ?? [])[i]; if (!n || marks[i] || !o.open.includes(n)) continue;
+    const c = cellRectOf(g, i); quadPath(ctx, proj, r, c.x, c.y, c.w, c.h, 2); ctx.lineWidth = 2 * k; ctx.strokeStyle = `rgba(230,160,20,${0.55 + 0.25 * Math.sin(t * 6)})`; ctx.stroke();
+  }
+  if (o.hint) for (const i of o.hint) {
+    const c = cellRectOf(g, i), q = 0.5 + 0.5 * Math.sin(t * 8);
+    quadPath(ctx, proj, r, c.x, c.y, c.w, c.h, 1); ctx.lineWidth = (4 + q * 2.5) * k; ctx.strokeStyle = `rgba(255,214,60,${0.75 + 0.25 * q})`; ctx.shadowColor = 'rgba(255,200,60,0.9)'; ctx.shadowBlur = 10 * k; ctx.stroke(); ctx.shadowBlur = 0;
+  }
+  if (o.flash) {
+    const c = cellRectOf(g, o.flash.cell), q = 1 - clamp01(o.flash.t / 0.5);
+    quadPath(ctx, proj, r, c.x, c.y, c.w, c.h); ctx.fillStyle = o.flash.kind === 'wrong' ? `rgba(255,50,40,${0.55 * q})` : `rgba(255,255,255,${0.5 * q})`; ctx.fill();
+  }
+  if (o.winRows) for (const rr of o.winRows) {
+    const q = 0.55 + 0.45 * Math.sin(t * 5 + rr);
+    quadPath(ctx, proj, r, g.gx, g.gy + rr * g.ch, g.cw * COLS, g.ch, 1); ctx.shadowColor = 'rgba(255,210,70,0.95)'; ctx.shadowBlur = 14 * k; ctx.lineWidth = 4 * k; ctx.strokeStyle = `rgba(255,214,70,${0.6 + 0.4 * q})`; ctx.stroke(); ctx.shadowBlur = 0;
+  }
   ctx.restore();
 }
 function mixAlpha(hex, a) { return rgba(hex, a); }

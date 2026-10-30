@@ -44,8 +44,9 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
   stage.scene.fog = null;
   stage.scene.background = null;
   cam.updateProjectionMatrix = () => {};          // the projection below is ours (an oblique orthographic map of the court)
-  stage.setLighting('day', { exposure: 1, hemi: 1.3, hemiSky: 0xfff6e4, hemiGround: 0xb08a58, key: 0xffe6bc, keyI: 2.5, rim: 0xbcd4ff, rimI: 0.55 });
+  stage.setLighting('day', { exposure: 1, hemi: 1.0, hemiSky: 0xfff6e4, hemiGround: 0xb08a58, key: 0xffe6bc, keyI: 2.1, rim: 0xbcd4ff, rimI: 0.6 });
   stage.scene.environment = null; stage.scene.environmentIntensity = 0;
+  stage.scene.fog = null; stage.scene.background = null;   // setLighting('day') re-adds a haze fog and a sky: both washed the court out
   stage.renderer.toneMapping = 0;                   // none: the painted palette of the village reads as designed
   const L_ = stage.lights;
   if (L_ && L_.key && L_.key.shadow) { const sc = L_.key.shadow.camera; Object.assign(sc, { left: -9, right: 9, top: 13, bottom: -13, near: 1, far: 60 }); sc.updateProjectionMatrix(); L_.key.shadow.bias = -0.0005; L_.key.shadow.normalBias = 0.03; L_.key.shadow.radius = 4; }
@@ -101,7 +102,7 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
   const people = P.people;
   async function build() {
     const lod = quality === 'low' ? 2 : 1;
-    const hs = await Promise.all(Array.from({ length: NSLOT }, (_, i) => { const lk = LOOKS[i]; return loadHuman({ character: lk.ch, kit: { ...KITS.runner }, skin: lk.skin, hair: lk.hair, scale: SCALE, lod, quality }); }));
+    const hs = await Promise.all(Array.from({ length: NSLOT }, (_, i) => { const lk = LOOKS[i]; return loadHuman({ character: lk.ch, top: 'long', kit: { ...KITS.runner }, skin: lk.skin, hair: lk.hair, scale: SCALE, lod, quality }); }));
     hs.forEach((h, i) => {
       h.groundClamp = 'auto'; h.footPlanting = true;
       h.play('idle', { fade: 0 });

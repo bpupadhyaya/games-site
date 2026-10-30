@@ -1,14 +1,16 @@
 // The jumper: a lifelike Rocketbox figure in a plain shirt and shorts, plus the authored poses for the hang on the pole, the leap, the flight and the landing,
 // and the pole itself (a chain of tapered segments that can bow under load). The sim sets which pose and how far into it; the hands and feet are placed on
 // the pole every frame by the presenter (two-bone IK), so the picture agrees with the sim.
-export async function loadAthlete(V3, { character = 'athlete_m', lod = 0 } = {}) {
+export async function loadAthlete(V3, { character = 'athlete_m' } = {}) {
+  // full detail ALWAYS (no LOD sets, no tier swaps in the simplified hands/shoulders) and a long top (no tank armhole edge): the athlete is seen close up.
   const { loadHuman, buildClip, THREE } = V3;
   const female = character === 'athlete_f';
   const h = await loadHuman({
     character,
     kit: { top: female ? '#c9442f' : '#e9eef2', bottoms: '#1d3552', socks: '#e9eef2' },
-    skin: 'light', hair: female ? 'brown' : 'brown', lod,
+    skin: 'light', hair: female ? 'brown' : 'brown', top: 'long',
   });
+  h.lodAuto = false;
   h.groundClamp = 'off'; h.footPlanting = false;
   const A = { h, THREE, ready: true, clips: {}, gear: [] };
   const mat = (c, r = 0.5, m = 0.1) => new THREE.MeshStandardMaterial({ color: c, roughness: r, metalness: m });

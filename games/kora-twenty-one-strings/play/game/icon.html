@@ -1,0 +1,8 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Kora icon</title>
+<style>html,body{margin:0;background:#140810}</style></head>
+<body><script type="module">
+// Offline icon render (not loaded by the game): node dev/render-icon.mjs opens this page and saves window.__icon() as store/icon.png.
+import { renderKoraIcon } from './view3d/icon.js';
+renderKoraIcon(new URLSearchParams(location.search));
+</script></body></html>

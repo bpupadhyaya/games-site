@@ -53,10 +53,10 @@ export function playLayout() {
     const think = R(hud.x, by, bw, 86), pause = R(hud.x + bw + 14, by, bw, 86);
     const sx = FR.l, sw = FR.w - FR.l - FR.r;
     const floorY = Math.round(Math.max(hud.y + hud.h + 300, by - 215));
-    Object.assign(L, { hud, think, pause, scene: { x: sx, w: sw, floorY, top: hud.y + hud.h + 40 }, msg: { x: FR.w / 2, y: hud.y + hud.h + 34 } });
+    Object.assign(L, { hud, think, pause, scene: { x: sx, w: sw, floorY, top: hud.y + hud.h + 40, por: true }, msg: { x: FR.w / 2, y: hud.y + hud.h + 34 } });
     L.sheet = R(hud.x, floorY + 22, hud.w, Math.max(120, by - floorY - 34));
   } else {
-    const side = Math.max(210, Math.min(280, (FR.w - FR.l - FR.r) * 0.19));
+    const side = Math.max(190, Math.min(228, (FR.w - FR.l - FR.r) * 0.15));
     const hud = R(FR.l + 16, top + 34, side, 220), ctl = R(FR.w - FR.r - 16 - side, top + 34, side, FR.h - top - bot - 34);
     const think = R(ctl.x, ctl.y + ctl.h - 190, ctl.w, 84), pause = R(ctl.x, ctl.y + ctl.h - 94, ctl.w, 84);
     const sx = hud.x + hud.w + 12, sw = ctl.x - 12 - sx;

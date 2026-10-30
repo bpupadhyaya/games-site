@@ -178,7 +178,7 @@ export function menuRects(L, n, extraTop = 120) {
 // ground line must stay visible (it grows as the girls climb, so the picture zooms out smoothly).
 export function stageCam(stage, needM = 4.2) {
   const wide = stage.w > stage.h * 1.3;
-  const sW = stage.w * 0.88 / 3.5;
+  const sW = stage.w * 0.95 / 3.5;
   const gy = stage.y + stage.h - Math.min(stage.h * 0.12, 70);
   const sH = (gy - stage.y - 8) / Math.max(needM, 3.0);
   const s = clamp(Math.min(sW, sH), 40, 230);

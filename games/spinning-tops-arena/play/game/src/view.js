@@ -6,6 +6,8 @@ import { THINK_STEPS, TEXT_SCALES, VIEW, curLayout, minFs } from './layout.js';
 import { FONT, DISPLAY, C, roundPath, paintButton, drawButton, panel, textShadow, wrapLines, fitPx } from './ui.js';
 import { PROFILES } from './ai.js';
 import { GAUGE } from './timing.js';
+import { v3 } from './v3.js';
+import { VIEW as VW } from './layout.js';
 
 const TAU = Math.PI * 2;
 
@@ -28,6 +30,14 @@ export const aimAnchor = (side) => { const sp = launchSpot(side); return toScree
 // ---- the scene --------------------------------------------------------------------------------
 export function drawScene(ctx, S, o = {}) {
   const arena = S.arena;
+  if (v3.on && v3.want) {
+    // the dish and the tops are WebGL (view3d/presenter.js); the 2D layer keeps trails and sparks. The ctx transform is design -> canvas pixels.
+    const m = ctx.getTransform(), k = ctx.canvas.width / Math.max(1, VW.w);
+    v3.frame = { arena, tops: S.tops, looks: S.looks, age: S.age, clock: S.clock, xf: { s: m.a / k, tx: m.e / k, ty: m.f / k } };
+    if (S.trails) drawTrails(ctx, S.trails);
+    if (S.parts) drawParticles(ctx, S.parts);
+    return;
+  }
   drawBackdrop(ctx, arena);
   if (S.trails) drawTrails(ctx, S.trails);
   const tops = S.tops.map((t, i) => ({ t, i })).sort((a, b) => (a.t.st === 2 ? 99 : a.t.y) - (b.t.st === 2 ? 99 : b.t.y));

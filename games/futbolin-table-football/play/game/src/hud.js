@@ -1,7 +1,8 @@
 // The play screen: tavern floor, table, score card, buttons, banners, the hint panel and the Watch & Learn panel.
 import { W, H, host, minFont, isWide, playLayout, watchLayout, toScreen, R, inRect, TEXT_SCALES } from './layout.js';
 import { FONT, DISPLAY, C, roundPath, drawButton, panel, wrapLines, fitPx, textShadow, ease } from './ui.js';
-import { drawFloor, drawTable, drawLight } from './draw.js';
+import { drawFloor, drawTable, drawLight, drawOverlays3d } from './draw.js';
+import { v3, fitted } from './v3.js';
 import { HL, GOAL_HW, KINDS, THINK_STEPS, LEVELS, dirOf } from './consts.js';
 import { manX } from './physics.js';
 
@@ -41,8 +42,12 @@ export function overlayPlan(G) {
 export function renderPlay(ctx, G, sim) {
   const S = sim.s, lay = playLayout(G.settings.textIdx), t = G.t;
   ctx.clearRect(0, 0, W, H);
-  drawFloor(ctx, W, H, lay);
   const plan = overlayPlan(G);
+  if (v3.on) {
+    // the 3D presenter draws the room, table, rods, men and ball behind this canvas
+    if (fitted(lay)) drawOverlays3d(ctx, lay, S, { plan, planCol: G.think ? '#ffe28a' : (G.watch.phase === 'reveal' ? '#8ff0c0' : '#ffe28a'), fx: G.fx });
+  } else {
+  drawFloor(ctx, W, H, lay);
   const shake = S.shake > 0 ? { x: Math.sin(t * 90) * S.shake * 3, y: Math.cos(t * 77) * S.shake * 3 } : null;
   if (shake) { ctx.save(); ctx.translate(shake.x, shake.y); }
   drawTable(ctx, lay, S, {
@@ -52,6 +57,7 @@ export function renderPlay(ctx, G, sim) {
   });
   if (shake) ctx.restore();
   drawLight(ctx, W, H, lay);
+  }
   drawScore(ctx, G, S, lay);
   drawBanner(ctx, G, S, lay);
   if (G.mode === 'watch') drawWatch(ctx, G, S); else drawButtons(ctx, G, lay);
@@ -72,7 +78,7 @@ function drawHintLine(ctx, G, lay) {
 
 function drawScore(ctx, G, S, lay) {
   const r = lay.score;
-  panel(ctx, r.x, r.y, r.w, r.h, { r: 24, fill: 'rgba(36,16,6,0.86)', stroke: 'rgba(255,214,150,0.45)' });
+  panel(ctx, r.x, r.y, r.w, r.h, { r: 24, wood: true });
   const mid = r.x + r.w / 2;
   const sub = G.two ? 'Two players' : G.mode === 'watch' ? 'Watch & Learn' : G.mode === 'cup' ? `${G.cupRound.round}` : G.mode === 'shot' ? 'Friendly' : `Level ${LEVELS[G.setup.opp - 1].name}`;
   ctx.save(); ctx.textBaseline = 'middle';
@@ -165,7 +171,7 @@ function drawWatch(ctx, G, S) {
   const shown = lines.slice(0, maxLines);
   const ph = 52 + fs + shown.length * fs * 1.3 + 12;
   const y0 = wl.panel.bottom - ph;
-  panel(ctx, wl.panel.x, y0, pw, ph, { r: 22, fill: 'rgba(36,16,6,0.9)', stroke: 'rgba(255,214,150,0.45)' });
+  panel(ctx, wl.panel.x, y0, pw, ph, { r: 22, wood: true });
   ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
   ctx.fillStyle = w.phase === 'reveal' && S.hold ? '#8ff0c0' : '#ffd77a'; ctx.font = `800 ${Math.round(fs * 1.05)}px ${FONT}`;
   ctx.fillText(head, wl.panel.x + 22, y0 + 20 + fs);
@@ -199,7 +205,7 @@ export function renderThink(ctx, G) {
   const rp = toScreen(lay, 0, G.sim.s.rods[th.plan.rod].y);
   const lowRod = (lay.wide ? rp.x < W * 0.5 : rp.y > H * 0.5);
   const py = rs ? (rs.side ? Math.round((rs.top + rs.bottom - ph) / 2) : rs.bottom - ph) : wide ? Math.round((H - ph) / 2) : (lowRod ? host.t + 16 : H - host.b - 16 - ph);
-  panel(ctx, px, py, pw, ph, { r: 26, fill: 'rgba(36,16,6,0.95)', stroke: 'rgba(255,214,150,0.55)' });
+  panel(ctx, px, py, pw, ph, { r: 26, wood: true });
   ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'; ctx.fillStyle = '#ffd77a'; ctx.font = `800 ${Math.round(fs * 0.8)}px ${FONT}`;
   ctx.fillText('HINT', px + 24, py + 20 + fs * 0.6);
   let y = py + 30 + fs;

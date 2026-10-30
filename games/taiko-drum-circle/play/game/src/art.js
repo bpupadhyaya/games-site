@@ -246,6 +246,46 @@ export function drawDrum(ctx, cx, cy0, rx, kind, st = {}) {
   ctx.restore();
 }
 
+// The live overlays of a drum (don/ka zones, incoming-note rings, impact glow, ripples) with no body: drawn over the 3D scene, whose
+// orthographic camera projects each head to exactly this ellipse (centre cx,cy; radii rx, rx*0.62).
+export function drawDrumFx(ctx, cx, cy0, rx, st = {}) {
+  const ry = rx * 0.62, flash = st.flash || 0, cy = cy0 + (st.lift || 0);
+  ctx.save();
+  // rim zone ring (where ka lands) and the don sweet spot
+  const zD = ZONE.don;
+  ctx.strokeStyle = 'rgba(120,80,40,0.28)'; ctx.lineWidth = Math.max(1.5, rx * 0.025);
+  ctx.beginPath(); ctx.ellipse(cx, cy, rx * 0.88 * 0.78, ry * 0.88 * 0.78, 0, 0, TAU); ctx.stroke();
+  const wn = ctx.createRadialGradient(cx, cy, 2, cx, cy, rx * zD);
+  wn.addColorStop(0, 'rgba(150,110,60,0.5)'); wn.addColorStop(0.7, 'rgba(160,120,70,0.28)'); wn.addColorStop(1, 'rgba(160,120,70,0)');
+  ctx.fillStyle = wn; ctx.beginPath(); ctx.ellipse(cx, cy, rx * zD * 1.1, ry * zD * 1.4, 0, 0, TAU); ctx.fill();
+  // incoming glows
+  const incD = st.incD || 0, incK = st.incK || 0;
+  if (incD > 0) {
+    ctx.strokeStyle = rgba(PAL.ember, 0.25 + 0.6 * incD); ctx.lineWidth = 3 + 2 * incD;
+    ctx.beginPath(); ctx.ellipse(cx, cy, rx * zD * 1.1, ry * zD * 1.4, 0, 0, TAU); ctx.stroke();
+  }
+  if (incK > 0) {
+    ctx.strokeStyle = rgba(PAL.ice, 0.25 + 0.6 * incK); ctx.lineWidth = 4 + 2 * incK;
+    ctx.beginPath(); ctx.ellipse(cx, cy, rx * 0.84, ry * 0.84, 0, 0, TAU); ctx.stroke();
+  }
+  // impact: glow + ripples
+  if (flash > 0.01) {
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    const D = st.zone !== 'K', col = D ? '255,120,60' : '90,200,255';
+    const gx = D ? cx : cx + (st.kx || 0) * rx * 0.8, gy = D ? cy : cy + (st.ky || 0) * ry * 0.8;
+    const gl = ctx.createRadialGradient(gx, gy, 2, gx, gy, rx * (D ? 0.9 : 0.7));
+    gl.addColorStop(0, `rgba(${col},${0.85 * flash})`); gl.addColorStop(1, `rgba(${col},0)`);
+    ctx.fillStyle = gl; ctx.beginPath(); ctx.ellipse(cx, cy, rx * 1.05, ry * 1.05, 0, 0, TAU); ctx.fill();
+    ctx.restore();
+  }
+  for (const rp of st.rip || []) {
+    const k = clamp01(rp.age / 0.45);
+    ctx.strokeStyle = rp.zone === 'K' ? `rgba(160,225,255,${0.7 * (1 - k)})` : `rgba(255,190,140,${0.7 * (1 - k)})`; ctx.lineWidth = 3 * (1 - k) + 0.5;
+    ctx.beginPath(); ctx.ellipse(cx, cy, rx * (0.3 + 0.75 * k), ry * (0.3 + 0.75 * k), 0, 0, TAU); ctx.stroke();
+  }
+  ctx.restore();
+}
+
 // ---- the sticks (bachi) -------------------------------------------------------------------------------------------------------------------------
 // One stick from a grip point to a tip: tapered, lit, with a soft shadow. `lift` 0 = on the skin, 1 = fully raised.
 export function drawStick(ctx, gx, gy, tx, ty, thick, glow = 0) {

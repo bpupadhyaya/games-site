@@ -39,7 +39,7 @@ export function boardGeo(bx, by, bw, bh, n, pan, { top = false } = {}) {
   let bd = 56, G = 100;
   for (let it = 0; it < 3; it++) {
     G = Math.max(60, Math.min(bw - 2 * pad - bands * bd, bh - 2 * pad - 2 * bd));
-    bd = clamp((G / n) * 0.5, 40, 76);
+    bd = clamp((G / n) * 0.42, 38, 64);
   }
   G = Math.max(60, Math.min(bw - 2 * pad - bands * bd, bh - 2 * pad - 2 * bd));
   const s = G / n, gap = Math.max(2, s * 0.06), w = G + 2 * pad + bands * bd, h = G + 2 * pad + 2 * bd;
@@ -147,17 +147,20 @@ export function titleLayout(w, h, hasSave) {
       T.brand = { x: U.x0 + (cx - U.x0) / 2, y: U.y1 - 26 }; T.landscape = true;
     } else {
       const cw = Math.min(U.w - 2 * m, 640), top = U.y0 + 6;
-      const need = prim.length * 92 + 16 + 3 * 70 + 10 + 80;
+      const need = (hasSave ? 3 : 2) * 100 + 16 + 2 * 62 + 10 + 80;
       const heroH = clamp(U.h - need - 70, 200, 640);
       T.hero = R(U.x0 + m, top + (F.ins.back ? 40 : 0), U.w - 2 * m, heroH - (F.ins.back ? 40 : 0));
       col = R(U.x0 + (U.w - cw) / 2, top + heroH, cw, U.h - heroH - 70);
       T.brand = { x: U.x0 + U.w / 2, y: U.y1 - 26 };
     }
-    const pH = clamp((col.h - 16 - 3 * 12) / (prim.length + 3) * 1.15, 66, 128), sH = clamp(pH * 0.72, 52, 96);
-    let y = col.y + Math.max(0, (col.h - (prim.length * (pH + 12) + 16 + 3 * (sH + 10))) / 2);
-    prim.forEach((id) => { T.buttons[id] = R(col.x, y, col.w, pH); y += pH + 12; });
-    y += 4;
-    const g = grid(R(col.x, y, col.w, 3 * sH + 20), 2, 3, 10);
+    // One dominant Play button (Continue or The Journey), Free Play + Daily as a pair, six small tools in 3 x 2.
+    const lead = hasSave ? ['continue', 'journey'] : ['journey'];
+    const units = lead.length * 1.5 + 1 + 2 * 0.72;      // button heights in units of pH
+    const pH = clamp((col.h - 12 * (lead.length + 3) - 16) / units, 60, 130), sH = clamp(pH * 0.62, 50, 84);
+    let y = col.y + Math.max(0, (col.h - (lead.length * (pH * 1.5 + 12) + pH + 12 + 16 + 2 * (sH + 10))) / 2);
+    lead.forEach((id, i) => { const hh = pH * (i === 0 && lead.length > 1 ? 1.3 : 1.5); T.buttons[id] = R(col.x, y, col.w, hh); y += hh + 12; });
+    const pr = grid(R(col.x, y, col.w, pH), 2, 1, 12); T.buttons.free = pr[0]; T.buttons.daily = pr[1]; y += pH + 12 + 4;
+    const g = grid(R(col.x, y, col.w, 2 * sH + 10), 3, 2, 10);
     sec.forEach((id, i) => { T.buttons[id] = g[i]; });
     return T;
   });

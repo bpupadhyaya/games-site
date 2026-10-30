@@ -28,4 +28,22 @@ const create = async (env) => { const game = await createGame(env); if (env.conf
 // The Arcforge lockup (see src/brand.js): optional, the title reads without it.
 const lk = new Image(); lk.onload = () => setLockup(lk); lk.src = './brand/arcforge-lockup.png';
 
-boot({ createGame: create, meta, canvas, background: '#000' });
+// The lit 3D schoolyard (view3d/presenter.js) sits behind the transparent kit canvas. The kit boots at once on the 2D table; the
+// 3D layer is imported and built only after the first frames (never before boot), then crossfades in. With no WebGL, a failed
+// import or a lost context, the 2D table simply stays (and comes back on context loss).
+let presenter = null;
+const q3 = new URLSearchParams(location.search);
+const start3d = () => {
+  if (q3.has('flat')) return;
+  import('./view3d/presenter.js')
+    .then((m) => m.createPresenter({ kitCanvas: canvas }))
+    .then((p) => { if (p && p.ok) presenter = p; })
+    .catch((e) => console.warn('3D yard unavailable; 2D table kept', e));
+};
+boot({
+  createGame: async (env) => {
+    const game = await create(env);
+    return Object.assign({}, game, { render(ctx, view) { game.render(ctx, view); if (presenter) presenter.frame(); } });
+  },
+  meta, canvas, background: 'rgba(0,0,0,0)',
+}).then(() => { const go = () => setTimeout(start3d, q3.has('now3d') ? 0 : 350); if (window.requestIdleCallback) requestIdleCallback(go, { timeout: 900 }); else go(); });

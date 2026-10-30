@@ -18,7 +18,7 @@ let lateGame = null;
 const lateWrap = (g, flatRender) => {
   const flat = flatRender ? Object.assign({}, g, { render: flatRender }) : g;
   let inner = null;
-  lateGame = Object.assign({}, flat, { update(dt, i) { return (inner ?? flat).update(dt, i); }, render(c, v) { (inner ?? flat).render(c, v); }, adopt() { if (!inner && presenter && presenter.stage) inner = presenter.wrap(g); } });
+  lateGame = Object.assign({}, flat, { update(dt, i) { return (inner ?? flat).update(dt, i); }, render(c, v) { if (inner) v.noGL = false; (inner ?? flat).render(c, v); }, adopt() { if (!inner && presenter && presenter.stage) inner = presenter.wrap(g); } });
   return lateGame;
 };
 const lateBg = (flat) => ({ toString: () => (presenter && presenter.stage && presenter.ready ? 'rgba(0,0,0,0)' : flat) });

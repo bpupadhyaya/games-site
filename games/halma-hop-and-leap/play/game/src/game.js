@@ -8,6 +8,7 @@ import { LEVELS, createThinker, chooseMove } from './ai.js';
 import { LESSONS } from './content.js';
 import { BOARD_KEYS, STYLE_KEYS } from './art.js';
 import { render, ui, docMetrics } from './view.js';
+import { v3 } from './v3.js';
 
 // Fluid viewport (kit 1.7.0): the short side is always 720 units and the long side follows the screen, in portrait and landscape.
 export const meta = { width: 720, height: 1560, fluid: { short: 720 } };
@@ -28,6 +29,10 @@ export function createGame(env) {
   };
   let thinker = null, hintThinker = null, lastScene = state.scene, drag0 = null, docDrag = null, boardPress = false;
   const lay = () => layoutFor(meta.width, meta.height, state.game.variant);
+  // With the 3D board alive a tap is mapped through the tilted view (v3.cellAt / v3.toScreen); otherwise through the flat layout.
+  const on3 = () => v3.on && v3.frame && v3.frame.mode === 'play' && v3.cellAt;
+  const sqAt = (L, x, y) => { if (on3()) { const c = v3.cellAt(x, y), n = state.game ? L.n : 0; if (!c) return -1; const cx = Math.floor(c.x), cy = Math.floor(c.y); return cx < 0 || cx >= n || cy < 0 || cy >= n ? -1 : cy * n + cx; } return L.squareAt(x, y); };
+  const sqp = (L, i) => { if (on3()) { const n = L.n; return v3.toScreen((i % n) + 0.5, ((i / n) | 0) + 0.5, 0.35); } return L.sq(i); };
 
   storage.get('prefs', null).then((v) => {
     if (!v) { if (host.px * 720 <= 430 && !config.dev) { state.variant = 'quick'; state.game = newGame('quick'); } return; }   // small phone, first launch: the 10x10 board has comfortable cells
@@ -137,7 +142,7 @@ export function createGame(env) {
       const hit = i >= 0 && state.selMoves.find((m) => m.to === i);
       if (hit) return hit;
       let best = null, bd = L.cell * 0.9;                                           // near miss: snap to the closest lit square
-      if (px !== undefined) for (const m of state.selMoves) { const p = L.sq(m.to), d = Math.hypot(p.x - px, p.y - py); if (d < bd) { bd = d; best = m; } }
+      if (px !== undefined) for (const m of state.selMoves) { const p = sqp(L, m.to), d = Math.hypot(p.x - px, p.y - py); if (d < bd) { bd = d; best = m; } }
       if (best) return best;
       if (i < 0) { state.sel = -1; refreshSel(); return null; }
       if (g.board[i]) say('That is another player’s peg. Tap a lit square.');
@@ -146,7 +151,7 @@ export function createGame(env) {
     }
     if (px !== undefined) {                                                          // no peg selected: pick the nearest own peg that can move
       let best = -1, bd = L.cell * 0.8;
-      for (let q = 0; q < g.board.length; q++) if (g.board[q] === me) { const p = L.sq(q), d = Math.hypot(p.x - px, p.y - py); if (d < bd) { bd = d; best = q; } }
+      for (let q = 0; q < g.board.length; q++) if (g.board[q] === me) { const p = sqp(L, q), d = Math.hypot(p.x - px, p.y - py); if (d < bd) { bd = d; best = q; } }
       if (best >= 0) { state.sel = best; refreshSel(); clack(600); drag0 = null; return null; }
     }
     if (i >= 0 && g.board[i]) say(`It is ${NAMES[me]}’s turn. Tap one of the ${NAMES[me].toLowerCase()} pegs.`);
@@ -267,14 +272,14 @@ export function createGame(env) {
     if (small) {
       if (p.pressed) boardPress = inRect(L.board.rect, p.x, p.y);
       state.loupe = p.down && !p.released && boardPress ? { x: p.x, y: p.y } : null;
-      if (p.released && boardPress) { boardPress = false; m = pressSquare(L.squareAt(p.x, p.y), p.x, p.y); state.loupe = null; }
+      if (p.released && boardPress) { boardPress = false; m = pressSquare(sqAt(L, p.x, p.y), p.x, p.y); state.loupe = null; }
       drag0 = null; state.drag = null;
     } else state.loupe = null;
-    if (!small && p.pressed) { m = pressSquare(L.squareAt(p.x, p.y), p.x, p.y); drag0 = state.sel >= 0 && !m ? { x: p.x, y: p.y } : null; }
+    if (!small && p.pressed) { m = pressSquare(sqAt(L, p.x, p.y), p.x, p.y); drag0 = state.sel >= 0 && !m ? { x: p.x, y: p.y } : null; }
     if (!small && !m && p.down && drag0 && state.sel >= 0) { if (state.drag || Math.hypot(p.x - drag0.x, p.y - drag0.y) > L.cell * 0.3) state.drag = { x: p.x, y: p.y }; }
     if (!small && !m && p.released && drag0) {
       if (state.drag) {
-        const i = L.squareAt(p.x, p.y); state.drag = null;
+        const i = sqAt(L, p.x, p.y); state.drag = null;
         if (i >= 0 && i !== state.sel) { const hit = state.selMoves.find((q) => q.to === i); if (hit) m = hit; else if (state.game.board[i] === 0) { const r = tryMove(state.game, state.sel, i); say(r.error); } }
       }
       drag0 = null;
@@ -304,7 +309,7 @@ export function createGame(env) {
       return;
     }
     if (!p.pressed) return;
-    const lay1 = lay(), m = pressSquare(lay1.squareAt(p.x, p.y), p.x, p.y); if (!m) return;
+    const lay1 = lay(), m = pressSquare(sqAt(lay1, p.x, p.y), p.x, p.y); if (!m) return;
     const goal = l.goal;
     let ok = false;
     if (goal.type === 'to') ok = m.to === goal.to;

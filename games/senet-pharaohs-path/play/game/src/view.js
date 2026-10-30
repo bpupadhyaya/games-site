@@ -7,10 +7,23 @@ import { LEVELS } from './ai.js';
 import { LESSONS } from './lessons.js';
 import { ABOUT, HOW, RULES } from './about.js';
 import { drawLockup, drawMoreLine, drawBadgeStack } from './brand.js';
+import { v3 } from './v3.js';
 
 const FONT = '"Cormorant Garamond", Georgia, "Times New Roman", serif', UI = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 const TAU = Math.PI * 2, IVORY = '#f6e7c4';
-const FOOT = 20;                                     // a piece's foot sits this far below the middle of its square
+const FOOT = 20;
+// Small line glyphs for the menu (24-unit box centred on 0,0), drawn in the button's ink colour.
+const ICONS = {
+  learn: (c) => { c.beginPath(); c.moveTo(0, -7); c.quadraticCurveTo(-6, -11, -11, -9); c.lineTo(-11, 8); c.quadraticCurveTo(-6, 6, 0, 10); c.quadraticCurveTo(6, 6, 11, 8); c.lineTo(11, -9); c.quadraticCurveTo(6, -11, 0, -7); c.lineTo(0, 10); c.stroke(); },
+  play: (c) => { c.beginPath(); c.moveTo(-8, 10); c.quadraticCurveTo(-6, -2, 0, -11); c.quadraticCurveTo(6, -2, 8, 10); c.closePath(); c.stroke(); c.beginPath(); c.moveTo(-6, 3); c.lineTo(6, 3); c.stroke(); },
+  two: (c) => { c.beginPath(); c.moveTo(-12, 10); c.quadraticCurveTo(-10, 0, -6, -8); c.quadraticCurveTo(-2, 0, 0, 10); c.closePath(); c.stroke(); c.beginPath(); c.rect(3, -8, 9, 4); c.moveTo(5, -4); c.lineTo(5, 6); c.moveTo(10, -4); c.lineTo(10, 6); c.rect(3, 6, 9, 4); c.stroke(); },
+  daily: (c) => { c.beginPath(); c.arc(0, 0, 5.5, 0, Math.PI * 2); c.fill(); for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4; c.beginPath(); c.moveTo(Math.cos(a) * 8.5, Math.sin(a) * 8.5); c.lineTo(Math.cos(a) * 12, Math.sin(a) * 12); c.stroke(); } },
+  how: (c) => { c.beginPath(); c.arc(0, 0, 11, 0, Math.PI * 2); c.stroke(); c.beginPath(); c.moveTo(-3.5, -3.5); c.quadraticCurveTo(-3.5, -7.5, 0, -7.5); c.quadraticCurveTo(4, -7.5, 4, -3.5); c.quadraticCurveTo(4, -1, 0, 1); c.lineTo(0, 3); c.stroke(); c.beginPath(); c.arc(0, 7, 1.4, 0, Math.PI * 2); c.fill(); },
+  watch: (c) => { c.beginPath(); c.moveTo(-12, 0); c.quadraticCurveTo(0, -11, 12, 0); c.quadraticCurveTo(0, 11, -12, 0); c.stroke(); c.beginPath(); c.arc(0, 0, 4, 0, Math.PI * 2); c.fill(); },
+  about: (c) => { c.beginPath(); c.arc(0, 0, 11, 0, Math.PI * 2); c.stroke(); c.beginPath(); c.moveTo(0, -1); c.lineTo(0, 7); c.stroke(); c.beginPath(); c.arc(0, -5.5, 1.5, 0, Math.PI * 2); c.fill(); },
+  rules: (c) => { c.beginPath(); c.rect(-8, -11, 16, 22); c.stroke(); c.beginPath(); for (const y of [-5, 0, 5]) { c.moveTo(-4, y); c.lineTo(4, y); } c.stroke(); },
+  resume: (c) => { c.beginPath(); c.arc(0, 0, 9, -Math.PI * 0.35, Math.PI * 1.45); c.stroke(); c.beginPath(); c.moveTo(4, -12); c.lineTo(8, -7); c.lineTo(2, -5); c.stroke(); },
+};                                     // a piece's foot sits this far below the middle of its square
 const NAMES = (s) => (s.scene === 'autoplay' || s.scene === 'autoplay-over' ? ['Player A', 'Player B'] : s.two ? ['Player one', 'Player two'] : ['You', 'Computer']);
 
 // Every button / text-bearing rectangle drawn in the last frame, for the layout checks (dev tools read it; the game never does).
@@ -27,7 +40,9 @@ export function render(ctx, s, L) {
   const sc = s.scene;
   const C = sc === 'lesson' || sc === 'puzzle' ? L.card : L.play;
   const B = C.board, a = s.anim, g = s.g, W = L.w, H = L.h;
-  drawBackdrop(ctx, s.t, s.calm, L, C.lamps);
+  // 3D on: the chamber, board, pieces, glowing squares and sticks are drawn by the presenter (web/view3d) from this record.
+  const V3 = v3.on, rec = V3 ? (v3.rec = { scene: sc, L, C, pieces: [], marks: [], sticks: null, title: null, anim: null, off: g.off.slice(), calm: s.calm, t: s.t, dim: 0 }) : null;
+  if (!V3) drawBackdrop(ctx, s.t, s.calm, L, C.lamps); else ctx.clearRect(-2, -2, W + 4, H + 4);
 
   let inBtn = false;
   const text = (str, x, y, size, color = IVORY, font = FONT, weight = 700, align = 'center') => {
@@ -43,6 +58,20 @@ export function render(ctx, s, L) {
     const gr = ctx.createLinearGradient(0, y - size * 0.8, 0, y + size * 0.1); gr.addColorStop(0, '#fff4c2'); gr.addColorStop(0.5, '#efc45c'); gr.addColorStop(1, '#a8761c');
     ctx.fillStyle = gr; ctx.fillText(str, x, y);
   };
+  // The title lettering: cast gold with a bevelled face, a dark bronze extrusion and a soft drop shadow (no gloss blob).
+  const titleGold = (str, x, y, size) => {
+    ctx.save(); ctx.textAlign = 'center'; ctx.font = `700 ${size}px ${FONT}`;
+    try { ctx.letterSpacing = `${Math.round(size * 0.06)}px`; } catch { /* older canvases: no tracking */ }
+    ctx.fillStyle = 'rgba(0,0,0,0.28)'; ctx.fillText(str, x + size * 0.02, y + size * 0.1); ctx.fillText(str, x - size * 0.02, y + size * 0.09);
+    ctx.fillStyle = '#2a1404'; ctx.fillText(str, x, y + size * 0.06);
+    for (let k = 5; k >= 1; k--) { ctx.fillStyle = k > 2 ? '#4a2a0a' : '#6e4512'; ctx.fillText(str, x, y + k * size * 0.011); }
+    const gr = ctx.createLinearGradient(0, y - size * 0.78, 0, y + size * 0.05);
+    gr.addColorStop(0, '#fff8d8'); gr.addColorStop(0.28, '#f6d77e'); gr.addColorStop(0.5, '#b8812a'); gr.addColorStop(0.58, '#e9bd5c'); gr.addColorStop(0.8, '#fff0bd'); gr.addColorStop(1, '#a8701c');
+    ctx.fillStyle = gr; ctx.fillText(str, x, y);
+    ctx.lineJoin = 'round'; ctx.lineWidth = Math.max(1, size * 0.016); ctx.strokeStyle = 'rgba(60,30,6,0.85)'; ctx.strokeText(str, x, y);
+    ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = 'rgba(255,240,200,0.18)'; ctx.fillText(str, x, y - size * 0.012);
+    ctx.restore();
+  };
   const lines = (str, maxW, size, weight = 600) => { ctx.font = `${weight} ${size}px ${UI}`; const out = []; let cur = ''; for (const w of str.split(' ')) { const t2 = cur ? cur + ' ' + w : w; if (ctx.measureText(t2).width > maxW && cur) { out.push(cur); cur = w; } else cur = t2; } out.push(cur); return out; };
   const wrap = (str, x, y, size, maxW, color, lh = size * 1.32, align = 'center') => { const ls = lines(str, maxW, size); ls.forEach((ln, i) => text(ln, x, y + i * lh, size, color, UI, 600, align)); return ls.length; };
   // wrap into a box: the largest size (down to the readable floor) whose lines fit `maxH`
@@ -54,16 +83,30 @@ export function render(ctx, s, L) {
   const button = (r, label, o = {}) => {
     ui.buttons.push({ r: { ...r }, label, scene: sc });
     ctx.save(); if (o.dim) ctx.globalAlpha = 0.5;
-    const rad = Math.min(16, r.h * 0.25);
-    ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.beginPath(); ctx.roundRect(r.x + 3, r.y + 5, r.w, r.h, rad); ctx.fill();
+    // An ebony plaque with a gilt inlay edge (or gold leaf for the primary action): soft cast shadow, a lit top bevel and a shaded foot,
+    // all flat fills and lines (no gloss shape).
+    const rad = Math.min(14, r.h * 0.22), pr = !!o.primary;
+    // soft cast shadow from two offset fills (no shadowBlur: it is costly on phone CPUs and slows the first frame)
+    ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.beginPath(); ctx.roundRect(r.x - 2, r.y + 2, r.w + 4, r.h + 6, rad + 3); ctx.fill();
+    ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.roundRect(r.x, r.y + 3, r.w, r.h + 1, rad); ctx.fill();
     const gr = ctx.createLinearGradient(0, r.y, 0, r.y + r.h);
-    if (o.primary) { gr.addColorStop(0, '#f7e4a0'); gr.addColorStop(1, '#c89a3a'); } else { gr.addColorStop(0, '#4a3226'); gr.addColorStop(1, '#1e130d'); }
+    if (pr) { gr.addColorStop(0, '#fbe9ad'); gr.addColorStop(0.45, '#e6bd5e'); gr.addColorStop(1, '#b8842c'); } else { gr.addColorStop(0, '#45301f'); gr.addColorStop(0.5, '#2c1d13'); gr.addColorStop(1, '#1a110a'); }
     ctx.fillStyle = gr; ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, rad); ctx.fill();
-    ctx.strokeStyle = o.primary ? 'rgba(90,50,10,0.8)' : 'rgba(230,184,74,0.85)'; ctx.lineWidth = 2; ctx.stroke();
+    const edge = ctx.createLinearGradient(0, r.y, 0, r.y + r.h);
+    if (pr) { edge.addColorStop(0, '#fff6d0'); edge.addColorStop(1, '#7a4c10'); } else { edge.addColorStop(0, '#f6d77e'); edge.addColorStop(0.5, '#c8963a'); edge.addColorStop(1, '#7c5418'); }
+    ctx.strokeStyle = edge; ctx.lineWidth = 2.2; ctx.stroke();
+    ctx.strokeStyle = pr ? 'rgba(255,252,235,0.75)' : 'rgba(255,226,170,0.22)'; ctx.lineWidth = 1.4;      // lit top bevel
+    ctx.beginPath(); ctx.moveTo(r.x + rad, r.y + 3.5); ctx.lineTo(r.x + r.w - rad, r.y + 3.5); ctx.stroke();
+    ctx.strokeStyle = pr ? 'rgba(90,50,8,0.35)' : 'rgba(0,0,0,0.45)';                                      // shaded foot
+    ctx.beginPath(); ctx.moveTo(r.x + rad, r.y + r.h - 3.5); ctx.lineTo(r.x + r.w - rad, r.y + r.h - 3.5); ctx.stroke();
     // the label shrinks to fit, to the readable floor; past that it takes two lines
     inBtn = true;
-    const col = o.primary ? '#2a1606' : IVORY, maxW = r.w - 22, floor = Math.min(minText(), o.size ?? 28);
+    const col = pr ? '#2a1606' : IVORY, maxW = r.w - 22, floor = Math.min(minText(), o.size ?? 28);
     let size = fitSize(label, maxW, o.size ?? 28, 700, UI, floor);
+    if (o.icon && ICONS[o.icon]) {                                    // a small gilt glyph at the left, only where the label keeps its room
+      const isz = Math.min(r.h * 0.44, 30), lw = ctx.measureText(label).width;
+      if (r.w / 2 - lw / 2 - 14 >= isz + 18) { ctx.save(); ctx.translate(r.x + 16 + isz / 2, r.y + r.h / 2); ctx.scale(isz / 24, isz / 24); ctx.strokeStyle = pr ? '#4a2a08' : '#e9c46a'; ctx.fillStyle = ctx.strokeStyle; ctx.lineWidth = 2.1; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ICONS[o.icon](ctx); ctx.restore(); }
+    }
     ctx.font = `700 ${size}px ${UI}`;
     if (ctx.measureText(label).width > maxW && label.includes(' ')) {
       const words = label.split(' '); let best = null;
@@ -73,8 +116,21 @@ export function render(ctx, s, L) {
     inBtn = false;
     ctx.restore();
   };
-  const panel = (x, y, w, h) => { ctx.fillStyle = 'rgba(14,6,2,0.78)'; ctx.beginPath(); ctx.roundRect(x, y, w, h, 16); ctx.fill(); ctx.strokeStyle = 'rgba(230,184,74,0.55)'; ctx.lineWidth = 2; ctx.stroke(); };
-  const card = (r, al = 0.82) => { ctx.fillStyle = `rgba(14,6,2,${al})`; ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, 18); ctx.fill(); ctx.strokeStyle = 'rgba(230,184,74,0.5)'; ctx.lineWidth = 2; ctx.stroke(); };
+  // Panels and cards: dark lacquered wood with a double gilt rule (an outer line and a fine inner line), like the board's own inlay.
+  const rule2 = (x, y, w, h, rad, a) => {
+    ctx.strokeStyle = `rgba(230,184,74,${a})`; ctx.lineWidth = 2; ctx.beginPath(); ctx.roundRect(x, y, w, h, rad); ctx.stroke();
+    ctx.strokeStyle = `rgba(246,215,126,${a * 0.45})`; ctx.lineWidth = 1; ctx.beginPath(); ctx.roundRect(x + 5, y + 5, w - 10, h - 10, Math.max(2, rad - 4)); ctx.stroke();
+  };
+  const panel = (x, y, w, h) => {
+    const g = ctx.createLinearGradient(0, y, 0, y + h); g.addColorStop(0, 'rgba(40,24,14,0.86)'); g.addColorStop(1, 'rgba(12,6,2,0.86)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.roundRect(x, y, w, h, 16); ctx.fill(); rule2(x, y, w, h, 16, 0.6);
+  };
+  const card = (r, al = 0.82, hole = null) => {
+    const g = ctx.createLinearGradient(0, r.y, 0, r.y + r.h); g.addColorStop(0, `rgba(34,20,11,${al})`); g.addColorStop(1, `rgba(12,6,2,${al})`);
+    ctx.fillStyle = g; ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, 18);
+    if (hole) { ctx.roundRect(hole.x, hole.y, hole.w, hole.h, 22); ctx.fill('evenodd'); } else ctx.fill();
+    rule2(r.x, r.y, r.w, r.h, 18, 0.55);
+  };
   const footOf = (i) => { const k = cell(i); return { x: k.cx, y: k.cy + FOOT }; };
 
   // where the moving piece is: { x, y, lift, alpha, scale }   (canonical board units)
@@ -90,16 +146,16 @@ export function render(ctx, s, L) {
     if (a.type === 'water') {                        // glide to the water, sink with rings, then rise at the new square
       const dest = footOf(a.dest), to = footOf(a.to);
       if (f < 0.4) { const e2 = ease4(f / 0.4), fr = footOf(a.from); return { x: fr.x + (dest.x - fr.x) * e2, y: fr.y + (dest.y - fr.y) * e2, lift: 22 * Math.sin(Math.PI * f / 0.4), alpha: 1, scale: 1 }; }
-      if (f < 0.65) { const k = (f - 0.4) / 0.25; return { x: dest.x, y: dest.y + k * 22, lift: 0, alpha: 1 - k, scale: 1 - 0.25 * k, ring: k, at: dest }; }
+      if (f < 0.65) { const k = (f - 0.4) / 0.25; return { x: dest.x, y: dest.y + (V3 ? 0 : k * 22), lift: 0, alpha: 1 - k, scale: 1 - 0.25 * k, ring: k, at: dest, sink: k }; }
       const k = (f - 0.65) / 0.35; return { x: to.x, y: to.y, lift: (1 - k) * 26, alpha: k, scale: 1 };
     }
     const fr = footOf(a.from), to = P(a.type === 'off' ? 30 : a.to), e2 = ease;
-    return { x: fr.x + (to.x - fr.x) * e2, y: fr.y + (to.y - fr.y) * e2, lift: Math.sin(Math.PI * f) * 30, alpha: a.type === 'off' ? Math.min(1, 2.2 * (1 - f) + 0.05) : 1, scale: a.type === 'off' ? 1 - 0.3 * f : 1 };
+    return { x: fr.x + (to.x - fr.x) * e2, y: fr.y + (to.y - fr.y) * e2, lift: Math.sin(Math.PI * e2) * 30, alpha: a.type === 'off' ? Math.min(1, 2.2 * (1 - f) + 0.05) : 1, scale: a.type === 'off' ? 1 - 0.3 * f : 1 };
   };
   const ease4 = (f) => f * f * (3 - 2 * f);
-  const bp = (x, y) => ({ x: B.ox + x * B.s, y: B.oy + y * B.s });          // canonical board point -> screen
+  const bp = (x, y) => (V3 && v3.proj ? v3.proj(x, y) : { x: B.ox + x * B.s, y: B.oy + y * B.s });          // canonical board point -> screen
   const withBoard = (fn) => { ctx.save(); ctx.translate(B.ox, B.oy); ctx.scale(B.s, B.s); fn(); ctx.restore(); };
-  const drawDim = (al) => { if (ui.on && al > 0.5) ui.texts.length = 0; ctx.fillStyle = `rgba(10,4,0,${al})`; ctx.fillRect(0, 0, W, H); };
+  const drawDim = (al) => { if (rec) rec.dim = Math.max(rec.dim, al); if (ui.on && al > 0.5) ui.texts.length = 0; ctx.fillStyle = `rgba(10,4,0,${al})`; ctx.fillRect(0, 0, W, H); };
 
   const boardScene = sc === 'play' || sc === 'over' || sc === 'lesson' || sc === 'autoplay' || sc === 'autoplay-over' || (sc === 'puzzle' && s.pz.status !== 'making');
   if (boardScene) drawBoardScene();
@@ -137,13 +193,13 @@ export function render(ctx, s, L) {
   }
   function drawTray() {
     const T = C.tray, G = TRAYS[T.v], roll = s.roll, pulse = s.calm ? 0.6 : 0.5 + 0.5 * Math.sin(s.t * 4);
-    drawTrayLayer(ctx, T);
-    ctx.save(); ctx.translate(T.x, T.y); ctx.scale(T.s, T.s);
-    drawSticks(G.sx, G.sy, { roll });
     const canThrow = sc !== 'autoplay' && sc !== 'autoplay-over' && s.phase === 'need' && (s.two || g.turn === 1) && !g.winner;
+    if (V3) rec.sticks = { roll, T, where: 'tray', invite: canThrow ? pulse : -1 }; else drawTrayLayer(ctx, T);
+    ctx.save(); ctx.translate(T.x, T.y); ctx.scale(T.s, T.s);
+    if (!V3) drawSticks(G.sx, G.sy, { roll });
     const cap = (str) => text(str, G.w / 2, -12, fitSize(str, G.w - 8, 26, 700, UI, 18), '#ffe9b0', UI, 700);
     if (canThrow) {                                          // invitation: a glow around the tray and a caption
-      ctx.strokeStyle = `rgba(255,224,120,${0.4 + pulse * 0.5})`; ctx.lineWidth = 4; ctx.beginPath(); ctx.roundRect(-2, -2, G.w + 4, G.h + 4, 24); ctx.stroke();
+      if (!V3) { ctx.strokeStyle = `rgba(255,224,120,${0.4 + pulse * 0.5})`; ctx.lineWidth = 4; ctx.beginPath(); ctx.roundRect(-2, -2, G.w + 4, G.h + 4, 24); ctx.stroke(); }
       cap('TAP the sticks to throw');
     }
     // result bubble
@@ -161,9 +217,10 @@ export function render(ctx, s, L) {
   // -------------------------------------------------------------------------------------------------------------
   function drawBoardScene() {
     const kb = s.kb && sc !== 'over', hud = C.hud, minT = minText();
-    if (C.leftCard) { card(C.leftCard); card(C.rightCard); }
-    if (C.rightCard && C.mode === 'side') card(C.rightCard, 0.6);
-    drawBoardLayer(ctx, B);
+    const TT = C.tray, trayHole = V3 ? { x: TT.x - 10 * TT.s, y: TT.y - 10 * TT.s, w: TRAYS[TT.v].w * TT.s + 20 * TT.s, h: TRAYS[TT.v].h * TT.s + 20 * TT.s } : null;
+    if (C.leftCard) { card(C.leftCard, 0.82, trayHole); card(C.rightCard); }
+    if (C.rightCard && C.mode === 'side') card(C.rightCard, 0.6, trayHole);
+    if (!V3) drawBoardLayer(ctx, B);
     // header
     if (sc === 'lesson' || sc === 'puzzle') {
       const cd = hud.card; card(cd, 0.88);
@@ -212,8 +269,8 @@ export function render(ctx, s, L) {
     const labels = [];                                               // drawn after the board transform, at a readable size
     let exitLabel = null;
     withBoard(() => {
-      const shade = (i, rgb, label) => { const k = cell(i); ctx.fillStyle = `rgba(${rgb},${0.3 + pulse * 0.25})`; ctx.beginPath(); ctx.roundRect(k.x + 6, k.y + 6, k.w - 12, k.h - 12, 7); ctx.fill(); ctx.strokeStyle = `rgba(${rgb},0.95)`; ctx.lineWidth = 3; ctx.stroke(); if (label) labels.push([label, k]); };
-      const exitGlow = (rgb) => { ctx.fillStyle = `rgba(${rgb},${0.35 + pulse * 0.3})`; ctx.beginPath(); ctx.roundRect(EXIT.x + 2, EXIT.y - 6, EXIT.w - 4, EXIT.h + 2, [0, 0, 12, 12]); ctx.fill(); ctx.strokeStyle = `rgba(${rgb},0.95)`; ctx.lineWidth = 3; ctx.stroke(); exitLabel = true; };
+      const shade = (i, rgb, label) => { const k = cell(i); if (V3) { rec.marks.push({ i, rgb }); if (label) labels.push([label, k]); return; } ctx.fillStyle = `rgba(${rgb},${0.3 + pulse * 0.25})`; ctx.beginPath(); ctx.roundRect(k.x + 6, k.y + 6, k.w - 12, k.h - 12, 7); ctx.fill(); ctx.strokeStyle = `rgba(${rgb},0.95)`; ctx.lineWidth = 3; ctx.stroke(); if (label) labels.push([label, k]); };
+      const exitGlow = (rgb) => { if (V3) { rec.marks.push({ i: 30, rgb }); exitLabel = true; return; } ctx.fillStyle = `rgba(${rgb},${0.35 + pulse * 0.3})`; ctx.beginPath(); ctx.roundRect(EXIT.x + 2, EXIT.y - 6, EXIT.w - 4, EXIT.h + 2, [0, 0, 12, 12]); ctx.fill(); ctx.strokeStyle = `rgba(${rgb},0.95)`; ctx.lineWidth = 3; ctx.stroke(); exitLabel = true; };
       if (s.sel >= 0) for (const m of moves) if (m.from === s.sel) { if (m.off) exitGlow('120,255,170'); else shade(m.dest, m.water ? '255,96,72' : m.swap >= 0 ? '255,215,90' : '120,255,170', m.water ? 'WATER' : m.swap >= 0 ? 'SWAP' : ''); }
       // "NEXT" (not "HINT") during Auto Play's REVEAL: this is the move about to be played, not a hint the player asked for.
       const hintLabel = sc === 'autoplay' ? 'NEXT' : 'HINT';
@@ -226,12 +283,19 @@ export function render(ctx, s, L) {
       for (const i of order) {
         const p = g.board[i]; if (!p || hidden.has(i)) continue;
         const f = footOf(i), sel = s.sel === i;
+        if (V3) { rec.pieces.push({ kind: p, i, x: f.x, y: f.y - FOOT, lift: sel ? 14 + (s.calm ? 0 : Math.sin(s.t * 4) * 2) : 0, glow: !a && movable.has(i) && s.sel < 0 ? 1 : sel ? 2 : 0, pulse }); continue; }
         drawPiece(ctx, p, f.x, f.y, { scale: 0.92, lift: sel ? 14 + (s.calm ? 0 : Math.sin(s.t * 4) * 2) : 0, glow: !a && movable.has(i) && s.sel < 0 ? `rgba(255,${210 + (pulse * 30) | 0},110,` : sel ? 'rgba(120,255,170,' : null });
       }
-      if (a) {
+      if (a && V3) {
+        const f = Math.min(1, a.t / a.dur), pos = animPos();
+        if (a.swapKind) { const e = f * f * (3 - 2 * f), d = footOf(a.dest), fr = footOf(a.from); rec.pieces.push({ kind: a.swapKind, i: -1, x: d.x + (fr.x - d.x) * e, y: d.y + (fr.y - d.y) * e - FOOT, lift: Math.sin(Math.PI * e) * 14, anim: true }); }
+        rec.pieces.push({ kind: a.kind, i: -1, x: pos.x, y: pos.y - FOOT, lift: pos.lift, alpha: pos.alpha, scale: pos.scale, sink: pos.sink || 0, anim: true, moving: true });
+        rec.anim = { type: a.type, f, from: a.from, dest: a.dest, to: a.to, ring: pos.ring, swap: !!a.swapKind, kind: a.kind };
+      }
+      if (a && !V3) {
         if (a.swapKind) {                                     // the swapped enemy piece slides back
           const f = Math.min(1, a.t / a.dur), e = f * f * (3 - 2 * f), d = footOf(a.dest), fr = footOf(a.from);
-          drawPiece(ctx, a.swapKind, d.x + (fr.x - d.x) * e, d.y + (fr.y - d.y) * e, { scale: 0.92, lift: Math.sin(Math.PI * f) * 14 });
+          drawPiece(ctx, a.swapKind, d.x + (fr.x - d.x) * e, d.y + (fr.y - d.y) * e, { scale: 0.92, lift: Math.sin(Math.PI * e) * 14 });
         }
         const pos = animPos();
         ctx.save(); ctx.globalAlpha = Math.max(0, pos.alpha);
@@ -241,12 +305,13 @@ export function render(ctx, s, L) {
         if (a.type === 'off' && !s.calm && a.t / a.dur > 0.5) for (let k = 0; k < 8; k++) { const f = (a.t / a.dur - 0.5) * 2, ang = k * TAU / 8, r = 10 + 44 * f; ctx.fillStyle = `rgba(255,220,120,${0.9 * (1 - f)})`; ctx.beginPath(); ctx.arc(EXIT.cx + Math.cos(ang) * r, EXIT.cy + Math.sin(ang) * r * 0.7, 3.5 * (1 - f) + 1, 0, TAU); ctx.fill(); }
         if (a.swapKind && !s.calm && a.t / a.dur > 0.55) { const f = (a.t / a.dur - 0.55) / 0.45, d = footOf(a.dest); ctx.strokeStyle = `rgba(255,236,170,${0.8 * (1 - f)})`; ctx.lineWidth = 5 * (1 - f) + 1; ctx.beginPath(); ctx.ellipse(d.x, d.y, 20 + 46 * f, 8 + 18 * f, 0, 0, TAU); ctx.stroke(); }
       }
-      if (kb) { if (s.cursor === 30) { ctx.strokeStyle = '#7dff9a'; ctx.lineWidth = 5; ctx.strokeRect(EXIT.x, EXIT.y, EXIT.w, EXIT.h); } else { const c = cell(s.cursor); ctx.strokeStyle = '#7dff9a'; ctx.lineWidth = 5; ctx.beginPath(); ctx.roundRect(c.x + 3, c.y + 3, c.w - 6, c.h - 6, 8); ctx.stroke(); } }
+      if (kb && V3) rec.marks.push({ i: s.cursor, rgb: '125,255,154', cursor: true });
+      else if (kb) { if (s.cursor === 30) { ctx.strokeStyle = '#7dff9a'; ctx.lineWidth = 5; ctx.strokeRect(EXIT.x, EXIT.y, EXIT.w, EXIT.h); } else { const c = cell(s.cursor); ctx.strokeStyle = '#7dff9a'; ctx.lineWidth = 5; ctx.beginPath(); ctx.roundRect(c.x + 3, c.y + 3, c.w - 6, c.h - 6, 8); ctx.stroke(); } }
     });
     // square numbers, move labels and HOME: drawn at a readable size however small the board is shown
     const numSize = Math.max(15 * B.s, Math.min(minT, 0.34 * 88 * B.s)), lblSize = Math.max(14 * B.s, Math.min(minT * 0.85, 0.3 * 88 * B.s));
     const overlayOn = sc === 'over' || sc === 'autoplay-over' || (sc === 'autoplay' && s.ap && s.ap.paused);
-    if (!overlayOn) for (let i = 0; i < 30; i++) { const k = cell(i), p = bp(k.x + 13, k.y + 24); text(String(i + 1), p.x, p.y, numSize, 'rgba(90,58,26,0.7)', UI, 700, 'left'); }
+    if (!overlayOn && !V3) for (let i = 0; i < 30; i++) { const k = cell(i), p = bp(k.x + 13, k.y + 24); text(String(i + 1), p.x, p.y, numSize, 'rgba(90,58,26,0.7)', UI, 700, 'left'); }
     for (const [label, k] of labels) {
       ctx.font = `800 ${lblSize}px ${UI}`; const tw = ctx.measureText(label).width + lblSize * 0.8, h2 = lblSize * 1.5, p = bp(k.x + k.w - 10, k.y + 10);
       ctx.fillStyle = 'rgba(20,8,2,0.78)'; ctx.beginPath(); ctx.roundRect(p.x - tw, p.y, tw, h2, 7); ctx.fill();
@@ -321,11 +386,17 @@ export function render(ctx, s, L) {
   // -------------------------------------------------------------------------------------------------------------
   function drawTitle() {
     const T = L.title(!!s.saved), HR = T.hero, minT = minText();
-    if (T.drawBoard) { drawBoardLayer(ctx, { s: 1, ox: L.fx, oy: C.board.oy }); drawTrayLayer(ctx, C.tray); }
+    if (T.drawBoard && !V3) { drawBoardLayer(ctx, { s: 1, ox: L.fx, oy: C.board.oy }); drawTrayLayer(ctx, C.tray); }
     // darken toward the buttons; hero above (all in hero units: the phone look when the hero scale is 1)
     ctx.save(); ctx.translate(HR.hx, HR.hy); ctx.scale(HR.hs, HR.hs);
     const x0 = -HR.hx / HR.hs, wd = W / HR.hs;
-    if (T.dimMode === 'tall') {
+    if (V3) {
+      // 3D: the hero is the lit board itself (presenter). Only a soft band behind the title lettering and the fade into the button area.
+      rec.title = { hero: { x: HR.hx, y: HR.hy + 300 * HR.hs, w: 720 * HR.hs, h: 480 * HR.hs }, mode: T.dimMode };
+      const tb = ctx.createLinearGradient(0, 110, 0, 290); tb.addColorStop(0, 'rgba(10,4,0,0)'); tb.addColorStop(0.5, 'rgba(10,4,0,0.32)'); tb.addColorStop(1, 'rgba(10,4,0,0)');
+      ctx.fillStyle = tb; ctx.fillRect(x0, 110, wd, 180);
+      if (T.dimMode === 'tall') { const gr = ctx.createLinearGradient(0, 690, 0, 800); gr.addColorStop(0, 'rgba(10,4,0,0)'); gr.addColorStop(1, 'rgba(10,4,0,0.93)'); ctx.fillStyle = gr; ctx.fillRect(0, 690, 720, 110); ctx.fillStyle = 'rgba(10,4,0,0.93)'; ctx.fillRect(0, 800, 720, 1560 + 600); }
+    } else if (T.dimMode === 'tall') {
       const gr = ctx.createLinearGradient(0, 260, 0, 780); gr.addColorStop(0, 'rgba(10,4,0,0.05)'); gr.addColorStop(1, 'rgba(10,4,0,0.94)');
       ctx.fillStyle = gr; ctx.fillRect(0, 260, 720, 1560); ctx.fillStyle = 'rgba(10,4,0,0.94)'; ctx.fillRect(0, 780, 720, 1560 + 600);
       ctx.fillStyle = 'rgba(10,4,0,0.35)'; ctx.fillRect(0, 118, 720, 130);
@@ -334,30 +405,33 @@ export function render(ctx, s, L) {
       ctx.fillStyle = 'rgba(10,4,0,0.35)'; ctx.fillRect(x0, 118, wd, 150);
       ctx.fillStyle = 'rgba(10,4,0,0.45)'; ctx.fillRect(x0, 300, wd, 480);
     }
-    gold('SENET', 360 + HR.dx, 216, 112); text('The board game of ancient Egypt', 360, 262, 27, 'rgba(246,231,196,0.92)', FONT, 600);
-    if (HR.hs < 0.62) { /* small hero: keep the tagline, it is the least readable part */ }
-    // hero: a cone and a reel stand on a lit pool with the sticks tumbling between them, on a loop
-    const bob = s.calm ? 0 : Math.sin(s.t * 1.6) * 3;
-    const pool = ctx.createRadialGradient(360, 640, 20, 360, 640, 330); pool.addColorStop(0, 'rgba(255,200,110,0.30)'); pool.addColorStop(1, 'rgba(255,200,110,0)');
-    ctx.fillStyle = pool; ctx.fillRect(0, 380, 720, 400);
-    drawPiece(ctx, 1, 160, 690 + bob * 0.4, { scale: 2.5 }); drawPiece(ctx, 2, 560, 690 - bob * 0.4, { scale: 2.5 });
     const loop = s.calm ? 1.2 : (s.t % 3.4);
     const roll = { faces: [true, false, true, true], n: 3, t: loop, dur: 1.2, tumbling: loop < 1.2, seeds: [0, 1, 2, 3].map((k) => ({ delay: k * 0.05, flips: 3 + k, b: k * 0.2, dx: (k - 1.5) * 24, spin: (k % 2 ? 1 : -1) * 0.5 })) };
-    drawSticks(360, 610, { roll, sc: 0.6 });
+    if (V3) rec.sticks = { roll, where: 'hero' };
+    titleGold('SENET', 360 + HR.dx, 216, 112);
+    text('The board game of ancient Egypt', 360, 262, 27, 'rgba(246,231,196,0.92)', FONT, 600);
+    if (!V3) {
+      // hero: a cone and a reel stand on a lit pool with the sticks tumbling between them, on a loop
+      const bob = s.calm ? 0 : Math.sin(s.t * 1.6) * 3;
+      const pool = ctx.createRadialGradient(360, 640, 20, 360, 640, 330); pool.addColorStop(0, 'rgba(255,200,110,0.30)'); pool.addColorStop(1, 'rgba(255,200,110,0)');
+      ctx.fillStyle = pool; ctx.fillRect(0, 380, 720, 400);
+      drawPiece(ctx, 1, 160, 690 + bob * 0.4, { scale: 2.5 }); drawPiece(ctx, 2, 560, 690 - bob * 0.4, { scale: 2.5 });
+      drawSticks(360, 610, { roll, sc: 0.6 });
+    }
     ctx.restore();
     if (T.card) card(T.card, 0.9);
     else if (T.dim) { ctx.fillStyle = 'rgba(10,4,0,0.94)'; ctx.fillRect(T.dim.x, T.dim.y, T.dim.w, T.dim.h); const gr = ctx.createLinearGradient(0, T.dim.y - 40, 0, T.dim.y); gr.addColorStop(0, 'rgba(10,4,0,0)'); gr.addColorStop(1, 'rgba(10,4,0,0.94)'); ctx.fillStyle = gr; ctx.fillRect(0, T.dim.y - 40, W, 40); }
     if (T.lockup) drawLockup(ctx, T.lockup.cx, T.lockup.y, T.lockup.w, 0.92, (s.afFlash || 0) > 0);   // bottom-centre under the menu
     if (sc === 'title') {
       const R = T.rows;
-      if (R.resume) button(R.resume, 'Continue your game', { primary: true, size: 30 });
-      button(R.learn, 'Learn to play', { primary: !s.learned && !R.resume, size: 30 });
-      button(R.play, 'Play the computer', { primary: s.learned && !R.resume, size: 30 });
-      button(R.two, 'Two players, one phone', { size: 28 });
-      button(R.daily, s.daily.solvedDay === s.daily.day ? `Daily puzzle: solved · streak ${s.daily.streak}` : s.daily.streak ? `Daily puzzle · streak ${s.daily.streak}` : 'Daily puzzle', { size: 28 });
-      button(R.how, 'How to play', { size: 28 });
-      button(R.autoplay, 'Auto Play · Watch & Learn', { size: 27 });
-      button(R.about, 'About', { size: 26 }); button(R.rules, 'Rules', { size: 26 });
+      if (R.resume) button(R.resume, 'Continue your game', { primary: true, size: 30, icon: 'resume' });
+      button(R.learn, 'Learn to play', { primary: !s.learned && !R.resume, size: 30, icon: 'learn' });
+      button(R.play, 'Play the computer', { primary: s.learned && !R.resume, size: 30, icon: 'play' });
+      button(R.two, 'Two players, one phone', { size: 28, icon: 'two' });
+      button(R.daily, s.daily.solvedDay === s.daily.day ? `Daily puzzle: solved · streak ${s.daily.streak}` : s.daily.streak ? `Daily puzzle · streak ${s.daily.streak}` : 'Daily puzzle', { size: 28, icon: 'daily' });
+      button(R.how, 'How to play', { size: 28, icon: 'how' });
+      button(R.autoplay, 'Auto Play · Watch & Learn', { size: 27, icon: 'watch' });
+      button(R.about, 'About', { size: 26, icon: 'about' }); button(R.rules, 'Rules', { size: 26, icon: 'rules' });
       button(R.level, `Computer: ${LEVELS[s.level].name}`, { size: 22 }); button(R.sound, s.sound ? 'Sound on' : 'Sound off', { size: 22 });
       button(R.calm, s.calm ? 'Reduced motion: on' : 'Reduced motion: off', { size: 20 }); button(R.big, s.big ? 'Large text: on' : 'Large text: off', { size: 22 });
       const st = T.stars;

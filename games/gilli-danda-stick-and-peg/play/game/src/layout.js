@@ -43,7 +43,7 @@ function build(w, h, ins) {
   L.pad = land ? R(ins.padLeft ? U.x0 + 14 : U.x1 - 14 - padW, U.y1 - 14 - padH, padW, padH) : R(U.x0 + 14, U.y1 - 14 - padH, padW, padH);
   L.aimTop = hud.y + hud.h + 8;
   // the field map (a fan seen from above: fielders, your aim, earlier hits) under the scoreboard (portrait) or under the pause buttons (landscape)
-  { const fw = land ? clamp(Math.round(U.w * 0.26), 300, 420) : Math.min(U.w - 28, 420), fh = Math.round(fw * (land ? 0.52 : 0.48));
+  { const fw = land ? clamp(Math.round(U.w * 0.26), 300, 420) : Math.min(U.w - 28, U.h / U.w < 1.5 ? 300 : 420), fh = Math.round(fw * (land ? 0.52 : 0.48));
     L.fan = land ? R(U.x1 - 12 - fw, L.pause.y + tap + 10, fw, fh) : R(Math.round(cx - fw / 2), hud.y + hud.h + 10, fw, fh); }
   L.callY = land ? U.h * 0.36 : L.fan.y + L.fan.h + 74;
   L.hintY = L.pad.y - 18;

@@ -125,7 +125,7 @@ export async function createCourt3D({ quality = 'medium', base } = {}) {
   }
 
   // ---- people
-  const specFor = (kit, i, ch = 'athlete_m') => ({ character: ch, base, lod: 'auto', kit, skin: SKINS[((i % 6) + 6) % 6], hair: HAIRS[((i % 6) + 6) % 6] });
+  const specFor = (kit, i, ch = 'athlete_m') => ({ character: ch, top: 'long', base, lod: 'auto', kit, skin: SKINS[((i % 6) + 6) % 6], hair: HAIRS[((i % 6) + 6) % 6] });
   const mk = async (kit, i, o = {}) => {
     const h = await loadHuman(specFor(kit, i, o.ch));
     h.setLOD(quality === 'low' ? 2 : 1); h.lodAuto = false;
@@ -485,7 +485,11 @@ export async function createCourt3D({ quality = 'medium', base } = {}) {
   const dtOf = (b) => (lastT === null || lastB !== b ? 0 : clamp(b.t - lastT, 0, 0.1));
 
   /** Draw the whole screen-sized court picture. ctx is in LOCAL screen-aligned units centred on the court centre (see view.js). */
+  // The title hero sees the people up close: full-detail meshes there (medium meshes show shoulder shards in close-ups); play uses the cheaper level.
+  let heroFull = false;
+  const setPeopleLod = (full) => { if (quality === 'low' || heroFull === full) return; heroFull = full; for (const P of [...all, umpire]) P.h.setLOD(full ? 0 : 1); };
   api.draw = function (ctx, b, state, rot) {
+    setPeopleLod(false);
     if (api.lost || stage.contextLost) return false;
     const t0 = globalThis.performance.now();
     const m = ctx.getTransform(), s = Math.hypot(m.a, m.b);
@@ -508,6 +512,7 @@ export async function createCourt3D({ quality = 'medium', base } = {}) {
   /** Perspective hero picture for the title page: drawn into the screen rect (x, y, w, h) of the 2D picture, with a slow camera drift. */
   api.drawHero = function (ctx, rect, b, state, land = false) {
     if (api.lost || stage.contextLost) return false;
+    setPeopleLod(true);
     const t0 = globalThis.performance.now();
     const m = ctx.getTransform(), s = Math.hypot(m.a, m.b);
     const W = clamp(Math.round(rect.w * s), 160, 1400), H = Math.max(80, Math.round(W * rect.h / rect.w));

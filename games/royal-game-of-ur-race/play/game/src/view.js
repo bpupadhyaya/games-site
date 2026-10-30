@@ -10,6 +10,7 @@ import { LESSONS } from './lessons.js';
 import { HERITAGE } from './heritage.js';
 import { RULES } from './content.js';
 import { drawLockup, drawMoreLine } from './brand.js';
+import { v3, flatAlpha } from './v3.js';
 
 const FONT = '"Cormorant Garamond", Georgia, "Times New Roman", serif', UI = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 const TAU = Math.PI * 2, GOLD = '#f3d98b', IVORY = '#f8efd8';
@@ -29,10 +30,27 @@ export function render(ctx, state, L) {
   const isDoc = scene === 'about' || scene === 'rules';
   const kind = scene === 'autoplay' || scene === 'autoplay-over' ? 'auto' : scene === 'lesson' || scene === 'puzzle' ? 'text' : 'play';
   const boardScene = scene === 'play' || scene === 'over' || scene === 'lesson' || (scene === 'puzzle' && state.pz.status !== 'making') || scene === 'autoplay' || scene === 'autoplay-over';
-  drawTable(ctx, L.w, L.h, L.U.y0 + 14, L.h - 8);
+  // With the 3D layer on, the table, board, pieces and dice are drawn by view3d/presenter.js from what this frame records
+  // (v3.rec / v3.tray / v3.hero); the flat art only shows while the 3D scene fades in (fa = its alpha).
+  const fa = flatAlpha(), live3d = v3.on;
+  v3.rec = null; v3.tray = null; v3.hero = null;
+  if (fa > 0) { ctx.save(); ctx.globalAlpha = fa; drawTable(ctx, L.w, L.h, L.U.y0 + 14, L.h - 8); ctx.restore(); }
 
   const text = (str, x, y, size, color = GOLD, font = FONT, weight = 700, align = 'center') => { ctx.textAlign = align; ctx.font = `${weight} ${Math.max(size, minSize)}px ${font}`; ctx.fillStyle = color; ctx.fillText(str, x, y); };
-  const shadowText = (str, x, y, size, color, font, weight, align) => { text(str, x + 1.5, y + 3, size, 'rgba(0,0,0,0.6)', font, weight, align); text(str, x, y, size, color, font, weight, align); };
+  // headings: cast-gold lettering (a lit gradient, a dark cut edge and a soft drop shadow); other colours: a plain drop shadow
+  const shadowText = (str, x, y, size, color, font = FONT, weight = 700, align = 'center') => {
+    if (color !== GOLD) { text(str, x + 1.5, y + 3, size, 'rgba(0,0,0,0.6)', font, weight, align); text(str, x, y, size, color, font, weight, align); return; }
+    const sz = Math.max(size, minSize);
+    ctx.save(); ctx.textAlign = align; ctx.font = `${weight} ${sz}px ${font}`;
+    ctx.shadowColor = 'rgba(0,0,0,0.75)'; ctx.shadowBlur = sz * 0.16; ctx.shadowOffsetY = sz * 0.06;
+    ctx.lineJoin = 'round'; ctx.strokeStyle = '#3a2206'; ctx.lineWidth = Math.max(2, sz * 0.07); ctx.strokeText(str, x, y);
+    ctx.shadowColor = 'transparent';
+    const gr = ctx.createLinearGradient(0, y - sz * 0.78, 0, y + sz * 0.1);
+    gr.addColorStop(0, '#fff6cf'); gr.addColorStop(0.38, '#f3d27a'); gr.addColorStop(0.55, '#c8902c'); gr.addColorStop(0.8, '#f0c868'); gr.addColorStop(1, '#8e5d16');
+    ctx.fillStyle = gr; ctx.fillText(str, x, y);
+    ctx.globalAlpha *= 0.55; ctx.strokeStyle = 'rgba(255,248,215,0.9)'; ctx.lineWidth = Math.max(1, sz * 0.018); ctx.strokeText(str, x - sz * 0.012, y - sz * 0.02);
+    ctx.restore();
+  };
   const widthOf = (str, size, font = UI, weight = 700) => { ctx.font = `${weight} ${size}px ${font}`; return ctx.measureText(str).width; };
   // the largest size (down to the floor) at which a one-line string fits maxW
   const fitSize = (str, base, maxW, font = UI, weight = 700, floor = minSize) => { let size = base; while (size > floor && widthOf(str, size, font, weight) > maxW) size -= 1; return size; };
@@ -52,16 +70,23 @@ export function render(ctx, state, L) {
   const button = (r, label, o = {}) => {
     frameButtons.push({ r, label });
     ctx.save(); if (o.dim) ctx.globalAlpha = 0.5;
-    const rad = Math.min(18, r.h * 0.3);
-    ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.beginPath(); ctx.roundRect(r.x + 3, r.y + 6, r.w, r.h, rad); ctx.fill();
-    const gr = ctx.createLinearGradient(0, r.y, 0, r.y + r.h);
-    if (o.primary) { gr.addColorStop(0, '#f6d47a'); gr.addColorStop(1, '#b8842a'); } else { gr.addColorStop(0, '#2f57b0'); gr.addColorStop(1, '#152e72'); }
+    // an inlaid plaque: lapis (or gold leaf for the main action) in a bitumen bed, a gold rule and a fine inner rule
+    const rad = Math.min(14, r.h * 0.24);
+    ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.beginPath(); ctx.roundRect(r.x + 2, r.y + 5, r.w, r.h, rad); ctx.fill();
+    ctx.fillStyle = '#1a1009'; ctx.beginPath(); ctx.roundRect(r.x - 2, r.y - 2, r.w + 4, r.h + 4, rad + 2); ctx.fill();
+    const gr = ctx.createLinearGradient(r.x, r.y, r.x + r.w * 0.35, r.y + r.h * 1.6);
+    if (o.primary) { gr.addColorStop(0, '#f8dc8c'); gr.addColorStop(0.55, '#d9a845'); gr.addColorStop(1, '#a8761f'); } else { gr.addColorStop(0, '#2d57b4'); gr.addColorStop(0.6, '#1d3d8e'); gr.addColorStop(1, '#132a66'); }
     ctx.fillStyle = gr; ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, rad); ctx.fill();
-    ctx.strokeStyle = o.primary ? 'rgba(255,245,200,0.8)' : 'rgba(243,217,139,0.85)'; ctx.lineWidth = 2.5; ctx.stroke();
-    const base = Math.min(o.size ?? 30, r.h * 0.46);
-    let str = label, size = fitSize(str, base, r.w - 16, UI, 700);
-    if (o.alt && widthOf(str, size) > r.w - 16) { str = o.alt; size = fitSize(str, base, r.w - 16, UI, 700); }
-    text(str, r.x + r.w / 2, r.y + r.h / 2 + size * 0.35, size, o.primary ? '#2a1606' : IVORY, UI, 700);
+    if (!o.primary) { ctx.fillStyle = 'rgba(255,214,120,0.5)'; for (let k = 0; k < Math.round(r.w / 26); k++) { const hx = r.x + 8 + ((k * 97 + Math.round(r.y) * 13) % Math.max(1, Math.round(r.w - 16))), hy = r.y + 6 + ((k * 53 + Math.round(r.x) * 7) % Math.max(1, Math.round(r.h - 12))); ctx.fillRect(hx, hy, 1.6, 1.6); } }
+    ctx.strokeStyle = o.primary ? '#fff1c2' : '#d9ad4e'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, rad); ctx.stroke();
+    if (r.h >= 44) { ctx.strokeStyle = o.primary ? 'rgba(110,70,10,0.45)' : 'rgba(217,173,78,0.4)'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.roundRect(r.x + 5, r.y + 5, r.w - 10, r.h - 10, Math.max(2, rad - 4)); ctx.stroke(); }
+    const base = Math.min(o.size ?? 30, r.h * 0.46), isz = o.icon && r.h >= 50 ? Math.min(r.h * 0.42, 30) : 0, room = r.w - 16 - (isz ? isz + 10 : 0);
+    let str = label, size = fitSize(str, base, room, UI, 700);
+    if (o.alt && widthOf(str, size) > room) { str = o.alt; size = fitSize(str, base, room, UI, 700); }
+    const tw = widthOf(str, size), tcol = o.primary ? '#2a1606' : IVORY;
+    const cx = r.x + r.w / 2 + (isz ? (isz + 10) / 2 : 0);
+    if (isz) drawIcon(ctx, o.icon, cx - tw / 2 - 10 - isz / 2, r.y + r.h / 2, isz, o.primary ? '#3a2206' : '#f3d98b');
+    text(str, cx, r.y + r.h / 2 + size * 0.35, size, tcol, UI, 700);
     ctx.restore();
   };
   const panel = (x, y, w, h) => {
@@ -73,16 +98,24 @@ export function render(ctx, state, L) {
 
   // ---- lamp: a clay oil lamp top right, its flame flickering, warming the table -----------------------------------
   const fl = state.calm ? 0.8 : 0.78 + 0.14 * Math.sin(state.t * 9.1) + 0.08 * Math.sin(state.t * 15.7 + 1);
-  if (L.lamp && !isDoc) {
+  if (L.lamp && !isDoc && fa > 0) {
+    ctx.save(); ctx.globalAlpha = fa;
     const lp = L.lamp, lamp = ctx.createRadialGradient(lp.x, lp.y, 4, lp.x, lp.y, 300); lamp.addColorStop(0, `rgba(255,190,100,${0.34 * fl})`); lamp.addColorStop(1, 'rgba(255,170,80,0)');
     ctx.fillStyle = lamp; ctx.fillRect(0, 0, L.w, lp.y + 460);
     drawLamp(ctx, lp.x, lp.y, fl, state.t, state.calm);
+    ctx.restore();
   }
 
   // ---- the board scenes ------------------------------------------------------------------------------------------
   if (boardScene) drawBoardScene();
   function drawBoardScene() {
-    const B = L.board(kind), upright = (x, y, fn) => { if (!B.rot) { fn(x, y); return; } ctx.save(); ctx.translate(x, y); ctx.rotate(-Math.PI / 2); fn(0, 0); ctx.restore(); };
+    const B = L.board(kind);
+    // the off-board counters: a word and a number, on a small dark plate when the 3D table shows behind them
+    const labelText = (word, x, y, num) => {
+      if (live3d) { ctx.fillStyle = 'rgba(12,8,4,0.62)'; ctx.beginPath(); ctx.roundRect(x - 52, y - 24, 104, 56, 12); ctx.fill(); }
+      text(word, x, y, 22, 'rgba(243,217,139,0.85)', UI, 600); text(num, x, y + 25, 22, 'rgba(243,217,139,0.9)', UI, 700);
+    };
+    const upright = (x, y, fn) => { if (!B.rot) { fn(x, y); return; } ctx.save(); ctx.translate(x, y); ctx.rotate(-Math.PI / 2); fn(0, 0); ctx.restore(); };
     const piece = (x, y, r, side, o) => upright(x, y, (px, py) => drawPiece(ctx, px, py, r, side, o));
     const human = (scene !== 'over' && scene !== 'autoplay' && scene !== 'autoplay-over' && (state.two || g.turn === 0)) || (scene === 'autoplay' && state.ap && state.ap.phase === 'reveal');
     const movesNow = human && g.roll > 0 && !a && state.dice.phase !== 'rolling' ? legalMoves(g) : [];
@@ -128,8 +161,13 @@ export function render(ctx, state, L) {
     }
 
     // ---- the board itself (board space) ----
-    ctx.save(); B.apply(ctx);
-    drawBoardLayer(ctx);
+    // Every board element goes through these few calls: flat art (fading out once the 3D layer is on) and/or the 3D record.
+    const R3 = live3d ? (v3.rec = { kind, rot: B.rot, pieces: [], cells: [], dots: [], homes: [], rings: [], calm: state.calm, t: state.t }) : null;
+    const flat = fa > 0;
+    const to = (bx, by, lift = 0) => (live3d && v3.toScreen ? v3.toScreen(bx, by, lift) : B.toScreen(bx, by));
+    const P3 = (x, y, r, s, o = {}) => { if (R3) R3.pieces.push({ x, y, r, s, lift: o.lift || 0, glow: !!o.glow, dim: !!o.dim, key: o.key ?? null }); };
+    ctx.save(); B.apply(ctx); if (flat) ctx.globalAlpha = fa;
+    if (flat) drawBoardLayer(ctx);
     // destination glows (selected piece, or the hint): the path it will take, the square, a ghost piece and a tag
     const pulse = state.calm ? 0.6 : 0.5 + 0.5 * Math.sin(state.t * 6);
     const goals = [], tags = [], homeTags = [];
@@ -137,15 +175,20 @@ export function render(ctx, state, L) {
     if (state.hint && !a) { const m = legalMoves(g).find((x) => x.i === state.hint.i); if (m) goals.push({ m, col: '130,255,170', hint: true }); }
     for (const { m, col } of goals) {
       const s = g.turn;
-      for (let p = m.from + 1; p < Math.min(m.to, 15); p++) { const q = squareAt(s, p); if (q) { ctx.fillStyle = `rgba(${col},0.7)`; ctx.beginPath(); ctx.arc(q.x, q.y, 6, 0, TAU); ctx.fill(); } }
+      for (let p = m.from + 1; p < Math.min(m.to, 15); p++) { const q = squareAt(s, p); if (q) { if (flat) { ctx.fillStyle = `rgba(${col},0.7)`; ctx.beginPath(); ctx.arc(q.x, q.y, 6, 0, TAU); ctx.fill(); } if (R3) R3.dots.push({ x: q.x, y: q.y, rgb: col }); } }
       if (m.to <= 14) {
         const dc = cellOf(s, m.to), R = cellRect(dc.lane, dc.c);
-        ctx.fillStyle = `rgba(${col},${0.22 + pulse * 0.18})`; ctx.beginPath(); ctx.roundRect(R.x + 6, R.y + 6, R.w - 12, R.h - 12, 10); ctx.fill();
-        ctx.strokeStyle = `rgba(${col},${0.7 + pulse * 0.3})`; ctx.lineWidth = 4; ctx.stroke();
-        const c = cellCenter(dc.lane, dc.c); piece(c.x, c.y, PIECE_R, s, { dim: true });
+        if (flat) {
+          ctx.fillStyle = `rgba(${col},${0.22 + pulse * 0.18})`; ctx.beginPath(); ctx.roundRect(R.x + 6, R.y + 6, R.w - 12, R.h - 12, 10); ctx.fill();
+          ctx.strokeStyle = `rgba(${col},${0.7 + pulse * 0.3})`; ctx.lineWidth = 4; ctx.stroke();
+        }
+        if (R3) R3.cells.push({ lane: dc.lane, c: dc.c, rgb: col, a: 0.6 + pulse * 0.4 });
+        const c = cellCenter(dc.lane, dc.c); if (flat) piece(c.x, c.y, PIECE_R, s, { dim: true }); P3(c.x, c.y, PIECE_R, s, { dim: true });
         tags.push({ c, m });
       } else {
-        const H2 = HOME_RECT(s); ctx.strokeStyle = `rgba(${col},${0.6 + pulse * 0.4})`; ctx.lineWidth = 4; ctx.beginPath(); ctx.roundRect(H2.x, H2.y, H2.w, H2.h, 14); ctx.stroke();
+        const H2 = HOME_RECT(s);
+        if (flat) { ctx.strokeStyle = `rgba(${col},${0.6 + pulse * 0.4})`; ctx.lineWidth = 4; ctx.beginPath(); ctx.roundRect(H2.x, H2.y, H2.w, H2.h, 14); ctx.stroke(); }
+        if (R3) R3.homes.push({ s, rgb: col, a: 0.6 + pulse * 0.4 });
         homeTags.push({ x: H2.x + H2.w / 2, y: H2.y + H2.h / 2, col });
       }
     }
@@ -163,35 +206,37 @@ export function render(ctx, state, L) {
       const mine = s === g.turn && glowSet.has(i), selected = s === g.turn && state.sel === i;
       const isTop = mine && g.pos[s][i] === 0;                              // only the top of the waiting stack glows
       const r = g.pos[s][i] === 0 ? 30 : g.pos[s][i] === HOME ? 24 : PIECE_R;
-      piece(q.x, q.y, r, s, { glow: mine && (g.pos[s][i] !== 0 || isTop) ? state.t : 0, lift: selected ? 0.55 + (state.calm ? 0 : Math.sin(state.t * 3) * 0.08) : 0 });
+      const o = { glow: mine && (g.pos[s][i] !== 0 || isTop) ? state.t : 0, lift: selected ? 0.55 + (state.calm ? 0 : Math.sin(state.t * 3) * 0.08) : 0, key: s * 8 + i };
+      if (flat) piece(q.x, q.y, r, s, o); P3(q.x, q.y, r, s, o);
     }
     // the captured piece: waits where it stood until it is hit, then flies back to its stack
     if (a && a.type === 'move' && a.hit >= 0) {
       const f2 = (a.t - a.dur) / 0.5, from = squareAt(a.hitSide, a.hitFrom);
-      if (f2 < 0) piece(from.x, from.y, PIECE_R, a.hitSide);
-      else if (f2 < 1) { const to = a.hitTo, e = ease(f2); piece(lerp(from.x, to.x, e), lerp(from.y, to.y, e), lerp(PIECE_R, 30, e), a.hitSide, { lift: Math.sin(Math.PI * f2) * 1.6 }); }
+      if (f2 < 0) { if (flat) piece(from.x, from.y, PIECE_R, a.hitSide); P3(from.x, from.y, PIECE_R, a.hitSide, { key: a.hitSide * 8 + a.hit }); }
+      else if (f2 < 1) { const to2 = a.hitTo, e = ease(f2), x = lerp(from.x, to2.x, e), y = lerp(from.y, to2.y, e), r = lerp(PIECE_R, 30, e), o = { lift: Math.sin(Math.PI * f2) * 1.6, key: a.hitSide * 8 + a.hit }; if (flat) piece(x, y, r, a.hitSide, o); P3(x, y, r, a.hitSide, o); }
     }
     if (a) {
-      const pos = animAt(a, state);
-      piece(pos.x, pos.y, a.type === 'move' && a.off ? lerp(PIECE_R, 24, Math.min(1, a.t / a.dur)) : PIECE_R, a.side, { lift: pos.lift, glow: a.type === 'refuse' ? state.t : 0 });
+      const pos = animAt(a, state), r = a.type === 'move' && a.off ? lerp(PIECE_R, 24, Math.min(1, a.t / a.dur)) : PIECE_R, o = { lift: pos.lift, glow: a.type === 'refuse' ? state.t : 0, key: a.side * 8 + a.i };
+      if (flat) piece(pos.x, pos.y, r, a.side, o); P3(pos.x, pos.y, r, a.side, o);
       if (a.type === 'move' && a.t > a.dur && a.t < a.dur + 0.45 && !state.calm) {              // a ring of light where a piece lands or captures
         const f = (a.t - a.dur) / 0.45, e = a.pts[a.pts.length - 1];
-        ctx.strokeStyle = `rgba(${a.hit >= 0 ? '255,120,80' : '255,236,160'},${0.8 * (1 - f)})`; ctx.lineWidth = 6 * (1 - f) + 1; ctx.beginPath(); ctx.arc(e.x, e.y, 30 + 60 * f, 0, TAU); ctx.stroke();
+        if (flat) { ctx.strokeStyle = `rgba(${a.hit >= 0 ? '255,120,80' : '255,236,160'},${0.8 * (1 - f)})`; ctx.lineWidth = 6 * (1 - f) + 1; ctx.beginPath(); ctx.arc(e.x, e.y, 30 + 60 * f, 0, TAU); ctx.stroke(); }
+        if (R3) R3.rings.push({ x: e.x, y: e.y, f, rgb: a.hit >= 0 ? '255,120,80' : '255,236,160' });
       }
     }
     ctx.restore();
 
     // ---- labels and tags in screen space (always upright) ----
     if (!resultCard) for (const s of [0, 1]) {
-      const waiting = g.pos[s].filter((p) => p === 0).length, home = g.pos[s].filter((p) => p === HOME).length, bx = s === 0 ? 64 : 720 - 64;
-      const w = B.toScreen(bx, YB - 526), hm = B.toScreen(bx, YT + 264);
-      text('Waiting', w.x, w.y, 22, 'rgba(243,217,139,0.75)', UI, 600); text(String(waiting), w.x, w.y + 25, 22, 'rgba(243,217,139,0.75)', UI, 700);
-      text('Home', hm.x, hm.y, 22, 'rgba(243,217,139,0.75)', UI, 600); text(`${home}/${PIECES}`, hm.x, hm.y + 25, 22, 'rgba(243,217,139,0.75)', UI, 700);
+      const waiting = g.pos[s].filter((p) => p === 0).length, home = g.pos[s].filter((p) => p === HOME).length, bx = live3d && B.rot ? (s === 0 ? -34 : 754) : s === 0 ? 64 : 720 - 64;
+      const w = to(bx, YB - 526), hm = to(bx, YT + 264);
+      if (live3d) { w.y += 4; hm.y += 4; }
+      labelText('Waiting', w.x, w.y, String(waiting)); labelText('Home', hm.x, hm.y, `${home}/${PIECES}`);
     }
-    for (const t of homeTags) { const p = B.toScreen(t.x, t.y); text('Home', p.x, p.y + 8, 22, `rgb(${t.col})`, UI, 700); }
+    for (const t of homeTags) { const p = to(t.x, t.y); text('Home', p.x, p.y + 8, 22, `rgb(${t.col})`, UI, 700); }
     for (const { c, m } of tags) {                                    // small labels on top of everything: what the move will do
       const tag = m.hit >= 0 ? 'Capture' : m.rosette ? 'Roll again' : ''; if (!tag) continue;
-      const p = B.toScreen(c.x, c.y), cellH = (B.rot ? 156 : 122) * B.s, ty = p.y - cellH / 2 + 3;
+      const p = to(c.x, c.y), top = live3d ? to(c.x, c.y - 61, 2.5) : null, cellH = (B.rot ? 156 : 122) * B.s, ty = live3d ? top.y - 34 : p.y - cellH / 2 + 3;
       const tw = widthOf(tag, 22, UI, 700) + 22; ctx.fillStyle = m.hit >= 0 ? 'rgba(150,30,20,0.96)' : 'rgba(20,70,45,0.96)';
       ctx.beginPath(); ctx.roundRect(p.x - tw / 2, ty, tw, 30, 14); ctx.fill(); ctx.strokeStyle = 'rgba(255,230,170,0.8)'; ctx.lineWidth = 1.5; ctx.stroke(); text(tag, p.x, ty + 22, 22, '#fff6de', UI, 700);
     }
@@ -242,26 +287,30 @@ export function render(ctx, state, L) {
       shadowText(name, cx, A.y + ts * 0.95, ts, GOLD);
       const ty = A.y + ts * 0.95 + tg * 1.5; text(tag, cx, ty, tg, 'rgba(243,217,139,0.85)', FONT, 600);
       const r = Math.min(150, (A.y + A.h - ty - 28) / 2.3);
-      if (r >= 36) drawEmblem(ctx, cx, ty + 18 + r * 1.1, r, state);
+      if (live3d && !T.noHero) v3.hero = { x: A.x, y: ty + 10, w: A.w, h: Math.max(60, A.y + A.h - ty - 10) };
+      if (r >= 36 && fa > 0) { ctx.save(); ctx.globalAlpha = fa; drawEmblem(ctx, cx, ty + 18 + r * 1.1, r, state); ctx.restore(); }
     } else group(T.artX, T.artY, T.a, () => {
       shadowText('The Royal Game', 360, 200, 74, GOLD); shadowText('of Ur', 360, 270, 74, GOLD);
       text('A race from the cradle of civilisation', 360, 318, 28, 'rgba(243,217,139,0.85)', FONT, 600);
-      drawEmblem(ctx, 360, 520, 150, state);
-      if (T.showDice) {
+      if (live3d && !T.noHero) v3.hero = { x: T.art.x, y: T.artY + 336 * T.a, w: T.art.w, h: Math.max(80, T.art.y + T.art.h - (T.artY + 336 * T.a)) };
+      ctx.save(); ctx.globalAlpha = fa;
+      if (fa > 0) drawEmblem(ctx, 360, 520, 150, state);
+      if (T.showDice && fa > 0) {
         for (let k = 0; k < 4; k++) drawDie(ctx, 210 + k * 100, 726, 42, k % 2 === 0, state.calm ? 0.3 * k : state.t * (0.6 + k * 0.15) + k, state.calm ? 1 : 0.8 + 0.2 * Math.cos(state.t * 1.3 + k), 0);
         ctx.save(); ctx.globalAlpha = 0.9; wedgeBand(ctx, 60, 778, 660, 14, 77, 'rgba(226,178,74,0.6)'); ctx.restore();
       }
+      ctx.restore();
     });
     drawLockup(ctx, T.lockup.cx, T.lockup.y, T.lockup.w, 0.9, (state.afFlash || 0) > 0);
   };
   if (scene === 'title') {
     const T = L.title(!!state.saved), R = T.btn, solvedToday = state.daily.solvedDay === state.daily.day;
     titleArt(T);
-    if (R.resume) button(R.resume, 'Continue your game', { primary: true, size: 30 });
-    button(R.learn, 'Learn to play', { primary: !state.learned && !R.resume, size: 30 });
-    button(R.play, 'Play the computer', { primary: state.learned && !R.resume, size: 30 });
-    button(R.two, 'Two players, one phone', { size: 28 });
-    button(R.daily, solvedToday ? `Daily puzzle: solved · streak ${state.daily.streak}` : state.daily.streak ? `Daily puzzle · streak ${state.daily.streak}` : 'Daily puzzle', { size: 28 });
+    if (R.resume) button(R.resume, 'Continue your game', { primary: true, size: 30, icon: 'resume' });
+    button(R.learn, 'Learn to play', { primary: !state.learned && !R.resume, size: 30, icon: 'learn' });
+    button(R.play, 'Play the computer', { primary: state.learned && !R.resume, size: 30, icon: 'play' });
+    button(R.two, 'Two players, one phone', { size: 28, icon: 'two' });
+    button(R.daily, solvedToday ? `Daily puzzle: solved · streak ${state.daily.streak}` : state.daily.streak ? `Daily puzzle · streak ${state.daily.streak}` : 'Daily puzzle', { size: 28, icon: 'daily' });
     button(R.about, 'About', { size: 26 }); button(R.rules, 'Rules', { size: 26 }); button(R.autoplay, 'Auto Play', { size: 24 });
     button(R.level, `Computer: ${LEVELS[state.level].name}`, { size: 22 }); button(R.sound, state.sound ? 'Sound on' : 'Sound off', { size: 22 });
     button(R.big, state.big ? 'Large text: on' : 'Large text: off', { size: 22 }); button(R.calm, state.calm ? 'Reduced motion: on' : 'Reduced motion: off', { size: 22 });
@@ -291,7 +340,7 @@ export function render(ctx, state, L) {
     // ONE scrolling document: every authored entry in order, a heading wherever the title changes, the real piece / dice / rosette
     // art inline where an entry carries it, the decorative emblem above (About: it follows the entry at the top of the view).
     const size = Math.round(29 * scale), lh = size * 1.4, bodyW = D.body.w - 22, cx = D.body.x + bodyW / 2, hs = Math.round(40 * Math.min(scale, 1.4));
-    const key = `${scene}|${size}|${Math.round(bodyW)}`;
+    const key = `${scene}|${size}|${Math.round(bodyW)}|${docItems.length}`;
     if (docCache.key !== key) {
       const items = []; let y = 0, prev = null; const starts = [];
       docItems.forEach((it, pi) => {
@@ -372,14 +421,24 @@ function drawTray(ctx, state, text, widthOf, g, human, B, L) {
   const T = B.tray, d = state.dice, rolling = d.phase === 'rolling', ready = state.scene !== 'over' && state.scene !== 'autoplay-over' && g.roll < 0 && !rolling && !state.anim && (state.scene === 'lesson' ? LESSONS[state.lesson.i].want === 'roll' && !state.lesson.done : human && state.wait <= 0);
   const pulse = 0.5 + 0.5 * Math.sin(state.t * 5), UI = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
   const D = L.dice(T, B.trayTall);
+  if (v3.on) {
+    // the 3D presenter renders a lined dice tray with real pyramid dice into this rectangle; the 2D layer adds the frame and words
+    v3.tray = { rect: T, dice: D.c, size: D.size, ready };
+    ctx.save();
+    ctx.strokeStyle = 'rgba(0,0,0,0.55)'; ctx.lineWidth = 7; ctx.beginPath(); ctx.roundRect(T.x - 2, T.y - 2, T.w + 4, T.h + 4, 8); ctx.stroke();
+    ctx.strokeStyle = ready ? `rgba(255,222,120,${0.65 + pulse * 0.35})` : 'rgba(226,178,74,0.85)'; ctx.lineWidth = ready ? 4 : 2.5; ctx.beginPath(); ctx.roundRect(T.x, T.y, T.w, T.h, 6); ctx.stroke();
+    ctx.strokeStyle = 'rgba(226,178,74,0.35)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.roundRect(T.x + 6, T.y + 6, T.w - 12, T.h - 12, 4); ctx.stroke();
+    ctx.restore();
+  } else {
   ctx.save();
   ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.beginPath(); ctx.roundRect(T.x + 3, T.y + 7, T.w, T.h, 20); ctx.fill();
   const bg = ctx.createLinearGradient(0, T.y, 0, T.y + T.h); bg.addColorStop(0, '#1b120a'); bg.addColorStop(1, '#0a0603');
   ctx.fillStyle = bg; ctx.beginPath(); ctx.roundRect(T.x, T.y, T.w, T.h, 20); ctx.fill();
   ctx.strokeStyle = ready ? `rgba(255,222,120,${0.6 + pulse * 0.4})` : 'rgba(226,178,74,0.7)'; ctx.lineWidth = ready ? 4 : 2.5; ctx.stroke();
   ctx.restore();
+  }
   // dice: tumbling while rolling, resting on their result afterwards
-  for (let k = 0; k < 4; k++) {
+  if (!v3.on) for (let k = 0; k < 4; k++) {
     const c = D.c[k];
     if (rolling) {
       const f = d.t / d.dur, tt = state.calm ? 0 : d.t, settle = f > 0.75 ? (f - 0.75) / 0.25 : 0;
@@ -432,5 +491,17 @@ function drawEmblem(ctx, x, y, r, state, variant = 0) {
   ctx.strokeStyle = 'rgba(226,178,74,0.8)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, r * 0.76, 0, TAU); ctx.stroke();
   rosette(ctx, x, y, r * 0.66, true, spin * 1.5);
   if (variant === 3) for (let k = 0; k < 3; k++) drawDie(ctx, x - 1.3 * r + k * 1.3 * r, y + r * 1.3, 34 * r / 118, k !== 1, k, 1, 0);
+  ctx.restore();
+}
+
+// Small line icons for the menu plaques (drawn, so they stay crisp at any size)
+function drawIcon(ctx, kind, x, y, s, col) {
+  ctx.save(); ctx.translate(x, y); ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = Math.max(2, s * 0.09); ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  const h = s / 2;
+  if (kind === 'play') { ctx.beginPath(); ctx.moveTo(-h * 0.55, -h * 0.75); ctx.lineTo(h * 0.8, 0); ctx.lineTo(-h * 0.55, h * 0.75); ctx.closePath(); ctx.fill(); }
+  else if (kind === 'resume') { ctx.beginPath(); ctx.arc(0, 0, h * 0.85, -2.4, 2.0); ctx.stroke(); ctx.beginPath(); ctx.moveTo(-h * 0.3, -h * 0.45); ctx.lineTo(h * 0.45, 0); ctx.lineTo(-h * 0.3, h * 0.45); ctx.closePath(); ctx.fill(); }
+  else if (kind === 'learn') { ctx.beginPath(); ctx.moveTo(0, -h * 0.55); ctx.quadraticCurveTo(-h * 0.5, -h * 0.85, -h, -h * 0.6); ctx.lineTo(-h, h * 0.65); ctx.quadraticCurveTo(-h * 0.5, h * 0.4, 0, h * 0.7); ctx.quadraticCurveTo(h * 0.5, h * 0.4, h, h * 0.65); ctx.lineTo(h, -h * 0.6); ctx.quadraticCurveTo(h * 0.5, -h * 0.85, 0, -h * 0.55); ctx.lineTo(0, h * 0.7); ctx.stroke(); }
+  else if (kind === 'two') { for (const dx of [-0.42, 0.42]) { ctx.beginPath(); ctx.arc(dx * s, 0, h * 0.5, 0, Math.PI * 2); if (dx < 0) ctx.stroke(); else ctx.fill(); } }
+  else if (kind === 'daily') { ctx.beginPath(); ctx.arc(0, 0, h * 0.42, 0, Math.PI * 2); ctx.fill(); for (let k = 0; k < 8; k++) { const a = (k / 8) * Math.PI * 2; ctx.beginPath(); ctx.moveTo(Math.cos(a) * h * 0.62, Math.sin(a) * h * 0.62); ctx.lineTo(Math.cos(a) * h * 0.92, Math.sin(a) * h * 0.92); ctx.stroke(); } }
   ctx.restore();
 }

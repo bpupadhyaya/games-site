@@ -5,6 +5,7 @@ import { FR, H, W, inRect, TEXT_SCALES, THINK_STEPS } from './layout.js';
 import { FONT, NUM, C, roundPath, drawButton, panel, wrapLines, textShadow, ease } from './ui.js';
 import { makeCam, drawBackdrop, drawDuel, drawParts, drawConker, patchArgs, TAU } from './scene.js';
 import { L, R, PULL_MIN, PULL_MAX, bobPos, HAND_RANGE } from './sim.js';
+import { v3, flatAlpha, recordDuel } from './v3.js';
 import { countName, countLabel, stageOf, STAGE_NAMES, kindOf, GOES, CUP_ROUNDS } from './engine.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -37,14 +38,16 @@ export function computeLayout(state) {
     const cw = (right - left - 12) / 2;
     const cardL = { x: left, y: cardY, w: cw, h: cardH }, cardR = { x: left + cw + 12, y: cardY, w: cw, h: cardH };
     const strip = { x: left, y: top, w: right - left, h: stripH };
-    const scene = { x: 0, y: top + stripH, w: sw, h: cardY - (top + stripH) - 6 };
+    // with the 3D park on, the scene stops above a compact touch preview so the duel sits in the middle of the open picture
+    const LENS3 = 156, sceneBot = v3.on ? cardY - 14 - LENS3 : cardY - 6;
+    const scene = { x: 0, y: top + stripH, w: sw, h: sceneBot - (top + stripH) };
     const btnH = 92, chipH = 38, tsH = 58;
     const guide = { x: left, y: trayY, w: right - left, h: chipH }, timing = { x: left, y: trayY + chipH + 6, w: right - left, h: tsH };
     const by = trayY + trayH - btnH;
     if (watch) row(['wexit', 'wdec', 'wpause', 'winc', 'more'], [1.1, 0.8, 1.5, 0.8, 1.1], by, btnH, left, right);
     else if (state.humanTurn) row(['menu', 'think', 'handdn', 'handup', 'swing'], [1, 1, 1, 1, 1.6], by, btnH, left, right);
     else row(['menu'], [1], by, btnH, left, left + (right - left) * 0.22);
-    return { cardL, cardR, strip, scene, guide, timing, rects: R_, trayY, trayH, land, sc, left, right, sw, cardH, cardY };
+    return { cardL, cardR, strip, scene, guide, timing, rects: R_, trayY, trayH, land, sc, left, right, sw, cardH, cardY, lens3: v3.on ? { x: left, y: cardY - 8 - LENS3, w: right - left, h: LENS3 } : null };
   }
   // landscape
   const cw = clamp(sw * 0.19, 230, 330), cardH = 126, gap = 10;
@@ -172,7 +175,7 @@ function drawTray(ctx, state, lay) {
 // The touch preview: the two conkers at the moment of contact if the release were right now, magnified, with the pale patches drawn where they would be.
 function drawLens(ctx, r, state, lay) {
   const g = state.guide, duel = state.m.duel, si = duel.striker, cs = duel.c[si], cd = duel.c[1 - si];
-  panel(ctx, r.x, r.y, r.w, r.h, { r: 20, fill: 'rgba(34,18,8,0.88)', stroke: 'rgba(217,174,82,0.45)', lw: 2 });
+  panel(ctx, r.x, r.y, r.w, r.h, { r: 20, fill: v3.on ? 'rgba(34,18,8,0.66)' : 'rgba(34,18,8,0.88)', stroke: 'rgba(217,174,82,0.45)', lw: 2, shadow: !v3.on });
   const wide = r.w > r.h * 1.35, f = Math.min(1.3, lay.sc);
   const box = wide ? { x: r.x, y: r.y, w: r.h, h: r.h } : { x: r.x, y: r.y, w: r.w, h: r.h * 0.62 };
   const txt = wide ? { x: r.x + r.h, y: r.y, w: r.w - r.h, h: r.h } : { x: r.x, y: r.y + r.h * 0.6, w: r.w, h: r.h * 0.4 };
@@ -292,11 +295,11 @@ export function renderPlay(ctx, state) {
   const sh = state.shake > 0 ? state.shake : 0;
   ctx.save();
   if (sh > 0) ctx.translate(Math.sin(state.t * 90) * sh * 5, Math.cos(state.t * 71) * sh * 4);
-  drawBackdrop(ctx, sw, H, state.t, cam.groundY);
   const o = { flash: state.flash > 0 ? state.flash : 0, glowS: state.ph === 'aim' ? 0.35 : 0 };
-  const draw = (cs) => { /* conkers marked gone are not drawn */ void cs; };
-  void draw;
-  drawDuel(ctx, cam, state.sim, duel.c, duel.striker, o);
+  // with the 3D scene on, the park and the duel are drawn by the presenter behind this canvas (the flat art fades out over it)
+  const fa = flatAlpha();
+  if (fa > 0) { ctx.save(); ctx.globalAlpha = fa; drawBackdrop(ctx, sw, H, state.t, cam.groundY); drawDuel(ctx, cam, state.sim, duel.c, duel.striker, o); ctx.restore(); }
+  recordDuel(ctx, cam, state.sim, duel.c, duel.striker, o, state.parts, 'play');
   if (state.ph === 'aim' && state.humanTurn) drawAimOverlay(ctx, cam, state, lay);
   if (state.hint && !state.hint.busy && state.hint.plan && state.ph === 'aim') {
     // the suggested pull as a ghost ring
@@ -307,7 +310,7 @@ export function renderPlay(ctx, state) {
     const p = bobPos(state.sim.ps, -state.think.plan.pull);
     ctx.save(); ctx.strokeStyle = '#7de8ff'; ctx.lineWidth = 3; ctx.setLineDash([8, 6]); ctx.beginPath(); ctx.arc(cam.X(p.x), cam.Y(p.y), R * cam.k * 1.25, 0, TAU); ctx.stroke(); ctx.restore();
   }
-  drawParts(ctx, cam, state.parts);
+  drawParts(ctx, cam, v3.on ? state.parts.filter((p) => p.k === 'spark' || p.k === 'ring') : state.parts);
   ctx.restore();
   // tray background and side panels
   if (!lay.land) {
@@ -333,7 +336,7 @@ export function renderPlay(ctx, state) {
   try { globalThis.__previewBadge = { y: (sr.y + sr.h + 2) * FR.s, align: 'center' }; } catch { /* no globalThis write: the pill keeps its default place */ }
   if (state.humanTurn && state.ph === 'aim' && !watch && state.settings.guide) {
     let lr = lay.lens;
-    if (!lay.land) { const top = Math.min(cam.Y(0.72) + 14, lay.cardY - 150); lr = { x: lay.left, y: top, w: lay.right - lay.left, h: lay.cardY - 8 - top }; }
+    if (!lay.land) { if (lay.lens3) lr = lay.lens3; else { const top = Math.min(cam.Y(0.72) + 14, lay.cardY - 150); lr = { x: lay.left, y: top, w: lay.right - lay.left, h: lay.cardY - 8 - top }; } }
     if (lr && lr.h >= 130) drawLens(ctx, lr, state, lay);
   }
   drawBanner(ctx, state, lay);

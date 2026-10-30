@@ -120,3 +120,9 @@ export const RULES = [
     'Free to play with short ads; go ad-free once.',
   ] },
 ];
+
+// Credits for the optional 3D layer (three.js and the shared view3d library), added at the end of About by main.js once loaded.
+export const addAboutCredits = (body) => {
+  if (ABOUT.some((d) => d.credits)) return;
+  ABOUT.push({ credits: true, title: '3D graphics credits', p: [body] });
+};

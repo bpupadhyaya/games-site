@@ -11,6 +11,7 @@ import { reached, claimable, activeStages, byId, GOALS, PACES, SKILLS, CPU_NAMES
 import { ABOUT, HOWTO, RULES, SAMPLE_CARD, SAMPLE_MARKS } from './content.js';
 import { THEME_IDS } from './art.js';
 import { meta } from './game.js';
+import { v3, flatAlpha } from './v3.js';
 
 const PI2 = Math.PI * 2;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -21,6 +22,8 @@ const dropAt = (t) => t;
 
 export function render(ctx, state, pointer, L) {
   const th = themeOf(state.theme), sc = state.scene, play = sc === 'play' || sc === 'duo' || sc === 'auto';
+  v3.list.length = 0; v3.hold = 0;
+  if (v3.on) { const m = ctx.getTransform(); v3.base = { a: m.a, d: m.d, e: m.e, f: m.f }; v3.scene = sc; v3.theme = state.theme; }
   drawBackdrop(ctx, th, state.t, L.w, L.h);
   // keep the kit's preview pill clear of the HUD: top centre on portrait play, stage foot in landscape, top-left in face to face
   meta.previewBadge = sc === 'duo' ? { x: L.U.x0 + (host.back ? host.back + 12 : 14), y: L.U.y0 + 6, align: 'left' }
@@ -104,11 +107,11 @@ function kegPose(r, P) {
   if (r.drop) {
     const t = clamp01(r.drop.t / 0.62), e = t * t, dir = r.drop.n % 2 ? 1 : -1;
     const x = bx + (tx - bx) * easeOutCubic(Math.min(1, t * 1.1)), y = by + (ty - by) * e - Math.sin(Math.min(1, t) * Math.PI) * k * 0.25;
-    return { x, y, size: k * (0.55 + 0.45 * t), rot: dir * (1 - t) * 5.5, spin: t * 9 * dir, n: r.drop.n };
+    return { x, y, size: k * (0.55 + 0.45 * t), rot: dir * (1 - t) * 5.5, spin: t * 9 * dir, n: r.drop.n, anim: { drop: t, dir, fx: bx, fy: by, tx, ty, k } };
   }
   if (!r.last) return null;
   const c = r.callT, dec = Math.exp(-c * 5.5), dir = r.last % 2 ? 1 : -1;
-  return { x: tx, y: ty - Math.abs(Math.sin(c * 16)) * dec * k * 0.12, size: k, rot: Math.sin(c * 17) * dec * 0.2 * dir, spin: Math.sin(c * 13) * dec * 0.9, n: r.last };
+  return { x: tx, y: ty - Math.abs(Math.sin(c * 16)) * dec * k * 0.12, size: k, rot: Math.sin(c * 17) * dec * 0.2 * dir, spin: Math.sin(c * 13) * dec * 0.9, n: r.last, anim: { settle: c, dir, tx, ty } };
 }
 function drawRack(ctx, r, rect, kegS, th, wrap) {
   const gap = Math.max(5, kegS * 0.14), step = kegS * 1.18 + gap, perRow = Math.max(1, Math.floor((rect.w + gap) / step));
@@ -125,11 +128,15 @@ function drawRack(ctx, r, rect, kegS, th, wrap) {
 // The stage: bag, tray with the current keg, the call, a progress bar to the next keg and the rack of recent kegs.
 function drawStage(ctx, s, r, th, P, auto) {
   const S = P.rect;
-  panel(ctx, S, th, 24, 0.9); hairline(ctx, S);
+  if (v3.on) {   // 3D table: no panel over the bag and kegs, only a soft shade behind the call so the numbers stay readable
+    if (flatAlpha() > 0) { panel(ctx, S, th, 24, 0.9 * flatAlpha()); }
+    const T = P.text, g = ctx.createRadialGradient(T.x + T.w / 2, T.y + T.h * 0.45, 4, T.x + T.w / 2, T.y + T.h * 0.45, Math.max(T.w, T.h) * 0.62);
+    g.addColorStop(0, 'rgba(6,4,2,0.5)'); g.addColorStop(1, 'rgba(6,4,2,0)'); ctx.fillStyle = g; ctx.fillRect(T.x - 30, T.y - 20, T.w + 60, T.h + 40);
+  } else { panel(ctx, S, th, 24, 0.9); hairline(ctx, S); }
   drawBag(ctx, P.bag.cx, P.bag.cy, P.bag.size, s.t, r.drop ? 1 : r.timer < 0.4 ? 0.5 : 0, th);
   drawTray(ctx, P.tray, th);
   const kp = kegPose(r, P);
-  if (kp) drawKeg(ctx, kp.x, kp.y, kp.size, kp.n, { rot: kp.rot, spin: kp.spin, glow: r.drop ? 0 : 0.28 });
+  if (kp) drawKeg(ctx, kp.x, kp.y, kp.size, kp.n, { rot: kp.rot, spin: kp.spin, glow: r.drop ? 0 : 0.28, anim: kp.anim });
   else text(ctx, 'Ready?', P.tray.x + P.tray.w / 2, P.tray.y + P.tray.h / 2, P.tray.h * 0.3, { color: th.sub, italic: true, maxW: P.tray.w - 20 });
   // progress to the next keg
   if (!auto && r.status === 'running' && r.drawn < KEGS) {
@@ -219,6 +226,7 @@ function drawPlayerCards(ctx, s, r, pi, th, cards, reachedWin) {
     const hint = p.hint ? p.hint.cells.filter((h) => h.ci === ci).map((h) => h.cell) : null;
     const hintCol = hint && hint.length ? hint[0] % 9 : null;
     drawCard(ctx, rect, p.cards[ci], th, {
+      id: `p${pi}c${ci}`, pi, ci, card: p.cards[ci],
       marks: p.marks[ci], dead: p.dead[ci], chipT: p.chipT[ci], t: s.t, seed: ci * 31 + pi * 7, label: `№${ci + 1}`,
       hint, hintCol, flash: p.flash && p.flash.ci === ci ? p.flash : null, winRows: reachedWin && reachedWin.card === ci ? reachedWin.rows : null,
     });
@@ -266,10 +274,10 @@ function renderDuo(ctx, s, th, L) {
   const r = s.round; if (!r) return;
   const D = L.duo, band = D.band;
   // band
-  ctx.save(); roundPath(ctx, 8, band.y, L.w - 16, band.h, 26); ctx.fillStyle = 'rgba(0,0,0,0.34)'; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(255,255,255,0.18)'; ctx.stroke(); ctx.restore();
+  ctx.save(); roundPath(ctx, 8, band.y, L.w - 16, band.h, 26); ctx.fillStyle = v3.on ? 'rgba(0,0,0,0.12)' : 'rgba(0,0,0,0.34)'; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(255,255,255,0.18)'; ctx.stroke(); ctx.restore();
   const tray = R2(D.kegC.x - D.keg * 0.78, D.kegC.y - D.keg * 0.5, D.keg * 1.56, D.keg), P = { tray, kegBig: D.keg * 0.9, bag: { cx: D.kegC.x - D.keg * 0.5, cy: D.kegC.y - D.keg * 0.9, size: D.keg * 0.9 } };
   drawTray(ctx, tray, th);
-  const kp = kegPose(r, P); if (kp) drawKeg(ctx, kp.x, kp.y, kp.size, kp.n, { rot: kp.rot, spin: kp.spin, glow: r.drop ? 0 : 0.28 });
+  const kp = kegPose(r, P); if (kp) drawKeg(ctx, kp.x, kp.y, kp.size, kp.n, { rot: kp.rot, spin: kp.spin, glow: r.drop ? 0 : 0.28, anim: kp.anim });
   if (r.status === 'running' && r.drawn < KEGS) { const bw = tray.w * 0.7, bx = tray.x + (tray.w - bw) / 2, by = tray.y + tray.h + 4, k = clamp01(1 - r.timer / r.secs); ctx.fillStyle = 'rgba(0,0,0,0.4)'; roundPath(ctx, bx, by, bw, 5, 2.5); ctx.fill(); ctx.fillStyle = th.accent; roundPath(ctx, bx, by, Math.max(5, bw * k), 5, 2.5); ctx.fill(); }
   const ox = ptr.x, oy = ptr.y;
   const side = (pi, rot) => {
@@ -372,7 +380,23 @@ function drawMenuArt(ctx, s, th, cx, cy, size) {
   });
   // a keg tumbling out of the bag now and then
   const c = (t % 5) / 5;
-  if (c < 0.26) { const u = c / 0.26, x = cx + size * 0.2 + u * size * 0.5, y = cy - size * 0.2 + u * u * size * 0.85; drawKeg(ctx, x, y, size * 0.34, 11, { rot: u * 7, spin: u * 10, alpha: 1 - u * 0.2 }); }
+  if (c < 0.26) { const u = c / 0.26, x = cx + size * 0.2 + u * size * 0.5, y = cy - size * 0.2 + u * u * size * 0.85; drawKeg(ctx, x, y, size * 0.34, 11, { rot: u * 7, spin: u * 10, alpha: 1 - u * 0.2, anim: { air: u } }); }
+}
+// Embossed gold title: a dark extruded body under a gold-leaf face with a lit top edge and a slow glint (no inner gloss shapes).
+function goldTitle(ctx, str, x, y, px, maxW, th, t) {
+  ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  const s = fitPx(ctx, str, maxW, px, 800); ctx.font = font(s, 800);
+  ctx.lineJoin = 'round'; ctx.lineWidth = s * 0.16; ctx.strokeStyle = 'rgba(14,6,0,0.9)';
+  ctx.shadowColor = 'rgba(0,0,0,0.6)'; ctx.shadowBlur = s * 0.25; ctx.shadowOffsetY = s * 0.1; ctx.strokeText(str, x, y + s * 0.07); ctx.shadowColor = 'transparent';
+  for (let k = 6; k >= 1; k--) { ctx.fillStyle = mix('#5a3208', '#2a1404', k / 6); ctx.fillText(str, x, y + k * s * 0.014); }
+  const g = ctx.createLinearGradient(0, y - s * 0.5, 0, y + s * 0.45);
+  g.addColorStop(0, '#fff2c0'); g.addColorStop(0.35, mix(th.accent, '#ffffff', 0.2)); g.addColorStop(0.62, th.accent); g.addColorStop(1, mix(th.accent, '#6a3a08', 0.55));
+  ctx.fillStyle = g; ctx.fillText(str, x, y);
+  ctx.globalCompositeOperation = 'source-atop';
+  const w = ctx.measureText(str).width, gx = x - w / 2 + ((t * 0.18) % 1.6) * w * 1.25 - w * 0.2, gl = ctx.createLinearGradient(gx - s, 0, gx + s, 0);
+  gl.addColorStop(0, 'rgba(255,255,255,0)'); gl.addColorStop(0.5, 'rgba(255,255,240,0.45)'); gl.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = gl; ctx.fillRect(x - w / 2 - s, y - s, w + 2 * s, s * 2);
+  ctx.restore();
 }
 function renderMenu(ctx, s, th, L, d) {
   const sc = scaleOf(s), m = L.menuRows(sc), big = sc > 1.2;
@@ -380,7 +404,7 @@ function renderMenu(ctx, s, th, L, d) {
     drawMenuArt(ctx, s, th, d.land ? m.cxArt : d.W / 2, m.artY, d.land ? 240 : (m.artSize || 230));
   }
   const tcx = d.land ? m.cxArt : d.W / 2;
-  text(ctx, 'RUSSIAN LOTO', tcx, m.titleY, d.land ? 78 : 92, { italic: true, color: th.accent, stroke: 9, shadow: true, maxW: d.land ? 560 : 660 });
+  goldTitle(ctx, 'RUSSIAN LOTO', tcx, m.titleY, d.land ? 78 : 92, d.land ? 560 : 660, th, s.t);
   text(ctx, 'B A R R E L S', tcx, m.subY, 38, { color: th.text, stroke: 6, maxW: 520 });
   const sr = big ? 0.68 : 0.62, dd = s.daily;
   drawButton(ctx, m.play, 'Play', th, { primary: true, sub: 'against the computer', scale: sc, subRatio: sr });
@@ -489,7 +513,7 @@ function renderPage(ctx, s, th, list, heading, key, d) {
     const y = top + it.y - s.refScroll;
     if (y < top - 260 || y > top + viewH + 60) continue;
     if (it.t === 'h') text(ctx, it.text, W / 2, y, res.hPx, { color: th.accent, italic: true, maxW: P.w - 60 });
-    else if (it.t === 'art') pageArt(ctx, s, th, it.art, W / 2, y, P.w - 80, it.ah);
+    else if (it.t === 'art') { v3.hold++; pageArt(ctx, s, th, it.art, W / 2, y, P.w - 80, it.ah); v3.hold--; }
     else {
       ctx.save(); ctx.fillStyle = '#fbf2de'; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.font = font(res.px, 400);
       if (it.bullet) { ctx.fillStyle = th.accent; ctx.beginPath(); ctx.arc(P.x + 50, y + res.px * 0.55, res.px * 0.12, 0, PI2); ctx.fill(); ctx.fillStyle = '#fbf2de'; }

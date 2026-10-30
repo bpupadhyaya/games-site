@@ -18,6 +18,9 @@ export const ABOUT = [
   { title: 'About the rules', p: [
     'The game uses the common ring-game rules, written out in full on the Rules pages. It is a game of skill and points only: nothing is ever won or lost except points inside the game.',
   ] },
+  { title: '3D credits and licences', p: [
+    'The lit 3D schoolyard, the dirt ring and the marbles are drawn in code with three.js, Copyright (c) 2010-2024 three.js authors, MIT License (threejs.org), including the addons GLTFLoader, SkeletonUtils and RoomEnvironment, and the meshoptimizer decoder, Copyright (c) 2016-2024 Arseny Kapoulkine, MIT License. No people, photos or outside images are used. The full licence texts ship with the game in vendor3d/LICENSES.md.',
+  ] },
 ];
 
 export const HOWTO = [

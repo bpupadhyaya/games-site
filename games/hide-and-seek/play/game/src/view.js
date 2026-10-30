@@ -217,7 +217,9 @@ export function drawAttract(ctx, stage, place, t, host) {
   const tall = sc.tall, kids = [];
   for (let i = 0; i < NSPOT; i++) {
     const [X, Z] = spotXZ(i, tall);
-    const ph = ((t * 0.32 + i * 0.37) % 3.2), up = ph < 1.4 ? Math.sin((ph / 1.4) * Math.PI) : 0, dir = i % 2 ? -1 : 1;
+    const ph = ((t * 0.32 + i * 0.37) % 3.2), dir = i % 2 ? -1 : 1;
+    let up = ph < 1.4 ? Math.sin((ph / 1.4) * Math.PI) : 0;
+    if (i === 3 || i === 4) up = Math.max(up, 0.72 + 0.28 * Math.sin(t * 0.7 + i * 2)); // the two middle places always hold a peeking child, so the hero never looks empty
     if (up > 0.03) kids.push({ look: i % 6, X: X + dir * (0.25 + 0.85 * Math.min(1, up * 1.6)), Z: Z - 0.55 + 0.1 * up, pose: 'peek', visible: true, faceX: X, faceZ: Z + 2, noChase: true });
   }
   const wd = world();

@@ -24,7 +24,7 @@ const SKIN = ['#f1c9a5', '#d8a074', '#b97a4f', '#8a5634', '#e5b48c'];
 const BUNT = ['#d6453d', '#f2c14e', '#2f6fb6', '#f4efe3', '#3a9b8e', '#e98aa5'];
 
 export function makeCam(W, H) {
-  const hor = Math.round(H * (W > H ? 0.38 : 0.4));
+  const hor = Math.round(H * (W > H ? 0.36 : 0.32));
   return { W, H, cx: W / 2, hor, F: FOCAL, k: clamp(H / 1100, 0.55, 1) * (W > H ? 0.95 : 1) };
 }
 

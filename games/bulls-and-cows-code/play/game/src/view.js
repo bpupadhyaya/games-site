@@ -5,6 +5,7 @@ import { setBrandTone, drawCredit, drawMoreLine, edgeStroke } from './brand.js';
 import { GRADES, scoreA, classify, fbB, fbC } from './engine.js';
 import { DOCS } from './content.js';
 import { peg, hole, pip, lid, clue, PEG } from './art.js';
+import { v3, flatAlpha } from './v3.js';
 
 export const metrics = { max: 0, view: 0, rect: null };   // scroll body of the current screen, filled in each frame
 export const SETTINGS = [
@@ -40,9 +41,13 @@ const fmtTime = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padSt
 
 export function render(ctx, s, view) {
   const w = view.width, h = view.height, T = theme();
-  background(ctx, w, h, s.t);
-  metrics.max = 0; metrics.rect = null;
   const sc = s.scene;
+  // 3D on: the play screen and the title hero are lit 3D (pegs, sockets, lids, clue pips, trays) behind this canvas; the flat art only fades out
+  const is3 = v3.on && (sc === 'play' || sc === 'title');
+  v3.items = is3 ? [] : null; v3.slabs = []; v3.slabCtl = false; v3.scene = is3 ? sc : ''; v3.look = T;
+  if (!is3) background(ctx, w, h, s.t);
+  else if (flatAlpha() > 0) { ctx.save(); ctx.globalAlpha = flatAlpha(); background(ctx, w, h, s.t); ctx.restore(); }
+  metrics.max = 0; metrics.rect = null;
   if (sc === 'title') drawTitle(ctx, s, w, h);
   else if (sc === 'play') drawPlay(ctx, s, w, h);
   else if (sc === 'new') drawNew(ctx, s, w, h);
@@ -79,11 +84,14 @@ function drawBoard(ctx, s, L) {
   const cur = Math.min(tries - 1, P.role === 'set' ? (P.phase === 'score' ? P.rows.length - 1 : P.rows.length) : P.rows.length);
   // tray
   const top = B.secretY - 10, bot = B.rowY(B.first + B.count - 1) + B.rowH + 10, tx = B.x0 - 14, tw = B.rowW + 28;
-  rr(ctx, tx - 6, top - 6, tw + 12, bot - top + 12, 30); ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fill();
-  const tg = ctx.createLinearGradient(0, top, 0, bot); tg.addColorStop(0, mix(T.tray, '#ffffff', T.dark ? 0.06 : 0.05)); tg.addColorStop(1, mix(T.tray, '#000000', 0.25));
-  rr(ctx, tx, top, tw, bot - top, 26); ctx.fillStyle = tg; ctx.fill();
-  ctx.lineWidth = 5; ctx.strokeStyle = mix(T.rim, '#000000', 0.45); ctx.stroke();
-  ctx.lineWidth = 2.4; ctx.strokeStyle = T.rim; rr(ctx, tx + 1, top + 1, tw - 2, bot - top - 2, 25); ctx.stroke();
+  if (v3.items) v3.slabs.push({ id: 'board', x: tx, y: top, w: tw, h: bot - top, r: 26 });
+  else {
+    rr(ctx, tx - 6, top - 6, tw + 12, bot - top + 12, 30); ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fill();
+    const tg = ctx.createLinearGradient(0, top, 0, bot); tg.addColorStop(0, mix(T.tray, '#ffffff', T.dark ? 0.06 : 0.05)); tg.addColorStop(1, mix(T.tray, '#000000', 0.25));
+    rr(ctx, tx, top, tw, bot - top, 26); ctx.fillStyle = tg; ctx.fill();
+    ctx.lineWidth = 5; ctx.strokeStyle = mix(T.rim, '#000000', 0.45); ctx.stroke();
+    ctx.lineWidth = 2.4; ctx.strokeStyle = T.rim; rr(ctx, tx + 1, top + 1, tw - 2, bot - top - 2, 25); ctx.stroke();
+  }
   ctx.save(); rr(ctx, tx, top, tw, bot - top, 26); ctx.clip();
   // secret row
   const sy = B.secretMid, secretPlate = R(B.x0 - 2, B.secretY, B.rowW + 4, B.secretH);
@@ -161,6 +169,7 @@ function drawPlay(ctx, s, w, h) {
   const cur = Math.max(0, Math.min(tries - 1, P.role === 'set' ? (P.phase === 'score' ? P.rows.length - 1 : P.rows.length) : P.rows.length));
   const L = playLayout(w, h, { tries, len: GRADES[P.gid].len, cur, mode, hand: s.prefs.hand, scale: scaleOf(s) });
   setBrandTone(T.dark);
+  if (v3.items && !L.wide) { v3.slabs.push({ id: 'ctl', x: L.ctl.x - 6, y: L.ctl.y - 8, w: L.ctl.w + 12, h: L.ctl.h + 12, r: 26 }); v3.slabCtl = true; }
   if (L.wide) drawSide(ctx, s, L);
   drawBoard(ctx, s, L);
   drawHud(ctx, s, L, mode);
@@ -212,7 +221,7 @@ function drawHud(ctx, s, L, mode) {
 
 function drawControls(ctx, s, L, mode) {
   const T = theme(), P = s.P, C = L.ctl, secret = mode === 'secret';
-  panel(ctx, R(C.x - 6, C.y - 8, C.w + 12, C.h + 12), { radius: 26, fill: rgba(T.dark ? '#000000' : '#ffffff', T.dark ? 0.22 : 0.3) });
+  if (!v3.slabCtl) panel(ctx, R(C.x - 6, C.y - 8, C.w + 12, C.h + 12), { radius: 26, fill: rgba(T.dark ? '#000000' : '#ffffff', T.dark ? 0.22 : 0.3) });
   const order = [1, 2, 3, 4, 5, 6, 7, 8, 9, 0], rep = GRADES[P.gid].rep, full = P.cur.every((d) => d >= 0);
   order.forEach((dg, i) => {
     const r = L.keys[i], d = Math.min(r.w, r.h) * 0.94, used = !rep && P.cur.includes(dg) && P.cur[s.sel] !== dg;
@@ -234,8 +243,8 @@ function drawControls(ctx, s, L, mode) {
 
 function drawWait(ctx, s, L) {
   const T = theme(), C = L.ctl, P = s.P;
-  panel(ctx, R(C.x - 6, C.y - 8, C.w + 12, C.h + 12), { radius: 26, fill: rgba(T.dark ? '#000000' : '#ffffff', T.dark ? 0.22 : 0.3) });
-  edgeStroke(ctx, R(C.x - 6, C.y - 8, C.w + 12, C.h + 12), 26, 0.35);
+  if (!v3.slabCtl) panel(ctx, R(C.x - 6, C.y - 8, C.w + 12, C.h + 12), { radius: 26, fill: rgba(T.dark ? '#000000' : '#ffffff', T.dark ? 0.22 : 0.3) });
+  if (!v3.slabCtl) edgeStroke(ctx, R(C.x - 6, C.y - 8, C.w + 12, C.h + 12), 26, 0.35);
   txt(ctx, P.done ? 'Round over' : 'The computer is thinking', C.x + C.w / 2, C.y + C.h / 2 - 16, { size: F(34), weight: 700, color: T.text, align: 'center', maxW: C.w - 30, min: 16 });
   txt(ctx, 'Your code is safe behind the glow.', C.x + C.w / 2, C.y + C.h / 2 + 28, { size: F(22), weight: 400, color: T.dim, align: 'center', maxW: C.w - 30, min: 11 });
 }
@@ -252,7 +261,7 @@ function stepper(ctx, s, r, label, sub, kind, val, idDec, idInc) {
 }
 function drawScore(ctx, s, L) {
   const T = theme(), C = L.ctl, sc = L.score, P = s.P;
-  panel(ctx, R(C.x - 6, C.y - 8, C.w + 12, C.h + 12), { radius: 26, fill: rgba(T.dark ? '#000000' : '#ffffff', T.dark ? 0.22 : 0.3) });
+  if (!v3.slabCtl) panel(ctx, R(C.x - 6, C.y - 8, C.w + 12, C.h + 12), { radius: 26, fill: rgba(T.dark ? '#000000' : '#ffffff', T.dark ? 0.22 : 0.3) });
   stepper(ctx, s, sc.bulls, 'Bulls', C.w > 520 ? 'right digit, right place' : '', 'bull', P.score.b, 'bdec', 'binc');
   stepper(ctx, s, sc.cows, 'Cows', C.w > 520 ? 'right digit, wrong place' : '', 'cow', P.score.c, 'cdec', 'cinc');
   button(ctx, sc.show, 'Show me', { size: 22, radius: 18, flash: flashOf(s, 'show') });
@@ -327,7 +336,8 @@ function drawTitle(ctx, s, w, h) {
   const railW = Math.min(hero.w * 0.94, 560), rowH = Math.max(46, Math.min(96, (H - tb - 40) / 4.2)), d = Math.min(rowH * 0.78, railW / 6.2);
   const bx = cx - railW / 2, by = hero.y + Math.max(4, (H - tb - rowH * 4.2) / 2);
   const B = { len: 4, d, slot: (k) => cx - ((4 - 1) * d * 1.42) / 2 + k * d * 1.42 - railW * 0.1 };
-  rr(ctx, bx - 14, by - 10, railW + 28, rowH * 4.1 + 20, 26); ctx.fillStyle = T.tray; ctx.fill(); ctx.lineWidth = 3.5; ctx.strokeStyle = T.rim; ctx.stroke();
+  if (v3.items) v3.slabs.push({ id: 'board', x: bx - 14, y: by - 10, w: railW + 28, h: rowH * 4.1 + 20, r: 26 });
+  else { rr(ctx, bx - 14, by - 10, railW + 28, rowH * 4.1 + 20, 26); ctx.fillStyle = T.tray; ctx.fill(); ctx.lineWidth = 3.5; ctx.strokeStyle = T.rim; ctx.stroke(); }
   const cyc = (s.t * 0.45) % 3.2, step = Math.floor(cyc), local = cyc - step;
   const revealT = clamp(s.sceneT, 0, 1);
   for (let r = 0; r < 4; r++) {

@@ -26,7 +26,7 @@ export function setPress(ptr) {
 }
 const BTN_FILL = {
   disabled: ['#2b3646', '#2b3646', 'rgba(255,255,255,0.12)'],
-  primary: ['#ec6a3c', '#b53c18', '#ffd6a8'],
+  primary: ['#f6c548', '#d9962a', '#fff0b8'],
   active: ['#35aca0', '#1b6a63', '#b0f2e8'],
   dark: ['#4a2c1c', '#2a150c', 'rgba(240,190,110,0.75)'],
   plain: ['#fdf3da', '#e4d0a2', 'rgba(110,60,24,0.75)'],
@@ -37,7 +37,7 @@ export function paintButton(ctx, r, o = {}) {
   const pressed = !disabled && PRESS.on && PRESS.x >= r.x && PRESS.x <= r.x + r.w && PRESS.y >= r.y && PRESS.y <= r.y + r.h;
   const [c0, c1, edge] = BTN_FILL[k];
   const dy = pressed ? 3 : 0;
-  if (v3active()) { v3.buttons.push({ r: toV(ctx, r), kind: k, pressed, disabled, clip: v3.clip }); return { dy, light: primary || active || dark }; }
+  if (v3active()) { v3.buttons.push({ r: toV(ctx, r), kind: k, pressed, disabled, clip: v3.clip }); return { dy, light: active || dark }; }
   ctx.save();
   if (!disabled) { roundPath(ctx, r.x, r.y + (pressed ? 2 : 4), r.w, r.h, 18); ctx.fillStyle = pressed ? 'rgba(10,4,4,0.25)' : 'rgba(10,4,4,0.4)'; ctx.fill(); }
   roundPath(ctx, r.x, r.y + dy, r.w, r.h, 18);
@@ -49,7 +49,7 @@ export function paintButton(ctx, r, o = {}) {
   ctx.save(); roundPath(ctx, r.x + 3, r.y + dy + 3, r.w - 6, r.h - 6, 15); ctx.clip();
   ctx.fillStyle = 'rgba(255,255,255,0.16)'; ctx.fillRect(r.x, r.y + dy, r.w, r.h * 0.5); ctx.restore();
   ctx.restore();
-  return { dy, light: primary || active || dark };
+  return { dy, light: active || dark };
 }
 
 // A parchment pill. opts: primary (terracotta), active (olive), disabled, sub (small second line), size (font px)

@@ -22,10 +22,10 @@ export function setPress(ptr) {
 }
 const BTN = {
   disabled: ['#4a4a44', 'rgba(255,255,255,0.10)', '#2a2a27'],
-  primary: ['#c0501c', '#f0894a', '#6e2a0c'],
+  primary: ['#b8481a', '#ffb067', '#5e220a'],
   active: ['#4d7a34', '#9cd073', '#223a14'],
   dark: ['#33200f', 'rgba(255,225,160,0.38)', '#140a04'],
-  plain: ['#efe2bd', '#fff6dc', '#8c7440'],
+  plain: ['rgba(58,32,14,0.86)', 'rgba(240,196,110,0.62)', 'rgba(16,8,3,0.85)'],   // polished walnut, brass edge
 };
 export function paintButton(ctx, r, o = {}) {
   const { primary = false, active = false, disabled = false, dark = false } = o;
@@ -40,7 +40,7 @@ export function paintButton(ctx, r, o = {}) {
   if (pressed) { ctx.fillStyle = 'rgba(0,0,0,0.2)'; ctx.fill(); }
   ctx.lineWidth = 2; ctx.strokeStyle = edge; ctx.stroke();
   ctx.restore();
-  return { dy, light: primary || active || dark || disabled };
+  return { dy, light: true };
 }
 
 export function drawButton(ctx, r, label, opts = {}) {

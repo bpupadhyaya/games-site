@@ -1,0 +1,18 @@
+{
+  "version": "1.12.0",
+  "characters": [
+    "mannequin_m"
+  ],
+  "clips": [
+    "base"
+  ],
+  "scenery": [],
+  "files": {
+    "characters/mannequin_m.glb": "b75014e5b6033ec6ef0979a126cac399f1004f23bc1ed2e9df74aad9eacf288a",
+    "characters/mannequin_m.json": "d2b7eb91a162f48489ef97377e9fc5dc8cb5136633b52665a0ae970e35f5e7e6",
+    "clips/base.bin": "8a3871846e5303a374014b8d5197bd767f3f62449917be3fc0fc7069f4dd7de0",
+    "clips/base.json": "9d7bd7a3a4e145d959784b59b7058f4ab4afebe0c29bbf6a9ed72603ec145269"
+  },
+  "hash": "dc2f57632695ec508a8492f24f62c2741b84222a8cc16bb0a63a3666fc09f583",
+  "note": "Vendored copies. Never edit. Re-select with: tools/arc view3d-add <slug> --characters a,b ; refresh with: tools/arc view3d-upgrade"
+}

@@ -5,6 +5,7 @@ import { RULES, HOWTO, ABOUT, LESSONS } from './content.js';
 import { settingsItems } from './settings.js';
 import { NAMES, TAKE_TARGET, pieceCount, mk, ROUND, mathLine, KINDS, sideOf } from './rules.js';
 import { LEVELS } from './ai.js';
+import { v3, flatAlpha } from './v3.js';
 import { drawCredit, drawLockup, drawMoreLine, drawBadgeStack, edgeStroke } from './brand.js';
 
 const FONT = '"Cormorant Garamond", Georgia, "Times New Roman", serif';
@@ -44,6 +45,7 @@ export function render(ctx, state, L) {
     return ls.length;
   };
   const panel = (r, rad = 18, fill = 'rgba(24,10,24,0.66)', stroke = 'rgba(240,210,122,0.26)', brand = true) => {
+    if (v3.on) fill = fill.replace(/rgba\((\d+),(\d+),(\d+),([\d.]+)\)/, (m0, r0, g0, b0, a0) => `rgba(${r0},${g0},${b0},${(Number(a0) * 0.78).toFixed(2)})`);
     ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, rad); ctx.fillStyle = fill; ctx.fill(); ctx.strokeStyle = stroke; ctx.lineWidth = 2; ctx.stroke();
     if (brand) edgeStroke(ctx, r, rad, 0.34);
   };
@@ -56,7 +58,9 @@ export function render(ctx, state, L) {
     if (o.primary) { gr.addColorStop(0, '#d9482b'); gr.addColorStop(1, '#8e1f12'); } else if (o.on) { gr.addColorStop(0, '#7a5c1e'); gr.addColorStop(1, '#4a3510'); } else { gr.addColorStop(0, '#2f4d96'); gr.addColorStop(1, '#17285c'); }
     ctx.fillStyle = gr; ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, rad); ctx.fill();
     ctx.strokeStyle = o.primary ? 'rgba(255,224,150,0.9)' : 'rgba(240,210,122,0.7)'; ctx.lineWidth = 2; ctx.stroke();
-    const size = o.size ?? 28, maxW = r.w - 20, col = o.primary ? '#fff6e0' : GOLD, cy = r.y + r.h / 2;
+    const size = o.size ?? 28, col = o.primary ? '#fff6e0' : GOLD, cy = r.y + r.h / 2;
+    const isz = o.icon ? Math.min(r.h * 0.38, size * 0.95, r.w * 0.1) : 0, maxW = r.w - 20 - (isz ? isz * 1.4 : 0);
+    if (isz) { ctx.save(); ctx.translate(isz * 0.75, 0); }
     const w1 = (str, s) => { ctx.font = `700 ${s}px ${UI}`; return ctx.measureText(str).width; };
     let s1 = size; while (s1 > minU && w1(label, s1) > maxW) s1 -= 1;
     let best = { s: s1, ls: [label] };
@@ -71,11 +75,36 @@ export function render(ctx, state, L) {
     if (o.sub && best.ls.length === 1) { text(label, r.x + r.w / 2, cy + best.s * 0.1 - 6, best.s, col, UI, 700); fitText(o.sub, r.x + r.w / 2, cy + best.s * 0.1 + Math.max(minU, size * 0.62) + 2, Math.round(size * 0.62), maxW, DIM, UI, 500, 'center', minU); }
     else if (best.ls.length === 1) text(label, r.x + r.w / 2, cy + best.s * 0.35, best.s, col, UI, 700);
     else best.ls.forEach((ln, i) => text(ln, r.x + r.w / 2, cy + best.s * 0.35 + (i - 0.5) * best.s * 1.15, best.s, col, UI, 700));
+    if (isz) {
+      ctx.restore();
+      ctx.font = `700 ${best.s}px ${UI}`; const lw = Math.min(maxW, Math.max(...best.ls.map((l) => ctx.measureText(l).width)));
+      glyph(o.icon, r.x + r.w / 2 + isz * 0.75 - lw / 2 - isz * 0.95, cy, isz, col);
+    }
+    ctx.restore();
+  };
+  // small line icons for the menu buttons (drawn, no bitmaps)
+  const glyph = (kind, x, y, s, col) => {
+    ctx.save(); ctx.translate(x, y); ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = Math.max(2, s * 0.11); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    const h = s / 2; ctx.beginPath();
+    if (kind === 'play') { ctx.moveTo(-h * 0.6, -h * 0.8); ctx.lineTo(h * 0.85, 0); ctx.lineTo(-h * 0.6, h * 0.8); ctx.closePath(); ctx.fill(); }
+    else if (kind === 'resume') { ctx.arc(0, 0, h * 0.85, -2.2, 2.6); ctx.stroke(); ctx.beginPath(); ctx.moveTo(-h * 0.25, -h * 0.4); ctx.lineTo(h * 0.4, 0); ctx.lineTo(-h * 0.25, h * 0.4); ctx.closePath(); ctx.fill(); }
+    else if (kind === 'two') { ctx.arc(-h * 0.38, -h * 0.35, h * 0.3, 0, TAU); ctx.moveTo(h * 0.68, -h * 0.35); ctx.arc(h * 0.38, -h * 0.35, h * 0.3, 0, TAU); ctx.stroke(); ctx.beginPath(); ctx.arc(-h * 0.38, h * 0.75, h * 0.55, Math.PI, 0); ctx.moveTo(h * 0.93, h * 0.75); ctx.arc(h * 0.38, h * 0.75, h * 0.55, Math.PI, 0); ctx.stroke(); }
+    else if (kind === 'learn') { ctx.moveTo(0, -h * 0.55); ctx.quadraticCurveTo(-h * 0.5, -h * 0.8, -h, -h * 0.6); ctx.lineTo(-h, h * 0.65); ctx.quadraticCurveTo(-h * 0.5, h * 0.45, 0, h * 0.75); ctx.quadraticCurveTo(h * 0.5, h * 0.45, h, h * 0.65); ctx.lineTo(h, -h * 0.6); ctx.quadraticCurveTo(h * 0.5, -h * 0.8, 0, -h * 0.55); ctx.lineTo(0, h * 0.75); ctx.stroke(); }
+    else if (kind === 'auto') { ctx.moveTo(-h, 0); ctx.quadraticCurveTo(0, -h * 1.1, h, 0); ctx.quadraticCurveTo(0, h * 1.1, -h, 0); ctx.stroke(); ctx.beginPath(); ctx.arc(0, 0, h * 0.3, 0, TAU); ctx.fill(); }
+    else if (kind === 'rules') { ctx.rect(-h * 0.7, -h * 0.9, h * 1.4, h * 1.8); ctx.moveTo(-h * 0.35, -h * 0.4); ctx.lineTo(h * 0.35, -h * 0.4); ctx.moveTo(-h * 0.35, 0); ctx.lineTo(h * 0.35, 0); ctx.moveTo(-h * 0.35, h * 0.4); ctx.lineTo(h * 0.15, h * 0.4); ctx.stroke(); }
+    else if (kind === 'how') { ctx.arc(0, 0, h * 0.92, 0, TAU); ctx.stroke(); ctx.beginPath(); ctx.arc(0, -h * 0.22, h * 0.3, Math.PI * 1.1, Math.PI * 2.35); ctx.lineTo(0, h * 0.25); ctx.stroke(); ctx.beginPath(); ctx.arc(0, h * 0.52, s * 0.06, 0, TAU); ctx.fill(); }
+    else if (kind === 'about') { ctx.arc(0, 0, h * 0.92, 0, TAU); ctx.stroke(); ctx.beginPath(); ctx.moveTo(0, -h * 0.05); ctx.lineTo(0, h * 0.5); ctx.stroke(); ctx.beginPath(); ctx.arc(0, -h * 0.42, s * 0.06, 0, TAU); ctx.fill(); }
+    else if (kind === 'settings') { for (let k = 0; k < 8; k++) { const an = k * TAU / 8; ctx.moveTo(Math.cos(an) * h * 0.62, Math.sin(an) * h * 0.62); ctx.lineTo(Math.cos(an) * h * 0.95, Math.sin(an) * h * 0.95); } ctx.stroke(); ctx.beginPath(); ctx.arc(0, 0, h * 0.6, 0, TAU); ctx.stroke(); ctx.beginPath(); ctx.arc(0, 0, h * 0.22, 0, TAU); ctx.stroke(); }
     ctx.restore();
   };
 
   // ---------------------------------------------------------------- scenes
-  drawTable(ctx, L, state.t);
+  const fa = flatAlpha(), D3 = v3.on; v3.hero = null;
+  if (fa > 0) { ctx.save(); ctx.globalAlpha = fa; drawTable(ctx, L, state.t); ctx.restore(); }
+  if (D3) {             // a soft lens vignette over the 3D scene keeps the eye on the board and the panels readable
+    const vg = ctx.createRadialGradient(L.w / 2, L.h / 2, Math.min(L.w, L.h) * 0.42, L.w / 2, L.h / 2, Math.hypot(L.w, L.h) * 0.6);
+    vg.addColorStop(0, 'rgba(10,5,8,0)'); vg.addColorStop(1, `rgba(10,5,8,${0.5 * v3.fade})`); ctx.fillStyle = vg; ctx.fillRect(0, 0, L.w, L.h);
+  }
   if (!state.calm) motes(ctx, L, state.t);
 
   if (scene === 'title' || scene === 'demo-limit') drawTitle();
@@ -96,12 +125,12 @@ export function render(ctx, state, L) {
       fitText('That was the free taste.', cx, r.y + r.h * 0.34, 46, r.w - 40, GOLD, FONT, 700);
       wrapBox('Get Rithmomachia Number Battle on iPhone and Android for unlimited games, every computer level and all the lessons.', R(r.x + 24, r.y + r.h * 0.42, r.w - 48, r.h * 0.4), 28, 1.3, CREAM);
     } else {
-      if (Rr.resume) button(Rr.resume, 'Continue your game', { primary: true, size: 30 });
-      button(Rr.play, 'Play the computer', { primary: !Rr.resume, size: 32, sub: `${LEVELS[state.level].name} · as ${NAMES[state.humanSide]}` });
-      button(Rr.two, 'Two players', { size: 26 }); button(Rr.learn, state.learned ? 'Learn' : 'Learn to play', { size: 26 });
-      button(Rr.auto, 'Auto Play · Watch & Learn', { size: 26 });
-      button(Rr.rules, 'Rules', { size: 26 }); button(Rr.how, 'How to Play', { size: 26 });
-      button(Rr.about, 'About', { size: 26 }); button(Rr.settings, 'Settings', { size: 26 });
+      if (Rr.resume) button(Rr.resume, 'Continue your game', { primary: true, size: 30, icon: 'resume' });
+      button(Rr.play, 'Play the computer', { primary: !Rr.resume, size: 32, sub: `${LEVELS[state.level].name} · as ${NAMES[state.humanSide]}`, icon: 'play' });
+      button(Rr.two, 'Two players', { size: 26, icon: 'two' }); button(Rr.learn, state.learned ? 'Learn' : 'Learn to play', { size: 26, icon: 'learn' });
+      button(Rr.auto, 'Auto Play · Watch & Learn', { size: 26, icon: 'auto' });
+      button(Rr.rules, 'Rules', { size: 26, icon: 'rules' }); button(Rr.how, 'How to Play', { size: 26, icon: 'how' });
+      button(Rr.about, 'About', { size: 26, icon: 'about' }); button(Rr.settings, 'Settings', { size: 26, icon: 'settings' });
       if (state.msg) fitText(state.msg.text, L.w / 2, T.rows.play.y - 14, 24, L.w - 40, GOLD, UI, 600);
     }
     const lk = T.lockup; state.lockupRect = drawLockup(ctx, lk.x, lk.y + 4, 50);
@@ -111,6 +140,11 @@ export function render(ctx, state, L) {
     const cx = r.x + r.w / 2;
     const ts = clamp(Math.min(r.w / 6.6, r.h / 4.4), 40, 112);
     const y0 = r.y + ts * 0.95;
+    if (v3.on) {            // a soft dusk behind the lettering so it reads over the desk and the codex
+      const yb = y0 + ts * 0.3 + Math.max(minU, ts * 0.28) * 1.75 + ts * 0.5, sg = ctx.createLinearGradient(0, r.y - 20, 0, yb + ts * 0.35);
+      sg.addColorStop(0, `rgba(12,6,8,${0.7 * v3.fade})`); sg.addColorStop(0.75, `rgba(12,6,8,${0.55 * v3.fade})`); sg.addColorStop(1, 'rgba(12,6,8,0)');
+      ctx.fillStyle = sg; ctx.fillRect(r.x - 12, 0, r.w + 24, yb + ts * 0.35);
+    }
     ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.6)'; ctx.shadowBlur = 18; ctx.shadowOffsetY = 4;
     const grad = ctx.createLinearGradient(0, y0 - ts * 0.8, 0, y0 + ts * 0.1); grad.addColorStop(0, '#fff5c8'); grad.addColorStop(0.5, '#ecc65c'); grad.addColorStop(1, '#b98a28');
     fitText('Rithmomachia', cx, y0, ts, r.w - 10, grad, FONT, 700);
@@ -126,7 +160,8 @@ export function render(ctx, state, L) {
     ctx.fillText('N U M B E R   B A T T L E', cx, py + sub * 1.22);
     fitText(SUBTITLE, cx, py + sub * 1.75 + ts * 0.36, ts * 0.3, r.w - 20, 'rgba(240,210,122,0.88)', FONT, 700);
     const top = py + sub * 1.75 + ts * 0.62, room = r.y + r.h - top;
-    if (room > 90) heroBoard(R(r.x, top + 6, r.w, room - 22));
+    if (v3.on) v3.hero = room > 90 ? R(r.x + 8, top + 4, r.w - 16, room - 10) : R(r.x, r.y, r.w, r.h);
+    if (room > 90 && fa > 0) { ctx.save(); ctx.globalAlpha = fa; heroBoard(R(r.x, top + 6, r.w, room - 22)); ctx.restore(); }
   }
 
   // The animated demonstration, forever: a 6 steps beside a 12 and takes it (1 : 2).
@@ -165,82 +200,117 @@ export function render(ctx, state, L) {
   // ================================================================ play / over / lesson
   function drawPlayScreen() {
     const isLesson = scene === 'lesson', over = scene === 'over', cell = B.cell, ang = L.ang;
+    const pulse = state.calm ? 0.6 : 0.5 + 0.5 * Math.sin(state.t * 5);
     if (L.rightCard) panel(L.rightCard, 18);
 
-    ctx.save();
-    if (a && a.caps.length && !state.calm && a.t > a.glide && a.t < a.glide + 0.35) { const f = (a.t - a.glide) / 0.35; ctx.translate(Math.sin(f * 46) * (1 - f) * cell * 0.04, Math.cos(f * 38) * (1 - f) * cell * 0.025); }
-    drawBoard(ctx, B);
-    const last = a ? null : g.last;
-    if (last && !isLesson) { for (const q of [last.from, last.to]) { const p = L.sq(q); ctx.fillStyle = 'rgba(255,214,110,0.26)'; ctx.fillRect(p.x - cell / 2, p.y - cell / 2, cell, cell); } }
-    const pulse = state.calm ? 0.6 : 0.5 + 0.5 * Math.sin(state.t * 5);
-    if (isLesson && LESSONS[state.lesson.i].target !== undefined && !state.lesson.done) { const p = L.sq(LESSONS[state.lesson.i].target); ctx.strokeStyle = `rgba(194,56,31,${0.6 + 0.4 * pulse})`; ctx.lineWidth = cell * 0.07; ctx.beginPath(); ctx.arc(p.x, p.y, cell * 0.38, 0, TAU); ctx.stroke(); }
-    // selected piece: legal squares
-    if (state.sel >= 0 && !a && !over) {
-      const sp = L.sq(state.sel); ctx.fillStyle = `rgba(255,224,120,${0.3 + pulse * 0.14})`; ctx.fillRect(sp.x - cell / 2, sp.y - cell / 2, cell, cell);
-      for (const m of state.selMoves) {
-        const p = L.sq(m.to);
-        if (m.caps) {
-          ctx.strokeStyle = `rgba(194,56,31,${0.75 + pulse * 0.25})`; ctx.lineWidth = cell * 0.07; ctx.beginPath(); ctx.arc(p.x, p.y, cell * 0.38, 0, TAU); ctx.stroke();
-          ctx.fillStyle = 'rgba(194,56,31,0.2)'; ctx.fill();
-          const s = Math.round(cell * 0.3); ctx.fillStyle = '#c2381f'; ctx.beginPath(); ctx.arc(p.x + cell * 0.3, p.y - cell * 0.3, s * 0.56, 0, TAU); ctx.fill();
-          text(String(m.caps), p.x + cell * 0.3, p.y - cell * 0.3 + s * 0.2, s * 0.72, '#fff', UI, 800);
-        } else if (m.arr) {
-          ctx.strokeStyle = `rgba(255,214,90,${0.8 + pulse * 0.2})`; ctx.lineWidth = cell * 0.08; ctx.beginPath(); ctx.arc(p.x, p.y, cell * 0.38, 0, TAU); ctx.stroke();
-          text('★', p.x, p.y + cell * 0.14, cell * 0.4, '#ffd24a', UI, 800);
-        } else { ctx.fillStyle = `rgba(255,248,214,${0.6 + pulse * 0.2})`; ctx.beginPath(); ctx.arc(p.x, p.y, cell * 0.14, 0, TAU); ctx.fill(); ctx.strokeStyle = 'rgba(70,40,10,0.55)'; ctx.lineWidth = 1.5; ctx.stroke(); }
-      }
-    }
-    // the other side is one move from an arrangement: mark where
-    if (state.threat && state.threat.length && !a && !over && !isLesson && state.marks) for (const t of state.threat) { const p = L.sq(t.to); ctx.strokeStyle = `rgba(150,96,250,${0.55 + pulse * 0.4})`; ctx.lineWidth = cell * 0.06; ctx.setLineDash([cell * 0.12, cell * 0.1]); ctx.beginPath(); ctx.arc(p.x, p.y, cell * 0.42, 0, TAU); ctx.stroke(); ctx.setLineDash([]); }
-    if (state.hint && !a) for (const q of [state.hint.from, state.hint.to]) { const p = L.sq(q); ctx.fillStyle = `rgba(90,230,150,${0.3 + pulse * 0.2})`; ctx.fillRect(p.x - cell / 2, p.y - cell / 2, cell, cell); ctx.strokeStyle = 'rgba(90,230,150,0.9)'; ctx.lineWidth = 3; ctx.strokeRect(p.x - cell / 2 + 2, p.y - cell / 2 + 2, cell - 4, cell - 4); }
-    // an arrangement that won: a gold thread through its three pieces
-    if (over && g.arr && g.winner && g.winner !== 3 && g.reason.includes('arrangement')) {
-      const ps = g.arr.sq.map((q) => L.sq(q)); ctx.save(); ctx.strokeStyle = `rgba(255,214,90,${0.6 + pulse * 0.4})`; ctx.lineWidth = cell * 0.12; ctx.lineCap = 'round';
-      ctx.beginPath(); ctx.moveTo(ps[0].x, ps[0].y); ctx.lineTo(ps[1].x, ps[1].y); ctx.lineTo(ps[2].x, ps[2].y); ctx.stroke(); ctx.restore();
-    }
-    // pieces: far (upper) rows first so a lifted piece sits above its neighbour
-    const order = []; for (let i = 0; i < 128; i++) if (g.board[i]) order.push(i);
-    const ys = new Map(order.map((i) => [i, L.sq(i).y])); order.sort((p, q) => ys.get(p) - ys.get(q));
-    const movingTo = a ? a.to : -1, dragging = state.drag && state.sel >= 0;
-    for (const i of order) {
-      const k = g.board[i]; if (i === movingTo) continue;
-      if (dragging && i === state.sel) continue;
-      const p = L.sq(i), sel = state.sel === i;
-      const lift = sel ? 0.45 + (state.calm ? 0 : Math.sin(state.t * 3) * 0.06) : 0;
-      drawPiece(ctx, k, p.x, p.y, cell, { lift, ang: ang(sideOf(k)), glow: sel ? 0.8 : 0 });
-      if (state.marks && !over && !a && state.danger && state.danger.has(i)) dangerMark(p.x + cell * 0.3, p.y - cell * 0.4, cell);
-    }
-    // taken pieces stay until the mover lands, then flash and fly off, with their sums
-    if (a) for (const [n, c] of a.caps.entries()) {
-      const p = L.sq(c.sq);
-      if (a.t < a.glide) drawPiece(ctx, c.code, p.x, p.y, cell, { ang: ang(sideOf(c.code)) });
-      else { const f = (a.t - a.glide) / 0.6; if (f < 1) capFx(ctx, c.code, p.x, p.y, cell, f, ang(sideOf(c.code)), state.calm, n + c.sq); }
-    }
+    if (fa > 0) flatBoard();
+    if (v3.on) marks3d();
     if (a && a.caps.length && a.t > a.glide && state.sums) {
       const f = (a.t - a.glide) / 1.4;
       if (f < 1) a.caps.forEach((c, n) => {
-        const p = L.sq(c.sq), e2 = ease(Math.min(1, f * 1.5)), fs = Math.round(clamp(cell * 0.36, 14, 40));
+        const p = L.sq(c.sq), kq = p.k || 1, e2 = ease(Math.min(1, f * 1.5)), fs = Math.round(clamp(cell * 0.36, 14, 40));
         ctx.save(); ctx.globalAlpha = Math.min(1, (1 - f) * 2.4) * Math.min(1, (a.t - a.glide) * 8);
         ctx.lineWidth = fs * 0.16; ctx.strokeStyle = 'rgba(30,10,4,0.92)'; ctx.lineJoin = 'round'; ctx.font = `800 ${fs}px ${UI}`; ctx.textAlign = 'center';
-        const lab = mathLine(c.info), tx = clamp(p.x, B.gx + fs * 3, B.gx + B.cols * cell - fs * 3 + (B.tall ? 0 : (B.cols - 8) * 0)), ty = p.y - cell * (0.55 + 0.45 * e2) - n * fs * 1.15;
+        const lab = mathLine(c.info), tx = clamp(p.x, B.gx + fs * 3, B.gx + B.cols * cell - fs * 3 + (B.tall ? 0 : (B.cols - 8) * 0)), ty = p.y - cell * kq * (0.55 + 0.45 * e2) - n * fs * 1.15;
         ctx.strokeText(lab, tx, ty); ctx.fillStyle = '#ffd24a'; ctx.fillText(lab, tx, ty); ctx.restore();
       });
     }
-    // the moving piece
-    if (a) {
-      const p0 = L.sq(a.from), p1 = L.sq(a.to), f = clamp(a.t / a.glide, 0, 1), e = ease(f);
-      const x = p0.x + (p1.x - p0.x) * e, y = p0.y + (p1.y - p0.y) * e, dist = Math.hypot(p1.x - p0.x, p1.y - p0.y) / cell;
-      const lift = f < 1 ? Math.sin(Math.PI * f) * (0.5 + Math.min(0.7, dist * 0.2)) + 0.2 * (1 - f) : Math.max(0, 0.2 * (1 - (a.t - a.glide) / 0.12));
-      drawPiece(ctx, g.board[a.to], x, y, cell, { lift, ang: ang(a.side), glow: 0.5 });
-      if (a.t > a.glide && a.t < a.glide + 0.45 && !state.calm) { const ff = (a.t - a.glide) / 0.45; ctx.strokeStyle = `rgba(255,240,200,${0.75 * (1 - ff)})`; ctx.lineWidth = cell * 0.07 * (1 - ff) + 1; ctx.beginPath(); ctx.arc(p1.x, p1.y, cell * (0.4 + 0.5 * ff), 0, TAU); ctx.stroke(); }
-    }
-    if (dragging) drawPiece(ctx, g.board[state.sel] || mk(g.turn, ROUND, 1), state.drag.x, state.drag.y - cell * 0.15, cell, { lift: 0.9, ang: ang(g.turn), glow: 0.9 });
-    if (state.kb && !over) { const p = L.sq(state.cursor); ctx.strokeStyle = '#7dff9a'; ctx.lineWidth = 4; ctx.strokeRect(p.x - cell / 2 + 3, p.y - cell / 2 + 3, cell - 6, cell - 6); }
-    ctx.restore();
-
     if (isLesson) lessonBox(); else plates();
     buttonsFor();
     if (over) overlay();
+
+    function flatBoard() {
+      ctx.save(); ctx.globalAlpha = fa;
+      if (a && a.caps.length && !state.calm && a.t > a.glide && a.t < a.glide + 0.35) { const f = (a.t - a.glide) / 0.35; ctx.translate(Math.sin(f * 46) * (1 - f) * cell * 0.04, Math.cos(f * 38) * (1 - f) * cell * 0.025); }
+      drawBoard(ctx, B);
+      const last = a ? null : g.last;
+      if (last && !isLesson) { for (const q of [last.from, last.to]) { const p = B.sq(q); ctx.fillStyle = 'rgba(255,214,110,0.26)'; ctx.fillRect(p.x - cell / 2, p.y - cell / 2, cell, cell); } }
+      const pulse = state.calm ? 0.6 : 0.5 + 0.5 * Math.sin(state.t * 5);
+      if (isLesson && LESSONS[state.lesson.i].target !== undefined && !state.lesson.done) { const p = B.sq(LESSONS[state.lesson.i].target); ctx.strokeStyle = `rgba(194,56,31,${0.6 + 0.4 * pulse})`; ctx.lineWidth = cell * 0.07; ctx.beginPath(); ctx.arc(p.x, p.y, cell * 0.38, 0, TAU); ctx.stroke(); }
+      // selected piece: legal squares
+      if (state.sel >= 0 && !a && !over) {
+        const sp = B.sq(state.sel); ctx.fillStyle = `rgba(255,224,120,${0.3 + pulse * 0.14})`; ctx.fillRect(sp.x - cell / 2, sp.y - cell / 2, cell, cell);
+        for (const m of state.selMoves) {
+          const p = B.sq(m.to);
+          if (m.caps) {
+            ctx.strokeStyle = `rgba(194,56,31,${0.75 + pulse * 0.25})`; ctx.lineWidth = cell * 0.07; ctx.beginPath(); ctx.arc(p.x, p.y, cell * 0.38, 0, TAU); ctx.stroke();
+            ctx.fillStyle = 'rgba(194,56,31,0.2)'; ctx.fill();
+            const s = Math.round(cell * 0.3); ctx.fillStyle = '#c2381f'; ctx.beginPath(); ctx.arc(p.x + cell * 0.3, p.y - cell * 0.3, s * 0.56, 0, TAU); ctx.fill();
+            text(String(m.caps), p.x + cell * 0.3, p.y - cell * 0.3 + s * 0.2, s * 0.72, '#fff', UI, 800);
+          } else if (m.arr) {
+            ctx.strokeStyle = `rgba(255,214,90,${0.8 + pulse * 0.2})`; ctx.lineWidth = cell * 0.08; ctx.beginPath(); ctx.arc(p.x, p.y, cell * 0.38, 0, TAU); ctx.stroke();
+            text('★', p.x, p.y + cell * 0.14, cell * 0.4, '#ffd24a', UI, 800);
+          } else { ctx.fillStyle = `rgba(255,248,214,${0.6 + pulse * 0.2})`; ctx.beginPath(); ctx.arc(p.x, p.y, cell * 0.14, 0, TAU); ctx.fill(); ctx.strokeStyle = 'rgba(70,40,10,0.55)'; ctx.lineWidth = 1.5; ctx.stroke(); }
+        }
+      }
+      // the other side is one move from an arrangement: mark where
+      if (state.threat && state.threat.length && !a && !over && !isLesson && state.marks) for (const t of state.threat) { const p = B.sq(t.to); ctx.strokeStyle = `rgba(150,96,250,${0.55 + pulse * 0.4})`; ctx.lineWidth = cell * 0.06; ctx.setLineDash([cell * 0.12, cell * 0.1]); ctx.beginPath(); ctx.arc(p.x, p.y, cell * 0.42, 0, TAU); ctx.stroke(); ctx.setLineDash([]); }
+      if (state.hint && !a) for (const q of [state.hint.from, state.hint.to]) { const p = B.sq(q); ctx.fillStyle = `rgba(90,230,150,${0.3 + pulse * 0.2})`; ctx.fillRect(p.x - cell / 2, p.y - cell / 2, cell, cell); ctx.strokeStyle = 'rgba(90,230,150,0.9)'; ctx.lineWidth = 3; ctx.strokeRect(p.x - cell / 2 + 2, p.y - cell / 2 + 2, cell - 4, cell - 4); }
+      // an arrangement that won: a gold thread through its three pieces
+      if (over && g.arr && g.winner && g.winner !== 3 && g.reason.includes('arrangement')) {
+        const ps = g.arr.sq.map((q) => B.sq(q)); ctx.save(); ctx.strokeStyle = `rgba(255,214,90,${0.6 + pulse * 0.4})`; ctx.lineWidth = cell * 0.12; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(ps[0].x, ps[0].y); ctx.lineTo(ps[1].x, ps[1].y); ctx.lineTo(ps[2].x, ps[2].y); ctx.stroke(); ctx.restore();
+      }
+      // pieces: far (upper) rows first so a lifted piece sits above its neighbour
+      const order = []; for (let i = 0; i < 128; i++) if (g.board[i]) order.push(i);
+      const ys = new Map(order.map((i) => [i, B.sq(i).y])); order.sort((p, q) => ys.get(p) - ys.get(q));
+      const movingTo = a ? a.to : -1, dragging = state.drag && state.sel >= 0;
+      for (const i of order) {
+        const k = g.board[i]; if (i === movingTo) continue;
+        if (dragging && i === state.sel) continue;
+        const p = B.sq(i), sel = state.sel === i;
+        const lift = sel ? 0.45 + (state.calm ? 0 : Math.sin(state.t * 3) * 0.06) : 0;
+        drawPiece(ctx, k, p.x, p.y, cell, { lift, ang: ang(sideOf(k)), glow: sel ? 0.8 : 0 });
+        if (state.marks && !over && !a && state.danger && state.danger.has(i)) dangerMark(p.x + cell * 0.3, p.y - cell * 0.4, cell);
+      }
+      // taken pieces stay until the mover lands, then flash and fly off, with their sums
+      if (a) for (const [n, c] of a.caps.entries()) {
+        const p = B.sq(c.sq);
+        if (a.t < a.glide) drawPiece(ctx, c.code, p.x, p.y, cell, { ang: ang(sideOf(c.code)) });
+        else { const f = (a.t - a.glide) / 0.6; if (f < 1) capFx(ctx, c.code, p.x, p.y, cell, f, ang(sideOf(c.code)), state.calm, n + c.sq); }
+      }
+      // the moving piece
+      if (a) {
+        const p0 = B.sq(a.from), p1 = B.sq(a.to), f = clamp(a.t / a.glide, 0, 1), e = ease(f);
+        const x = p0.x + (p1.x - p0.x) * e, y = p0.y + (p1.y - p0.y) * e, dist = Math.hypot(p1.x - p0.x, p1.y - p0.y) / cell;
+        const lift = f < 1 ? Math.sin(Math.PI * f) * (0.5 + Math.min(0.7, dist * 0.2)) + 0.2 * (1 - f) : Math.max(0, 0.2 * (1 - (a.t - a.glide) / 0.12));
+        drawPiece(ctx, g.board[a.to], x, y, cell, { lift, ang: ang(a.side), glow: 0.5 });
+        if (a.t > a.glide && a.t < a.glide + 0.45 && !state.calm) { const ff = (a.t - a.glide) / 0.45; ctx.strokeStyle = `rgba(255,240,200,${0.75 * (1 - ff)})`; ctx.lineWidth = cell * 0.07 * (1 - ff) + 1; ctx.beginPath(); ctx.arc(p1.x, p1.y, cell * (0.4 + 0.5 * ff), 0, TAU); ctx.stroke(); }
+      }
+      if (dragging) drawPiece(ctx, g.board[state.sel] || mk(g.turn, ROUND, 1), state.drag.x, state.drag.y - cell * 0.15, cell, { lift: 0.9, ang: ang(g.turn), glow: 0.9 });
+      if (state.kb && !over) { const p = B.sq(state.cursor); ctx.strokeStyle = '#7dff9a'; ctx.lineWidth = 4; ctx.strokeRect(p.x - cell / 2 + 3, p.y - cell / 2 + 3, cell - 6, cell - 6); }
+      ctx.restore();
+    }
+    // 3D: the board is drawn by the presenter; ask it for light on the vellum, and draw the small badges here at the projected squares
+    function marks3d() {
+      const M = v3.marks, push = (sq, kind, rgb, al, r) => M.push({ sq, kind, rgb, a: al, r });
+      const last = a ? null : g.last;
+      if (last && !isLesson) for (const q of [last.from, last.to]) push(q, 'tile', '255,206,110', 0.42);
+      if (isLesson && LESSONS[state.lesson.i].target !== undefined && !state.lesson.done) push(LESSONS[state.lesson.i].target, 'ring', '230,70,40', 0.7 + 0.3 * pulse, 1.05);
+      const badges = [];
+      if (state.sel >= 0 && !a && !over) {
+        push(state.sel, 'tile', '255,224,120', 0.55 + pulse * 0.2);
+        for (const m of state.selMoves) {
+          if (m.caps) { push(m.to, 'ring', '235,70,40', 0.85 + pulse * 0.15, 1.02); badges.push(['n', m.to, m.caps]); }
+          else if (m.arr) { push(m.to, 'ring', '255,214,90', 0.9, 1.02); badges.push(['s', m.to]); }
+          else push(m.to, 'dot', '255,246,214', 0.75 + pulse * 0.2);
+        }
+      }
+      if (state.threat && state.threat.length && !a && !over && !isLesson && state.marks) for (const t of state.threat) push(t.to, 'dash', '170,120,255', 0.6 + pulse * 0.4, 1.1);
+      if (state.hint && !a) for (const q of [state.hint.from, state.hint.to]) push(q, 'tile', '90,230,150', 0.45 + pulse * 0.25);
+      if (state.kb && !over) push(state.cursor, 'tile', '125,255,154', 0.9);
+      // badges and the thread of a winning arrangement, at the projected squares
+      for (const [kind, sq, n] of badges) {
+        const p = L.sq(sq), c = cell * (p.k || 1);
+        if (kind === 'n') { const s2 = Math.round(c * 0.34); ctx.fillStyle = '#c2381f'; ctx.strokeStyle = '#fff3d6'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(p.x + c * 0.32, p.y - c * 0.32, s2 * 0.6, 0, TAU); ctx.fill(); ctx.stroke(); text(String(n), p.x + c * 0.32, p.y - c * 0.32 + s2 * 0.24, s2 * 0.8, '#fff', UI, 800); }
+        else { ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.8)'; ctx.shadowBlur = 6; text('★', p.x, p.y - c * 0.05, c * 0.5, '#ffd24a', UI, 800); ctx.restore(); }
+      }
+      if (state.marks && !over && !a && state.danger) for (const i of state.danger) { if (!g.board[i]) continue; const p = L.sq(i, 1.1), c = cell * (p.k || 1); dangerMark(p.x + c * 0.3, p.y - c * 0.36, c); }
+      if (over && g.arr && g.winner && g.winner !== 3 && g.reason.includes('arrangement')) {
+        const ps = g.arr.sq.map((q) => L.sq(q, 1.2)); ctx.save(); ctx.strokeStyle = `rgba(255,214,90,${0.6 + pulse * 0.4})`; ctx.lineWidth = cell * 0.12; ctx.lineCap = 'round'; ctx.shadowColor = 'rgba(255,200,80,0.9)'; ctx.shadowBlur = 14;
+        ctx.beginPath(); ctx.moveTo(ps[0].x, ps[0].y); ctx.lineTo(ps[1].x, ps[1].y); ctx.lineTo(ps[2].x, ps[2].y); ctx.stroke(); ctx.restore();
+      }
+    }
   }
 
   function dangerMark(x, y, cell) {
@@ -336,7 +406,7 @@ export function render(ctx, state, L) {
     } else if (scene === 'lesson') { button(BTN.menu, 'Menu', { size: sz }); if (state.lesson.done) button(BTN.next, state.lesson.i + 1 < LESSONS.length ? 'Next lesson' : 'Finish', { primary: true, size: 28 }); }
   }
   function overlay() {
-    ctx.fillStyle = 'rgba(12,6,12,0.72)'; ctx.fillRect(0, 0, L.w, L.h);
+    ctx.fillStyle = v3.on ? 'rgba(12,6,12,0.42)' : 'rgba(12,6,12,0.72)'; ctx.fillRect(0, 0, L.w, L.h);
     const O = L.over, c = O.card, cx = c.x + c.w / 2;
     panel(c, 26, 'rgba(26,12,24,0.94)', 'rgba(240,210,122,0.6)');
     const res = state.result || { winner: g.winner, reason: g.reason }, w = res.winner;
@@ -367,7 +437,7 @@ export function render(ctx, state, L) {
   // ================================================================ documents (rules, how to play, about, settings)
   function drawDocument() {
     const D = L.doc, panelR = D.panel, vp = D.viewport, kind = state.doc.kind;
-    ctx.fillStyle = 'rgba(12,6,12,0.55)'; ctx.fillRect(0, 0, L.w, L.h);
+    ctx.fillStyle = v3.on ? 'rgba(12,6,12,0.4)' : 'rgba(12,6,12,0.55)'; ctx.fillRect(0, 0, L.w, L.h);
     ctx.beginPath(); ctx.roundRect(panelR.x, panelR.y, panelR.w, panelR.h, 26);
     const pg = ctx.createLinearGradient(0, panelR.y, 0, panelR.y + panelR.h); pg.addColorStop(0, 'rgba(48,26,42,0.9)'); pg.addColorStop(1, 'rgba(22,10,22,0.94)');
     ctx.fillStyle = pg; ctx.fill(); ctx.strokeStyle = 'rgba(240,210,122,0.4)'; ctx.lineWidth = 2; ctx.stroke();

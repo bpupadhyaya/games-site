@@ -26,7 +26,7 @@ export function camTarget(sk, extra, wide) {
   for (const e of extra) { x0 = Math.min(x0, e.x); x1 = Math.max(x1, e.x); y0 = Math.min(y0, e.y); y1 = Math.max(y1, e.y); }
   const w = x1 - x0, h = y1 - y0;
   const dc = devCam('cam');
-  const A = dc || (wide ? [-10, -70, 260, 700, 0.30] : [-12, -100, 190, 520, 0.36]);
+  const A = dc || (wide ? [-10, -70, 260, 700, 0.30] : [-8, -70, 110, 520, 0.36]);
   const span = Math.max(A[2], w * 1.45 + 60);
   const spanY = Math.max(A[3], h * 1.35 + 120);
   return { x: (x0 + x1) / 2 + A[0], y: (y0 + y1) / 2 + A[1] + 100, span: Math.min(span, 420), spanY: Math.min(spanY, 700), pitch: A[4] };
@@ -34,7 +34,7 @@ export function camTarget(sk, extra, wide) {
 // the view while a throw is wound up and in the air: a little further back so the arc and the whole swing fit
 export function throwView(wide) {
   const dc = devCam('tcam');
-  const A = dc || (wide ? [-10, -110, 290, 740, 0.30] : [-12, -140, 240, 600, 0.34]);
+  const A = dc || (wide ? [-10, -110, 290, 740, 0.30] : [-14, -140, 170, 600, 0.34]);
   return { x: A[0], y: A[1], span: A[2], spanY: A[3], pitch: A[4] };
 }
 

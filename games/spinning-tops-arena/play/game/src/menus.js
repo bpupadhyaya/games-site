@@ -3,7 +3,8 @@
 // game.js owns state.
 import { ARENA, ARENAS, ARENA_IDS, BODIES, TIPS, BALLAST, BODY_IDS, TIP_IDS, BALLAST_IDS, WEIGHT, weightOf, legal, partStats, derive, K, STEP } from './sim.js';
 import { drawTableLayer, drawDishLayer, drawTop, drawTopPreview, drawMiniDish, topHeight, lookOf, LOOKS, toScreen } from './art.js';
-import { TEXT_SCALES, THINK_STEPS, curLayout, minFs } from './layout.js';
+import { TEXT_SCALES, THINK_STEPS, curLayout, minFs, VIEW } from './layout.js';
+import { v3 } from './v3.js';
 import { drawLockup, drawMoreLine } from './brand.js';
 import { FONT, DISPLAY, C, roundPath, drawButton, panel, wrapLines, textShadow, flowLayout, drawFlow, flowHit } from './ui.js';
 import { PROFILES } from './ai.js';
@@ -48,9 +49,12 @@ export function drawAttract(ctx, state, cx, cy, sc = 0.72) {
   if (!a) return;
   ctx.save();
   ctx.translate(cx, cy); ctx.scale(sc, sc); ctx.translate(-ARENA.cx, -ARENA.cy);
-  drawDishLayer(ctx, a.arena);
+  if (v3.on && v3.want) {
+    const m = ctx.getTransform(), k = ctx.canvas.width / Math.max(1, VIEW.w);
+    v3.frame = { arena: a.arena, tops: a.w.tops, looks: a.looks, age: undefined, title: true, clock: state.t, xf: { s: m.a / k, tx: m.e / k, ty: m.f / k } };
+  } else drawDishLayer(ctx, a.arena);
   const order = a.w.tops.map((t, i) => ({ t, i })).sort((p, q) => p.t.y - q.t.y);
-  for (const { t, i } of order) drawTop(ctx, t, a.looks[i], state.t);
+  if (!(v3.on && v3.want)) for (const { t, i } of order) drawTop(ctx, t, a.looks[i], state.t);
   // sparks, in dish space
   for (const p of a.parts) {
     const f = 1 - p.t / p.max; if (f <= 0) continue;

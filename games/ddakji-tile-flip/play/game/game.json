@@ -4,7 +4,7 @@
   "tagline": "Fold it. Slap it. Flip theirs.",
   "genre": "paper-tile flip skill",
   "orientation": "any",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "monetization": {
     "model": "premium",
     "priceUsd": 3.99,

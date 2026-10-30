@@ -12,6 +12,7 @@ import * as ui from './ui.js';
 import { renderCast, renderIcon, renderSheet } from './cast.js';
 import { warmBustParts } from './portraits.js';
 import { worldArt } from './art.js';
+import { v3, begin as v3begin, island as v3island, painted } from './v3.js';
 import { createRng } from '../kit/rng.js';
 import { DEMOS, COACH, createDriver, IDLE } from './demos.js';
 import { AP_THINK_STEPS, AP_REVEAL_TIME, createApDriver, AP_SCRIPTS } from './autoplay.js';
@@ -694,14 +695,17 @@ export function createGame(env) {
     const sm = ctx.createLinearGradient(0, 380, 0, 980); sm.addColorStop(0, 'rgba(50,14,30,0.55)'); sm.addColorStop(0.5, 'rgba(120,40,30,0.5)'); sm.addColorStop(1, 'rgba(255,150,80,0.15)');
     ctx.fillStyle = sm; ctx.fillRect(FR.x0 - 1, 380, FR.w + 2, 600);
     light(ctx, 360, 640, 420, '255,120,50', 0.28);
-    skyline(ctx, { base: 990, scroll: 40 + t * 3, color: '#2a1438', seed: 5, h: 230, gap: 130, kind: 'lanka', lit: '255,200,110', t });
+    painted(ctx, v3island(ctx, 470, 984, LAND() ? 520 : 600), () => skyline(ctx, { base: 990, scroll: 40 + t * 3, color: '#2a1438', seed: 5, h: 230, gap: 130, kind: 'lanka', lit: '255,200,110', t }));
     sea(ctx, { y: 980, t, scroll: t * 60, colors: ['#3a2a5e', '#2a1f4e', '#1d163e', '#140f2e', '#0c0920'], crest: '255,190,130' });
     light(ctx, 500, 1040, 330, '255,170,100', 0.35);
     const fy = 770 + Math.sin(t * 1.1) * (rm ? 0 : 18);
     light(ctx, 520, fy - 40, 260, '255,200,130', 0.4);
     if (titleReady.leaper) figure(ctx, { x: 525, y: fy, s: 1.15, kind: 'leaper', prop: 'mace', cape: '#2b8a62', pose: poses.fly(t) });
     // Ram, bow raised, the arrow burning
-    ctx.save(); ctx.fillStyle = '#12081a'; ctx.beginPath(); ctx.moveTo(0, 1010); ctx.quadraticCurveTo(120, 930, 330, 990); ctx.lineTo(330, 1100); ctx.lineTo(0, 1100); ctx.fill(); ctx.restore();
+    { // the rocky shore Ram stands on, running off the left edge and down out of view
+      const x0 = Math.min(0, FR.x0) - 2, yb = Math.max(1100, FR.y1) + 2;
+      ctx.save(); ctx.fillStyle = '#12081a'; ctx.beginPath(); ctx.moveTo(x0, 1000); ctx.quadraticCurveTo(120, 930, 330, 990); ctx.quadraticCurveTo(360, 1010, 372, 1040); ctx.quadraticCurveTo(388, 1080, 420, yb); ctx.lineTo(x0, yb); ctx.closePath(); ctx.fill();
+      const rim = ctx.createLinearGradient(0, 930, 0, 1010); rim.addColorStop(0, 'rgba(255,170,90,0.35)'); rim.addColorStop(1, 'rgba(255,170,90,0)'); ctx.strokeStyle = rim; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(x0, 1000); ctx.quadraticCurveTo(120, 930, 330, 990); ctx.stroke(); ctx.restore(); }
     light(ctx, 250, 700, 300, '255,140,50', 0.34);
     if (titleReady.prince) figure(ctx, { x: 190, y: 985, s: 1.75, kind: 'prince', prop: 'bow', pose: { ...poses.drawBow(t, 0.92, -0.62), fireArrow: true } });
     motes(ctx, { n: 34, t, rgb: '255,170,90', kind: 'ember', top: 300, bottom: 1100, rm });
@@ -709,7 +713,17 @@ export function createGame(env) {
 
   function drawButtons(ctx, list) { for (const b of list) ui.button(ctx, b, { primary: b.primary, size: b.size ?? 38 }); }
 
+  // With the 3D layer live (see v3.js): clear the kit canvas, let the full-screen backdrops record into the 3D layer, and
+  // fill behind anything a scene left uncovered (scenes without a recorded sky paint their own opaque backdrop).
   function render(ctx) {
+    const sc = state.scene, live = v3.ready && !!ctx.getTransform;
+    if (live) { ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height); ctx.restore(); }
+    v3begin(live && sc !== 'cast' && !sc.startsWith('sheet:'));
+    renderScene(ctx);
+    if (live && !v3.rec.sky) { ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalCompositeOperation = 'destination-over'; ctx.fillStyle = '#0a0410'; ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height); ctx.restore(); }
+  }
+
+  function renderScene(ctx) {
     bindCanvas(ctx);
     refreshFrames();
     // Drained here, not from update(): the fixed-timestep loop (kit/loop.js) can call update() several

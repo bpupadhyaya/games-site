@@ -1,5 +1,6 @@
 // Everything drawn each frame. Reads `state` (game.js) and changes nothing. Static art and sprites are cached.
-import { POINTS, TRAY, CHIP, PAD, isBig, host, ZOOMS, AP_SPEEDS } from './layout.js';
+import { POINTS, TRAY, CHIP, PAD, isBig, host, ZOOMS, AP_SPEEDS, toLocal } from './layout.js';
+import { v3, flatAlpha } from './v3.js';
 import { drawTable, drawBoardArt, drawPadArt } from './art.js';
 import { drawCredit, drawMoreLine, drawLockup } from './brand.js';
 import { drawToken, drawStick, drawLantern, blob, TEAMS } from './pieces.js';
@@ -23,7 +24,7 @@ export function stickPose(st, u, strength) {
   const turnE = 1 - Math.pow(1 - Math.min(1, u / 0.88), 2.2);
   const theta = Math.PI * (2 * st.turns + (st.flat ? 0 : 1)) * turnE;
   const rot = st.rot0 + (st.rotf - st.rot0) * sm(Math.min(1, u / 0.72));
-  return { x: st.x0 + (st.xf - st.x0) * e, y: st.y0 + (st.yf - st.y0) * e, h, face: Math.cos(theta), rot };
+  return { x: st.x0 + (st.xf - st.x0) * e, y: st.y0 + (st.yf - st.y0) * e, h, face: Math.cos(theta), rot, theta };
 }
 
 const wrapLines = (ctx, str, maxW) => {
@@ -78,11 +79,12 @@ export function render(ctx, state, L) {
     ctx.save(); if (o.dim) ctx.globalAlpha = 0.45;
     ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.beginPath(); ctx.roundRect(r.x + 2, r.y + 6, r.w, r.h, rad); ctx.fill();
     const gr = ctx.createLinearGradient(0, r.y, 0, r.y + r.h);
-    if (o.primary) { gr.addColorStop(0, '#e9694b'); gr.addColorStop(1, '#a2301c'); } else { gr.addColorStop(0, '#5a3b21'); gr.addColorStop(1, '#2f1b0d'); }
+    if (o.gold) { gr.addColorStop(0, '#f3cf72'); gr.addColorStop(0.55, '#d9a440'); gr.addColorStop(1, '#a8701e'); }
+    else if (o.primary) { gr.addColorStop(0, '#e9694b'); gr.addColorStop(1, '#a2301c'); } else { gr.addColorStop(0, '#5a3b21'); gr.addColorStop(1, '#2f1b0d'); }
     ctx.fillStyle = gr; ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, rad); ctx.fill();
-    ctx.strokeStyle = o.primary ? 'rgba(255,225,160,0.85)' : 'rgba(236,200,130,0.55)'; ctx.lineWidth = 2.5; ctx.stroke();
+    ctx.strokeStyle = o.gold ? 'rgba(255,240,200,0.95)' : o.primary ? 'rgba(255,225,160,0.85)' : o.warm ? 'rgba(255,196,110,0.95)' : 'rgba(236,200,130,0.55)'; ctx.lineWidth = o.warm ? 3.5 : 2.5; ctx.stroke();
     const want = Math.min(o.size ?? 30, r.h * 0.46), sz = fitSize(label, want, r.w - 18, UI, 700);
-    text(label, r.x + r.w / 2, r.y + r.h / 2 + sz * 0.35, want, '#fff1cf', UI, 700, 'center', r.w - 18);
+    text(label, r.x + r.w / 2, r.y + r.h / 2 + sz * 0.35, want, o.gold ? '#2a1606' : '#fff1cf', UI, o.gold ? 800 : 700, 'center', r.w - 18);
     ctx.restore();
   };
   const inG = (T, fn) => { ctx.save(); ctx.translate(T.ox, T.oy); ctx.scale(T.s, T.s); curS = T.s; fn(); curS = 1; ctx.restore(); };
@@ -99,15 +101,25 @@ export function render(ctx, state, L) {
     }
   };
 
-  drawTable(ctx, W, H);
+  // 3D on: the WebGL scene behind draws the floor, board, tokens, trays, cushion and sticks; this layer keeps the HUD, rings (as
+  // v3.marks), labels at projected points, and fades the flat art out during the crossfade (F = its alpha).
+  const D3 = v3.on && !!v3.proj, F = flatAlpha();
+  const fade = (fn) => { if (F <= 0) return; ctx.save(); ctx.globalAlpha *= F; fn(); ctx.restore(); };
+  // a board-local point -> the board-local point where the 3D board shows it (for drawing inside inG(L.board))
+  const BP = (x, y, h = 0) => { if (!D3) return { x, y }; const q = v3.proj(x, y, h); return toLocal(L.board, q.x, q.y); };
+  fade(() => drawTable(ctx, W, H));
+  if (D3) {   // a soft lens vignette over the 3D room
+    const vg = ctx.createRadialGradient(W / 2, H * 0.5, Math.min(W, H) * 0.42, W / 2, H * 0.5, Math.max(W, H) * 0.75); vg.addColorStop(0, 'rgba(8,4,2,0)'); vg.addColorStop(1, 'rgba(8,4,2,0.5)');
+    ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
+  }
   // paper-lantern light: a warm, slightly flickering wash from the upper right
   const fl = 0.5 + 0.06 * Math.sin(t * 3.1) + 0.04 * Math.sin(t * 7.3);
-  ctx.save(); ctx.globalCompositeOperation = 'lighter'; blob(ctx, W - 120, 90, 520, 420, '255,170,70', 0.16 * fl); blob(ctx, 130, H * 0.76, 420, 300, '255,160,80', 0.06); ctx.restore();
+  fade(() => { ctx.globalCompositeOperation = 'lighter'; blob(ctx, W - 120, 90, 520, 420, '255,170,70', 0.16 * fl); blob(ctx, 130, H * 0.76, 420, 300, '255,160,80', 0.06); });
 
   const boardScene = scene === 'play' || scene === 'over' || scene === 'lesson' || scene === 'autoplay' || (scene === 'puzzle' && state.pz?.status !== 'making');
   const showTitleArt = scene === 'title' || scene === 'demo-limit';
 
-  for (const ln of L.lanterns) drawLantern(ctx, ln.x, ln.y, ln.s, t + ln.ph);
+  fade(() => { for (const ln of L.lanterns) drawLantern(ctx, ln.x, ln.y, ln.s, t + ln.ph); });
 
   if (boardScene && scene !== 'over') {
     const a = state.anim, hdr = L.hdr;
@@ -137,7 +149,7 @@ export function render(ctx, state, L) {
     }
 
     inG(L.board, () => {
-      drawBoardArt(ctx);
+      fade(() => drawBoardArt(ctx));
       // ---- trays -----------------------------------------------------------------------------------
       for (const team of [0, 1]) {
         const T = TRAY[team];
@@ -147,12 +159,21 @@ export function render(ctx, state, L) {
           if (a.cap && a.cap.team === team && a.t < a.capT) waitN -= a.cap.n;
           if (a.team === team && a.home && a.t < a.dur) homeN -= a.home;
         }
-        for (let k = 0; k < Math.min(4, waitN); k++) { const p = T.wait(k); drawToken(ctx, p.x, p.y - 4, team, { scale: 0.56, lift: 0 }); }
-        for (let k = 0; k < Math.min(4, homeN); k++) { const p = T.home(k); drawToken(ctx, p.x, p.y - 4, team, { scale: 0.56 }); }
-        const capY = team === 1 ? 296 : 1080;
-        trayText('waiting', T.wait(1).x + 29, capY); trayText('home', T.home(1).x + 29, capY);
+        fade(() => {
+          for (let k = 0; k < Math.min(4, waitN); k++) { const p = T.wait(k); drawToken(ctx, p.x, p.y - 4, team, { scale: 0.56, lift: 0 }); }
+          for (let k = 0; k < Math.min(4, homeN); k++) { const p = T.home(k); drawToken(ctx, p.x, p.y - 4, team, { scale: 0.56 }); }
+        });
+        const capY = team === 1 ? 296 : 1080, ty = T.wait(0).y;
+        // in 3D the captions sit just outside the trays: above the far (top) trays, below the near ones
+        const cy = (y) => (D3 ? BP(T.wait(1).x, team === 1 ? ty - 40 : ty + 52).y + (team === 1 ? 0 : 6) : y);
+        const tw = (x) => (D3 ? BP(x, team === 1 ? ty - 40 : ty + 52).x : x);
+        const pill = (x, y, w) => { if (!D3) return; ctx.fillStyle = 'rgba(14,8,4,0.55)'; ctx.beginPath(); ctx.roundRect(x - w / 2, y - 21, w, 29, 14); ctx.fill(); };
+        pill(tw(T.wait(1).x + 29), cy(capY), 104); pill(tw(T.home(1).x + 29), cy(capY), 80);
+        trayText('waiting', tw(T.wait(1).x + 29), cy(capY)); trayText('home', tw(T.home(1).x + 29), cy(capY));
         const nm = state.two || scene === 'autoplay' ? `${TEAM_NAME[team]}` : team === 0 ? 'You (Blue)' : 'Red';
-        text(nm, T.label.x, T.label.y, 24, team === 0 ? '#9fbcff' : '#ff9a82', FONT, 700, 'center', 130);
+        const lp = D3 ? { x: tw(T.label.x), y: cy(T.label.y) + 2 } : T.label;
+        if (D3) pill(lp.x, lp.y - 2, 136);
+        text(nm, lp.x, lp.y, 24, team === 0 ? '#9fbcff' : '#ff9a82', FONT, 700, 'center', 130);
       }
 
       const pulse = state.calm ? 0.5 : 0.5 + 0.5 * Math.sin(t * 6);
@@ -161,30 +182,50 @@ export function render(ctx, state, L) {
       const stacks = [];
       for (const team of [0, 1]) for (const grp of g.g[team]) stacks.push({ team, ...grp });
       stacks.sort((p, q) => POINTS[p.pos].y - POINTS[q.pos].y);
-      for (const s of stacks) {
+      if (F > 0) for (const s of stacks) {
         let n = s.n;
         const p = POINTS[s.pos];
         if (a && a.team === s.team && a.to === s.pos) n -= a.n;
         if (a && a.cap && a.cap.pos === s.pos && a.team !== s.team) continue;
         if (n <= 0) continue;
         const sel = state.sel === s.pos && s.team === g.turn && humanMove;
+        ctx.save(); ctx.globalAlpha *= F;
         drawToken(ctx, p.x, p.y, s.team, { n, lift: sel ? 14 + (state.calm ? 0 : Math.sin(t * 4) * 3) : 0, glow: sel ? TEAMS[s.team].rgb : null });
+        ctx.restore();
+      }
+      // 3D: the selected stack gets a warm ring of light under it; stack counts float above tall stacks
+      if (D3) {
+        for (const s of stacks) {
+          let n = s.n; if (a && a.team === s.team && a.to === s.pos) n -= a.n;
+          if (a && a.cap && a.cap.pos === s.pos && a.team !== s.team) continue;
+          const p = POINTS[s.pos];
+          if (state.sel === s.pos && s.team === g.turn && humanMove) v3.marks.push({ x: p.x, y: p.y, rgb: TEAMS[s.team].rgb, r: 44, a: 0.9 });
+          if (n > 1) {
+            const q = BP(p.x, p.y, n * 1.25 + 1.2), bx = q.x + 26, by = q.y - 16;
+            ctx.fillStyle = '#fff4d6'; ctx.strokeStyle = '#2a1608'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(bx, by, 15, 0, TAU); ctx.fill(); ctx.stroke();
+            text(String(n), bx, by + 7, 20, '#2a1608', FONT, 700);
+          }
+        }
+        if (state.sel === -1 && humanMove) { const p = TRAY[g.turn].wait(0); v3.marks.push({ x: p.x + 87, y: p.y, rgb: TEAMS[g.turn].rgb, r: 130, a: 0.7 }); }
       }
       // ---- glows: legal landing points, hints, warnings --------------------------------------------------
       if (humanMove && state.sel != null && state.selV != null) {
         for (const m of movesFor(g, g.turn, state.selV)) if (m.from === state.sel) {
           const p = POINTS[m.to === HOME || m.to === 'wait' ? 0 : m.to];
           const cap = m.to !== HOME && m.to !== 'wait' && g.g[1 - g.turn].some((x) => x.pos === m.to);
-          glowRing(p, cap ? '255,90,70' : m.short ? '120,220,255' : '255,232,140', pulse, isBig(m.to) ? 32 : 24);
-          if (cap) text('CAPTURE', p.x, p.y - 44, 17, '#ffb0a0', UI, 800);
-          else if (m.short) text('SHORTCUT', p.x, p.y - 42, 16, '#bff0ff', UI, 800);
-          else if (m.to === HOME) text('HOME', p.x - 6, p.y - 44, 17, '#fff0b0', UI, 800);
+          const rgb = cap ? '255,90,70' : m.short ? '120,220,255' : '255,232,140';
+          if (D3) v3.marks.push({ x: p.x, y: p.y, rgb, r: (isBig(m.to) ? 32 : 24) + 6 + pulse * 3, a: 0.75 + 0.25 * pulse }); else glowRing(p, rgb, pulse, isBig(m.to) ? 32 : 24);
+          const lq = BP(p.x, p.y, D3 ? 3.2 : 0), ly = D3 ? lq.y - 20 : p.y - 44;
+          const tag = (str, col, sz) => { if (D3) { ctx.font = `800 ${sz}px ${UI}`; const tw2 = ctx.measureText(str).width + 18; ctx.fillStyle = 'rgba(14,8,4,0.72)'; ctx.beginPath(); ctx.roundRect(lq.x - tw2 / 2, ly - sz - 2, tw2, sz + 12, 9); ctx.fill(); } text(str, lq.x, ly, sz, col, UI, 800); };
+          if (cap) tag('CAPTURE', '#ffb0a0', 17);
+          else if (m.short) tag('SHORTCUT', '#bff0ff', 16);
+          else if (m.to === HOME) tag('HOME', '#fff0b0', 17);
         }
       }
-      if (state.hint && !a) { const p = POINTS[state.hint.to === HOME || state.hint.to === 'wait' ? 0 : state.hint.to]; glowRing(p, '120,255,170', pulse, isBig(state.hint.to) ? 32 : 24); }
+      if (state.hint && !a) { const p = POINTS[state.hint.to === HOME || state.hint.to === 'wait' ? 0 : state.hint.to]; if (D3) v3.marks.push({ x: p.x, y: p.y, rgb: '120,255,170', r: (isBig(state.hint.to) ? 32 : 24) + 8 + pulse * 3, a: 0.9 }); else glowRing(p, '120,255,170', pulse, isBig(state.hint.to) ? 32 : 24); }
 
       // captured tokens getting knocked back
-      if (a && a.cap) {
+      if (a && a.cap && F > 0) {
         const cp = POINTS[a.cap.pos], k = a.t - a.capT;
         if (a.t < a.capT) drawToken(ctx, cp.x, cp.y, a.cap.team, { n: a.cap.n });
         else if (k < 0.5) {
@@ -193,7 +234,7 @@ export function render(ctx, state, L) {
         }
       }
       // the moving stack
-      if (a) {
+      if (a && F > 0) {
         const pts = [a.from === -1 ? TRAY[a.team].wait(g.wait[a.team]) : POINTS[a.from]].concat(a.path.map((p2) => (p2 === HOME || p2 === -1 ? POINTS[0] : POINTS[p2])));
         const per = a.dur / (pts.length - 1), i = Math.min(pts.length - 2, Math.floor(a.t / per)), f = sm(Math.min(1, (a.t - i * per) / per));
         const p0 = pts[i], p1 = pts[i + 1], x = p0.x + (p1.x - p0.x) * f, y = p0.y + (p1.y - p0.y) * f;
@@ -203,9 +244,10 @@ export function render(ctx, state, L) {
         // landing ring
         if (a.t > a.dur - 0.25 && !state.calm) { const k = (a.t - (a.dur - 0.25)) / 0.25, p = pts[pts.length - 1]; ctx.strokeStyle = `rgba(255,236,190,${0.7 * (1 - k)})`; ctx.lineWidth = 5 * (1 - k) + 1; ctx.beginPath(); ctx.ellipse(p.x, p.y + 6, 20 + 46 * k, 14 + 32 * k, 0, 0, TAU); ctx.stroke(); }
       }
-      sparks('board');
+      if (D3) { ctx.save(); for (const f of state.fx) if (f.g !== 'pad') { const q = BP(f.x, f.y, 1); f.x0 = f.x; f.y0 = f.y; f.x = q.x; f.y = q.y; } sparks('board'); for (const f of state.fx) if (f.g !== 'pad' && f.x0 !== undefined) { f.x = f.x0; f.y = f.y0; } ctx.restore(); } else sparks('board');
       // keyboard cursor
-      if (state.kb && humanMove && state.kbTarget != null) { const p = POINTS[state.kbTarget]; ctx.strokeStyle = '#7dff9a'; ctx.lineWidth = 4; ctx.setLineDash([8, 6]); ctx.beginPath(); ctx.arc(p.x, p.y, 42, 0, TAU); ctx.stroke(); ctx.setLineDash([]); }
+      if (state.kb && humanMove && state.kbTarget != null && D3) v3.marks.push({ x: POINTS[state.kbTarget].x, y: POINTS[state.kbTarget].y, rgb: '125,255,154', r: 46, a: 1 });
+      else if (state.kb && humanMove && state.kbTarget != null) { const p = POINTS[state.kbTarget]; ctx.strokeStyle = '#7dff9a'; ctx.lineWidth = 4; ctx.setLineDash([8, 6]); ctx.beginPath(); ctx.arc(p.x, p.y, 42, 0, TAU); ctx.stroke(); ctx.setLineDash([]); }
     });
 
     const humanMove = scene !== 'autoplay' && g.phase === 'move' && !a && (state.two || g.turn === 0) && g.winner < 0;
@@ -228,10 +270,10 @@ export function render(ctx, state, L) {
 
     // ---- the throwing pad --------------------------------------------------------------------------
     inG(L.pad, () => {
-      drawPadArt(ctx);
+      fade(() => drawPadArt(ctx));
       const ta = state.throwAnim, rest = state.rest;
       const drawStickAt = (i, x, y, rot, face, h) => drawStick(ctx, x, y, rot, face, i === 0, h);
-      if (ta) {
+      if (F <= 0) { /* the 3D sticks */ } else if (ta) {
         ta.sticks.forEach((st, i) => { const uu = Math.min(1, Math.max(0, (ta.t - st.d) / (ta.dur - 0.14))); const p = stickPose(st, uu, ta.strength); drawStickAt(i, p.x, p.y, p.rot, p.face, p.h); });
       } else if (state.grip) {
         for (let i = 0; i < 4; i++) drawStickAt(i, state.grip.x + (i - 1.5) * 16, state.grip.y - 20 + Math.sin(t * 20 + i) * 1.5, (i - 1.5) * 0.12, Math.cos(i * 0.6 + 0.4), 40);
@@ -305,20 +347,29 @@ export function render(ctx, state, L) {
   // ---- title -----------------------------------------------------------------------------------------
   if (showTitleArt) {
     const T = L.title(!!state.saved), art = T.art, R = T.rows;
-    if (art.board) {                                                    // the dimmed board behind the tumbling sticks (tall screens with room)
+    if (art.board && F > 0) {                                           // the dimmed board behind the tumbling sticks (tall screens with room)
+      ctx.save(); ctx.globalAlpha *= F;
       inG(art.board, () => drawBoardArt(ctx));
       const bt = art.board.oy + 290 * art.board.s;
       { const vg = ctx.createLinearGradient(0, bt, 0, bt + 82); vg.addColorStop(0, 'rgba(12,8,22,0)'); vg.addColorStop(1, 'rgba(12,8,22,0.88)'); ctx.fillStyle = vg; ctx.fillRect(0, bt, W, 82); }
       ctx.fillStyle = 'rgba(12,8,22,0.55)'; ctx.fillRect(0, bt + 82, W, T.rowsTop - bt - 82);
+      ctx.restore();
     }
-    if (art.panel) { ctx.fillStyle = 'rgba(12,8,22,0.55)'; ctx.beginPath(); ctx.roundRect(art.panel.x, art.panel.y, art.panel.w, art.panel.h, 26); ctx.fill(); }
+    if (art.panel) fade(() => { ctx.fillStyle = 'rgba(12,8,22,0.55)'; ctx.beginPath(); ctx.roundRect(art.panel.x, art.panel.y, art.panel.w, art.panel.h, 26); ctx.fill(); });
+    if (D3) {   // the title lettering sits on a soft dark wash so it reads over the lit room
+      const cx = art.cx, y0 = art.titleY - 120, y1 = T.compact ? T.statsY + 10 : art.tagY + 40, rw = Math.min(art.maxW + 120, W);
+      const gr = ctx.createLinearGradient(0, y0, 0, y1 + 50); gr.addColorStop(0, 'rgba(10,6,4,0)'); gr.addColorStop(0.3, 'rgba(10,6,4,0.55)'); gr.addColorStop(0.75, 'rgba(10,6,4,0.5)'); gr.addColorStop(1, 'rgba(10,6,4,0)');
+      ctx.fillStyle = gr; ctx.fillRect(cx - rw / 2, y0, rw, y1 + 50 - y0);
+    }
     if (scene === 'title') {
-      if (art.showSticks) {
+      if (art.showSticks && F > 0) {
+        ctx.save(); ctx.globalAlpha *= F;
         for (let i = 0; i < 4; i++) {
           const ph = t * 1.25 + i * 1.3;
           drawStick(ctx, art.cx + (i - 1.5) * art.spread, art.sticksY + Math.sin(ph) * 10, (i - 1.5) * 0.28 + Math.sin(t * 0.6 + i) * 0.25, Math.cos(t * 1.7 + i * 1.9), i === 0, 26 + 20 * Math.sin(ph * 1.1 + 1));
         }
         drawToken(ctx, art.cx - art.tokDx, art.tokensY, 0, { scale: 1.5, lift: 8 + 6 * Math.sin(t * 2) }); drawToken(ctx, art.cx + art.tokDx, art.tokensY, 1, { scale: 1.5, lift: 8 + 6 * Math.sin(t * 2 + 1.5) });
+        ctx.restore();
       }
       ctx.save(); ctx.shadowColor = 'rgba(255,170,60,0.7)'; ctx.shadowBlur = 24;
       text('Yut Nori', art.cx, art.titleY, 132, '#fff0c8', FONT, 700, 'center', art.titleMaxW ?? art.maxW); ctx.restore();
@@ -326,15 +377,16 @@ export function render(ctx, state, L) {
     }
     // the dark backing behind the buttons
     if (!L.wide) {
-      const y = T.rowsTop - 14;
-      { const vg = ctx.createLinearGradient(0, y - 80, 0, y); vg.addColorStop(0, 'rgba(12,8,22,0)'); vg.addColorStop(1, 'rgba(12,8,22,0.93)'); ctx.fillStyle = vg; ctx.fillRect(0, y - 80, W, 80); ctx.fillStyle = 'rgba(12,8,22,0.93)'; ctx.fillRect(0, y, W, H - y); }
+      const y = T.rowsTop - 14, ba = D3 && T.rowsTop - 24 - (art.tagY + 40) < 260 ? 0.62 : 0.93;   // 3D hero behind the menu on short-zone screens: let it read through
+      { const vg = ctx.createLinearGradient(0, y - 80, 0, y); vg.addColorStop(0, 'rgba(12,8,22,0)'); vg.addColorStop(1, `rgba(12,8,22,${ba})`); ctx.fillStyle = vg; ctx.fillRect(0, y - 80, W, 80); ctx.fillStyle = `rgba(12,8,22,${ba})`; ctx.fillRect(0, y, W, H - y); }
     } else { const p = T.rowsPanel; ctx.fillStyle = 'rgba(12,8,22,0.93)'; ctx.beginPath(); ctx.roundRect(p.x, p.y, p.w, p.h, 26); ctx.fill(); }
     if (scene === 'title') {
       const solvedToday = state.daily.solvedDay === state.daily.day, kr = T.kr;
       const sz = (n) => (T.compact ? Math.max(n, 28) : n);
-      if (R.resume) button(R.resume, 'Continue your game', { primary: true, size: sz(30) });
-      button(R.learn, 'Learn to play', { primary: !state.learned && !R.resume, size: sz(30) });
-      button(R.play, 'Play the computer', { primary: state.learned && !R.resume, size: sz(30) });
+      // ONE dominant button: Continue when a game is saved, otherwise Play (gold, larger); Learn to play keeps a warm outline until done
+      if (R.resume) button(R.resume, 'Continue your game', { gold: true, size: sz(34) });
+      button(R.play, 'Play the computer', { gold: !R.resume, size: sz(R.resume ? 30 : 36) });
+      button(R.learn, 'Learn to play', { size: sz(30), warm: !state.learned });
       button(R.two, 'Two teams, one phone', { size: sz(28) });
       button(R.auto, 'Auto Play · Watch & Learn', { size: sz(26) });
       button(R.daily, solvedToday ? `Daily challenge · solved · streak ${state.daily.streak}` : state.daily.streak ? `Daily challenge · streak ${state.daily.streak}` : 'Daily challenge', { size: sz(26) });
@@ -385,10 +437,11 @@ export function render(ctx, state, L) {
   // ---- result ----------------------------------------------------------------------------------------
   if (scene === 'over') {
     const O = L.over;
-    ctx.fillStyle = 'rgba(8,6,16,0.74)'; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = D3 ? 'rgba(8,6,16,0.42)' : 'rgba(8,6,16,0.74)'; ctx.fillRect(0, 0, W, H);
+    if (D3 && L.wide) { ctx.fillStyle = 'rgba(8,6,16,0.45)'; ctx.beginPath(); ctx.roundRect(O.cx - 280, O.winY - 110, 560, O.moreY - O.winY + 150, 26); ctx.fill(); }
     const winner = g.winner;
     const won = state.two ? `${TEAM_NAME[winner]} wins!` : winner === 0 ? 'You win!' : 'Red wins';
-    drawToken(ctx, O.token.x, O.token.y, winner, { scale: O.token.s, lift: 10 + (state.calm ? 0 : Math.sin(t * 3) * 6) });
+    if (F > 0) { ctx.save(); ctx.globalAlpha *= F; drawToken(ctx, O.token.x, O.token.y, winner, { scale: O.token.s, lift: 10 + (state.calm ? 0 : Math.sin(t * 3) * 6) }); ctx.restore(); }
     text(won, O.cx, O.winY, O.winSize, '#f7e6bd', FONT, 700, 'center', (L.wide ? 520 : W) - 40);
     text(`${g.throws} throws · ${g.moves} moves`, O.cx, O.stat1, 26, '#fff3d6', UI, 500, 'center', 500);
     if (!state.two && winner === 0) {

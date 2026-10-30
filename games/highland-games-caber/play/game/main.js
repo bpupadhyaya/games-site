@@ -7,9 +7,10 @@ import { setLogo, setLockup } from './src/brand.js';
 // The 3D scene is drawn in a WebGL canvas behind the kit canvas; the kit canvas (transparent) keeps the HUD, menus and input.
 // Without WebGL the game keeps playing with its flat 2D picture.
 const canvas = document.getElementById('game');
+// The game boots at once on its flat 2D picture; the 3D glen is built right after (it never blocks the first title frame) and takes over
+// as soon as the athlete is loaded.
 let presenter = null;
-try { presenter = await createPresenter({ kitCanvas: canvas }); } catch (e) { console.warn('3D presenter unavailable', e); }
-if (presenter && new URLSearchParams(location.search).has('dev')) window.__presenter = presenter;   // dev only: load-time measurement
+const presenterReady = new Promise((r) => setTimeout(r, 0)).then(() => createPresenter({ kitCanvas: canvas })).then((p) => { presenter = p; if (new URLSearchParams(location.search).has('dev')) window.__presenter = p; }).catch((e) => console.warn('3D presenter unavailable', e));
 
 // Play needs two fingers at once (balance pad + a button). The kit's input has one pointer, so the shell tracks every touch itself and hands
 // the list to the game once per tick; each finger is bound by the game to the control it started on (see src/controls.js).
@@ -53,9 +54,14 @@ const wrap = (game) => {
   if (new URLSearchParams(location.search).has('dev')) window.__game = game;   // dev only: lets the test harness read the state
   const upd = game.update.bind(game);
   game.update = (dt, input) => { game.setTouches(snapshot()); upd(dt, input); };
-  if (presenter && presenter.stage) return presenter.wrap(game);
   const r = game.render.bind(game);
-  game.render = (ctx, view) => { view.cssW = canvas.clientWidth || 720; view.cssH = canvas.clientHeight || 1280; view.noGL = true; r(ctx, view); };
+  game.render = (ctx, view) => {
+    view.cssW = canvas.clientWidth || 720; view.cssH = canvas.clientHeight || 1280;
+    const gl = presenter && presenter.stage && presenter.ready && !presenter.lost;
+    view.noGL = !gl;   // the kit reuses the view object: set it every frame
+    r(ctx, view);
+    if (presenter && presenter.stage) presenter.frame(game.getState(), view);
+  };
   return game;
 };
 const shot = new URLSearchParams(location.search).has('shot');

@@ -3,6 +3,7 @@
 // and a golden mountain rises to offer rest. The camera pulls back as speed grows.
 import { FR, W, H, TAU, PAL, INK, clamp, lerp, smooth, hash, sky, sun, stars, clouds, sea, skyline, light, motes, finish, shakeOffset, rays } from '../stage.js';
 import { figure, poses } from '../puppets.js';
+import { island, painted } from '../v3.js';
 import { meter, label, caption } from '../ui.js';
 
 const camK = () => (FR.land ? SEA_Y - (FR.y0 + 170) : 930);   // landscape: the hero rides a little above the middle of the window
@@ -99,11 +100,13 @@ export function create(env, shared) {
     // the far shore: golden towers grow on the horizon
     if (prog > 0.5) {
       const u = smooth((prog - 0.5) / 0.5), sc = 0.3 + u * 0.95;
+      painted(ctx, island(ctx, FR.x1 + 260 - u * 640 + 250 * sc, horizon + 6, 900 * sc, u), () => {
       ctx.save(); ctx.translate(FR.x1 + 260 - u * 640, horizon + 14); ctx.scale(sc, sc);
       light(ctx, 200, -120, 520, '255,190,90', 0.35 + u * 0.3);
       ctx.fillStyle = '#1a0e2c'; ctx.beginPath(); ctx.moveTo(-260, 10); ctx.quadraticCurveTo(200, -110, 760, 10); ctx.fill();
       skyline(ctx, { base: -40, scroll: 0, color: '#c8923a', seed: 5, h: 170, gap: 110, kind: 'lanka', lit: '255,240,180', t });
       ctx.restore();
+      });
     }
     sea(ctx, { y: horizon, t, scroll: s.x, colors: ['#3b2c66', '#2a2156', '#1d1846', '#130f34', '#0b0a24'], crest: '255,190,140', bands: 5, bottom: Math.max(H, seaY + 400) });
 

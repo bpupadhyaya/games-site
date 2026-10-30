@@ -2,7 +2,7 @@
 // Pure drawing; game.js owns state. All text follows the 100-300% size.
 import { W, H, SW, OX, LAND, MENU, PANEL, host, minU, TEXT_SCALES, TEXT_DEC, TEXT_INC, REF_CLOSE, THINK_STEPS, SETUP_PINS } from './layout.js';
 import { drawLockupImage, drawMoreLine } from './brand.js';
-import { FONT, DISPLAY, C, roundPath, drawButton, panel, wrapLines, textShadow, flowLayout, drawFlow, flowHit } from './ui.js';
+import { FONT, DISPLAY, C, roundPath, drawButton, panel, wrapLines, textShadow, flowLayout, drawFlow, flowHit, kitFill } from './ui.js';
 import { CABERS } from './physics.js';
 import { EVENT_NAME, LEVELS, MEDALS, ATTEMPTS, clockOf } from './consts.js';
 
@@ -22,21 +22,44 @@ export function ensureLayout(state, key) {
 }
 export function hitScreen(x, y, scroll) { return LAID.lay ? flowHit(LAID.lay, LAID.top, scroll, x, y) : null; }
 
+// The title lockup: embossed gold lettering with a carved dark extrusion, over a soft shade (not a box), and the event name on a
+// tartan ribbon with notched tails, like the banner over a games-field gate.
 function drawHero(ctx, w, flat) {
   ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
   const cx = w / 2, k = Math.min(1, (w - 20) / 640);
-  ctx.fillStyle = flat ? 'rgba(7,13,12,0.5)' : 'rgba(7,13,12,0.62)'; roundPath(ctx, 2, 40, w - 4, 288, 30); ctx.fill();
-  let px = Math.round(34 * k);
-  ctx.font = `700 ${px}px ${FONT}`;
-  while (ctx.measureText('THE STRENGTH GAMES OF SCOTLAND').width > w - 16 && px > 12) { px--; ctx.font = `700 ${px}px ${FONT}`; }
-  ctx.fillStyle = '#f0c455'; ctx.shadowColor = 'rgba(0,0,0,0.6)'; ctx.shadowBlur = 8; ctx.shadowOffsetY = 2;
-  ctx.fillText('THE STRENGTH GAMES OF SCOTLAND', cx, 96);
-  let hp = Math.round(104 * Math.min(1, k * 1.1));
+  if (typeof ctx.createRadialGradient === 'function') {
+    ctx.save(); ctx.translate(cx, 180); ctx.scale(1, 0.42);
+    const sh = ctx.createRadialGradient(0, 0, 10, 0, 0, w * 0.62); sh.addColorStop(0, flat ? 'rgba(7,13,12,0.5)' : 'rgba(7,13,12,0.58)'); sh.addColorStop(0.65, 'rgba(7,13,12,0.3)'); sh.addColorStop(1, 'rgba(7,13,12,0)');
+    ctx.fillStyle = sh; ctx.fillRect(-w, -w * 1.6, 2 * w, w * 3.2); ctx.restore();
+  }
+  let px = Math.round(30 * k);
+  const kicker = 'THE STRENGTH GAMES OF SCOTLAND';
+  ctx.font = `800 ${px}px ${FONT}`;
+  while (ctx.measureText(kicker).width > w - 40 && px > 12) { px--; ctx.font = `800 ${px}px ${FONT}`; }
+  ctx.fillStyle = '#f3d27a'; ctx.shadowColor = 'rgba(0,0,0,0.7)'; ctx.shadowBlur = 6; ctx.shadowOffsetY = 2;
+  ctx.fillText(kicker, cx, 92);
+  const tw = ctx.measureText(kicker).width;
+  ctx.shadowBlur = 0; ctx.shadowOffsetY = 0; ctx.fillStyle = 'rgba(243,210,122,0.75)';
+  for (const sx of [-1, 1]) { const x0 = cx + sx * (tw / 2 + 14); ctx.fillRect(sx < 0 ? x0 - 34 : x0, 82, 34, 3); }
+  let hp = Math.round(108 * Math.min(1, k * 1.1));
   ctx.font = `700 ${hp}px ${DISPLAY}`;
   while (ctx.measureText('Highland Games').width > w - 28 && hp > 24) { hp -= 2; ctx.font = `700 ${hp}px ${DISPLAY}`; }
-  ctx.fillStyle = '#f6f0e2'; ctx.shadowBlur = 14; ctx.shadowOffsetY = 4;
-  ctx.fillText('Highland Games', cx, 212);
-  ctx.font = `700 ${Math.round(70 * Math.min(1, k * 1.1))}px ${DISPLAY}`; ctx.fillStyle = '#9fd8b0'; ctx.fillText('Caber Toss', cx, 290);
+  const ty = 206, depth = Math.max(3, Math.round(hp * 0.07));
+  ctx.shadowColor = 'rgba(0,0,0,0.55)'; ctx.shadowBlur = 18; ctx.shadowOffsetY = 8;
+  for (let i = depth; i >= 1; i--) { ctx.fillStyle = i === depth ? '#2a1a0c' : '#5a3a14'; ctx.fillText('Highland Games', cx, ty + i); if (i === depth) { ctx.shadowBlur = 0; ctx.shadowOffsetY = 0; } }
+  const gr = typeof ctx.createLinearGradient === 'function' ? ctx.createLinearGradient(0, ty - hp * 0.8, 0, ty) : null;
+  if (gr) { gr.addColorStop(0, '#fff3c8'); gr.addColorStop(0.45, '#f2c75a'); gr.addColorStop(0.55, '#d79c2c'); gr.addColorStop(1, '#f6d377'); }
+  ctx.fillStyle = gr || '#f0c455'; ctx.fillText('Highland Games', cx, ty);
+  ctx.lineWidth = Math.max(1, hp * 0.018); ctx.strokeStyle = 'rgba(60,36,10,0.75)'; ctx.strokeText('Highland Games', cx, ty);
+  // ribbon
+  const sp = Math.round(54 * Math.min(1, k * 1.1));
+  ctx.font = `700 ${sp}px ${DISPLAY}`;
+  const rw = Math.min(w - 40, ctx.measureText('Caber Toss').width + 120), rh = sp * 1.32, rx = cx - rw / 2, ry = 238;
+  ctx.fillStyle = '#163a24';
+  for (const sx of [-1, 1]) { const ex = sx < 0 ? rx + 18 : rx + rw - 18; ctx.beginPath(); ctx.moveTo(ex, ry + 12); ctx.lineTo(ex + sx * 44, ry + 12); ctx.lineTo(ex + sx * 30, ry + 12 + rh / 2); ctx.lineTo(ex + sx * 44, ry + 12 + rh); ctx.lineTo(ex, ry + 12 + rh); ctx.closePath(); ctx.fill(); }
+  kitFill(ctx, rx, ry, rw, rh, 8, 'green', { lift: 4 });
+  ctx.fillStyle = '#fbf3df'; ctx.shadowColor = 'rgba(0,0,0,0.6)'; ctx.shadowBlur = 4; ctx.shadowOffsetY = 2;
+  ctx.fillText('Caber Toss', cx, ry + rh * 0.74);
   ctx.restore();
 }
 const heroArt = () => { const k = H < 1200 ? 0.75 : 1; return { t: 'art', h: Math.round(380 * k), draw(ctx, w) { ctx.save(); ctx.scale(k, k); drawHero(ctx, w / k); ctx.restore(); } }; };
@@ -55,13 +78,13 @@ export function titleWidgets(state) {
   return [
     ...(LAND ? [{ t: 'gap', h: 24 }] : [heroArt()]),
     { t: 'btn', id: 'play', label: 'Play the festival', sub: 'Caber, stone and weight', primary: true, h: !LAND && H < 1200 ? 80 : 92 },
-    { t: 'btn', id: 'single', label: 'Single event', sub: 'Practise one event', row: 1 },
-    { t: 'btn', id: 'watch', label: 'Watch & Learn', sub: 'The computer plays', row: 1 },
-    { t: 'btn', id: 'howto', label: 'How to Play', row: 2 },
-    { t: 'btn', id: 'rules', label: 'Rules', row: 2 },
-    { t: 'btn', id: 'about', label: 'About', row: 2 },
-    { t: 'btn', id: 'settings', label: 'Settings', row: 3 },
-    { t: 'btn', id: 'sound', label: state.settings.sound ? 'Sound: On' : 'Sound: Off', row: 3 },
+    { t: 'btn', id: 'single', label: 'Single event', sub: 'Practise one event', row: 1, icon: 'caber' },
+    { t: 'btn', id: 'watch', label: 'Watch & Learn', sub: 'The computer plays', row: 1, icon: 'eye' },
+    { t: 'btn', id: 'howto', label: 'How to Play', row: 2, icon: 'hand' },
+    { t: 'btn', id: 'rules', label: 'Rules', row: 2, icon: 'book' },
+    { t: 'btn', id: 'about', label: 'About', row: 2, icon: 'info' },
+    { t: 'btn', id: 'settings', label: 'Settings', row: 3, icon: 'gear' },
+    { t: 'btn', id: 'sound', label: state.settings.sound ? 'Sound: On' : 'Sound: Off', row: 3, icon: state.settings.sound ? 'sound' : 'mute' },
     brandArt(),
   ];
 }

@@ -6,6 +6,7 @@ import { W, H, VIEW, host, BACKBOX, PAGE, wideCols, fontFloor, TEXT_SCALES, TEXT
 import { drawBackdrop, drawBoardAt, drawBoard, drawDart, regionPath, wobbleAng, TAU } from './art.js';
 import { FONT, NUM, C, roundPath, drawButton, panel, wrapLines, textShadow, flowLayout, drawFlow, flowHit } from './ui.js';
 import { PROFILES } from './ai.js';
+import { v3 } from './v3.js';
 import { ASSIST } from './aim.js';
 import { avg3 } from './engine.js';
 import { ABOUT, HOWTO, RULES } from './content.js';
@@ -112,7 +113,7 @@ function heroArt(state, h = 560, wMax = 640) {
       const bx = cx, by = 400, R = 130;
       drawBoardAt(ctx, bx, by, R);
       const k = R / 170;
-      for (const d of state.att.darts) drawDart(ctx, bx + d.x * k, by + d.y * k, { scale: 0.52, ang: wobbleAng(d.age, d.amp ?? 0, d.ph ?? 0), style: d.side });
+      if (!(v3.on && v3.fade >= 1)) for (const d of state.att.darts) drawDart(ctx, bx + d.x * k, by + d.y * k, { scale: 0.52, ang: wobbleAng(d.age, d.amp ?? 0, d.ph ?? 0), style: d.side });
       for (const p of state.att.parts) { ctx.save(); ctx.globalAlpha = 1 - p.t / p.max; ctx.fillStyle = p.col; ctx.beginPath(); ctx.arc(bx + p.x * k, by + p.y * k, p.size, 0, TAU); ctx.fill(); ctx.restore(); }
       ctx.restore();
     },

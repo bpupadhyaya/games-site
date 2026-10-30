@@ -24,9 +24,9 @@ export function setPress(ptr) {
 }
 const BTN = {
   disabled: ['#4a4a44', 'rgba(255,255,255,0.10)', '#2a2a27'],
-  primary: ['#0f9aa6', '#8ff0ea', '#04474f'],
+  primary: ['#efb53a', '#fff0bf', '#7a4a08'],
   active: ['#e0922b', '#ffd48a', '#6e4208'],
-  dark: ['#0d3a45', 'rgba(150,240,230,0.38)', '#04161b'],
+  dark: ['#3a2412', 'rgba(240,186,84,0.75)', '#1a0e05'],
   plain: ['#f2e6c8', '#fff6dc', '#8a7448'],
 };
 export function paintButton(ctx, r, o = {}) {
@@ -42,14 +42,14 @@ export function paintButton(ctx, r, o = {}) {
   if (pressed) { ctx.fillStyle = 'rgba(0,0,0,0.2)'; ctx.fill(); }
   ctx.lineWidth = 2; ctx.strokeStyle = edge; ctx.stroke();
   ctx.restore();
-  return { dy, light: primary || active || dark || disabled };
+  return { dy, light: active || dark || disabled, primary };
 }
 
 export function drawButton(ctx, r, label, opts = {}) {
   const { disabled = false, sub = null, size = 28 } = opts;
   const { dy, light } = paintButton(ctx, r, opts);
   ctx.save();
-  ctx.fillStyle = disabled ? 'rgba(255,255,255,0.35)' : light ? '#fff7e6' : C.ink;
+  ctx.fillStyle = disabled ? 'rgba(255,255,255,0.35)' : opts.primary ? '#2a1706' : light ? '#fff7e6' : C.ink;
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   let px = sub ? Math.round(size * 0.9) : size;
   const maxW = r.w - 24;

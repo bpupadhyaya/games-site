@@ -9,7 +9,7 @@ import { LEVELS } from './ai.js';
 import { COURT, formationSlots, FORMATIONS, FORMATION_NAME, MATCH_LENGTH } from './rules.js';
 import { RESP_WINDOWS } from './sim.js';
 import { ABOUT, HOWTO, RULES, LESSONS } from './content.js';
-import { drawLockup, lockupSize, drawMoreLine } from './brand.js';
+import { drawLockup, lockupSize, drawMoreLine, heroImage } from './brand.js';
 
 let LAID = { key: '', lay: null, top: 0, bottom: H, left: null };
 export const flowMeta = () => LAID;
@@ -87,8 +87,17 @@ function drawHero(ctx, state, w, k = 1) {
   const sc = state.att;
   const r = { x: hx - 190, y: 262, w: 380, h: 318 };
   const mp = courtMap(r, -1.0, COURT.HALF + 0.15);
-  drawMat(ctx, mp, { r: 18 });
-  if (sc) {
+  const hi = heroImage();
+  if (hi) {
+    // a still of the real 3D court, with a slow push-in so the title is alive
+    const z = 1.04 + 0.03 * Math.sin(state.t * 0.35), iw = hi.width / z, ih = hi.height / z, ox = (hi.width - iw) * (0.5 + 0.4 * Math.sin(state.t * 0.21)), oy = (hi.height - ih) * 0.5;
+    ctx.save(); roundPath(ctx, r.x, r.y, r.w, r.h, 20); ctx.clip();
+    ctx.drawImage(hi, ox, oy, iw, ih, r.x, r.y, r.w, r.h);
+    const vg = ctx.createLinearGradient(0, r.y + r.h * 0.6, 0, r.y + r.h); vg.addColorStop(0, 'rgba(8,14,22,0)'); vg.addColorStop(1, 'rgba(8,14,22,0.55)');
+    ctx.fillStyle = vg; ctx.fillRect(r.x, r.y, r.w, r.h); ctx.restore();
+    ctx.lineWidth = 4; ctx.strokeStyle = '#f2b441'; roundPath(ctx, r.x, r.y, r.w, r.h, 20); ctx.stroke();
+  } else drawMat(ctx, mp, { r: 18 });
+  if (sc && !hi) {
     if (sc.raid) drawActors(ctx, mp, sc, { r: 8.6 });
     else if (sc.pre) drawFormationPreview(ctx, mp, sc.pre.formation, sc.match.teams[sc.pre.def].onMat.length, sc.pre.def, { r: 8.6 });
   }

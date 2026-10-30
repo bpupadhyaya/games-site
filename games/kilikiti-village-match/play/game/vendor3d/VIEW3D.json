@@ -1,5 +1,5 @@
 {
-  "version": "1.6.0",
-  "hash": "30a263e88675372be21f9b98f890b90eb4727241f5ce9dfbe4b7e7e4d79bc314",
+  "version": "1.13.1",
+  "hash": "0362e2fc89e9ea2f83157ef9107fb098975819eb3e66441a6dbe4db413984a93",
   "note": "Vendored copy. Never edit. Upgrade with: tools/arc view3d-upgrade"
 }

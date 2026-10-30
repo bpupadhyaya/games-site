@@ -141,5 +141,7 @@ const ABOUT_ES = [
 export const HOWTO = () => (LANG === 'es' ? HOWTO_ES : HOWTO_EN);
 export const RULES = () => (LANG === 'es' ? RULES_ES : RULES_EN);
 export const ABOUT = () => (LANG === 'es' ? ABOUT_ES : ABOUT_EN);
+// main.js adds the 3D graphics credits (vendor3d/LICENSES.md) at the end of About, in both languages.
+export const addAboutSection = (en, es = en) => { ABOUT_EN.push(en); ABOUT_ES.push(es); };
 export const HOWTO_COUNT = HOWTO_EN.length;
 export const RULE_COUNT = RULES_EN.length;

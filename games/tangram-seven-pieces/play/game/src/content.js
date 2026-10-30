@@ -136,6 +136,19 @@ export const ABOUT = {
   ],
 };
 
+// Credits for the optional 3D layer: main.js fills `md` from vendor3d/LICENSES.md once the title is up; About lists it at the end.
+export const ABOUT_EXTRA = { md: '' };
+export function creditBlocks(md) {
+  const out = [];
+  for (const part of md.split(/\n\s*\n/)) {
+    const t = part.trim();
+    if (!t) continue;
+    if (t.startsWith('#')) out.push({ t: 'h', text: t.replace(/^#+\s*/, ''), size: 26 });
+    else out.push({ t: 'p', text: t.replace(/\s*\n\s*/g, ' ').replace(/`/g, ''), size: 22 });
+  }
+  return out;
+}
+
 // Rules pages are written against the engine (geom.js / puzzle.js). `art` names an illustration that
 // view.js draws with the game's own piece drawing.
 export const RULES = {

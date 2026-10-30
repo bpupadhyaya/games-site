@@ -1,3 +1,4 @@
+import { v3 } from './v3.js';
 // Drawing helpers: looks (stone, clay, moonlit), flat buttons, icons, the powder line. Plain canvas 2D, no images; nothing here changes game state.
 export const W = 720, H = 1560;
 export const UI = '-apple-system, "SF Pro Text", "Segoe UI", Roboto, system-ui, sans-serif';
@@ -21,8 +22,8 @@ export const THEMES = [
     bg: ['#17181a', '#222427', '#151618'], blot: '120,128,140', speck: '210,214,222', glow: 'rgba(255,244,222,0.10)',
     powder: '#f7f2e8', powderCore: '#ffffff', halo: '255,238,205', dot: '#fff6df', ring: 'rgba(255,255,255,0.10)', mark: '#e8a468', markInk: '#2a1a0e', pad: 'rgba(0,0,0,0.30)', padEdge: 'rgba(255,255,255,0.07)',
     hint: '#ffc766', bad: '#ff7a63', good: '#8fe0a8',
-    accent: '#f1d9a0', ink: '#f4efe4', panel: ['rgba(38,40,44,0.97)', 'rgba(24,25,28,0.98)'], stroke: 'rgba(241,217,160,0.45)',
-    btn: ['#3d4046', '#2c2e33'], btnOn: ['#3f7d6c', '#2b5a4d'], primary: ['#f1d9a0', '#d8b968'], primaryInk: '#2d2410',
+    accent: '#f1d9a0', ink: '#f4efe4', panel: ['rgba(38,40,44,0.97)', 'rgba(24,25,28,0.98)'], panel3: ['rgba(36,26,20,0.95)', 'rgba(22,16,12,0.97)'], stroke: 'rgba(241,217,160,0.45)',
+    btn: ['#3d4046', '#2c2e33'], btn3: ['#3b2a20', '#2a1d15'], btnOn: ['#3f7d6c', '#2b5a4d'], primary: ['#f1d9a0', '#d8b968'], primaryInk: '#2d2410',
   },
   {
     id: 'clay', name: 'Clay Floor',
@@ -38,7 +39,7 @@ export const THEMES = [
     powder: '#eef4ff', powderCore: '#ffffff', halo: '170,205,255', dot: '#f2f7ff', ring: 'rgba(200,220,255,0.11)', mark: '#ffb878', markInk: '#2c1a0a', pad: 'rgba(0,0,0,0.30)', padEdge: 'rgba(190,215,255,0.08)',
     hint: '#ffcb6b', bad: '#ff7e6e', good: '#90e2b4',
     accent: '#b7d2f6', ink: '#e8f0fb', panel: ['rgba(22,34,52,0.97)', 'rgba(12,20,32,0.98)'], stroke: 'rgba(183,210,246,0.5)',
-    btn: ['#2e4560', '#213349'], btnOn: ['#2f8a82', '#206560'], primary: ['#b7d2f6', '#86aee0'], primaryInk: '#0f2036',
+    btn: ['#2e4560', '#213349'], btn3: ['#2a3346', '#1d2433'], btnOn: ['#2f8a82', '#206560'], primary: ['#b7d2f6', '#86aee0'], primaryInk: '#0f2036',
   },
 ];
 export const themeById = (id) => THEMES.find((t) => t.id === id) ?? THEMES[0];
@@ -95,7 +96,8 @@ export function panel(ctx, th, x, y, w, h, o = {}) {
   ctx.save();
   ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = o.blur ?? 26; ctx.shadowOffsetY = 10;
   const g = ctx.createLinearGradient(x, y, x, y + h);
-  g.addColorStop(0, th.panel[0]); g.addColorStop(1, th.panel[1]);
+  const pc = v3.on && th.panel3 ? th.panel3 : th.panel;
+  g.addColorStop(0, pc[0]); g.addColorStop(1, pc[1]);
   ctx.fillStyle = g; rr(ctx, x, y, w, h, o.r ?? 26); ctx.fill();
   ctx.restore();
   ctx.strokeStyle = th.stroke; ctx.lineWidth = 2; rr(ctx, x, y, w, h, o.r ?? 26); ctx.stroke();
@@ -109,11 +111,11 @@ export function button(ctx, th, r, lines, kind = 'normal', o = {}) {
   const press = o.pressed ? 2 : 0;
   const y = r.y + press;
   const rad = o.radius ?? 18;
-  const col = kind === 'primary' ? th.primary : kind === 'on' ? th.btnOn : kind === 'danger' ? ['#c9503f', '#8e2b27'] : kind === 'ghost' ? ['rgba(255,255,255,0.05)', 'rgba(255,255,255,0.05)'] : th.btn;
+  const col = kind === 'primary' ? th.primary : kind === 'on' ? th.btnOn : kind === 'danger' ? ['#c9503f', '#8e2b27'] : kind === 'ghost' ? ['rgba(255,255,255,0.05)', 'rgba(255,255,255,0.05)'] : v3.on ? (th.btn3 ?? th.btn) : th.btn;
   if (!press) { ctx.fillStyle = 'rgba(0,0,0,0.38)'; rr(ctx, r.x, r.y + 4, r.w, r.h, rad); ctx.fill(); }
   ctx.fillStyle = press ? col[1] : col[0];
   rr(ctx, r.x, y, r.w, r.h, rad); ctx.fill();
-  ctx.strokeStyle = kind === 'primary' ? 'rgba(255,255,255,0.45)' : 'rgba(255,255,255,0.16)'; ctx.lineWidth = 1.5;
+  ctx.strokeStyle = kind === 'primary' ? 'rgba(255,255,255,0.45)' : v3.on ? 'rgba(241,217,160,0.3)' : 'rgba(255,255,255,0.16)'; ctx.lineWidth = 1.5;
   rr(ctx, r.x, y, r.w, r.h, rad); ctx.stroke();
   const color = kind === 'primary' ? th.primaryInk : th.ink;
   const size = o.size ?? 28, line = o.line ?? size * 1.22, subs = o.sub ?? [];

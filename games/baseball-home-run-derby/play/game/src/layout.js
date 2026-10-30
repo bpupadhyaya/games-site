@@ -32,13 +32,13 @@ function build(w, h, ins) {
   const kc = Math.max(0.3, ins.px || 0.54), badgeBottom = U.y0 + 6 / kc + 1.7 * Math.max(16, 11.5 / kc);   // the kit's preview pill (top centre)
   const hx = U.x0 + 12 + backSz, hy = land ? U.y0 + 10 : Math.max(U.y0 + 10, Math.ceil(badgeBottom + 4));
   const hz = 1 + (clamp(ins.zoom || 1, 1, 2) - 1) * 0.6;
-  const hud = L.hud = { x: hx, y: hy, w: land ? clamp(cx - 86 - hx, 300, 560) : U.x1 - 12 - hx, h: Math.round((land ? (h < 460 ? 82 : 116) : 132) * hz) };
+  const hud = L.hud = { x: hx, y: hy, w: land ? clamp(cx - 86 - hx, 300, 560) : U.x1 - 12 - hx, h: Math.round((land ? (h < 460 ? 82 : 100) : Math.max(90, tap + 20)) * hz) };
   if (land) L.pause = R(U.x1 - 12 - tap, U.y0 + 12, tap, tap);
-  else L.pause = R(hud.x + hud.w - 12 - tap, hy + 10, tap, tap);
+  else L.pause = R(hud.x + hud.w - 12 - tap, hy + Math.max(8, Math.round((hud.h - tap) / 2)), tap, tap);
   L.think = R(L.pause.x - 8 - tap, L.pause.y, tap, tap);
   hud.textMaxW = (land ? hud.w - 28 : L.think.x - 10 - (hud.x + 18));
   // spotlight arc strip + outs pips under the scoreboard (portrait) / right of it (landscape)
-  const sh = Math.round((land ? (h < 460 ? 30 : 40) : 48) * Math.min(hz, 1.35));
+  const sh = Math.round((land ? (h < 460 ? 28 : 34) : 34) * Math.min(hz, 1.35));
   L.strip = R(hud.x, hud.y + hud.h + (land ? 6 : 8), hud.w, sh);
   L.pitchTag = { x: cx, y: land ? Math.max(U.y0 + 66, L.strip.y + L.strip.h + 30) : hud.y + hud.h + 40 + L.strip.h };
   L.callY = land ? U.h * 0.34 : U.h * 0.30;

@@ -2,6 +2,7 @@
 // its walnut rack, tulip lattice, avatars. Original art, drawn procedurally. Heavy things are painted once into
 // cached sprites (OffscreenCanvas) and blitted per frame.
 import { W, H, RACK, COLS, slotRect, LAY, PILE_C, TILE_S } from './layout.js';
+import { v3 } from './v3.js';
 
 export const NUM_FONT = "'Trebuchet MS','Avenir Next','Segoe UI',Verdana,sans-serif";
 export const DISPLAY = "Georgia,'Times New Roman',serif";
@@ -134,16 +135,34 @@ function sprite(keyStr, w, h, paint) {
 }
 export function invalidateArt() { sprites.clear(); bgCache.clear(); }
 
+// While a 3D scene covers the screen (v3.rec is an array) tiles, backs, frames and title letters are RECORDED as four CSS-pixel corners
+// (face rectangle only) and the presenter stands real tiles there. The 2D code keeps all positions, flights and animation.
+export function recordRect(ctx, kind, x, y, w, h, extra) {
+  ctx.save();
+  const m = ctx.getTransform(); ctx.restore();
+  const k = v3.k, P = (px, py) => { const q = m.transformPoint({ x: px, y: py }); return [q.x * k, q.y * k]; };
+  v3.rec.push({ kind, sc: Math.hypot(m.a, m.b) * k, q: [P(x, y), P(x + w, y), P(x + w, y + h), P(x, y + h)], ...extra });
+}
+const faceH = (h) => h - Math.max(3, h * 0.055);
+
 // Draw a tile id (0..105) at top-left (x,y), size w x h. `okey` = the deal's okey {c,n,key} (to mark wilds).
 export function drawTile(ctx, id, okey, x, y, w, h, o = {}) {
   const fake = id >= 104;
   const key = fake ? -1 : (id % 52);
   const wild = !fake && okey && key === okey.key;
-  const alpha = o.alpha ?? 1;
+  let alpha = o.alpha ?? 1;
   if (alpha <= 0.01) return;
   ctx.save();
-  if (alpha < 1) ctx.globalAlpha = alpha;
   if (o.rot) { ctx.translate(x + w / 2, y + h / 2); ctx.rotate(o.rot); ctx.translate(-w / 2, -h / 2); x = 0; y = 0; }
+  if (v3.rec && !o.hud) {
+    recordRect(ctx, 'tile', x, y, w, faceH(h), { id, okey, alpha, dim: o.dim || 0, plane: o.plane || null, lift: o.lift || 0 });
+    alpha *= v3.flatA;       // crossfade: the flat copy fades out while the 3D one is already there
+    if (alpha <= 0.01) {
+      if (o.glow) { ctx.shadowColor = o.glow; ctx.shadowBlur = 18; ctx.lineWidth = 3; ctx.strokeStyle = o.glow; roundPath(ctx, x - 1, y - 1, w + 2, h - h * 0.055 + 2, w * 0.16); ctx.stroke(); }
+      ctx.restore(); return;
+    }
+  }
+  if (alpha < 1) ctx.globalAlpha = alpha;
   const s = sprite(`t${fake ? 'F' : key}|${wild ? 1 : 0}|${w}x${h}`, w, h, (cx) => paintFace(cx, w, h, key, fake, wild));
   if (s) ctx.drawImage(s.cv, x - s.pad, y - s.pad, w + s.pad * 2, h + s.pad * 2);
   else { ctx.translate(x, y); paintFace(ctx, w, h, key, fake, wild); ctx.translate(-x, -y); }
@@ -157,8 +176,14 @@ export function drawTile(ctx, id, okey, x, y, w, h, o = {}) {
 
 export function drawBack(ctx, x, y, w, h, o = {}) {
   ctx.save();
-  if (o.alpha !== undefined && o.alpha < 1) ctx.globalAlpha = o.alpha;
   if (o.rot) { ctx.translate(x + w / 2, y + h / 2); ctx.rotate(o.rot); ctx.translate(-w / 2, -h / 2); x = 0; y = 0; }
+  let alpha = o.alpha ?? 1;
+  if (v3.rec && !o.hud) {
+    recordRect(ctx, 'back', x, y, w, faceH(h), { alpha, lift: o.lift || 0 });
+    alpha *= v3.flatA;
+    if (alpha <= 0.01) { ctx.restore(); return; }
+  }
+  if (alpha < 1) ctx.globalAlpha = alpha;
   const s = sprite(`b|${w}x${h}`, w, h, (cx) => paintBack(cx, w, h));
   if (s) ctx.drawImage(s.cv, x - s.pad, y - s.pad, w + s.pad * 2, h + s.pad * 2);
   else { ctx.translate(x, y); paintBack(ctx, w, h); }
@@ -300,6 +325,43 @@ export function fitWrap(ctx, text, weight, base, maxW, maxH, family = NUM_FONT, 
   return { fs: min, lines: wrapLines(ctx, text, maxW) };
 }
 
+// ---- lit wood and brass (only while a 3D scene covers the screen; the flat look below stays the fallback) -------------------------
+let woodPat = null;
+function woodPattern(ctx) {
+  if (woodPat === undefined) return null;
+  if (woodPat) return woodPat;
+  const c = newCanvas(256, 256); if (!c) { woodPat = undefined; return null; }
+  const x = c.getContext('2d'); let seed = 11; const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+  const g = x.createLinearGradient(0, 0, 256, 0); g.addColorStop(0, '#5b3622'); g.addColorStop(0.5, '#6e4329'); g.addColorStop(1, '#55321f'); x.fillStyle = g; x.fillRect(0, 0, 256, 256);
+  for (let k = 0; k < 70; k++) { const y = rnd() * 256, a = 0.06 + rnd() * 0.16; x.strokeStyle = rnd() < 0.6 ? `rgba(20,8,2,${a})` : `rgba(230,170,110,${a * 0.6})`; x.lineWidth = 0.6 + rnd() * 1.8; x.beginPath(); const ph = rnd() * 6, am = 1 + rnd() * 3; for (let xx = 0; xx <= 256; xx += 8) { const yy = y + Math.sin(xx * 0.03 + ph) * am; if (xx) x.lineTo(xx, yy); else x.moveTo(xx, yy); } x.stroke(); }
+  woodPat = ctx.createPattern(c, 'repeat'); return woodPat;
+}
+// A lit walnut plaque with a brass rim: kind 'wood' (default), 'brass' (the primary action), 'teal' (an active toggle / the player's seat), 'dark' (status strip).
+export function plaque(ctx, x, y, w, h, r, o = {}) {
+  const { kind = 'wood', pressed = false, glow = null } = o;
+  ctx.save();
+  if (pressed) ctx.translate(0, 2);
+  ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = pressed ? 4 : 11; ctx.shadowOffsetY = pressed ? 1 : 5;
+  roundPath(ctx, x, y, w, h, r);
+  if (kind === 'brass') { const g = ctx.createLinearGradient(0, y, 0, y + h); g.addColorStop(0, pressed ? '#e2b64f' : '#f6d57c'); g.addColorStop(0.45, pressed ? '#c99227' : '#dfaa3a'); g.addColorStop(1, pressed ? '#a8741a' : '#b98524'); ctx.fillStyle = g; }
+  else { const p = woodPattern(ctx); ctx.fillStyle = p || '#4a2b17'; }
+  ctx.fill(); ctx.shadowColor = 'transparent';
+  if (kind !== 'brass') {                      // light falling from the top: lit upper half, deep lower edge
+    const g = ctx.createLinearGradient(0, y, 0, y + h); g.addColorStop(0, kind === 'dark' ? 'rgba(0,0,0,0.25)' : 'rgba(255,214,160,0.20)'); g.addColorStop(0.5, 'rgba(0,0,0,0.06)'); g.addColorStop(1, 'rgba(0,0,0,0.42)');
+    roundPath(ctx, x, y, w, h, r); ctx.fillStyle = g; ctx.fill();
+    if (kind === 'teal') { roundPath(ctx, x, y, w, h, r); const t = ctx.createLinearGradient(0, y, 0, y + h); t.addColorStop(0, 'rgba(40,170,150,0.38)'); t.addColorStop(1, 'rgba(10,80,70,0.34)'); ctx.fillStyle = t; ctx.fill(); }
+    if (kind === 'dark') { roundPath(ctx, x, y, w, h, r); ctx.fillStyle = 'rgba(8,4,2,0.38)'; ctx.fill(); }
+  } else {
+    const g = ctx.createLinearGradient(0, y, 0, y + h); g.addColorStop(0, 'rgba(255,255,255,0.45)'); g.addColorStop(0.35, 'rgba(255,255,255,0)'); g.addColorStop(1, 'rgba(90,50,0,0.25)'); roundPath(ctx, x, y, w, h, r); ctx.fillStyle = g; ctx.fill();
+  }
+  // brass rim (rim light on its upper edge) and a fine engraved line inside it
+  const rim = ctx.createLinearGradient(0, y, 0, y + h); rim.addColorStop(0, '#fff0be'); rim.addColorStop(0.5, '#d9aa4a'); rim.addColorStop(1, '#8e6420');
+  roundPath(ctx, x + 0.75, y + 0.75, w - 1.5, h - 1.5, r); ctx.lineWidth = kind === 'brass' ? 1.5 : 2; ctx.strokeStyle = glow || rim; ctx.stroke();
+  if (kind !== 'brass') { roundPath(ctx, x + 3.5, y + 3.5, w - 7, h - 7, Math.max(2, r - 3)); ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(255,225,160,0.16)'; ctx.stroke(); }
+  if (glow) { ctx.shadowColor = glow; ctx.shadowBlur = 16; roundPath(ctx, x + 0.75, y + 0.75, w - 1.5, h - 1.5, r); ctx.lineWidth = 2; ctx.strokeStyle = glow; ctx.stroke(); }
+  ctx.restore();
+}
+
 // Pointer position fed by game.update so a button under a held finger draws pressed.
 export const PRESS = { x: 0, y: 0, down: false };
 export function button(ctx, r, label, o = {}) {
@@ -307,6 +369,11 @@ export function button(ctx, r, label, o = {}) {
   const pressed = !dim && PRESS.down && PRESS.x >= r.x && PRESS.x <= r.x + r.w && PRESS.y >= r.y && PRESS.y <= r.y + r.h;
   ctx.save();
   if (dim) ctx.globalAlpha = 0.45;
+  if (v3.rec) {          // a 3D scene is behind: lit walnut and brass plaques
+    plaque(ctx, r.x, r.y, r.w, r.h, Math.min(22, r.h * 0.3), { kind: primary ? 'brass' : active ? 'teal' : 'wood', pressed, glow: hot ? '#ffe28a' : null });
+    ctx.restore();
+    return buttonLabel(ctx, r, label, o);
+  }
   if (pressed) ctx.translate(0, 2);
   ctx.shadowColor = 'rgba(0,0,0,0.4)'; ctx.shadowBlur = pressed ? 4 : 10; ctx.shadowOffsetY = pressed ? 1 : 4;
   roundPath(ctx, r.x, r.y, r.w, r.h, Math.min(24, r.h * 0.32));
@@ -319,13 +386,20 @@ export function button(ctx, r, label, o = {}) {
   ctx.lineWidth = 1.5; ctx.strokeStyle = primary ? '#fff0be' : glow ? '#ffe28a' : 'rgba(233,196,106,0.55)'; ctx.stroke();
   if (hot) { ctx.shadowColor = '#ffe28a'; ctx.shadowBlur = 20; ctx.strokeStyle = '#ffe28a'; ctx.lineWidth = 3; roundPath(ctx, r.x, r.y, r.w, r.h, Math.min(24, r.h * 0.32)); ctx.stroke(); }
   ctx.restore();
+  buttonLabel(ctx, r, label, o);
+}
+function buttonLabel(ctx, r, label, o) {
+  const { primary = false, dim = false, size = 28, scale = 1 } = o;
+  const pressed = !dim && PRESS.down && PRESS.x >= r.x && PRESS.x <= r.x + r.w && PRESS.y >= r.y && PRESS.y <= r.y + r.h;
   ctx.save();
+  if (pressed && v3.rec) ctx.translate(0, 2);
   if (dim) ctx.globalAlpha = 0.6;
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   const maxW = r.w - 20;
   const base = size * scale;
   const { fs, lines } = fitWrap(ctx, String(label).replace(/\n/g, ' '), 700, base, maxW, r.h - 10);
   ctx.font = `700 ${fs}px ${NUM_FONT}`;
+  if (v3.rec && !primary) { ctx.shadowColor = 'rgba(0,0,0,0.65)'; ctx.shadowBlur = 3; ctx.shadowOffsetY = 1; }
   ctx.fillStyle = primary ? '#3a2406' : '#f7efd8';
   const lh = fs * 1.15;
   lines.forEach((l, i) => ctx.fillText(l, r.x + r.w / 2, r.y + r.h / 2 + (i - (lines.length - 1) / 2) * lh + 1));

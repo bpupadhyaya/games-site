@@ -7,6 +7,7 @@ import { LESSONS } from './lessons.js';
 import { coord, KOMI, opp } from './rules.js';
 import { puzzleText } from './puzzles.js';
 import { RULES } from './content.js';
+import { v3, flatAlpha } from './v3.js';
 
 const FONT = '"Cormorant Garamond", Georgia, "Times New Roman", serif', UI = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 const TAU = Math.PI * 2;
@@ -57,10 +58,20 @@ export const HOW_TEXT = [
 const ease = (f) => f * f * (3 - 2 * f);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
+const DOC_SCENES = new Set(['setup', 'lessons', 'about', 'how', 'rules', 'settings', 'demo-limit']);
 export function render(ctx, S) {
   const calm = S.prefs.calm;
-  drawTable(ctx);
-  drawLamp(ctx, S.t, calm);
+  // with the 3D room behind the canvas the flat table and lamp fade out (crossfade), and the document screens get a dark scrim so the
+  // light headings stay readable over the lit scene
+  const fa = flatAlpha();
+  if (fa > 0) { ctx.save(); ctx.globalAlpha = fa; drawTable(ctx); drawLamp(ctx, S.t, calm); ctx.restore(); }
+  if (v3.on && DOC_SCENES.has(S.scene)) { ctx.save(); ctx.globalAlpha = 1 - fa; ctx.fillStyle = 'rgba(16,10,5,0.66)'; ctx.fillRect(0, 0, W, H); ctx.restore(); }
+  if (v3.on && !DOC_SCENES.has(S.scene) && S.scene !== 'title') {
+    // light text sits over the lit floor: darken the top and bottom bands and the corners a little
+    const a = 1 - fa, g1 = ctx.createLinearGradient(0, 0, 0, H * 0.3), g2 = ctx.createLinearGradient(0, H * 0.68, 0, H);
+    g1.addColorStop(0, `rgba(14,9,4,${0.8 * a})`); g1.addColorStop(1, 'rgba(14,9,4,0)'); g2.addColorStop(0, 'rgba(14,9,4,0)'); g2.addColorStop(1, `rgba(14,9,4,${0.8 * a})`);
+    ctx.fillStyle = g1; ctx.fillRect(0, 0, W, H * 0.3); ctx.fillStyle = g2; ctx.fillRect(0, H * 0.68, W, H * 0.32);
+  }
   const big = S.prefs.big;
   const text = (str, x, y, size, color = '#f6e3b4', font = FONT, weight = 700, align = 'center') => { ctx.textAlign = align; ctx.font = `${weight} ${size}px ${font}`; ctx.fillStyle = color; ctx.fillText(str, x, y); };
   // a heading that shrinks to fit maxW (never wraps, never runs under the host's back button)
@@ -114,7 +125,51 @@ export function render(ctx, S) {
 }
 
 // ---- board, stones, marks ------------------------------------------------------------------------------------------------
+// ---- the 3D board: the stones and marks are handed to view3d/presenter.js; only the aim cross-hair and its tag stay flat ----------------------
+const MK = { ring: 0.44, sq: 0.5 };
+function pushV3(S, L, o) {
+  const g = o.g ?? S.g, n = g.n, calm = S.prefs.calm, P = v3.pieces, M = v3.marks, t = S.t;
+  v3.caps = { 1: g.caps ? g.caps[1] : 0, 2: g.caps ? g.caps[2] : 0 };
+  const dead = new Set(o.dead || []);
+  for (let i = 0; i < n * n; i++) { const c = g.b[i]; if (c) P.push(dead.has(i) ? { who: c, i, dead: true } : { who: c, i }); }
+  for (const a of S.anim) if (a.type === 'cap') P.push({ who: a.c, i: a.i, cap: clamp(a.t / a.dur, 0, 1) });
+  if (o.noMarks) return;
+  const pulse = (f) => (calm ? 0.8 : 0.65 + 0.35 * Math.sin(S.t * f));
+  if (g.last >= 0 && g.b[g.last]) M.push({ i: g.last, kind: 'ring', col: g.b[g.last] === 1 ? '#fff0d2' : '#28140a', a: 0.95, r: MK.ring, top: true });
+  if (g.ko >= 0) M.push({ i: g.ko, kind: 'sq', col: '#c0281e', a: 0.95, r: 0.5 });
+  if (o.owner) for (let i = 0; i < n * n; i++) { const w = o.owner[i]; if (w === 1 || w === 2) M.push({ i, kind: 'sqf', col: w === 1 ? '#121010' : '#fffcf0', a: 0.9, r: 0.4 }); }
+  for (const i of dead) M.push({ i, kind: 'x', col: '#d63a2a', a: 1, r: 0.62, top: true });
+  if (o.target != null && o.target >= 0 && g.b[o.target]) for (const i of groupOf(g, o.target)) M.push({ i, kind: 'ring', col: '#de402c', a: pulse(4), r: 0.96, top: true });
+  for (const i of o.glow || []) { const p = pulse(5); M.push({ i, kind: 'disc', col: '#ffd76e', a: 0.14 + 0.12 * p, r: 0.72 }); M.push({ i, kind: 'ring', col: '#ffd76e', a: 0.5 + 0.5 * p, r: 0.98 }); }
+  for (const i of o.tapped || []) { M.push({ i, kind: 'disc', col: '#50be78', a: 0.6, r: 0.5 }); M.push({ i, kind: 'ring', col: '#1e6e3c', a: 0.9, r: 0.62 }); }
+  if (S.pend >= 0 && S.pendOn) {
+    const i = S.pend;
+    if (!g.b[i]) { P.push({ who: S.pendColor, i, ghost: true }); M.push({ i, kind: 'ring', col: '#ffe696', a: 0.95, r: 1.26 }); }
+    else M.push({ i, kind: 'ring', col: '#dc4632', a: 0.9, r: 1.1, top: true });
+  }
+  if (S.refuse) { const a = S.refuse, f = clamp(a.t / 0.7, 0, 1); M.push({ i: a.i, kind: 'x', col: '#e63c28', a: 1 - f, r: 0.7 }); M.push({ i: a.i, kind: 'ring', col: '#e63c28', a: 1 - f, r: 1.2 }); }
+  if (S.hint && S.hint.mv >= 0) { const p = pulse(5); M.push({ i: S.hint.mv, kind: 'disc', col: '#ffd75a', a: 0.18 + 0.14 * p, r: 0.8 }); M.push({ i: S.hint.mv, kind: 'ring', col: '#ffd75a', a: 0.6 + 0.4 * p, r: 1.0 }); }
+}
+// the aim cross-hair and the coordinate tag, flat on top of the 3D board (through the live camera's projection)
+function overlayV3(ctx, S, o) {
+  if (!(S.pend >= 0 && S.pendOn)) return;
+  const g = o.g ?? S.g, n = g.n, i = S.pend, c = v3.pt(n, i), r = v3.u(n) * 0.485;
+  const a = v3.ptc(n, 0, Math.floor(i / n)), b = v3.ptc(n, n - 1, Math.floor(i / n)), e = v3.ptc(n, i % n, 0), f = v3.ptc(n, i % n, n - 1);
+  ctx.strokeStyle = 'rgba(255,230,150,0.5)'; ctx.lineWidth = 1.5; ctx.setLineDash([6, 6]);
+  ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.moveTo(e[0], e[1]); ctx.lineTo(f[0], f[1]); ctx.stroke(); ctx.setLineDash([]);
+  const lab = coord(n, i), tw = 88, tx = clamp(c[0], tw / 2 + 4, W - tw / 2 - 4), ty = c[1] - r * 2 - 14 < 90 ? c[1] + r * 2 + 44 : c[1] - r * 2 - 14;
+  ctx.fillStyle = 'rgba(30,18,10,0.88)'; ctx.beginPath(); ctx.roundRect(tx - tw / 2, ty - 34, tw, 44, 12); ctx.fill();
+  ctx.strokeStyle = 'rgba(255,230,150,0.8)'; ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.textAlign = 'center'; ctx.font = `700 26px ${UI}`; ctx.fillStyle = '#ffe6a0'; ctx.fillText(lab, tx, ty - 3);
+}
 function drawBoardPieces(ctx, S, L, o = {}) {
+  if (!(v3.on && v3.pt)) return drawBoardPieces2D(ctx, S, L, o);
+  pushV3(S, L, o);
+  const fa = flatAlpha();
+  if (fa > 0) { ctx.save(); ctx.globalAlpha = fa; drawBoardPieces2D(ctx, S, L, o); ctx.restore(); }
+  if (!o.noMarks) overlayV3(ctx, S, o);
+}
+function drawBoardPieces2D(ctx, S, L, o = {}) {
   const g = o.g ?? S.g, n = L.n, r = stoneR(L), calm = S.prefs.calm;
   drawBoardLayer(ctx, L, S.prefs.theme);
   const dropAt = new Map();
@@ -336,6 +391,8 @@ export function toSections(items) {
   return out;
 }
 export const ABOUT_SECTIONS = toSections(ABOUT_TEXT), HOW_SECTIONS = toSections(HOW_TEXT), RULES_SECTIONS = toSections(RULES);
+// Credits for the optional 3D layer (three.js and the shared view3d library), added at the end of About by main.js once loaded.
+export const addAboutCredits = (body) => { if (!ABOUT_SECTIONS.some((s) => s.credits)) ABOUT_SECTIONS.push({ title: '3D graphics credits', lines: [body], stone: null, credits: true }); };
 function drawReaderFrame(ctx, S, u, titleStr, content) {
   const { button, panel, isPress, title } = u, Q = layout().reader, sidx = S.prefs.textScaleIdx ?? 0;
   title(titleStr, Q.title.x, Q.title.y, Q.title.size, Q.title.maxW);
@@ -466,16 +523,14 @@ function drawBoardScene(ctx, S, u) {
     const apLeft = scene === 'autoplay' ? Math.max(0, THINK_STEPS[S.prefs.apThinkIdx] - S.ap.t) : 0;
     const dead = !tall && S.phase === 'scoring' && !S.scorer ? 'Tap a group to mark it dead or alive' : '';
     const status = scene === 'autoplay'
-      ? (scoring ? (S.phase === 'over' ? 'Game over' : S.scorer ? 'Counting' : dead || 'Counting the board') : S.ap.paused ? 'Paused' : S.ap.phase === 'think' ? `Think: what would ${g.turn === 1 ? 'Black' : 'White'} play? (${apLeft.toFixed(0)}s)` : S.ap.phase === 'reveal' ? 'Here is the move about to be played' : 'Playing')
+      ? (scoring ? (S.phase === 'over' ? 'Game over' : S.scorer ? 'Counting' : dead || 'Counting the board') : S.ap.paused ? 'Paused' : S.ap.phase === 'think' ? `Think: ${g.turn === 1 ? 'Black' : 'White'} to play (${apLeft.toFixed(0)}s)` : S.ap.phase === 'reveal' ? 'Here is the move about to be played' : 'Playing')
       : scoring ? (S.phase === 'over' ? 'Game over' : S.scorer ? 'Counting' : dead || 'Check the count') : S.thinking ? 'Thinking...' : `${g.turn === 1 ? 'Black' : 'White'} to play`;
-    const st = P.status, line = scene === 'autoplay' ? status : `${status}   ·   Move ${g.moves + 1}`, ssz = scene === 'autoplay' ? Math.min(st.size, 24) : st.size;
+    const st = P.status, line = scene === 'autoplay' ? `Auto Play · ${status}` : `${status}   ·   Move ${g.moves + 1}`, ssz = scene === 'autoplay' ? Math.min(st.size, 24) : st.size;
     if (st.card) {
       const cw = P.players[0].w, nl = wrap(line, st.x, st.y - 8, ssz, cw, dim, ssz * 1.25, 'center', 600);
       statusBottom = st.y - 8 + (nl - 1) * ssz * 1.25 + 8;
-      if (scene === 'autoplay') { text('Auto Play — watch and learn', st.x, st.y - 8 + nl * ssz * 1.25 + 8, 20, 'rgba(246,227,180,0.65)', UI, 600); statusBottom += 28; }
     } else {
       title(line, st.x, st.y, ssz, w0() - 2 * Math.max(40, layout().F.bk + 16), dim, UI, 600);
-      if (scene === 'autoplay' && tall) text('Auto Play — watch and learn', st.x, st.sub, 20, 'rgba(246,227,180,0.65)', UI, 600);
     }
   } else if (lesson) {
     const hd = P.head;
@@ -523,7 +578,7 @@ function drawBoardScene(ctx, S, u) {
   }
   // ---- bowls (the tall layout's Auto Play uses this band for the think-time stepper, so no bowls there)
   const cap1 = g.caps[1], cap2 = g.caps[2];
-  if (P.bowls && (scene !== 'autoplay' || !tall)) {
+  if (P.bowls && (scene !== 'autoplay' || !tall) && !v3.on) {
     drawBowl(ctx, 1, P.bowls.a.x, P.bowls.a.y, P.bowls.a.s); drawBowl(ctx, 2, P.bowls.b.x, P.bowls.b.y, P.bowls.b.s);
     if (scene === 'play' && (cap1 || cap2)) {
       // prisoners: white stones Black has captured sit by Black's bowl, black stones White has captured by White's bowl

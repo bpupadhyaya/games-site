@@ -6,6 +6,7 @@ import { drawBackdrop, drawField, drawPole, drawPlayer, TEAM } from './art.js';
 import { POLE, JAIL, FORT_R, JAIL_R, TEAM_SIZE, ROUNDS_MAX, WIN_POINTS, LEVELS, ROLES, goalTarget, jailedOf, teamOf } from './engine.js';
 import { flowOf } from './pages.js';
 import { drawLockup, drawMoreLine } from './brand.js';
+import { plank } from './chrome.js';
 
 const DISPLAY = '"Fredoka", "Trebuchet MS", system-ui, sans-serif', BODY = '"Barlow", "Trebuchet MS", system-ui, sans-serif', NUM = '"Barlow Condensed", "Barlow", system-ui, sans-serif';
 const TAU = Math.PI * 2, GOLD = '#ffe27a', CREAM = '#f4fff0', INK = '#0e2a14', PLATE = '8,34,28';
@@ -42,20 +43,22 @@ function draw(ctx, state, L, glIn) {
   const button = (r, label, o = {}) => {
     ctx.save(); if (o.dim) ctx.globalAlpha = 0.45;
     const press = o.press ? 3 : 0, rad = Math.min(r.h * 0.5, 34);
-    ctx.fillStyle = 'rgba(0,20,8,0.45)'; ctx.beginPath(); ctx.roundRect(r.x + 2, r.y + 6, r.w, r.h, rad); ctx.fill();
+    const wood = !o.primary && !o.hot;
+    if (wood) plank(ctx, r, rad, { press, lit: !!o.tone });
+    else { ctx.fillStyle = 'rgba(0,20,8,0.45)'; ctx.beginPath(); ctx.roundRect(r.x + 2, r.y + 6, r.w, r.h, rad); ctx.fill(); }
     const gr = ctx.createLinearGradient(0, r.y, 0, r.y + r.h);
     if (o.primary) { gr.addColorStop(0, '#fff29a'); gr.addColorStop(0.55, '#ffcc33'); gr.addColorStop(1, '#f0a000'); }
     else if (o.hot) { gr.addColorStop(0, '#ff9ab4'); gr.addColorStop(1, '#d4244e'); }
     else { gr.addColorStop(0, o.tone ?? '#2a6a58'); gr.addColorStop(1, '#123f33'); }
-    ctx.fillStyle = gr; ctx.beginPath(); ctx.roundRect(r.x, r.y + press, r.w, r.h, rad); ctx.fill();
-    ctx.strokeStyle = o.primary ? 'rgba(255,252,220,0.95)' : o.hot ? 'rgba(255,225,230,0.9)' : 'rgba(170,240,210,0.5)'; ctx.lineWidth = 2; ctx.stroke();
+    if (!wood) { ctx.fillStyle = gr; ctx.beginPath(); ctx.roundRect(r.x, r.y + press, r.w, r.h, rad); ctx.fill();
+      ctx.strokeStyle = o.primary ? 'rgba(255,252,220,0.95)' : 'rgba(255,225,230,0.9)'; ctx.lineWidth = 2; ctx.stroke(); }
     const want = (o.size ?? (r.h > 80 ? 32 : 26)) * (o.noscale ? 1 : Math.min(bs, 1.08)), sub = o.sub && r.h >= 74 ? o.sub : '';
     const s = label ? fit(label, r.w - 26, want, 600, DISPLAY) : want, cy = r.y + press + (sub ? r.h * 0.42 : r.h / 2);
     if (label) text(label, r.x + r.w / 2, cy + s * 0.34, s, o.primary ? INK : CREAM, 'center', 600, DISPLAY);
     if (sub) { ctx.font = font(600, FL); if (ctx.measureText(sub).width <= r.w - 20) text(sub, r.x + r.w / 2, r.y + r.h - 14, FL, o.primary ? 'rgba(14,42,20,0.72)' : 'rgba(244,255,240,0.7)', 'center', 600); }
     ctx.restore();
   };
-  const panel = (r, a = 0.8, rad = 26) => { ctx.fillStyle = `rgba(${PLATE},${a})`; ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, rad); ctx.fill(); ctx.strokeStyle = 'rgba(160,240,200,0.4)'; ctx.lineWidth = 2; ctx.stroke(); };
+  const panel = (r, a = 0.8, rad = 26) => plank(ctx, r, rad, { a: Math.min(1, a + 0.12) });
   let turned = false;   // the field is drawn a quarter turn (landscape): text inside it is turned back so it reads upright
   const inCourt = (cx, cy, f, shake, fn, rot = false) => { ctx.save(); ctx.translate(cx + (shake?.x ?? 0), cy + (shake?.y ?? 0)); if (rot) ctx.rotate(Math.PI / 2); ctx.scale(f, f); ctx.translate(-CX, -CY); turned = rot; fn(); turned = false; ctx.restore(); };
   const ctext = (str, x, y, ...a) => { if (!turned) { text(str, x, y, ...a); return; } ctx.save(); ctx.translate(x, y); ctx.rotate(-Math.PI / 2); text(str, 0, 0, ...a); ctx.restore(); };
@@ -260,9 +263,7 @@ function draw(ctx, state, L, glIn) {
   const nameH = auto ? 'Pink team' : 'You', nameC = auto ? 'Blue team' : 'Computer';
   const card = (r, key, name, active) => {
     const rad = Math.min(24, r.h * 0.2), pad = Math.min(16, r.w * 0.06);
-    ctx.save(); if (active) { ctx.shadowColor = 'rgba(255,230,120,0.8)'; ctx.shadowBlur = state.calm ? 12 : 14 + Math.sin(t * 4) * 5; }
-    ctx.fillStyle = `rgba(${PLATE},0.88)`; ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, rad); ctx.fill(); ctx.restore();
-    ctx.strokeStyle = active ? 'rgba(255,226,122,0.95)' : 'rgba(160,240,200,0.3)'; ctx.lineWidth = active ? 3 : 2; ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, rad); ctx.stroke();
+    plank(ctx, r, rad, { a: 0.97, active });
     const row1 = r.y + r.h * 0.3, row2 = r.y + r.h * 0.58, row3 = r.y + r.h * 0.84, T = TEAM[key];
     ctx.fillStyle = T.main; ctx.beginPath(); ctx.arc(r.x + pad + 14, row1 - 4, 14, 0, TAU); ctx.fill(); ctx.strokeStyle = T.light; ctx.lineWidth = 2; ctx.stroke();
     const nx = r.x + pad + 38, sw = Math.min(88, r.w * 0.26);

@@ -5,6 +5,7 @@ import { RULES, HOWTO, ABOUT, LESSONS } from './content.js';
 import { settingsItems } from './settings.js';
 import { VARIANTS, NAMES, discs } from './rules.js';
 import { LEVELS } from './ai.js';
+import { v3, flatAlpha } from './v3.js';
 import { drawCredit, drawLockup, drawMoreLine, drawBadgeStack, edgeStroke } from './brand.js';
 
 const FONT = '"Cormorant Garamond", "Hiragino Mincho ProN", Georgia, "Times New Roman", serif';
@@ -24,6 +25,7 @@ export function render(ctx, state, L) {
   const scene = state.scene, scale = TEXT_SCALES[state.textScaleIdx] ?? 1, big = scale > 1, g = state.game, a = state.anim, B = L.board;
   const minU = Math.max(12, 11 / (host.px || 0.6));
   const cloth = state.cloth, style = state.style, N = state.game.n;
+  const D3 = v3.on, fa = flatAlpha();          // 3D scene alive: the table, board and discs are 3D; this layer draws only the HUD (and the flat art while it crossfades)
 
   // ---------------------------------------------------------------- helpers
   const text = (str, x, y, size, color = CREAM, font = UI, weight = 700, align = 'center') => { ctx.textAlign = align; ctx.font = `${weight} ${size}px ${font}`; ctx.fillStyle = color; ctx.fillText(str, x, y); };
@@ -43,7 +45,17 @@ export function render(ctx, state, L) {
     ls.forEach((ln, i) => text(ln, x, y0 + s * 0.85 + i * lh, s, color, UI, 600, align));
     return ls.length;
   };
-  const panel = (r, rad = 18, fill = 'rgba(5,16,20,0.62)', stroke = 'rgba(242,208,138,0.22)', brand = true) => {
+  // wood and brass plaque (3D look): a walnut slab with a brass rim and an inner groove
+  const plaque = (r, rad, hot) => {
+    ctx.save(); ctx.fillStyle = 'rgba(30,16,6,0.4)'; ctx.beginPath(); ctx.roundRect(r.x + 1, r.y + 5, r.w, r.h, rad); ctx.fill(); ctx.restore();
+    const g2 = ctx.createLinearGradient(0, r.y, 0, r.y + r.h); if (hot) { g2.addColorStop(0, '#8a5a30'); g2.addColorStop(1, '#5a3418'); } else { g2.addColorStop(0, '#5c3a1f'); g2.addColorStop(1, '#3a2210'); }
+    ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, rad); ctx.fillStyle = g2; ctx.fill();
+    ctx.save(); ctx.clip(); ctx.strokeStyle = 'rgba(255,214,160,0.05)'; ctx.lineWidth = 1.2; for (let yy = r.y + 6; yy < r.y + r.h; yy += 7) { ctx.beginPath(); ctx.moveTo(r.x, yy); ctx.bezierCurveTo(r.x + r.w * 0.3, yy + 2, r.x + r.w * 0.7, yy - 2, r.x + r.w, yy + 1); ctx.stroke(); } ctx.restore();
+    ctx.strokeStyle = hot ? '#e8c46a' : 'rgba(213,166,77,0.7)'; ctx.lineWidth = hot ? 3 : 2.2; ctx.stroke();
+    ctx.strokeStyle = 'rgba(15,6,0,0.55)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.roundRect(r.x + 4, r.y + 4, r.w - 8, r.h - 8, Math.max(2, rad - 4)); ctx.stroke();
+  };
+  const panel = (r, rad = 18, fill = 'rgba(5,16,20,0.62)', stroke = 'rgba(242,208,138,0.22)', brand = true, hot = false) => {
+    if (D3) { plaque(r, rad, hot); return; }
     ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, rad); ctx.fillStyle = fill; ctx.fill(); ctx.strokeStyle = stroke; ctx.lineWidth = 2; ctx.stroke();
     if (brand) edgeStroke(ctx, r, rad, 0.38);
   };
@@ -53,11 +65,12 @@ export function render(ctx, state, L) {
     const rad = Math.min(18, r.h / 3);
     ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.beginPath(); ctx.roundRect(r.x + 2, r.y + 5, r.w, r.h, rad); ctx.fill();
     const gr = ctx.createLinearGradient(0, r.y, 0, r.y + r.h);
-    if (o.primary) { gr.addColorStop(0, '#27c6a0'); gr.addColorStop(1, '#0b6a55'); } else if (o.on) { gr.addColorStop(0, '#2f7f66'); gr.addColorStop(1, '#16463a'); } else { gr.addColorStop(0, '#2a4a5c'); gr.addColorStop(1, '#122632'); }
+    if (D3) { if (o.primary) { gr.addColorStop(0, '#fbe08a'); gr.addColorStop(0.55, '#e3ae42'); gr.addColorStop(1, '#b57b1c'); } else if (o.on) { gr.addColorStop(0, '#8a5a30'); gr.addColorStop(1, '#55321a'); } else { gr.addColorStop(0, '#6a4326'); gr.addColorStop(1, '#3a2210'); } }
+    else if (o.primary) { gr.addColorStop(0, '#27c6a0'); gr.addColorStop(1, '#0b6a55'); } else if (o.on) { gr.addColorStop(0, '#2f7f66'); gr.addColorStop(1, '#16463a'); } else { gr.addColorStop(0, '#2a4a5c'); gr.addColorStop(1, '#122632'); }
     ctx.fillStyle = gr; ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, rad); ctx.fill();
-    ctx.strokeStyle = o.primary ? 'rgba(190,255,230,0.75)' : 'rgba(242,208,138,0.55)'; ctx.lineWidth = 2; ctx.stroke();
-    ctx.strokeStyle = 'rgba(255,255,255,0.10)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.roundRect(r.x + 3, r.y + 3, r.w - 6, r.h - 6, Math.max(2, rad - 3)); ctx.stroke();
-    const size = o.size ?? 28, maxW = r.w - 20, col = o.primary ? '#fff6e0' : GOLD, cy = r.y + r.h / 2;
+    ctx.strokeStyle = D3 ? (o.primary ? '#fff0b8' : '#d5a64d') : o.primary ? 'rgba(190,255,230,0.75)' : 'rgba(242,208,138,0.55)'; ctx.lineWidth = D3 && o.primary ? 3 : 2; ctx.stroke();
+    ctx.strokeStyle = D3 ? 'rgba(15,6,0,0.4)' : 'rgba(255,255,255,0.10)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.roundRect(r.x + 3, r.y + 3, r.w - 6, r.h - 6, Math.max(2, rad - 3)); ctx.stroke();
+    const size = o.size ?? 28, maxW = r.w - 20, col = D3 ? (o.primary ? '#3a2208' : '#f6dc9a') : o.primary ? '#fff6e0' : GOLD, cy = r.y + r.h / 2;
     const w1 = (str, s) => { ctx.font = `700 ${s}px ${UI}`; return ctx.measureText(str).width; };
     let s1 = size; while (s1 > minU && w1(label, s1) > maxW) s1 -= 1;
     let best = { s: s1, ls: [label] };
@@ -69,7 +82,7 @@ export function render(ctx, state, L) {
         if (s2 > best.s) best = { s: s2, ls };
       }
     }
-    if (o.sub && best.ls.length === 1) { text(label, r.x + r.w / 2, cy + best.s * 0.1 - 6, best.s, col, UI, 700); fitText(o.sub, r.x + r.w / 2, cy + best.s * 0.1 + Math.max(minU, size * 0.62) + 2, Math.round(size * 0.62), maxW, DIM, UI, 500, 'center', minU); }
+    if (o.sub && best.ls.length === 1) { text(label, r.x + r.w / 2, cy + best.s * 0.1 - 6, best.s, col, UI, 700); fitText(o.sub, r.x + r.w / 2, cy + best.s * 0.1 + Math.max(minU, size * 0.62) + 2, Math.round(size * 0.62), maxW, D3 && o.primary ? 'rgba(58,34,8,0.85)' : DIM, UI, 500, 'center', minU); }
     else if (best.ls.length === 1) text(label, r.x + r.w / 2, cy + best.s * 0.35, best.s, col, UI, 700);
     else best.ls.forEach((ln, i) => text(ln, r.x + r.w / 2, cy + best.s * 0.35 + (i - 0.5) * best.s * 1.15, best.s, col, UI, 700));
     ctx.restore();
@@ -79,8 +92,8 @@ export function render(ctx, state, L) {
   const humanToMove = () => !state.autoMode && !g.winner && (state.two || g.turn === state.humanSide);
 
   // ---------------------------------------------------------------- scenes
-  drawTable(ctx, L, state.t);
-  if (!state.calm) motes(ctx, L, state.t);
+  if (fa > 0) { ctx.save(); ctx.globalAlpha = fa; drawTable(ctx, L, state.t); if (!state.calm) motes(ctx, L, state.t); ctx.restore(); }
+  if (D3 && (scene === 'title' || scene === 'demo-limit')) titleShade();
 
   if (scene === 'title' || scene === 'demo-limit') drawTitle();
   else if (scene === 'doc') drawDocument();
@@ -88,6 +101,16 @@ export function render(ctx, state, L) {
 
   // screens fade in from the table's dark instead of cutting
   if (state.sceneT < 0.22) { ctx.fillStyle = `rgba(5,16,20,${(1 - state.sceneT / 0.22) * 0.85})`; ctx.fillRect(0, 0, L.w, L.h); }
+
+  // 3D title: a warm dark wash behind the wordmark and the menu so text reads on any part of the courtyard
+  function titleShade() {
+    const T = L.title(!!state.saved), top = T.hero.y + Math.min(T.hero.h * 0.5, 330);
+    ctx.save(); ctx.globalAlpha = 1 - fa;
+    const g1 = ctx.createLinearGradient(0, 0, 0, top); g1.addColorStop(0, 'rgba(28,14,6,0.8)'); g1.addColorStop(0.7, 'rgba(28,14,6,0.45)'); g1.addColorStop(1, 'rgba(28,14,6,0)'); ctx.fillStyle = g1; ctx.fillRect(0, 0, L.w, top);
+    if (!L.land) { const y0 = T.hero.y + T.hero.h - 30, g2 = ctx.createLinearGradient(0, y0, 0, y0 + 90); g2.addColorStop(0, 'rgba(28,14,6,0)'); g2.addColorStop(1, 'rgba(28,14,6,0.82)'); ctx.fillStyle = g2; ctx.fillRect(0, y0, L.w, L.h - y0); }
+    else { const x0 = L.title(!!state.saved).card.x - 70, g3 = ctx.createLinearGradient(x0, 0, x0 + 90, 0); g3.addColorStop(0, 'rgba(28,14,6,0)'); g3.addColorStop(1, 'rgba(28,14,6,0.5)'); ctx.fillStyle = g3; ctx.fillRect(x0, 0, L.w - x0, L.h); }
+    ctx.restore();
+  }
 
   // ================================================================ title
   function drawTitle() {
@@ -102,12 +125,13 @@ export function render(ctx, state, L) {
       wrapBox('Get Reversi Flip Board on iPhone and Android for unlimited games, all three rule sets and every level.', R(r.x + 24, r.y + r.h * 0.42, r.w - 48, r.h * 0.4), 28, 1.3, CREAM);
     } else {
       if (Rr.resume) button(Rr.resume, 'Continue your game', { primary: true, size: 30 });
-      button(Rr.play, 'Play the computer', { primary: !Rr.resume, size: 32, sub: `${VARIANTS[state.variant].name} · ${LEVELS[state.level].name} · as ${NAMES[state.humanSide]}` });
+      button(Rr.play, 'Play', { primary: !Rr.resume, size: 50, sub: `${VARIANTS[state.variant].name} · ${LEVELS[state.level].name} · as ${NAMES[state.humanSide]}` });
       button(Rr.two, 'Two players', { size: 26 }); button(Rr.learn, state.learned ? 'Learn' : 'Learn to play', { size: 26, primary: false });
-      button(Rr.auto, 'Auto Play · Watch & Learn', { size: 26 });
+      button(Rr.auto, 'Watch & Learn', { size: 26 });
       button(Rr.rules, 'Rules', { size: 26 }); button(Rr.how, 'How to Play', { size: 26 });
-      button(Rr.about, 'About', { size: 26 }); button(Rr.settings, 'Settings', { size: 26 });
-      if (state.msg) fitText(state.msg.text, L.w / 2, T.rows.play.y - 14, 24, L.w - 40, GOLD, UI, 600);
+      button(Rr.about, 'About', { size: 26 });
+      { const r = Rr.settings; button(r, '', { size: 20 }); ctx.save(); ctx.translate(r.x + r.w / 2, r.y + r.h / 2); const q = r.w * 0.26; ctx.strokeStyle = D3 ? '#f6dc9a' : GOLD; ctx.lineWidth = Math.max(3, r.w * 0.06); ctx.lineCap = 'round'; ctx.beginPath(); ctx.arc(0, 0, q, 0, TAU); ctx.stroke(); for (let k = 0; k < 8; k++) { const an = k * TAU / 8; ctx.beginPath(); ctx.moveTo(Math.cos(an) * q * 1.25, Math.sin(an) * q * 1.25); ctx.lineTo(Math.cos(an) * q * 1.75, Math.sin(an) * q * 1.75); ctx.stroke(); } ctx.beginPath(); ctx.arc(0, 0, q * 0.4, 0, TAU); ctx.stroke(); ctx.restore(); ui.buttons[ui.buttons.length - 1].label = 'Settings'; }
+      if (state.msg) fitText(state.msg.text, L.w / 2, (T.rows.resume || T.rows.play).y - 14, 24, L.w - 40, GOLD, UI, 600);
     }
     // the Arcforge lockup, bottom centre under the menu
     const lk = T.lockup; state.lockupRect = drawLockup(ctx, lk.x, lk.y + 4, 50);
@@ -118,19 +142,38 @@ export function render(ctx, state, L) {
     const ts = clamp(Math.min(r.w / 5.2, r.h / 4.4), 40, 128);
     const y0 = r.y + ts * 0.95;
     ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.6)'; ctx.shadowBlur = 18; ctx.shadowOffsetY = 4;
-    const grad = ctx.createLinearGradient(0, y0 - ts * 0.8, 0, y0 + ts * 0.1); grad.addColorStop(0, '#f6fff8'); grad.addColorStop(1, '#6fe0bf');
+    const grad = ctx.createLinearGradient(0, y0 - ts * 0.8, 0, y0 + ts * 0.1); if (D3) { grad.addColorStop(0, '#fff6d0'); grad.addColorStop(1, '#e9b440'); } else { grad.addColorStop(0, '#f6fff8'); grad.addColorStop(1, '#6fe0bf'); }
     fitText('Reversi', cx, y0, ts, r.w - 10, grad, FONT, 700);
     ctx.restore();
     const sub = Math.max(minU, ts * 0.28);
-    ctx.save(); ctx.fillStyle = TEAL;
+    ctx.save(); ctx.fillStyle = D3 ? '#e3ae42' : TEAL;
     const pw = Math.min(r.w * 0.6, ts * 4.2), py = y0 + ts * 0.3;
     ctx.beginPath(); ctx.roundRect(cx - pw / 2, py, pw, sub * 1.7, sub * 0.85); ctx.fill();
     ctx.restore();
-    ctx.font = `700 ${sub}px ${UI}`; ctx.fillStyle = '#04201a'; ctx.textAlign = 'center';
+    ctx.font = `700 ${sub}px ${UI}`; ctx.fillStyle = D3 ? '#3a2208' : '#04201a'; ctx.textAlign = 'center';
     ctx.fillText('F L I P   B O A R D', cx, py + sub * 1.2);
     fitText('Trap them. Turn them. Take the board.', cx, py + sub * 1.7 + ts * 0.36, ts * 0.27, r.w - 20, 'rgba(242,208,138,0.9)', FONT, 700);
     const top = py + sub * 1.7 + ts * 0.62, room = r.y + r.h - top;
-    if (room > 90) heroBoard(R(r.x, top + 6, r.w, room - 22));
+    if (room > 90) { if (D3) { v3.hero = R(r.x - 6, top + 2, r.w + 12, room - 6); attract3(); } if (fa > 0) { ctx.save(); ctx.globalAlpha = fa; heroBoard(R(r.x, top + 6, r.w, room - 22)); ctx.restore(); } }
+  }
+
+  // 3D title: the same demonstration on the full 8 x 8 board. A black disc lands at the end of a white line, which turns over one by one; then
+  // white lands on the far side and the whole row turns back.
+  function attract3() {
+    const T = state.calm ? 3 : state.t % 9, FT = 0.5, ease3 = (f) => f * f * (3 - 2 * f);
+    const sc = T < 0.5 ? ease3(T / 0.5) : T > 7.8 ? Math.max(0, 1 - (T - 7.8) / 0.7) : 1, I = (r2, c) => r2 * 8 + c, P = v3.pieces;
+    const place3 = (i, who, t0) => { if (T < t0) return; P.push({ i, who, sc, a: { kind: 'place', k: clamp((T - t0) / 0.32, 0, 1), age: Math.max(0, T - t0 - 0.32) } }); };
+    const disc = (i, who0, flips) => {
+      let cur = who0;
+      for (const f of flips) { if (T < f[0]) break; if (T < f[0] + FT) { P.push({ i, who: f[2], sc, a: { kind: 'flip', from: f[1], to: f[2], k: (T - f[0]) / FT } }); return; } cur = f[2]; }
+      P.push({ i, who: cur, sc });
+    };
+    for (const [r2, c, who] of [[4, 3, 1], [4, 4, 2], [2, 3, 1], [2, 4, 2], [5, 5, 1], [5, 2, 2], [3, 0, 2]]) P.push({ i: I(r2, c), who, sc });
+    const back = (c) => [4.95 + (5 - c) * 0.16, 1, 2];
+    disc(I(3, 1), 1, [back(1)]);
+    for (const c of [2, 3, 4]) disc(I(3, c), 2, [[1.55 + (4 - c) * 0.16, 2, 1], back(c)]);
+    if (T >= 1.2 && T < 1.52) place3(I(3, 5), 1, 1.2); else if (T >= 1.52) disc(I(3, 5), 1, [back(5)]);
+    place3(I(3, 6), 2, 4.6);
   }
 
   // The title's animated demonstration, forever: a black disc lands and a line of white discs ripples over, then a second flip on the diagonal.
@@ -179,7 +222,10 @@ export function render(ctx, state, L) {
     const cell = B.cell;
     if (L.land) { if (L.leftCard) panel(L.leftCard, 18); panel(L.rightCard, 18); }
 
+    if (D3) collect3(isLesson, over);
     ctx.save();
+    if (fa <= 0) { /* the 3D scene draws the board and discs */ } else {
+    ctx.globalAlpha = fa;
     drawBoard(ctx, B, cloth, N);
     const pulse = state.calm ? 0.6 : 0.5 + 0.5 * Math.sin(state.t * 5);
     const sqRect = (q, fill) => { const p = L.sq(q); ctx.fillStyle = fill; ctx.fillRect(p.x - cell / 2 + 1, p.y - cell / 2 + 1, cell - 2, cell - 2); return p; };
@@ -216,11 +262,40 @@ export function render(ctx, state, L) {
       if (state.hint) { for (const q of state.hint.flips || []) { const p = L.sq(q); ctx.strokeStyle = `rgba(90,230,150,${0.5 + pulse * 0.4})`; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(p.x, p.y, cell * 0.4, 0, TAU); ctx.stroke(); } }
     }
     if (state.kb && !over) { const p = L.sq(state.cursor); ctx.strokeStyle = '#7dff9a'; ctx.lineWidth = 4; ctx.strokeRect(p.x - cell / 2 + 3, p.y - cell / 2 + 3, cell - 6, cell - 6); }
+    }
     ctx.restore();
 
     if (isLesson) lessonBox(); else plates();
     buttonsFor();
     if (over) overlay();
+  }
+
+  // 3D: hand the discs and the light marks to the presenter (it draws them on the tilted board) and write the hint counts on top
+  function collect3(isLesson, over) {
+    const pulse = state.calm ? 0.6 : 0.5 + 0.5 * Math.sin(state.t * 5), P = v3.pieces, M = v3.marks;
+    const flipAt = new Map(); if (a) a.flips.forEach((q, k) => flipAt.set(q, a.starts[k]));
+    for (let q = 0; q < N * N; q++) {
+      const k = g.board[q]; if (!k || (a && q === a.to)) continue;
+      const st = flipAt.get(q);
+      if (st === undefined) { P.push({ i: q, who: k }); continue; }
+      const f = clamp((a.t - st) / a.flipDur, 0, 1);
+      if (f <= 0) P.push({ i: q, who: 3 - a.side });
+      else if (f >= 1) { P.push({ i: q, who: a.side }); const gl = 1 - (a.t - st - a.flipDur) / 0.3; if (gl > 0 && !state.calm) M.push({ i: q, kind: 'glow', a: gl * 0.8 }); }
+      else P.push({ i: q, who: a.side, a: { kind: 'flip', from: 3 - a.side, to: a.side, k: f, high: state.calm ? 0.2 : 1 } });
+    }
+    if (a) P.push({ i: a.to, who: a.side, a: { kind: 'place', k: clamp(a.t / a.place, 0, 1), age: Math.max(0, a.t - a.place) } });
+    if (isLesson && LESSONS[state.lesson.i].target !== undefined && !state.lesson.done) M.push({ i: LESSONS[state.lesson.i].target, kind: 'ring', a: 0.6 + 0.4 * pulse });
+    const last = a ? null : g.last;
+    if (last && !isLesson && !over) M.push({ i: last.to, kind: 'last' });
+    if (!a && !over && state.legal && state.legal.length && state.hints !== 'off' && (humanToMove() || state.autoMode || isLesson)) {
+      for (const m of state.legal) {
+        const chosen = state.hint && state.hint.to === m.to;
+        M.push({ i: m.to, kind: chosen ? 'chosen' : 'dot', a: chosen ? 1 : 0.72 + pulse * 0.2 });
+        if ((state.hints === 'counts' || chosen) && v3.pt) { const p = v3.pt(m.to), fs = Math.max(11, Math.round(p.sx * 0.4)); ctx.save(); ctx.lineJoin = 'round'; ctx.font = `800 ${fs}px ${UI}`; ctx.textAlign = 'center'; ctx.lineWidth = fs * 0.28; ctx.strokeStyle = 'rgba(255,248,224,0.9)'; ctx.fillStyle = '#3a2208'; ctx.strokeText(String(m.n), p.x + p.sx * 0.62, p.y - p.sy * 0.5 + fs * 0.36); ctx.fillText(String(m.n), p.x + p.sx * 0.62, p.y - p.sy * 0.5 + fs * 0.36); ctx.restore(); }
+      }
+      if (state.hint) for (const q of state.hint.flips || []) M.push({ i: q, kind: 'ring', a: 0.55 + pulse * 0.4, r: 1.1 });
+    }
+    if (state.kb && !over) M.push({ i: state.cursor, kind: 'cursor', a: 0.9 });
   }
 
   // Disc counts as shown while a move plays: discs that have not turned yet still count for their old owner.
@@ -237,7 +312,7 @@ export function render(ctx, state, L) {
     const name = state.autoMode ? `${NAMES[side]} · computer` : state.two ? NAMES[side] : human ? 'You' : 'Computer';
     const sub = state.autoMode ? LEVELS[Math.max(2, state.level)].name : state.two || human ? NAMES[side] : `${LEVELS[state.level].name} · ${NAMES[side]}`;
     const turn = !g.winner && g.turn === side && scene !== 'over';
-    panel(r, 16, turn ? 'rgba(18,52,46,0.8)' : 'rgba(5,16,20,0.62)', turn ? 'rgba(242,208,138,0.85)' : 'rgba(242,208,138,0.2)', true);
+    panel(r, 16, turn ? 'rgba(18,52,46,0.8)' : 'rgba(5,16,20,0.62)', turn ? 'rgba(242,208,138,0.85)' : 'rgba(242,208,138,0.2)', true, turn);
     const cnt = shownCounts(), mine = cnt[side], total = cnt[1] + cnt[2] || 1;
     const thinkDots = 'Thinking' + '.'.repeat(1 + (Math.floor(state.t * 3) % 3));
     const status = turn ? (state.autoMode ? (state.autoPaused ? 'Paused' : state.autoPhase === 'reveal' ? 'The move' : thinkDots) : state.two ? 'To move' : human ? 'Your move' : state.thinking || state.think > 0 ? thinkDots : 'Moving') : sub;
@@ -294,7 +369,7 @@ export function render(ctx, state, L) {
       ctx.beginPath(); ctx.roundRect(M.x, M.y + 4, M.w, M.h - 8, 14); ctx.fillStyle = 'rgba(6,22,26,0.94)'; ctx.fill(); ctx.strokeStyle = 'rgba(242,208,138,0.75)'; ctx.lineWidth = 2; ctx.stroke();
       wrapBox(state.msg.text, R(M.x + 14, M.y + 8, M.w - 28, M.h - 16), big ? 30 : 25, 1.18, CREAM);
       ctx.restore();
-    } else if (base) { wrapBox(base, R(M.x + 8, M.y, M.w - 16, M.h), 24, 1.2, DIM); }
+    } else if (base) { if (D3) plaque(R(M.x + 20, M.y + 8, M.w - 40, M.h - 16), 14, false); wrapBox(base, R(M.x + 28, M.y + 6, M.w - 56, M.h - 12), 24, 1.2, DIM); }
     if (L.land && L.rightHead) fitText(VARIANTS[state.variant].long, L.rightHead.x + L.rightHead.w / 2, L.rightHead.y + 34, 26, L.rightHead.w, GOLD, FONT, 700);
     if (L.badge && L.badge.show) drawBadgeStack(ctx, L.badge.cx, L.badge.bottom, L.badge.w);
   }
@@ -352,7 +427,7 @@ export function render(ctx, state, L) {
     const D = L.doc, panelR = D.panel, vp = D.viewport, kind = state.doc.kind;
     ctx.fillStyle = 'rgba(4,10,14,0.55)'; ctx.fillRect(0, 0, L.w, L.h);
     ctx.beginPath(); ctx.roundRect(panelR.x, panelR.y, panelR.w, panelR.h, 26);
-    const pg = ctx.createLinearGradient(0, panelR.y, 0, panelR.y + panelR.h); pg.addColorStop(0, 'rgba(22,46,54,0.86)'); pg.addColorStop(1, 'rgba(7,19,25,0.92)');
+    const pg = ctx.createLinearGradient(0, panelR.y, 0, panelR.y + panelR.h); if (D3) { pg.addColorStop(0, 'rgba(70,44,24,0.94)'); pg.addColorStop(1, 'rgba(36,20,9,0.96)'); } else { pg.addColorStop(0, 'rgba(22,46,54,0.86)'); pg.addColorStop(1, 'rgba(7,19,25,0.92)'); }
     ctx.fillStyle = pg; ctx.fill(); ctx.strokeStyle = 'rgba(242,208,138,0.32)'; ctx.lineWidth = 2; ctx.stroke();
     edgeStroke(ctx, panelR, 26, 0.4);
     const heading = { rules: 'Rules', how: 'How to Play', about: 'About', settings: 'Settings' }[kind];
@@ -404,7 +479,7 @@ export function render(ctx, state, L) {
     ctx.restore();
     const contentH = y - (vp.y - sc0) + 10;
     if (contentH - vp.h > 8) {
-      const fade = (y0, y1, a0, a1) => { const gr = ctx.createLinearGradient(0, y0, 0, y1); gr.addColorStop(0, `rgba(14,32,38,${a0})`); gr.addColorStop(1, `rgba(14,32,38,${a1})`); ctx.fillStyle = gr; ctx.fillRect(vp.x - 6, Math.min(y0, y1), vp.w + 12, Math.abs(y1 - y0)); };
+      const fade = (y0, y1, a0, a1) => { const gr = ctx.createLinearGradient(0, y0, 0, y1); const fc = D3 ? '52,32,16' : '14,32,38'; gr.addColorStop(0, `rgba(${fc},${a0})`); gr.addColorStop(1, `rgba(${fc},${a1})`); ctx.fillStyle = gr; ctx.fillRect(vp.x - 6, Math.min(y0, y1), vp.w + 12, Math.abs(y1 - y0)); };
       if (sc0 < contentH - vp.h - 2) fade(vp.y + vp.h - 34, vp.y + vp.h, 0, 0.95);
       if (sc0 > 2) fade(vp.y + 22, vp.y, 0, 0.95);
     }

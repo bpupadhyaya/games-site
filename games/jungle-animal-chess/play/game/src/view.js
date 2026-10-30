@@ -3,10 +3,21 @@ import { TEXT_SCALES, THINK_STEPS, host, inRect, R, clamp } from './layout.js';
 import { drawTable, drawBoard, drawWater, drawPiece, drawDiagram, diagramSize, blob, THEMES, TEAM } from './art.js';
 import { RULES, HOWTO, ABOUT, LESSONS } from './content.js';
 import { settingsItems } from './settings.js';
-import { NAMES, TERR, WATER, TRAP1, TRAP2, rankOf, sideOf, pieceCount } from './rules.js';
+import { NAMES, TERR, WATER, TRAP1, TRAP2, rankOf, sideOf, pieceCount, startBoard } from './rules.js';
 import { LEVELS } from './ai.js';
 import { drawLockup, drawMoreLine, drawBadgeStack, edgeStroke } from './brand.js';
+import { v3 } from './v3.js';
+import { paintAnimal, BOX as ABOX } from './animals.js';
 
+// A carved animal on a lacquered team disc: the flat chip used for trays while the 3D board is on (same art as the 3D figures).
+const chipCache = new Map();
+function animalSprite(rank) {
+  let s = chipCache.get(rank);
+  if (s === undefined) { s = null; try { const c = typeof OffscreenCanvas !== 'undefined' ? new OffscreenCanvas(200, 168) : null, x = c && c.getContext('2d'); if (x) { x.setTransform(2, 0, 0, -2, 0, 168); paintAnimal(x, rank); s = c; } } catch { s = null; } chipCache.set(rank, s); }
+  return s;
+}
+
+const OPENING = startBoard().map((v, i) => (v ? { x: (i % 7) + 0.5, y: Math.floor(i / 7) + 0.5, side: sideOf(v), rank: rankOf(v), lift: 0 } : null)).filter(Boolean);   // the opening position, the 3D title hero
 const FONT = 'Fredoka, "Trebuchet MS", system-ui, sans-serif';
 const UI = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 const GOLD = '#ffdf85', CREAM = '#fff8e6', DIM = 'rgba(255,238,185,0.78)';
@@ -24,6 +35,8 @@ export function render(ctx, state, L) {
   const scene = state.scene, scale = TEXT_SCALES[state.textScaleIdx] ?? 1, big = scale > 1, g = state.game, a = state.anim, B = L.board;
   const minU = Math.max(12, 11 / (host.px || 0.6));
   const theme = state.theme, style = state.style;
+  const use3 = v3.on && (scene === 'title' || scene === 'play' || scene === 'over' || scene === 'lesson');
+  v3.frame = null;
 
   // ---------------------------------------------------------------- helpers
   const text = (str, x, y, size, color = CREAM, font = UI, weight = 700, align = 'center') => { ctx.textAlign = align; ctx.font = `${weight} ${size}px ${font}`; ctx.fillStyle = color; ctx.fillText(str, x, y); };
@@ -44,6 +57,7 @@ export function render(ctx, state, L) {
     return ls.length;
   };
   const panel = (r, rad = 18, fill = 'rgba(5,28,16,0.66)', stroke = 'rgba(255,224,130,0.26)', brand = true) => {
+    if (use3) { fill = fill.includes('48,40,10') ? 'rgba(86,54,18,0.94)' : 'rgba(40,24,10,0.9)'; stroke = 'rgba(226,182,84,0.85)'; }          // 3D: dark teak plaques with a brass edge
     ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, rad); ctx.fillStyle = fill; ctx.fill(); ctx.strokeStyle = stroke; ctx.lineWidth = 2; ctx.stroke();
     if (brand) edgeStroke(ctx, r, rad, 0.38);
   };
@@ -53,7 +67,7 @@ export function render(ctx, state, L) {
     const rad = Math.min(20, r.h / 2.6);
     ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.beginPath(); ctx.roundRect(r.x + 2, r.y + 5, r.w, r.h, rad); ctx.fill();
     const gr = ctx.createLinearGradient(0, r.y, 0, r.y + r.h);
-    if (o.primary) { gr.addColorStop(0, '#f7b348'); gr.addColorStop(1, '#c5691a'); } else if (o.on) { gr.addColorStop(0, '#6d8f2a'); gr.addColorStop(1, '#3b5a14'); } else { gr.addColorStop(0, '#2f7a52'); gr.addColorStop(1, '#154a30'); }
+    if (o.primary) { gr.addColorStop(0, '#f7b348'); gr.addColorStop(1, '#c5691a'); } else if (o.on) { gr.addColorStop(0, '#6d8f2a'); gr.addColorStop(1, '#3b5a14'); } else if (use3) { gr.addColorStop(0, '#7a4a22'); gr.addColorStop(1, '#43260f'); } else { gr.addColorStop(0, '#2f7a52'); gr.addColorStop(1, '#154a30'); }
     ctx.fillStyle = gr; ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, rad); ctx.fill();
     ctx.strokeStyle = o.primary ? 'rgba(255,235,170,0.85)' : 'rgba(255,224,130,0.5)'; ctx.lineWidth = 2; ctx.stroke();
     const size = o.size ?? 28, maxW = r.w - 20, col = o.primary ? '#2b1604' : CREAM, cy = r.y + r.h / 2;
@@ -75,8 +89,7 @@ export function render(ctx, state, L) {
   };
 
   // ---------------------------------------------------------------- scenes
-  drawTable(ctx, L, state.t, theme);
-  if (!state.calm) fireflies(ctx, L, state.t);
+  if (!use3) { drawTable(ctx, L, state.t, theme); if (!state.calm) fireflies(ctx, L, state.t); }
 
   if (scene === 'title' || scene === 'demo-limit') drawTitle();
   else if (scene === 'doc') drawDocument();
@@ -129,7 +142,11 @@ export function render(ctx, state, L) {
     const dsq = 'D O U   S H O U   Q I'; ctx.fillText(dsq, cx, py + sub * 1.26);
     fitText("China's animal-rank board game", cx, py + sub * 1.8 + ts * 0.3, ts * 0.2, r.w - 20, 'rgba(255,238,185,0.92)', FONT, 600);
     const top = py + sub * 1.8 + ts * 0.5, room = r.y + r.h - top;
-    if (room > 90) heroBoard(R(r.x, top + 6, r.w, room - 22));
+    if (use3) {                                          // the 3D board itself is the hero: the opening position, turning slowly, fitted under the title block
+      v3.n = 0; v3.t = state.t; v3.flip = false; v3.marks = [];
+      v3.pieces = OPENING.map((p) => ({ ...p })); v3.frame = { mode: 'title', rect: { x: 4, y: top - 8, w: L.w - 8, h: Math.max(160, room + 16) } };
+      if (L.land) v3.frame.rect = { x: r.x + 4, y: r.y + ts * 1.5 + 60, w: r.w - 8, h: Math.max(160, r.h - ts * 1.5 - 70) };
+    } else if (room > 90) heroBoard(R(r.x, top + 6, r.w, room - 22));
   }
 
   function heroBoard(r) {
@@ -183,6 +200,8 @@ export function render(ctx, state, L) {
     // ---- the board scene (shaken a little on a capture)
     ctx.save();
     if (a && a.cap && !state.calm && a.t > a.glide && a.t < a.glide + 0.35) { const f = (a.t - a.glide) / 0.35; ctx.translate(Math.sin(f * 46) * (1 - f) * cell * 0.04, Math.cos(f * 38) * (1 - f) * cell * 0.028); }
+    if (use3) fill3();
+    else {
     drawBoard(ctx, B, theme);
     drawWater(ctx, B, state.t, state.calm);
     const last = a ? null : g.last;
@@ -251,6 +270,7 @@ export function render(ctx, state, L) {
     }
     if (isLesson && LESSONS[state.lesson.i].target !== undefined && !state.lesson.done && !a) { const p = L.sq(LESSONS[state.lesson.i].target); ctx.strokeStyle = `rgba(255,214,90,${0.6 + 0.4 * pulse})`; ctx.lineWidth = cell * 0.07; ctx.beginPath(); ctx.arc(p.x, p.y, cell * 0.5, 0, TAU); ctx.stroke(); }
     if (state.kb && !over) { const p = L.sq(state.cursor); ctx.strokeStyle = '#7dff9a'; ctx.lineWidth = 4; ctx.strokeRect(p.x - cell / 2 + 3, p.y - cell / 2 + 3, cell - 6, cell - 6); }
+    }
     ctx.restore();
 
     // ---- furniture
@@ -259,6 +279,51 @@ export function render(ctx, state, L) {
     if (over) overlay();
   }
 
+  // 3D hand-off: animals and marks in DISPLAY cell units (column + 0.5, row + 0.5, already turned when the human plays Blue); the presenter draws them on the tilted board.
+  function fill3() {
+    const dc = (i) => ({ x: (L.flip ? 6 - (i % 7) : i % 7) + 0.5, y: (L.flip ? 8 - Math.floor(i / 7) : Math.floor(i / 7)) + 0.5 });
+    const isLesson = scene === 'lesson', over = scene === 'over', pulse = state.calm ? 0.6 : 0.5 + 0.5 * Math.sin(state.t * 5);
+    v3.n = 0; v3.t = state.t; v3.flip = !!L.flip; v3.frame = { mode: 'play', rect: scene === 'lesson' && L.rect3Lesson ? L.rect3Lesson : L.rect3 };
+    const pcs = [], mks = [], over2 = [], mk = (i, kind, al, sc) => { const c = dc(i); mks.push({ x: c.x, y: c.y, kind, a: al, sc }); };
+    const last = a ? null : g.last;
+    if (last && !isLesson) { mk(last.from, 'last', 0.35); mk(last.to, 'last', 0.5); }
+    if (state.sel >= 0 && !a && !over) {
+      mk(state.sel, 'sel', 0.55 + pulse * 0.3);
+      for (const m of state.selMoves) { if (m.cap) mk(m.to, 'cap', 0.8 + pulse * 0.2); else mk(m.to, 'dest', 0.75 + pulse * 0.25); if (m.jump) mk(m.to, 'jump', 0.7 + pulse * 0.3); }
+    }
+    if (state.hint && !a) { mk(state.hint.from, 'hint', 0.6 + pulse * 0.35); mk(state.hint.to, 'hint', 0.6 + pulse * 0.35); }
+    if (isLesson && LESSONS[state.lesson.i].target !== undefined && !state.lesson.done && !a) mk(LESSONS[state.lesson.i].target, 'lesson', 0.6 + 0.4 * pulse);
+    if (state.kb && !over) mk(state.cursor, 'cursor', 0.9);
+    const movingTo = a ? a.to : -1, dragging = state.drag && state.sel >= 0;
+    for (let i = 0; i < 63; i++) {
+      const v = g.board[i]; if (!v || i === movingTo || (a && i === a.from) || (dragging && i === state.sel)) continue;
+      const c = dc(i), rank = rankOf(v), sd = sideOf(v), sel = state.sel === i, swim = rank === 1 && TERR[i] === WATER, trapped = (sd === 1 && TERR[i] === TRAP2) || (sd === 2 && TERR[i] === TRAP1);
+      pcs.push({ x: c.x, y: c.y, side: sd, rank, swim, lift: sel ? 0.6 + (state.calm ? 0 : Math.sin(state.t * 3) * 0.08) : 0 });
+      if (swim && !state.calm) { const f = ((state.t * 0.5 + i * 0.13) % 1); mks.push({ x: c.x, y: c.y, kind: 'ripple', a: 0.55 * (1 - f), sc: 0.62 + 0.5 * f }); }
+      if (trapped) over2.push({ x: c.x, y: c.y, kind: 'trap' });
+      if (state.marks && !over && !a && state.danger && state.danger.has(i)) over2.push({ x: c.x, y: c.y, kind: 'danger' });
+    }
+    if (a && a.cap) {                                                  // the eaten animal stays until the mover lands, then shrinks and puffs away
+      const c = dc(a.to), f = (a.t - a.glide * 0.85) / 0.6;
+      if (a.t < a.glide * 0.85) pcs.push({ x: c.x, y: c.y, side: 3 - a.side, rank: a.capRank });
+      else if (f < 1) pcs.push({ x: c.x, y: c.y, side: 3 - a.side, rank: a.capRank, s: Math.max(0.02, 1 - f * 0.9), lift: f * 0.9, tilt: state.calm ? 0 : f * 2.4 });
+    }
+    if (a) {
+      const c0 = dc(a.from), c1 = dc(a.to), f = clamp(a.t / a.glide, 0, 1), e = ease(f);
+      const lift = f < 1 ? Math.sin(Math.PI * f) * (a.jump ? 2.2 : a.swim ? 0.1 : 0.7) + 0.2 * (1 - f) : Math.max(0, 0.2 * (1 - (a.t - a.glide) / 0.12));
+      const swim = a.rank === 1 && TERR[a.to] === WATER && f > 0.5;
+      pcs.push({ x: c0.x + (c1.x - c0.x) * e, y: c0.y + (c1.y - c0.y) * e, side: a.side, rank: a.rank, lift, swim });
+      if (a.t > a.glide && a.t < a.glide + 0.45 && !state.calm) { const ff = (a.t - a.glide) / 0.45; mks.push({ x: c1.x, y: c1.y, kind: a.swim ? 'ripple' : 'ring', a: 0.8 * (1 - ff), sc: 0.5 + 0.9 * ff }); }
+    }
+    if (dragging && v3.cellAt) { const c = v3.cellAt(state.drag.x, state.drag.y); if (c) pcs.push({ x: c.x, y: c.y, side: sideOf(g.board[state.sel]) || g.turn, rank: rankOf(g.board[state.sel]), lift: 1.1 }); }
+    v3.pieces = pcs; v3.marks = mks;
+    // small flat badges over the animals (zero-rank trap, danger), placed through the 3D projection
+    if (v3.toScreen) {
+      const o = v3.toScreen(0, 0), o2 = v3.toScreen(1, 0), cpx = Math.max(20, Math.hypot(o2.x - o.x, o2.y - o.y));
+      for (const b of over2) { const p = v3.toScreen(b.x, b.y, 1.0); if (b.kind === 'danger') dangerMark(p.x + cpx * 0.28, p.y - cpx * 0.05, cpx);
+        else { const bx = p.x + cpx * 0.3, by = p.y - cpx * 0.05; ctx.fillStyle = '#2b2b33'; ctx.strokeStyle = '#fff'; ctx.lineWidth = Math.max(1.5, cpx * 0.03); ctx.beginPath(); ctx.arc(bx, by, cpx * 0.15, 0, TAU); ctx.fill(); ctx.stroke(); ctx.fillStyle = '#fff'; ctx.font = `700 ${Math.round(cpx * 0.2)}px Fredoka, system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.fillText('0', bx, by + cpx * 0.07); } }
+    }
+  }
   function ripple(x, y, cell, t) {
     if (state.calm) return;
     for (let k = 0; k < 2; k++) { const f = ((t * 0.5 + k * 0.5) % 1); ctx.strokeStyle = `rgba(255,255,255,${0.5 * (1 - f)})`; ctx.lineWidth = Math.max(1, cell * 0.03); ctx.beginPath(); ctx.ellipse(x, y, cell * (0.28 + 0.26 * f), cell * (0.11 + 0.1 * f), 0, 0, TAU); ctx.stroke(); }
@@ -267,6 +332,13 @@ export function render(ctx, state, L) {
     const r = cell * 0.17;
     ctx.fillStyle = '#e23c24'; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill(); ctx.stroke();
     ctx.fillStyle = '#fff'; ctx.fillRect(x - r * 0.12, y - r * 0.55, r * 0.24, r * 0.7); ctx.fillRect(x - r * 0.12, y + r * 0.28, r * 0.24, r * 0.24);
+  }
+  function tok(v, x, y, size) { return use3 ? chip(sideOf(v), rankOf(v), x, y, size) : drawPiece(ctx, sideOf(v), rankOf(v), style, x, y, size, { alpha: 0.95 }); }
+  function chip(side, rank, x, y, size) {
+    const tm = TEAM[side], r = size * 0.42, sp = animalSprite(rank);
+    ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.arc(x + 1, y + r * 0.15, r, 0, TAU); ctx.fill();
+    ctx.fillStyle = tm.b; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill(); ctx.strokeStyle = '#e6bd5c'; ctx.lineWidth = Math.max(1.2, r * 0.09); ctx.stroke();
+    if (sp) { const w = r * 1.5, h = w * ABOX.h / ABOX.w; ctx.drawImage(sp, x - w / 2, y - h * 0.55, w, h); }
   }
   // A paw print in a team-coloured lacquer disc: the player's avatar.
   function avatar(x, y, size, side, glow) {
@@ -297,7 +369,7 @@ export function render(ctx, state, L) {
       if (r.w > 520) { fitText(`${name} · ${status}`, tx2, r.y + r.h * 0.42, ns2, tmax, turn ? CREAM : DIM, UI, 800, 'left'); fitText(`${left} animals left`, tx2, r.y + r.h * 0.75, Math.round(ns2 * 0.78), tmax, DIM, UI, 600, 'left'); }
       else { fitText(name, tx2, r.y + r.h * 0.42, ns2, tmax, turn ? CREAM : DIM, UI, 800, 'left'); fitText(`${turn ? status : sub} · ${left} left`, tx2, r.y + r.h * 0.75, Math.round(ns2 * 0.7), tmax, DIM, UI, 600, 'left'); }
       const tc2 = clamp(r.h * 0.46, 22, 36), per2 = Math.max(1, Math.floor(tcw / (tc2 * 0.7)));
-      shown.forEach((v, k) => drawPiece(ctx, sideOf(v), rankOf(v), style, r.x + r.w - 14 - tcw + tc2 * 0.4 + (k % per2) * tc2 * 0.7, r.y + r.h * 0.45 + Math.floor(k / per2) * tc2 * 0.62 - (shown.length > per2 ? tc2 * 0.2 : 0), tc2, { alpha: 0.95 }));
+      shown.forEach((v, k) => tok(v, r.x + r.w - 14 - tcw + tc2 * 0.4 + (k % per2) * tc2 * 0.7, r.y + r.h * 0.45 + Math.floor(k / per2) * tc2 * 0.62 - (shown.length > per2 ? tc2 * 0.2 : 0), tc2));
       return;
     }
     const ns = clamp(r.h * 0.22, 18, 46), ic = clamp(Math.min(r.h * 0.56, r.w * 0.2), 38, 120);
@@ -312,7 +384,7 @@ export function render(ctx, state, L) {
       const at = (k) => ({ x: tx + tc * 0.4 + k * tc * 0.68, y: y3 + 8 + tc * 0.5 });
       ctx.strokeStyle = 'rgba(255,224,130,0.2)'; ctx.lineWidth = 1.5;
       for (let k = shown.length; k < 8; k++) { const p = at(k); ctx.beginPath(); ctx.arc(p.x, p.y + tc * 0.1, tc * 0.26, 0, TAU); ctx.stroke(); }
-      shown.forEach((v, k) => { const p = at(k); drawPiece(ctx, sideOf(v), rankOf(v), style, p.x, p.y, tc * 0.9, { alpha: 0.95 }); });
+      shown.forEach((v, k) => { const p = at(k); tok(v, p.x, p.y, tc * 0.9); });
     }
   }
   function plates() {

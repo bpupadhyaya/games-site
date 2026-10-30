@@ -168,9 +168,9 @@ function build(w, h, hs) {
 
 function titleFor(L, hasSave) {
   const { w, h, wide, hs } = L, ax0 = hs.l + 14, ax1 = w - hs.r - 14, aw = ax1 - ax0;
-  const names = (hasSave ? ['resume'] : []).concat(['learn', 'play', 'two', 'daily', 'auto']), n = names.length;
+  const names = (hasSave ? ['resume'] : []).concat(['play', 'learn', 'two', 'daily', 'auto']), n = names.length, BIG = 26;   // the first row (Continue / Play) is the dominant one: taller
   const lockWant = Math.max((wide ? 0.28 : 0.35) * 720, 120 / Math.max(host.px, 1e-6)), lockH0 = Math.round(lockWant * 327 / 1200) + 34;   // the lockup strip under the menu
-  const B = n * 76 + 330 + lockH0;                                     // natural height of the whole button block (lockup included)
+  const B = n * 76 + BIG + 330 + lockH0;                                     // natural height of the whole button block (lockup included)
   let rowsX, rowsW, kr, rowsTop, art;
   if (!wide) {
     rowsW = Math.min(540, w - hs.l - hs.r - 32); rowsX = (w - rowsW) / 2;
@@ -192,8 +192,8 @@ function titleFor(L, hasSave) {
   const rows = {};
   if (wide && 60 * kr * host.px < 46) return titleCompact(L, hasSave, { rowsX, rowsW, art, ax0, aw, lockWant });
   const step = 76 * kr, rh = 66 * kr;
-  names.forEach((nm, i) => { rows[nm] = R(rowsX, rowsTop + i * step, rowsW, rh); });
-  const y = rowsTop + n * step + 2 * kr, sw = (rowsW - 16) / 2, sh = 60 * kr, sp = 68 * kr;
+  names.forEach((nm, i) => { rows[nm] = i === 0 ? R(rowsX, rowsTop, rowsW, rh + BIG * kr) : R(rowsX, rowsTop + i * step + BIG * kr, rowsW, rh); });
+  const y = rowsTop + n * step + BIG * kr + 2 * kr, sw = (rowsW - 16) / 2, sh = 60 * kr, sp = 68 * kr;
   rows.level = R(rowsX, y, sw, sh); rows.sound = R(rowsX + sw + 16, y, sw, sh);
   rows.calm = R(rowsX, y + sp, sw, sh); rows.big = R(rowsX + sw + 16, y + sp, sw, sh);
   rows.about = R(rowsX, y + 2 * sp, sw, sh); rows.how = R(rowsX + sw + 16, y + 2 * sp, sw, sh);
@@ -213,10 +213,13 @@ function titleCompact(L, hasSave, c) {
   const rowsW = Math.min(700, Math.round(aw * 0.52)), artW = Math.min(aw - rowsW - 30, 760), tot = artW + 30 + rowsW, sx = ax0 + (aw - tot) / 2, rowsX = sx + artW + 30;
   const top = hs.t + 12 + 14, avail = h - hs.b - 10 - top - 14 - lockH - 8;
   const rh = Math.round(minRh), g = clamp((avail - 6 * rh) / 5, 3, 10), colW = (rowsW - gapX) / 2;
-  const order = hasSave ? ['resume', 'play', 'learn', 'two', 'daily', 'auto', 'level', 'sound', 'calm', 'big', 'about', 'how'] : ['learn', 'play', 'two', 'daily', 'auto', 'level', 'sound', 'calm', 'big', 'about', 'how'];
+  const order = hasSave ? ['resume', 'play', 'learn', 'two', 'daily', 'auto', 'level', 'sound', 'calm', 'big', 'about', 'how'] : ['play', 'learn', 'two', 'daily', 'auto', 'level', 'sound', 'calm', 'big', 'about', 'how'];
   const rows = {};
-  order.forEach((nm, i) => {
-    const r = Math.floor(i / 2), col = i % 2, last = i === order.length - 1 && col === 0, y = top + r * (rh + g);
+  // without a saved game Play takes the whole first row (the dominant button); the other ten pair up below it
+  const pairs = hasSave ? order : order.slice(1), r0 = hasSave ? 0 : 1;
+  if (!hasSave) rows.play = R(rowsX, top, rowsW, rh);
+  pairs.forEach((nm, i) => {
+    const r = Math.floor(i / 2) + r0, col = i % 2, last = i === pairs.length - 1 && col === 0, y = top + r * (rh + g);
     rows[nm] = last ? R(rowsX, y, rowsW, rh) : R(rowsX + col * (colW + gapX), y, colW, rh);
   });
   const bottomY = top + 6 * rh + 5 * g, lock = { cx: rowsX + rowsW / 2, y: bottomY + 8, w: lockW };

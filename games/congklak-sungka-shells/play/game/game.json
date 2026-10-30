@@ -4,7 +4,7 @@
   "tagline": "The shell game of Southeast Asia",
   "genre": "Southeast Asian mancala",
   "orientation": "any",
-  "version": "0.2.3",
+  "version": "0.4.0",
   "monetization": {
     "model": "premium",
     "priceUsd": 2.99,

@@ -144,7 +144,7 @@ export function render(ctx, state, L) {
     fitText('The jumping game of the Mzab and Mauritania', cx, py + sub * 1.7 + ts * 0.36, ts * 0.26, r.w - 20, 'rgba(244,213,150,0.88)', FONT, 700);
     // the animated demonstration: a sandwich, forever
     const top = py + sub * 1.7 + ts * 0.62, room = r.y + r.h - top;
-    if (room > 90) { const hr = R(r.x, top + 6, r.w, room - 22); if (v3.on) { const sw = Math.min(hr.w, hr.h * 1.55); v3.heroRect = { x: hr.x + (hr.w - sw) / 2, y: hr.y - hr.h * 0.08, w: sw, h: hr.h * 1.1 }; } else heroBoard(hr); }
+    if (room > 90) { const hr = R(r.x, top + 6, r.w, room - 22); if (v3.on) { const sw = Math.min(hr.w, hr.h * 1.9); v3.heroRect = { x: hr.x + (hr.w - sw) / 2, y: hr.y, w: sw, h: hr.h * 1.02 }; } else heroBoard(hr); }
   }
 
   function heroBoard(r) {

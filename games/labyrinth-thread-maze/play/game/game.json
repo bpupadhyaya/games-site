@@ -4,7 +4,7 @@
   "tagline": "Follow the red thread through stone and torchlight.",
   "genre": "maze puzzle",
   "orientation": "any",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "monetization": {
     "model": "premium",
     "priceUsd": 2.99,

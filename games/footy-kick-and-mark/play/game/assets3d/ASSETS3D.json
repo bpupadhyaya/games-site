@@ -1,5 +1,5 @@
 {
-  "version": "1.6.0",
+  "version": "1.13.1",
   "characters": [
     "athlete_f",
     "athlete_m",
@@ -9,6 +9,7 @@
   "clips": [
     "base"
   ],
+  "scenery": [],
   "files": {
     "characters/athlete_f.glb": "480e3908576563bb53d4a5d7cc058217d17a6c700ac5518e6902d59e788bee57",
     "characters/athlete_f.json": "09c88c33bf5dc2c327ccab9c9e9e51ea62ddd803e7f282571796a3c94270987a",

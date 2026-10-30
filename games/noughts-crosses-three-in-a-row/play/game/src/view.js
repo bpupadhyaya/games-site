@@ -1,8 +1,9 @@
 // Everything drawn each frame. Reads state, changes nothing.
 import {
   W, H, UI, DISPLAY, THEMES, themeById, text, rr, panel, button, background, star, icon, drawParticles, drawMark, boardGeo, drawSlab,
-  drawBoardLines, drawMiniBoard, drawWinLine, arrow, alpha, clamp01, ease, backOut,
+  drawBoardLines, drawMiniBoard, drawWinLine, arrow, alpha, clamp01, ease, backOut, geoFor,
 } from './art.js';
+import { v3 } from './v3.js';
 import { TEXT_SCALES, wrap, tw } from './ui.js';
 import { SPECS, MODE_IDS, MODE_NAMES, legalMoves, isPlacing, wordsOf, countOf } from './rules.js';
 import { LEVELS } from './ai.js';
@@ -262,21 +263,32 @@ function drawHero(ctx, S, hx, hy, s) {
   const cycle = ATTRACT.length * ATTRACT_STEP + 0.4 + 1.6 + 1.2;
   const tt = t % cycle;
   const geo = boardGeo('classic', bx, by, side);
-  const glow = ctx.createRadialGradient(cx, by + side / 2, 30 * s, cx, by + side / 2, 340 * s);
-  glow.addColorStop(0, th.glow); glow.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.fillStyle = glow; ctx.fillRect(cx - 360 * s, by - 140 * s, 720 * s, side + 280 * s);
-  drawSlab(ctx, th, bx, by, side);
-  drawBoardLines(ctx, th, geo);
   const shown = Math.min(ATTRACT.length, Math.floor(tt / ATTRACT_STEP) + (tt >= 0 ? 1 : 0));
   const fadeOut = tt > ATTRACT.length * ATTRACT_STEP + 2.2 ? 1 - clamp01((tt - (ATTRACT.length * ATTRACT_STEP + 2.2)) / 0.5) : 1;
-  for (let i = 0; i < shown; i++) {
-    const [who, cell] = ATTRACT[i];
-    const age = tt - i * ATTRACT_STEP;
-    const [mx, my] = geo.centers[cell];
-    animMark(ctx, th, who, mx, my, geo.d, { t: age, kind: 'drop' }, { alpha: fadeOut });
-  }
   const winK = clamp01((tt - (ATTRACT.length - 1) * ATTRACT_STEP - 0.5) / 0.55);
-  if (winK > 0) ctx.save(), ctx.globalAlpha = fadeOut, drawWinLine(ctx, th, geo, [2, 4, 6], winK, 1), ctx.restore();
+  const flat = (a) => {
+    ctx.save(); ctx.globalAlpha = a;
+    const glow = ctx.createRadialGradient(cx, by + side / 2, 30 * s, cx, by + side / 2, 340 * s);
+    glow.addColorStop(0, th.glow); glow.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = glow; ctx.fillRect(cx - 360 * s, by - 140 * s, 720 * s, side + 280 * s);
+    drawSlab(ctx, th, bx, by, side);
+    drawBoardLines(ctx, th, geo);
+    for (let i = 0; i < shown; i++) {
+      const [who, cell] = ATTRACT[i];
+      const [mx, my] = geo.centers[cell];
+      animMark(ctx, th, who, mx, my, geo.d, { t: tt - i * ATTRACT_STEP, kind: 'drop' }, { alpha: fadeOut });
+    }
+    if (winK > 0) { ctx.globalAlpha = a * fadeOut; drawWinLine(ctx, th, geo, [2, 4, 6], winK, 1); }
+    ctx.restore();
+  };
+  if (!v3.on) flat(1);
+  else {
+    // the 3D board takes the hero slot: the camera is fitted to this rectangle and the attract game is played with real stones
+    v3.view = 'title'; v3.rect = { x: bx, y: by, w: side, h: side };
+    if (v3.fade < 1) flat(1 - v3.fade);
+    for (let i = 0; i < shown; i++) { const [who, cell] = ATTRACT[i]; v3.pieces.push({ who, i: cell, mode: 'classic', a: { kind: 'drop', t: tt - i * ATTRACT_STEP }, scale: fadeOut, glow: 0 }); }
+    if (winK > 0) v3.win = { line: [2, 4, 6], k: winK * fadeOut, col: th.x.glow, n: 3 };
+  }
   const g = ctx.createLinearGradient(0, hy + 120 * s, 0, hy + 290 * s);
   g.addColorStop(0, light2(th.accent)); g.addColorStop(0.5, th.accent); g.addColorStop(1, '#a8782a');
   ctx.save();
@@ -400,22 +412,25 @@ function pulse(S, rate = 5) { return 0.5 + 0.5 * Math.sin(S.t * rate); }
 
 // Draws the board and its marks for a match. `auto` carries Watch & Learn's reveal info.
 function drawBoardScene(ctx, S, M, geo, auto) {
-  const th = theme(S), sp = SPECS[M.mode];
+  const th = theme(S), sp = SPECS[M.mode], p3 = Boolean(geo.p3), ky = geo.k ?? 1;
   ctx.save();
-  const glow = ctx.createRadialGradient(geo.x + geo.side / 2, geo.y + geo.side / 2, 40, geo.x + geo.side / 2, geo.y + geo.side / 2, geo.side * 0.85);
-  glow.addColorStop(0, th.glow); glow.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.fillStyle = glow; ctx.fillRect(geo.x - 160, geo.y - 160, geo.side + 320, geo.side + 320);
-  drawSlab(ctx, th, geo.x, geo.y, geo.side);
-  drawBoardLines(ctx, th, geo);
+  if (!p3) {
+    const glow = ctx.createRadialGradient(geo.x + geo.side / 2, geo.y + geo.side / 2, 40, geo.x + geo.side / 2, geo.y + geo.side / 2, geo.side * 0.85);
+    glow.addColorStop(0, th.glow); glow.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = glow; ctx.fillRect(geo.x - 160, geo.y - 160, geo.side + 320, geo.side + 320);
+    drawSlab(ctx, th, geo.x, geo.y, geo.side);
+    drawBoardLines(ctx, th, geo);
+  }
+  if (p3) { v3.mode = M.mode; }
   const pl = pulse(S);
   const st = M.st;
   const ring = (i, col, lw = 4, a = 1, rad = 0.46) => {
     const [cx, cy] = geo.centers[i];
-    ctx.save(); ctx.strokeStyle = col; ctx.globalAlpha = a; ctx.lineWidth = lw; ctx.beginPath(); ctx.arc(cx, cy, geo.cell * rad, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+    ctx.save(); ctx.strokeStyle = col; ctx.globalAlpha = a; ctx.lineWidth = lw; ctx.beginPath(); ctx.ellipse(cx, cy, geo.cell * rad, geo.cell * rad * ky, 0, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
   };
   const fillCell = (i, col, a) => {
     const [cx, cy] = geo.centers[i];
-    ctx.save(); ctx.fillStyle = col; ctx.globalAlpha = a; ctx.beginPath(); ctx.arc(cx, cy, geo.cell * 0.44, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+    ctx.save(); ctx.fillStyle = col; ctx.globalAlpha = a; ctx.beginPath(); ctx.ellipse(cx, cy, geo.cell * 0.44, geo.cell * 0.44 * ky, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
   };
   const acc = th.accent.length === 7 ? th.accent : '#e8c46a';
   // last move
@@ -423,7 +438,7 @@ function drawBoardScene(ctx, S, M, geo, auto) {
   // legal slide targets and selection
   if (M.sel >= 0) {
     fillCell(M.sel, acc, 0.22 + 0.12 * pl);
-    for (const i of targetsOf(M)) { fillCell(i, acc, 0.16 + 0.1 * pl); const [cx, cy] = geo.centers[i]; ctx.fillStyle = acc; ctx.beginPath(); ctx.arc(cx, cy, geo.cell * 0.07, 0, Math.PI * 2); ctx.fill(); }
+    for (const i of targetsOf(M)) { fillCell(i, acc, 0.16 + 0.1 * pl); const [cx, cy] = geo.centers[i]; ctx.fillStyle = acc; ctx.beginPath(); ctx.ellipse(cx, cy, geo.cell * 0.07, geo.cell * 0.07 * ky, 0, 0, Math.PI * 2); ctx.fill(); }
   }
   // cursor (keyboard)
   if (S.kbd && humanTurn(M) && !M.over) ring(M.cur, '#ffffff', 3, 0.7, 0.48);
@@ -463,11 +478,19 @@ function drawBoardScene(ctx, S, M, geo, auto) {
     } else if (M.hint && M.hint.mv.from === i) o = { glow: 0.6 };
     else if (M.sel === i) o = { glow: 0.5 + 0.3 * pl, lift: 0.6 };
     else if (auto && auto.phase === 'reveal' && auto.plan && auto.plan.mv.from === i) o = { glow: 0.5 + 0.4 * pl };
-    animMark(ctx, th, who, cx, cy, geo.d, a ? { ...a, from: a.from >= 0 ? geo.centers[a.from] : null } : null, o);
+    if (p3) v3.pieces.push({ who, i, mode: M.mode, a: a ? { kind: a.kind, t: a.t, from: a.from } : null, glow: o.glow ?? 0, scale: o.scale ?? 1, alpha: o.alpha ?? 1, lift: o.lift ?? 0 });
+    else animMark(ctx, th, who, cx, cy, geo.d, a ? { ...a, from: a.from >= 0 ? geo.centers[a.from] : null } : null, o);
   }
   // ghost preview under the finger
-  if (S.ghost >= 0 && S.ghostWho && !M.over) { const [gx, gy] = geo.centers[S.ghost]; drawMark(ctx, th, S.ghostWho, gx, gy, geo.d, { ghost: true }); }
-  if (M.over && M.over.line) drawWinLine(ctx, th, geo, M.over.line, winK, M.over.why === 'misere' ? 3 - M.over.winner : M.over.winner, { misere: M.over.why === 'misere' });
+  if (S.ghost >= 0 && S.ghostWho && !M.over) {
+    if (p3) v3.pieces.push({ who: S.ghostWho, i: S.ghost, mode: M.mode, ghost: true });
+    else { const [gx, gy] = geo.centers[S.ghost]; drawMark(ctx, th, S.ghostWho, gx, gy, geo.d, { ghost: true }); }
+  }
+  if (M.over && M.over.line) {
+    const who = M.over.why === 'misere' ? 3 - M.over.winner : M.over.winner, mis = M.over.why === 'misere';
+    if (p3) v3.win = { line: M.over.line, k: winK, col: mis ? '255,110,90' : (who === 1 ? th.x : th.o).glow, n: geo.n };
+    else drawWinLine(ctx, th, geo, M.over.line, winK, who, { misere: mis });
+  }
   ctx.restore();
   drawParticles(ctx, M.parts);
 }
@@ -545,7 +568,11 @@ function drawPlay(ctx, S, L) {
   };
   drawPlate(ctx, S, lay.chips[0], 1, sideName(M, 1), plateSub(1), toMove === 1);
   drawPlate(ctx, S, lay.chips[1], 2, sideName(M, 2), plateSub(2), toMove === 2);
-  const geo = boardGeo(M.mode, lay.board.x, lay.board.y, lay.board.side);
+  const geo = geoFor(M.mode, lay.board.x, lay.board.y, lay.board.side);
+  if (geo.p3) {
+    v3.view = 'play'; v3.rect = { x: lay.board.x, y: lay.board.y, w: lay.board.side, h: lay.board.side };
+    if (v3.fade < 1) { ctx.save(); ctx.globalAlpha = 1 - v3.fade; drawBoardScene(ctx, S, M, boardGeo(M.mode, lay.board.x, lay.board.y, lay.board.side), auto); ctx.restore(); }
+  }
   drawBoardScene(ctx, S, M, geo, auto);
   // status
   let head = '', body = '', col = null;
@@ -579,6 +606,8 @@ function drawPlay(ctx, S, L) {
 
 export function render(ctx, S, ui, L) {
   ctx.textBaseline = 'alphabetic';
+  // what the 3D presenter should show behind this frame (screens that own a board overwrite view/rect while they draw)
+  v3.view = 'env'; v3.rect = null; v3.win = null; v3.veil = S.scene === 'title' || S.scene === 'play' || S.scene === 'auto' ? 0 : 0.84;
   switch (S.scene) {
     case 'title': drawTitle(ctx, S, ui, L); break;
     case 'setup': case 'learn': case 'howto': case 'rules': case 'about': case 'settings': drawDocScreen(ctx, S, ui, L); break;

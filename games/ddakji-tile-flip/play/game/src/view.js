@@ -7,6 +7,7 @@ import { THICK, HAND, THROWER, flightPose, yawFor, scatterSigma, corners, quickQ
 import { C, roundPath, drawButton, panel, textShadow, wrapLines } from './ui.js';
 import { flipQ } from './ai.js';
 import { PROFILES } from './profiles.js';
+import { v3, flatAlpha } from './v3.js';
 
 let camKey = '', camCache = null;
 export function camFor(state) {
@@ -50,13 +51,18 @@ export function sceneTiles(tb, showHeld) {
 
 // Floor + tiles + effects for any table (the match, or the menus' background). `o.shake` jolts the whole scene a little.
 export function drawTable(ctx, cam, tb, t, scr, o = {}) {
-  drawFloor(ctx, cam, scr.W, scr.H, t, { x: 0, y: 2.6 });
+  const tiles = sceneTiles(tb, o.showHeld), fa = flatAlpha();
+  if (v3.on) v3.table = { cam, tiles, shake: o.shake || 0, t };       // the 3D scene draws the room, the mat and the tiles
+  if (fa > 0) { ctx.save(); ctx.globalAlpha = fa; drawFloor(ctx, cam, scr.W, scr.H, t, { x: 0, y: 2.6 }); ctx.restore(); }
   ctx.save();
   if (o.shake) ctx.translate(Math.sin(t * 70) * o.shake * 5, Math.cos(t * 83) * o.shake * 4);
-  const tiles = sceneTiles(tb, o.showHeld);
   drawFx(ctx, cam, tb.fx.filter((p) => p.kind === 2));
-  for (const it of tiles) drawTileShadow(ctx, cam, it.t, Math.max(0.2, it.shadow) * (it.t.alpha ?? 1));
-  for (const it of tiles) drawTile(ctx, cam, it.t);
+  if (fa > 0) {
+    ctx.save(); ctx.globalAlpha = fa;
+    for (const it of tiles) drawTileShadow(ctx, cam, it.t, Math.max(0.2, it.shadow) * (it.t.alpha ?? 1));
+    for (const it of tiles) drawTile(ctx, cam, it.t);
+    ctx.restore();
+  }
   drawFx(ctx, cam, tb.fx.filter((p) => p.kind !== 2));
   ctx.restore();
 }
@@ -133,7 +139,8 @@ function pips(ctx, x, y, goal, n, state, side, size) {
 
 function drawCard(ctx, r, state, side, L) {
   const m = state.m, active = m.turn === side && m.phase !== 'score' && m.phase !== 'over';
-  panel(ctx, r.x, r.y, r.w, r.h, { r: 20, fill: 'rgba(40,24,14,0.86)', stroke: active ? '#f0c25a' : 'rgba(255,222,160,0.28)' });
+  panel(ctx, r.x, r.y, r.w, r.h, { r: 20, fill: 'rgba(40,24,14,0.9)', stroke: active ? '#f0c25a' : 'rgba(255,222,160,0.34)' });
+  roundPath(ctx, r.x + 5, r.y + 5, r.w - 10, r.h - 10, 15); ctx.strokeStyle = active ? 'rgba(240,194,90,0.45)' : 'rgba(255,222,160,0.14)'; ctx.lineWidth = 1.5; ctx.stroke();
   const pad = 12, tile = Math.min(r.h - 2 * pad, 64);
   drawFlatTile(ctx, r.x + pad + tile / 2, r.y + r.h / 2, tile * 0.95, patOf(state, side), { rot: side ? 0.08 : -0.08 });
   const tx = r.x + pad * 2 + tile, tw = r.w - (tx - r.x) - pad;

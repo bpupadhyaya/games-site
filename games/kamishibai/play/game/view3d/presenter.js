@@ -209,7 +209,20 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
     const tReal = performance.now(), dtReal = Math.min(0.1, (tReal - clockReal) / 1000); clockReal = tReal;
     frameMs = frameMs * 0.95 + dtReal * 1000 * 0.05;
     if (frameMs > 26) slowCount++; else slowCount = 0;
-    if (slowCount > 100 && P.tier !== 'low') { setTier(P.tier === 'high' ? 'medium' : 'low'); slowCount = 0; frameMs = 16; }
+    // fill-rate guard: a wide (landscape) canvas has the most pixels to shade, so the 3D layer renders with a pixel budget and, on a slow device,
+    // sheds resolution first (cheap, fast) and then the tier, instead of starving the page timers
+    {
+      const r = stage.renderer, w = stage.canvas.clientWidth || innerWidth, h = stage.canvas.clientHeight || innerHeight;
+      const wide = w > h * 1.2, budget = wide ? 900000 : 1400000;
+      if (slowCount > 12) { P.resScale = Math.max(0.5, (P.resScale || 1) * 0.85); slowCount = 8; }
+      const want = Math.max(0.6, Math.min(devicePixelRatio || 1, 2, Math.sqrt(budget / (w * h))) * (P.resScale || 1));
+      const dprNow = Math.min(devicePixelRatio || 1, 2);
+      const target = Math.round(Math.min(want, dprNow) * 20) / 20;
+      if (Math.abs(target - r.getPixelRatio()) > 0.04 && (P.frames & 7) === 0) {
+        r.setPixelRatio(target); r.setSize(w, h, false);
+      }
+    }
+    if (slowCount > 60 && frameMs > 40 && P.tier !== 'low') { setTier(P.tier === 'high' ? 'medium' : 'low'); slowCount = 0; frameMs = 16; }
     // the game clock drives all motion so Pause freezes everything
     const dt = R.lastT === null ? 0 : clamp(S.t - R.lastT, 0, 0.1); R.lastT = S.t;
     const frozen = S.paused || (S.auto.on && S.auto.paused);

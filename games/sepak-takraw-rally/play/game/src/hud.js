@@ -79,6 +79,17 @@ function badge(ctx, x, y, text, col = '#ffd54a', size = 24) {
   ctx.fillStyle = '#fff6e4'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(text, x, y - size * 0.25 + 2); ctx.restore();
 }
 
+// dark wood plaque with a brass edge (shared look for the scoreboard)
+function plaque(ctx, x, y, w, h, r) {
+  ctx.save();
+  roundPath(ctx, x, y + 3, w, h, r); ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fill();
+  roundPath(ctx, x, y, w, h, r);
+  const g = ctx.createLinearGradient(0, y, 0, y + h); g.addColorStop(0, '#4a2f1c'); g.addColorStop(1, '#2a180d');
+  ctx.fillStyle = g; ctx.fill();
+  ctx.lineWidth = 2; ctx.strokeStyle = '#d9a947'; ctx.stroke();
+  ctx.restore();
+}
+
 function scoreboard(ctx, G, s, m, lay) {
   const mt = s.match, tm = s.teams;
   const th = lay.topH - host.t;
@@ -93,14 +104,16 @@ function scoreboard(ctx, G, s, m, lay) {
   for (const i of [0, 1]) {
     const left = i === 0;
     const x0 = left ? x00 : x00 + tw - colw;
+    plaque(ctx, x0 - 6, 8, colw + 12, th - 28, 14);
     ctx.fillStyle = i === 0 ? '#e0443a' : '#2a79d4';
-    roundPath(ctx, x0, 14, 10, th - 44, 5); ctx.fill();
+    roundPath(ctx, x0 + 4, 16, 8, th - 48, 4); ctx.fill();
     ctx.textAlign = left ? 'left' : 'right'; ctx.textBaseline = 'alphabetic';
     const ax = left ? x0 + 22 : x0 + colw - 22;
     ctx.fillStyle = '#fff6e4'; ctx.font = `700 ${Math.round(24 * m)}px ${FONT}`; ctx.fillText(nameOf(i), ax, 14 + 26 * m);
     ctx.font = `800 ${Math.round(58 * m)}px ${FONT}`; ctx.fillText(String(mt.pts[i]), ax, 14 + 26 * m + 56 * m);
     if (mt.serving === i) { ctx.fillStyle = '#ffd54a'; ctx.beginPath(); ctx.arc(left ? x0 + colw - 20 : x0 + 20, 14 + 16 * m, 7 * Math.min(m, 1.4), 0, TAU); ctx.fill(); }
   }
+  plaque(ctx, cx - centerW / 2 + 8, 8, centerW - 16, th - 28, 14);
   ctx.textAlign = 'center'; ctx.fillStyle = '#fff6e4'; ctx.font = `800 ${Math.round(40 * m)}px ${FONT}`; ctx.fillText(`${mt.sets[0]} \u2013 ${mt.sets[1]}`, cx, 14 + 24 * m + 40 * m);
   ctx.fillStyle = '#ffd97a'; ctx.font = `700 ${Math.max(Math.round(20 * m), fl(20))}px ${FONT}`; ctx.fillText(mt.setsToWin === 1 ? 'Quick match' : `Set ${mt.setNo}`, cx, 14 + 24 * m + 40 * m + 24 * m);
   ctx.restore();

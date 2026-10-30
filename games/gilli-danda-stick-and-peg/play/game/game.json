@@ -4,7 +4,7 @@
   "tagline": "Tap the peg, flip it, then strike it as far as you can.",
   "genre": "Street stick-and-peg sport",
   "orientation": "any",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "monetization": {
     "model": "premium",
     "priceUsd": 3.99,

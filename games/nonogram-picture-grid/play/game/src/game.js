@@ -16,7 +16,7 @@ import { render } from './view.js';
 export const meta = { width: SCREEN.width, height: SCREEN.height, fluid: { short: 720 } };
 export const wheelInput = { dy: 0 };   // main.js adds the mouse wheel (virtual units) here
 
-const VERSION = '1.1.0';
+const VERSION = '1.2.0';
 const WIN_NOTES = [523, 659, 784, 1047, 1319, 1568];
 const AUTO_PUZZLES = ['leaf', 'teapot', 'fuji'];
 const ATTRACT_PUZZLE = 'cottage';

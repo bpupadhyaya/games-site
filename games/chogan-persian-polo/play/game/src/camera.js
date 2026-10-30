@@ -18,9 +18,59 @@ export function sideFov(aspect) {
   const t = Math.min(0.72, SIDE_TAN_H / Math.max(1, aspect));
   return (2 * Math.atan(t) * 180) / Math.PI;
 }
+// ---- the follow camera (play only) ---------------------------------------------------------------------------------------------------------
+// The camera keeps the same viewing direction as the fixed rig (so screen right / up and the stick mapping never change); it only slides over the
+// field and moves along its viewing ray (zoom). The focus is the player's rider pulled toward the ball; the zoom fits the player's rider, the
+// ball, the nearest opponents and (when close) the goal mouth, between a close view and the whole field. Damped; snapped on a new match.
+// Pure maths on `state`; the presenter steps it once per frame BEFORE the 2D HUD draws so the HUD and the 3D view always share one camera.
+export const FOLLOW = { kMin: 0.4, kMax: 1.0, fill: 0.86, tau: 0.35, on: true };
+export const follow = { k: 1, fx: 0, fz: 0, sim: null, key: '', t: 0 };
+const camFor = (key, fx, fz, k) => {
+  const base = key === 'side' ? SIDE_CAM : CAM;
+  const dx = base.x - base.lx, dy = base.y - base.ly, dz = base.z - base.lz;
+  // focus in three space (x mirrored): the look-at point moves with the focus, the camera keeps its offset scaled by k
+  const LX = base.lx - fx, LZ = base.lz + fz;
+  return { x: LX + dx * k, y: base.ly + dy * k, z: LZ + dz * k, lx: LX, ly: base.ly, lz: LZ };
+};
+export const WIDE_VIEW = { fx: 0, fz: 0, k: 1 };
+export function resetFollow(sim = null) { follow.sim = sim; follow.k = 1; follow.fx = 0; follow.fz = 0; follow.snap = true; }
+// the focus / zoom wanted for this simulation state
+function wanted(sim, aspect, key) {
+  const me = sim && sim.riders.find((r) => r.human);
+  if (!FOLLOW.on || !me || (sim.phase !== 'live' && sim.phase !== 'foul')) return WIDE_VIEW;
+  const b = sim.ball, T = (key === 'side') ? (x, z) => ({ a: z, b: -x }) : (x, z) => ({ a: x, b: z });   // screen-right and screen-up field coordinates
+  const pts = [T(me.x, me.z), T(b.x, b.z)];
+  const opps = sim.riders.filter((r) => r.team !== me.team).map((r) => ({ r, d: Math.hypot(r.x - me.x, r.z - me.z) })).sort((u, v) => u.d - v.d);
+  for (const o of opps.slice(0, 2)) if (o.d < 8) pts.push(T(o.r.x, o.r.z));
+  const mates = sim.riders.filter((r) => r.team === me.team && r !== me).map((r) => ({ r, d: Math.hypot(r.x - me.x, r.z - me.z) })).sort((u, v) => u.d - v.d);
+  if (mates[0] && mates[0].d < 7) pts.push(T(mates[0].r.x, mates[0].r.z));
+  // the focus: between the rider and the ball (the rider counts double), then everything in the list must fit
+  const wb = Math.min(0.38, Math.hypot(b.x - me.x, b.z - me.z) / 24);
+  const fa = pts[0].a + (pts[1].a - pts[0].a) * wb, fb = pts[0].b + (pts[1].b - pts[0].b) * wb;
+  // half extent of the view in field metres at k = 1 (depth of the far part is foreshortened a little)
+  const hw = 6.4 * (key === 'side' ? 2.1 : 1), hh = key === 'side' ? 6.4 : 12;
+  let need = 0;
+  for (const q of pts) need = Math.max(need, Math.abs(q.a - fa) / hw, Math.abs(q.b - fb) / hh);
+  const k = Math.max(FOLLOW.kMin, Math.min(FOLLOW.kMax, need / FOLLOW.fill + 0.05));
+  // keep the view over the arena: no empty stands or sky beyond the boards
+  const along = key === 'side' ? 14 : 6, across = key === 'side' ? 6 : 14, ra = Math.max(0, along + 1.2 - hw * k * 0.9), rb = Math.max(0, across + 6 - hh * k * 0.8);
+  const ca = Math.max(-ra, Math.min(ra, fa)), cb = Math.max(-rb, Math.min(rb, fb + 1.3 * k));   // a little ahead of the rider, so the thumbs' side stays clear
+  const fx = key === 'side' ? -cb : ca, fz = key === 'side' ? ca : cb;
+  return { fx, fz, k };
+}
+export function stepFollow(sim, aspect, dt) {
+  const key = aspect > 1.02 ? 'side' : 'end';
+  if (follow.sim !== sim || follow.key !== key) { follow.sim = sim; follow.key = key; follow.snap = true; }
+  const w = wanted(sim, aspect, key);
+  const a = follow.snap ? 1 : 1 - Math.exp(-Math.min(0.1, Math.max(0, dt)) / FOLLOW.tau);
+  follow.fx += (w.fx - follow.fx) * a; follow.fz += (w.fz - follow.fz) * a; follow.k += (w.k - follow.k) * a; follow.snap = false;
+}
 // the rig for a screen shape: portrait (and square) uses the end rig, landscape the side rig
 export function rigFor(aspect) {
-  return aspect > 1.02 ? { key: 'side', cam: SIDE_CAM, fov: sideFov(aspect), right: [0, 1], up: [-1, 0] } : { key: 'end', cam: CAM, fov: fovFor(aspect), right: [1, 0], up: [0, 1] };
+  const key = aspect > 1.02 ? 'side' : 'end';
+  const k = follow.key === key ? follow.k : 1, fx = follow.key === key ? follow.fx : 0, fz = follow.key === key ? follow.fz : 0;
+  const cam = k === 1 && !fx && !fz ? (key === 'side' ? SIDE_CAM : CAM) : camFor(key, fx, fz, k);
+  return key === 'side' ? { key, cam, fov: sideFov(aspect), right: [0, 1], up: [-1, 0] } : { key, cam, fov: fovFor(aspect), right: [1, 0], up: [0, 1] };
 }
 // A stick / arrow-key direction in screen terms (dx right, dz up) to sim axes for the rig (pure input mapping; the simulation is unchanged)
 export function screenDir(rig, dx, dz) { return { x: rig.right[0] * dx + rig.up[0] * dz, z: rig.right[1] * dx + rig.up[1] * dz }; }

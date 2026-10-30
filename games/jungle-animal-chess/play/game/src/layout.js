@@ -11,14 +11,14 @@ export const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 // Safe areas and the host's floating back button, in virtual units. main.js keeps this current (browsers: all zero).
 // px = css pixels per virtual unit (type never goes below ~11 css px); dpr = device pixel ratio (sprite resolution).
-export const host = { t: 0, r: 0, b: 0, l: 0, back: 0, px: 0.6, dpr: 2 };
+export const host = { t: 0, r: 0, b: 0, l: 0, back: 0, px: 0.6, dpr: 2, c3: false };   // c3: the 3D board is on (rect3 below is where it is fitted)
 
 const FRAME = 0.5, THICK = 0.22, OW = 7 + 2 * FRAME, OH = 9 + 2 * FRAME;          // board: frame margin and slab thickness in cells; outer width and height in cells
 export const BOARD_W = OW, BOARD_H = OH;
 const cache = new Map();
 export function layoutFor(w, h, flip = false) {
   w = Math.round(w); h = Math.round(h);
-  const key = `${w}x${h}|${Math.round(host.t)},${Math.round(host.r)},${Math.round(host.b)},${Math.round(host.l)},${Math.round(host.back)}|${flip ? 1 : 0}`;
+  const key = `${w}x${h}|${Math.round(host.t)},${Math.round(host.r)},${Math.round(host.b)},${Math.round(host.l)},${Math.round(host.back)}|${flip ? 1 : 0}|${host.c3 ? 3 : 2}`;
   let L = cache.get(key);
   if (!L) { L = build(w, h, { ...host }, flip); L.key = key; cache.set(key, L); if (cache.size > 40) cache.delete(cache.keys().next().value); }
   return L;
@@ -86,14 +86,16 @@ function build(w, h, ins, flip) {
     const topB = U.y0 + (U.h - bh) / 2;
     const cardTop = ins.back ? Math.max(U.y0 + pad, L.backBox.y + L.backBox.h + 4) : U.y0 + pad, cardH = U.y1 - pad - cardTop;
     if (two) {
-      const bx = U.x0 + (U.w - S) / 2, lw = bx - U.x0 - gap - 6, rw = U.x1 - (bx + S) - gap - 6;
-      board = boardAt(bx + S / 2, topB, cell, flip);
-      L.leftCard = R(U.x0 + 6, cardTop, lw, cardH); L.rightCard = R(bx + S + gap, cardTop, rw, cardH);
+      const Se = ins.c3 ? Math.max(S, Math.min(U.w - 2 * (206 + gap), U.h * 0.95)) : S;       // 3D: the tilted board is wider than the flat one, give it the room
+      const bx = U.x0 + (U.w - Se) / 2, lw = bx - U.x0 - gap - 6, rw = U.x1 - (bx + Se) - gap - 6;
+      board = boardAt(bx + Se / 2, topB, cell, flip);
+      L.leftCard = R(U.x0 + 6, cardTop, lw, cardH); L.rightCard = R(bx + Se + gap, cardTop, rw, cardH);
       L.layoutKind = 'wide2';
     } else {
-      const rw = Math.max(panelMin, U.w - S - 3 * gap - 16), bx = U.x0 + gap + 4;
+      const Se = ins.c3 ? Math.max(S, Math.min(U.w - panelMin - 3 * gap - 16, U.h * 1.05)) : S;       // 3D: the tilted board gets the room
+      const rw = Math.max(panelMin, U.w - Se - 3 * gap - 16), bx = U.x0 + gap + 4;
       board = boardAt(bx + S / 2, topB, cell, flip);
-      L.rightCard = R(bx + S + gap, cardTop, U.x1 - 6 - (bx + S + gap), cardH); L.leftCard = null;
+      L.rightCard = R(bx + Se + gap, cardTop, U.x1 - 6 - (bx + Se + gap), cardH); L.leftCard = null;
       L.layoutKind = 'wide1';
     }
     // contents of the cards
@@ -126,7 +128,19 @@ function build(w, h, ins, flip) {
       L.badge = { show: false };
     }
   }
+  if (ins.c3 && !land) {                                // 3D portrait: slim wood plaques top and bottom, the board takes everything else
+    const pad = 12, backRes = ins.back ? 62 : 0, top0 = Math.max(ins.t + 6, backRes ? ins.t + backRes : 0), pw = w - 2 * pad - 12; let ph = 84, mh = 40; const free0 = L.barY - G - ph - (top0 + ph + mh + 4) - 4, ideal = (w - 8) * 1.28, extra = free0 - ideal; if (extra > 0) { ph += Math.min(70, extra * 0.36); mh += Math.min(24, extra * 0.1); } const yb = L.barY - G - ph;
+    L.plateTop = R(pad + 6, top0, pw, ph); L.msg = R(pad + 6, top0 + ph + 2, pw, mh); L.plateBot = R(pad + 6, yb, pw, ph);
+    L.lessonBox = R(pad + 6, top0, pw, 190);
+    const y3 = top0 + ph + mh + 4; L.rect3 = R(4, y3, w - 8, yb - 4 - y3); L.rect3Lesson = R(4, top0 + 190 + 6, w - 8, yb + ph - (top0 + 190 + 6) - 4);
+    const cl = Math.min((w - 8) / OW, L.rect3.h / (OH + THICK)); board = boardAt(w / 2, y3, cl, flip);
+  }
   L.board = board;
+  // the rectangle the 3D board is fitted into: the full width in portrait, the space between the cards in landscape
+  if (land && !L.rect3) L.rect3 = null;
+  if (!land) { if (!L.rect3) L.rect3 = R(4, board.y - 6, w - 8, board.h + 12); }
+  else if (L.leftCard) { const x0 = L.leftCard.x + L.leftCard.w + 4; L.rect3 = R(x0, U.y0, L.rightCard.x - 4 - x0, U.h); }
+  else L.rect3 = R(U.x0 + 4, U.y0, L.rightCard.x - 4 - U.x0 - 4, U.h);
   L.sq = board.sq; L.squareAt = board.squareAt;
   L.cell = board.cell;
   // the result card, centred over the board

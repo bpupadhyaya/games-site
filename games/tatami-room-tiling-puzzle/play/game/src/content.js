@@ -26,7 +26,7 @@ export const ABOUT = {
       body: [
         { p: 'Free to play with short ads; go ad-free once.' },
         { p: 'Interface text is set in Fredoka, used under the SIL Open Font License 1.1. All pictures are drawn in the game and all sounds are synthesized on your device.' },
-        { p: 'Tatami Room Tiling Puzzle is part of Arcforge, a collection of world heritage games. The mats, the room and its furnishings are modelled and drawn in the game; the hands that lay the mats are derived from a Microsoft Rocketbox avatar (MIT licence), and the 3D view is rendered with three.js (MIT licence). The full licence texts follow on the next pages.' },
+        { p: 'Tatami Room Tiling Puzzle is part of Arcforge, a collection of world heritage games. The mats, the room, its furnishings and the hands that lay the mats are modelled and drawn in the game, and the 3D view is rendered with three.js (MIT licence). The full licence texts follow on the next pages.' },
       ],
     },
   ],

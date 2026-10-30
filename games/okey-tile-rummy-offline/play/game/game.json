@@ -4,7 +4,7 @@
   "tagline": "Turkey's tile rummy, four at the table.",
   "genre": "tile rummy game",
   "orientation": "any",
-  "version": "1.1.4",
+  "version": "1.2.0",
   "monetization": {
     "model": "premium",
     "priceUsd": 2.99,

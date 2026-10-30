@@ -1,7 +1,7 @@
 // The in-play HUD: score, role banner, metronome, closing ring, LEFT / RIGHT buttons, reveal chips, Watch & Learn panel and the 2D fallback.
 // Everything follows the text-size setting through a gentler multiplier (PLAY_M).
 import { scr, hudFor, inRect } from './layout.js';
-import { FONT, DISPLAY, C, roundPath, drawButton, paintButton, wrapLines, panel } from './ui.js';
+import { FONT, DISPLAY, C, roundPath, drawButton, paintButton, wrapLines, panel, woodPlaque, brassRim } from './ui.js';
 import { RING_DUR, TIMING, AIR, JUMP_H, THINK_STEPS } from './consts.js';
 
 const TAU = Math.PI * 2;
@@ -27,7 +27,7 @@ export function roleText(s, mine = 0) {
 function metronome(ctx, G, s, tD, lay) {
   const w = lay.metro.w, x0 = lay.metro.cx - w / 2, y = lay.metro.y, W2 = lay.metro.cx * 2;
   ctx.save();
-  roundPath(ctx, x0, y - 12, w, 24, 12); ctx.fillStyle = 'rgba(30,14,4,0.55)'; ctx.fill();
+  woodPlaque(ctx, x0, y - 13, w, 26, 13, { grain: false, rivets: false });
   let pos = 0, lit = 0;
   const r = s.round;
   if (r && r.r0 > 0 && s.phase === 'run') {
@@ -119,7 +119,7 @@ export function renderHud(ctx, G, S, view) {
   const names = watch ? ['GOLD', 'TEAL'] : ['YOU', 'COM'];
   const pill = (r, label, n, col, mine) => {
     const { x, y, w, h } = r;
-    roundPath(ctx, x, y, w, h, 20); ctx.fillStyle = 'rgba(40,20,8,0.78)'; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = col; ctx.stroke();
+    woodPlaque(ctx, x, y, w, h, 20, { glow: col, rivets: false });
     text(ctx, label, x + 18, y + h * 0.62, Math.round(22 * m), col, 700, 'left');
     text(ctx, String(n), x + w - 18, y + h * 0.7, Math.round(44 * m), '#fff6e4', 700, 'right');
     if (mine) { ctx.beginPath(); ctx.arc(x + w - 18 - (String(n).length * 26 * m) - 10, y + h / 2, 8, 0, TAU); ctx.fillStyle = '#ffd97a'; ctx.fill(); }
@@ -136,7 +136,7 @@ export function renderHud(ctx, G, S, view) {
     fitText(ctx, `${Math.round(s.bpm)} BPM`, lay.centerX, lay.barY + lay.barH * 0.98, lay.centerW, Math.round(20 * m), 'rgba(255,246,228,0.85)', 400);
     // ---- role banner
     const b = lay.banner;
-    roundPath(ctx, b.x, b.y, b.w, b.h, 18); ctx.fillStyle = 'rgba(40,20,8,0.7)'; ctx.fill();
+    woodPlaque(ctx, b.x, b.y, b.w, b.h, 18, { grain: false, rivets: false });
     if (!watch) fitText(ctx, roleLabel, b.x + b.w / 2, b.y + b.h * 0.68, b.w - 46, Math.round(28 * m), roleCol);
     else fitText(ctx, watchLabel, b.x + b.w / 2, b.y + b.h * 0.68, b.w - 46, Math.round(26 * m), '#ffe9a0');
   } else {
@@ -180,7 +180,7 @@ function renderWatch(ctx, G, S, L) {
   const s = S.s, w = G.watch;
   const sc = Math.min([1, 1.2, 1.4, 1.6, 1.8][G.settings.textIdx], L.land ? 1.5 : 1.8);
   const { x, y: top, w: wd, h: ph } = L.panel, bot = top + ph, cx = x + wd / 2;
-  panel(ctx, x, top, wd, ph, { r: 24, fill: 'rgba(40,20,8,0.92)', stroke: 'rgba(255,246,228,0.4)' });
+  woodPlaque(ctx, x, top, wd, ph, 24, { rivets: true });
   const phase = s.phase === 'hold' ? w.phase : 'ACT';
   const col = phase === 'think' ? '#ffe9a0' : phase === 'reveal' ? '#7fe8d6' : '#ffb59a';
   const label = phase === 'think' ? `THINK  ${Math.max(0, Math.ceil(w.timer))}s` : phase === 'reveal' ? 'REVEAL' : 'ACT';

@@ -107,7 +107,19 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
     src.parent.add(shadowMesh);
     shadowMesh.bind(src.skeleton, src.bindMatrix); shadowMesh.visible = true;
   }
-  P.ready_p = anim.build().then(() => { P.humans = anim.humans; P.hurleys = anim.hurleys; P.ready = true; stage.invalidate(); });
+  // the title and the first frame run on the one-draw-call mannequins; the real athletes swap in one by one right after (a slot keeps its index, clips and hurley)
+  async function upgradeAll() {
+    for (let i = 0; i < 12; i++) {
+      await new Promise((r) => setTimeout(r, 140));
+      try {
+        const u = await anim.upgrade(i); if (!u) continue;
+        stage.add(u.h); stage.track(u.h); stage.remove(u.old);
+        shadowOn = -2;
+      } catch (e) { console.warn('athlete upgrade failed; keeping the mannequin', e); }
+    }
+    P.athletesDone = true; stage.invalidate();
+  }
+  P.ready_p = anim.build().then(() => { P.humans = anim.humans; P.hurleys = anim.hurleys; P.ready = true; stage.invalidate(); upgradeAll(); });
 
   // Pixel budget: the canvas fills the whole screen, so on a big tablet the device pixel ratio is lowered until the drawing buffer is about as large as a
   // phone's (about 1.7 million pixels), which keeps the frame rate where it was on a phone.

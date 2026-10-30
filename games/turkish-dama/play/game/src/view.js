@@ -73,6 +73,19 @@ export function render(ctx, state, L) {
     ctx.strokeStyle = 'rgba(255,226,170,0.2)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.roundRect(ir.x, ir.y, ir.w, ir.h, irad); ctx.stroke();
     if (brand) edgeStroke(ctx, r, rad, 0.22);
   };
+  // line icons for the menu buttons (drawn in the label colour, 0..1 box scaled to s)
+  const icon = (kind, cx, cy, s, col) => {
+    ctx.save(); ctx.translate(cx - s / 2, cy - s / 2); ctx.scale(s, s); ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = 0.09; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath();
+    const C = (x, y, r) => { ctx.moveTo(x + r, y); ctx.arc(x, y, r, 0, 6.2832); };
+    if (kind === 'two') { C(0.34, 0.34, 0.16); C(0.7, 0.38, 0.13); ctx.moveTo(0.08, 0.9); ctx.quadraticCurveTo(0.34, 0.42, 0.6, 0.9); ctx.moveTo(0.62, 0.7); ctx.quadraticCurveTo(0.72, 0.58, 0.94, 0.86); ctx.stroke(); }
+    else if (kind === 'learn') { ctx.moveTo(0.5, 0.2); ctx.lineTo(0.96, 0.4); ctx.lineTo(0.5, 0.6); ctx.lineTo(0.04, 0.4); ctx.closePath(); ctx.moveTo(0.22, 0.52); ctx.lineTo(0.22, 0.76); ctx.quadraticCurveTo(0.5, 0.92, 0.78, 0.76); ctx.lineTo(0.78, 0.52); ctx.stroke(); }
+    else if (kind === 'auto') { ctx.moveTo(0.3, 0.14); ctx.lineTo(0.88, 0.5); ctx.lineTo(0.3, 0.86); ctx.closePath(); ctx.stroke(); }
+    else if (kind === 'rules') { ctx.rect(0.2, 0.1, 0.6, 0.8); ctx.moveTo(0.34, 0.34); ctx.lineTo(0.66, 0.34); ctx.moveTo(0.34, 0.52); ctx.lineTo(0.66, 0.52); ctx.moveTo(0.34, 0.7); ctx.lineTo(0.56, 0.7); ctx.stroke(); }
+    else if (kind === 'how') { C(0.5, 0.5, 0.4); ctx.moveTo(0.38, 0.4); ctx.quadraticCurveTo(0.4, 0.26, 0.52, 0.27); ctx.quadraticCurveTo(0.66, 0.28, 0.64, 0.42); ctx.quadraticCurveTo(0.62, 0.5, 0.52, 0.56); ctx.lineTo(0.5, 0.64); ctx.stroke(); ctx.beginPath(); C(0.5, 0.78, 0.04); ctx.fill(); }
+    else if (kind === 'about') { C(0.5, 0.5, 0.4); ctx.moveTo(0.5, 0.46); ctx.lineTo(0.5, 0.72); ctx.stroke(); ctx.beginPath(); C(0.5, 0.29, 0.05); ctx.fill(); }
+    else if (kind === 'gear') { for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4; ctx.moveTo(0.5 + Math.cos(a) * 0.3, 0.5 + Math.sin(a) * 0.3); ctx.lineTo(0.5 + Math.cos(a) * 0.46, 0.5 + Math.sin(a) * 0.46); } C(0.5, 0.5, 0.3); C(0.5, 0.5, 0.11); ctx.stroke(); }
+    ctx.restore();
+  };
   const button = (r, label, o = {}) => {
     ui.buttons.push({ x: r.x, y: r.y, w: r.w, h: r.h, label });
     const pr = v3.pressed, pressed = !!pr && !o.dim && inRect(r, pr.x, pr.y);
@@ -94,7 +107,9 @@ export function render(ctx, state, L) {
     ctx.restore();
     ctx.strokeStyle = pal.edge; ctx.globalAlpha *= o.primary ? 0.95 : 0.7; ctx.lineWidth = 2; ctx.beginPath(); ctx.roundRect(face.x + 1, face.y + 1, face.w - 2, face.h - 2, rad); ctx.stroke(); ctx.globalAlpha = o.dim ? 0.5 : 1;
     ctx.strokeStyle = 'rgba(255,255,255,0.22)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.roundRect(face.x + 4, face.y + 4, face.w - 8, face.h - 8, Math.max(2, rad - 4)); ctx.stroke();
-    const size = o.size ?? 28, maxW = r.w - 24, col = o.primary ? '#fff8e4' : GOLD, cy = face.y + face.h / 2;
+    const size = o.size ?? 28, ic = o.icon ? Math.min(34, face.h * 0.5) : 0, iconOnly = o.label === false, maxW = iconOnly ? r.w - 24 : r.w - 36 - (ic ? ic + 8 : 0), col = o.primary ? '#fff8e4' : GOLD, cy = face.y + face.h / 2;
+    const lx = ic && !iconOnly ? r.x + 16 + ic + 8 + (r.w - 28 - ic - 8) / 2 : r.x + r.w / 2;
+    if (ic) icon(o.icon, iconOnly ? r.x + r.w / 2 : r.x + 16 + ic / 2, cy, iconOnly ? Math.min(40, face.h * 0.6) : ic, col);
     const w1 = (str, s) => { ctx.font = `700 ${s}px ${FONT}`; return ctx.measureText(str).width; };
     let s1 = size; while (s1 > minU && w1(label, s1) > maxW) s1 -= 1;
     let best = { s: s1, ls: [label] };
@@ -107,9 +122,9 @@ export function render(ctx, state, L) {
       }
     }
     const lab = (str, x, y, sz) => { ctx.textAlign = 'center'; ctx.font = `700 ${sz}px ${FONT}`; ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillText(str, x, y + Math.max(1.5, sz * 0.07)); ctx.fillStyle = col; ctx.fillText(str, x, y); };
-    if (o.sub && best.ls.length === 1) { lab(label, r.x + r.w / 2, cy + best.s * 0.1 - 6, best.s); fitText(o.sub, r.x + r.w / 2, cy + best.s * 0.1 + Math.max(minU, size * 0.62) + 2, Math.round(size * 0.62), maxW, o.primary ? 'rgba(255,248,228,0.85)' : DIM, UI, 500, 'center', minU); }
-    else if (best.ls.length === 1) lab(label, r.x + r.w / 2, cy + best.s * 0.35, best.s);
-    else best.ls.forEach((ln, i) => lab(ln, r.x + r.w / 2, cy + best.s * 0.35 + (i - 0.5) * best.s * 1.15, best.s));
+    if (iconOnly) { /* icon only */ } else if (o.sub && best.ls.length === 1) { lab(label, lx, cy + best.s * 0.1 - 6, best.s); fitText(o.sub, lx, cy + best.s * 0.1 + Math.max(minU, size * 0.62) + 2, Math.round(size * 0.62), maxW, o.primary ? 'rgba(255,248,228,0.85)' : DIM, UI, 500, 'center', minU); }
+    else if (best.ls.length === 1) lab(label, lx, cy + best.s * 0.35, best.s);
+    else best.ls.forEach((ln, i) => lab(ln, lx, cy + best.s * 0.35 + (i - 0.5) * best.s * 1.15, best.s));
     ctx.restore();
   };
   const hit = (r, id, v) => ui.hits.push({ r, id, v });
@@ -142,10 +157,10 @@ export function render(ctx, state, L) {
     } else {
       if (Rr.resume) button(Rr.resume, 'Continue your game', { primary: true, size: 30 });
       button(Rr.play, 'Play the computer', { primary: !Rr.resume, size: 32, sub: `${VARIANTS[state.variant].name} · ${LEVELS[state.level].name} · as ${NAMES[state.humanSide]}` });
-      button(Rr.two, 'Two players', { size: 26 }); button(Rr.learn, state.learned ? 'Learn' : 'Learn to play', { size: 26, primary: false });
-      button(Rr.auto, 'Auto Play · Watch & Learn', { size: 26 });
-      button(Rr.rules, 'Rules', { size: 26 }); button(Rr.how, 'How to Play', { size: 26 });
-      button(Rr.about, 'About', { size: 26 }); button(Rr.settings, 'Settings', { size: 26 });
+      button(Rr.two, 'Two players', { size: 26, icon: 'two' }); button(Rr.learn, state.learned ? 'Learn' : 'Learn to play', { size: 26, primary: false, icon: 'learn' });
+      button(Rr.auto, 'Watch & Learn', { size: 26, icon: 'auto' });
+      button(Rr.rules, 'Rules', { size: 26, icon: 'rules' }); button(Rr.how, 'How to Play', { size: 24, icon: 'how' });
+      button(Rr.about, 'About', { size: 24, icon: 'about' }); button(Rr.settings, 'Settings', { size: 26, icon: 'gear', label: false });
       if (state.msg) fitText(state.msg.text, L.w / 2, T.rows.play.y - 14, 24, L.w - 40, GOLD, UI, 600);
     }
     // the Arcforge lockup, bottom centre under the menu

@@ -6,6 +6,7 @@ import { isAr } from './lang.js';
 import { LEVELS } from './ai.js';
 import { LESSONS, lessonTitle } from './lessons.js';
 import { THEMES } from './art.js';
+import { v3 } from './v3.js';
 import {
   DOC_BACK, ZOOM_DEC, ZOOM_INC, ZOOM_LBL, DOC_PANEL, DOC_BODY, DOC_BODY_NAV, DOC_BODY_START, START_BTN, NAV_PREV, NAV_NEXT, MENU_REGION, OVERLAY, LANG_EN, LANG_AR, SCREEN, AREA,
 } from './layout.js';
@@ -56,11 +57,12 @@ export function buildUi(S) {
       const b = [];
       if (S.save) b.push({ t: 'btn', id: 'continue', label: tr('continueBtn'), kind: 'primary', size: 32, sub: S.save.two ? tr('twoPlayers') : `${tr('vsComputer')} · ${lvName(S.save.level)}`, minH: 104 });
       const playSub = S.demo ? tr('demoLeft', { n: Math.max(0, DEMO_GAMES - S.demoGames) }) : undefined;
-      b.push({ t: 'btn', id: 'play', label: tr('playBtn'), kind: S.save ? 'normal' : 'primary', size: 36, sub: playSub, minH: S.save ? 92 : 118 });
-      b.push({ t: 'btn', id: 'learn', label: tr('learnBtn'), size: 30, sub: `${lessonsDone(S)} / ${LESSONS.length}`, minH: 96 });
-      b.push({ t: 'btn', id: 'auto', label: tr('autoBtn'), size: 30, minH: 92 });
-      b.push({ t: 'row', size: 28, minH: 92, items: [{ id: 'howto', label: tr('howtoBtn') }, { id: 'rules', label: tr('rulesBtn') }] });
-      b.push({ t: 'row', size: 28, minH: 92, items: [{ id: 'about', label: tr('aboutBtn') }, { id: 'settings', label: tr('settingsBtn') }] });
+      // one dominant Play (or Continue), then a quieter pair, then a row of small icon tiles
+      b.push({ t: 'btn', id: 'play', label: tr('playBtn'), kind: S.save ? 'normal' : 'primary', size: S.save ? 32 : 40, sub: playSub, minH: S.save ? 88 : 124, icon: 'play' });
+      b.push({ t: 'row', size: 26, minH: 84, items: [{ id: 'learn', label: tr('learnBtn'), icon: 'learn', note: `${lessonsDone(S)} / ${LESSONS.length}` }, { id: 'auto', label: tr('autoBtn'), icon: 'eye' }] });
+      const tiles = [{ id: 'howto', label: tr('howtoBtn'), icon: 'help' }, { id: 'rules', label: tr('rulesBtn'), icon: 'rules' }, { id: 'about', label: tr('aboutBtn'), icon: 'info' }, { id: 'settings', label: tr('settingsBtn'), icon: 'gear' }];
+      if (MENU_REGION.w >= 600) b.push({ t: 'row', size: 23, minH: 96, tiles: true, items: tiles });
+      else { b.push({ t: 'row', size: 24, minH: 70, items: tiles.slice(0, 2) }); b.push({ t: 'row', size: 24, minH: 70, items: tiles.slice(2) }); }
       // shrink the button heights (not the text) until the menu fits the room the screen gives it (short portrait, landscape)
       let f = 1;
       for (; f > 0.5; f -= 0.06) { const t = layoutDoc(b.map((x) => ({ ...x, minH: x.minH ? Math.round(x.minH * f) : x.minH })), scale, MENU_REGION.w); if (t.height <= MENU_REGION.h) break; }
@@ -170,7 +172,8 @@ export function buildUi(S) {
       ui.kind = 'none';
   }
   ui.layout = layoutDoc(ui.blocks, scale, ui.region ? ui.region.w : 600);
-  ui.offY = ui.kind === 'menu' ? Math.max(0, (ui.region.h - ui.layout.height) / 2) : 0;
+  // menu: centred, or (3D portrait) sat at the bottom so the lit board gets the room above it
+  ui.offY = ui.kind === 'menu' ? Math.max(0, (ui.region.h - ui.layout.height) * (v3.on && !SCREEN.land ? 1 : 0.5)) : 0;
   // a rotation or resize can shrink the scroll range: keep the saved position inside it
   if (S.scroll && S.scroll[ui.scrollKey] > 0) S.scroll[ui.scrollKey] = clampScroll(S.scroll[ui.scrollKey], ui.layout.height, ui.region.h);
   return ui;

@@ -9,6 +9,7 @@ import { ENEMIES } from '../data/enemies.js';
 import * as B from '../rules/battle.js';
 import { STEPS_PER_ACT, REMOVE_PRICE, SKIP_REWARD_MARKS, removableTechs, campHeal } from '../rules/run.js';
 import { drawLockup, drawMoreLine } from './brand.js';
+import { v3, flatAlpha } from '../v3.js';
 import { C, W, H, SAFE_TOP, elementColor, alpha, font } from './theme.js';
 import { isPressed, bar, button, contactShadow, diamond, drawArcher, drawCard, drawConstruct, drawRing, drawSky, glyph, goldFoil, icon, intentBadge, panel, paragraph, roundRect, rule, setPress, text, tracked } from './draw.js';
 import { ARCHER, BTN, CARD_H, CARD_W, CLOSE, CONFIRM, COVENANT_BTN, COVENANT_BTN_TOP, DETAIL, ENVOY, ENVOY_TOP, FOCUS, GRID, HEADER_CX, HEADER_W, HEADER_Y, OPTIONS, OPTIONS_TOP, RESOLVE_BAR, RING, SECONDARY, HELP_TABS, HELP_TEXT, PAGE_NAV, HOWTO_PER_PAGE, ABOUT_PER_PAGE, TEXT_SCALES, NEWRUN, TUNER_REMOVE, TUNER_TRIO_Y, choiceRects, enemySlots, titleRects, titleLockup, trioRects, AUTO_HUD, AUTO_STEP_DEC, AUTO_STEP_INC, AUTO_CONTENT_TOP, AUTO_SKIP, AUTO_PAUSE, AUTO_EXIT, AUTO_AGAIN, AUTO_THINK_STEPS, autoListRects, autoTrioRects, autoHandSlots, autoEnemySlots } from './layout.js';
@@ -185,7 +186,7 @@ function drawTitle(ctx, s) {
   ctx.restore();
   text(ctx, 'Nothing fires twice.', W / 2, 690, { size: 34, color: C.ink, alpha: 0.95, display: true });
 
-  drawArcher(ctx, W / 2, 985, t, { floating: true, pull: 0.5 + Math.sin(t * 0.8) * 0.5, scale: 1.0 });   // smaller so the drawn arrow never crosses the tagline
+  drawArcher(ctx, W / 2, 985, t, { floating: true, pull: 0.5 + Math.sin(t * 0.8) * 0.5, scale: 1.0, v3s: 1.55 });   // smaller so the drawn arrow never crosses the tagline
   if (s.best > 0) text(ctx, `Best Legend   ${s.best}`, W / 2, 1018, { size: 22, color: C.gold, display: true });
 
   const book = ["Tuner's Book", 'Every Arrow you have loosed'];
@@ -293,8 +294,8 @@ function drawBattle(ctx, s) {
     if (e.dead) return;
     const p = slots[i];
     const bob = Math.sin(t * 1.6 + i * 1.3);
-    contactShadow(ctx, p.x + p.r * 0.12, p.y + p.r * 1.3, p.r * (1.05 - bob * 0.06), p.r * 0.22, 0.42 - bob * 0.06);
-    drawConstruct(ctx, e, p.x, p.y, p.r, t, { flash: ui.flash[i] ?? 0, targeted: ui.target === i && livingCount > 1 });
+    if (!v3.on || flatAlpha() > 0) contactShadow(ctx, p.x + p.r * 0.12, p.y + p.r * 1.3, p.r * (1.05 - bob * 0.06), p.r * 0.22, (0.42 - bob * 0.06) * flatAlpha());
+    drawConstruct(ctx, e, p.x, p.y, p.r, t, { id: i, flash: ui.flash[i] ?? 0, targeted: ui.target === i && livingCount > 1 });
     intentBadge(ctx, e, p.x, p.y - p.r * 1.45 - 46, t);
     const bw = Math.max(110, p.r * 2.1);
     const shown = typeof ui.shownHp[i] === 'number' ? ui.shownHp[i] : e.hp;
@@ -316,11 +317,13 @@ function drawBattle(ctx, s) {
   });
 
   // quiet the landscape behind the hand so cards and numbers read cleanly
-  const floor = ctx.createLinearGradient(0, 960, 0, 1240);
-  floor.addColorStop(0, 'rgba(4, 5, 16, 0)');
-  floor.addColorStop(1, 'rgba(4, 5, 16, 0.78)');
-  ctx.fillStyle = floor;
-  ctx.fillRect(0, 960, W, H - 960);
+  if (!v3.on) {
+    const floor = ctx.createLinearGradient(0, 960, 0, 1240);
+    floor.addColorStop(0, 'rgba(4, 5, 16, 0)');
+    floor.addColorStop(1, 'rgba(4, 5, 16, 0.78)');
+    ctx.fillStyle = floor;
+    ctx.fillRect(0, 960, W, H - 960);
+  }
 
   // the Rival's quiver is face-up: nine Arrows, two glowing
   const rival = b.enemies.find((e) => e.quiver && !e.dead);
@@ -337,7 +340,7 @@ function drawBattle(ctx, s) {
 
   // the archer and their state
   const p = b.player;
-  contactShadow(ctx, ARCHER.x + 14, ARCHER.y + 150, 120, 26, 0.4);
+  if (!v3.on) contactShadow(ctx, ARCHER.x + 14, ARCHER.y + 150, 120, 26, 0.4);
   drawArcher(ctx, ARCHER.x, ARCHER.y, t, { floating: s.run.unblemished, pull: ui.pull });
   if (p.guard > 0) {
     ctx.save();
@@ -931,7 +934,7 @@ function autoBattle(ctx, s, A) {
     if (e.dead) return;
     const p = slots[i];
     contactShadow(ctx, p.x, p.y + p.r * 1.3, p.r, p.r * 0.22, 0.4);
-    drawConstruct(ctx, e, p.x, p.y, p.r, t, { targeted: A.ui.target === i && A.phase !== 'think' && b.enemies.length > 1 });
+    drawConstruct(ctx, e, p.x, p.y, p.r, t, { id: i, targeted: A.ui.target === i && A.phase !== 'think' && b.enemies.length > 1 });
     intentBadge(ctx, e, p.x, p.y - p.r * 1.4 - 40, t);
     const bw = Math.max(100, p.r * 2);
     bar(ctx, p.x - bw / 2, p.y + p.r * 1.4 + 14, bw, 14, e.hp / e.maxHp, C.damage, { colorTop: '#ffb3c0' });

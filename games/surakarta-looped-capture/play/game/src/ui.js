@@ -111,7 +111,7 @@ export function layoutDoc(blocks, scale, width, opts = {}) {
       const pad = sp(20, scale);
       const longest = (label) => Math.max(...String(label).split(/\s+/).map((wd) => tw(wd, it.size)));
       // when a word will not fit its share of the row (large text), stack the buttons instead
-      const stack = b.items.some((q) => longest(q.label) > unit * (q.flex ?? 1) - pad || (scale >= 2 && /\s/.test(q.label)));
+      const stack = b.items.some((q) => longest(q.label) > unit * (q.flex ?? 1) - pad - (q.icon ? it.size * 1.3 : 0) || (scale >= 2 && /\s/.test(q.label)));
       if (stack) {
         let yy = y;
         for (const q of b.items) {
@@ -126,14 +126,14 @@ export function layoutDoc(blocks, scale, width, opts = {}) {
         const cells = [];
         for (const q of b.items) {
           const w = unit * (q.flex ?? 1);
-          const lines = wrap(q.label, it.size, w - pad);
+          const lines = wrap(q.label, it.size, w - pad - (q.icon ? it.size * 1.3 : 0));
           const h = Math.max(sp(b.minH ?? 84, scale), lines.length * it.line + sp(32, scale));
           maxH = Math.max(maxH, h);
           cells.push({ q, x, w, lines });
           x += w + gap;
         }
         for (const c of cells) {
-          it.btns.push({ id: c.q.id, x: c.x, y, w: c.w, h: maxH, disabled: c.q.disabled, label: c.q.label, lines: c.lines, kind: c.q.kind, flex: c.q.flex });
+          it.btns.push({ id: c.q.id, x: c.x, y, w: c.w, h: maxH, disabled: c.q.disabled, label: c.q.label, lines: c.lines, kind: c.q.kind, flex: c.q.flex, icon: c.q.icon });
         }
         it.h = maxH + sp(16, scale);
       }

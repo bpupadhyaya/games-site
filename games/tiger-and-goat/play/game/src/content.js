@@ -245,7 +245,9 @@ export const RULES = [
 
 // The reader scrolls ONE continuous document: the short pages above are merged into sections (a title plus paragraphs).
 // Pages whose titles share a base ("Setup", "Setup: the goats") join one section.
-let flowCache = null;
+// Credits for the optional 3D layer (three.js, view3d): main.js adds them once ./vendor3d/LICENSES.md has loaded; they end the Rules document.
+let flowCache = null, credits = '';
+export const addAboutCredits = (body) => { if (credits || !body) return; credits = body; flowCache = null; };
 export function flowRules() {
   if (flowCache) return flowCache;
   const out = [];
@@ -256,6 +258,7 @@ export function flowRules() {
     if (pg.piece) sec.piece = pg.piece;
     sec.lines.push(...pg.lines);
   }
+  if (credits) out.push({ title: '3D graphics credits', piece: null, lines: [credits] });
   flowCache = out;
   return out;
 }

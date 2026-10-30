@@ -57,7 +57,7 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
     stage.setLighting('indoor', { exposure: 0.8, hemi: 0.7, keyI: 2.4 });
     stage.setSky('#0d1722', '#0d1722', { near: 40, far: 110 });
     P.ball = buildBall(BALL_R); stage.add(P.ball);
-    const char = women ? 'mannequin_f' : 'mannequin_m';
+    const char = women ? 'athlete_f' : 'athlete_m';
     for (let team = 0; team < 2; team++) for (let tp = 0; tp < 7; tp++) {
       const kit = tp === 6 ? LIBERO[team] : KITS[team];
       const h = await loadHuman({ character: char, kit, skin: SKINS[team][tp], hair: HAIRS[team][tp], legs: 'shorts', lod: 'auto' });
@@ -70,7 +70,7 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
       P.humans.push(h);
       P.actors.push({ a: new Actor(h), lastAct: -1, prev: null, cur: null, lock: null, yaw: team === 0 ? 0 : Math.PI, state: 'idle', phase: (team * 7 + tp) * 0.713, seed: 1 + (team * 7 + tp) * 0.37 });
     }
-    P.blobs = createBlobShadows(20, { radius: 0.62, opacity: 0.9 }); stage.add(P.blobs.mesh);
+    P.blobs = createBlobShadows(20, { radius: 0.6, opacity: 0.55 }); stage.add(P.blobs.mesh);
     P.women = women; P.ready = true;
     stage.invalidate();
   }

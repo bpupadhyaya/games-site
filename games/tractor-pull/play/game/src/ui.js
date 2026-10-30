@@ -28,13 +28,14 @@ export function setPress(ptr) {
 const BTN_FILL = {
   disabled: ['#cfc8bd', '#bdb5a8', 'rgba(80,60,40,0.35)'],
   primary: ['#e0552c', '#b3331f', '#5a1408'],
+  gold: ['#ffe08a', '#d9962a', '#6b3f0c'],
   active: ['#86ac3e', '#5b7f22', '#2a3d0c'],
   dark: ['#52392a', '#37261b', 'rgba(255,255,255,0.2)'],
   plain: ['#fbf3df', '#e6d3a8', 'rgba(90,60,30,0.55)'],
 };
 export function paintButton(ctx, r, o = {}) {
-  const { primary = false, active = false, disabled = false, dark = false } = o;
-  const k = disabled ? 'disabled' : primary ? 'primary' : active ? 'active' : dark ? 'dark' : 'plain';
+  const { primary = false, active = false, disabled = false, dark = false, gold = false } = o;
+  const k = disabled ? 'disabled' : gold ? 'gold' : primary ? 'primary' : active ? 'active' : dark ? 'dark' : 'plain';
   const pressed = !disabled && PRESS.on && PRESS.x >= r.x && PRESS.x <= r.x + r.w && PRESS.y >= r.y && PRESS.y <= r.y + r.h;
   const [c0, c1, edge] = BTN_FILL[k];
   const dy = pressed ? 3 : 0, rad = Math.min(18, r.h / 2);
@@ -58,7 +59,7 @@ export function paintButton(ctx, r, o = {}) {
   if (pressed) { roundPath(ctx, r.x, r.y + dy, r.w, r.h, rad); ctx.fillStyle = 'rgba(20,8,2,0.18)'; ctx.fill(); }
   roundPath(ctx, r.x, r.y + dy, r.w, r.h, rad); ctx.lineWidth = 1.6; ctx.strokeStyle = edge; ctx.stroke();
   ctx.restore();
-  return { dy, light: primary || active || dark };
+  return { dy, light: !gold && (primary || active || dark) };
 }
 function mixHex(a, b, t) {
   const pa = hexRgb(a), pb = hexRgb(b); if (!pa || !pb) return a;

@@ -5,6 +5,8 @@ import { host, layoutFor } from './src/layout.js';
 import { setLogo, setLockup } from './src/brand.js';
 import { setCanvasFactory } from './src/art.js';
 import { attachPen } from './src/pen.js';
+import { v3 } from './src/v3.js';
+import { ABOUT } from './src/content.js';
 
 const canvas = document.getElementById('game');
 let game = null;
@@ -47,4 +49,40 @@ const create = async (env) => {
 const af = new Image(); af.onload = () => setLogo(af); af.src = './brand/arcforge-af.png';
 const lock = new Image(); lock.onload = () => setLockup(lock); lock.src = './brand/arcforge-lockup.png';
 
-boot({ createGame: create, meta, canvas, background: '#0c1214' });
+// 3D presenter (a scholar's desk by a paper window: felt mat, ink stone, brush, the sheet lit by daylight). The game boots at once on the flat
+// 2D art; three.js is fetched and the scene built in small slices after the first frames, then it crossfades in. No WebGL, ?flat=1 or a lost
+// context: the flat art stays. The presenter reads what the screens ask for (v3.want) and only maps pointer positions through its camera.
+let presenter = null, inner = null, capt = false;
+const bg = { toString: () => (v3.on && v3.fade > 0.02 ? 'rgba(0,0,0,0)' : '#0c1214') };     // read by the kit every frame, so the switch is instant
+const wrap = (g) => Object.assign(Object.create(g), g, {
+  update(dt, input) {
+    const p = input.pointer;
+    if (v3.on && presenter && v3.map.active && v3.map.to) {
+      const sk = v3.map.skip && v3.map.skip.some((r) => p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h);
+      if (sk && !capt) return g.update(dt, input);
+      if (p.pressed) capt = !!v3.map.to(p.x, p.y).inside; else if (!p.down) capt = false;
+      const m = v3.map.to(p.x, p.y);
+      if (p.down ? capt : m.inside) return g.update(dt, { ...input, pointer: { ...p, x: m.x, y: m.y } });
+    } else capt = false;
+    return g.update(dt, input);
+  },
+  render(ctx, view) { if (v3.on) { ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height); ctx.restore(); } g.render(ctx, view); if (v3.on && presenter) presenter.post(); },
+});
+boot({ createGame: async (env) => (inner = wrap(await create(env))), meta, canvas, background: bg });
+if (q.has('dev')) { Object.defineProperty(window, '__p3', { get: () => presenter }); window.__v3 = v3; }
+if (!q.has('flat')) {
+  const start = () => import('./view3d/presenter.js').then((m) => m.createPresenter({ kitCanvas: canvas })).then((p) => {
+    if (!p.ok) return;
+    const go = () => { if (!inner) return setTimeout(go, 30); presenter = p; p.attach(); };
+    go();
+  }).catch((e) => console.warn('3D presenter unavailable; flat art stays', e));
+  requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(start, 30)));   // let the flat title paint and become interactive first
+}
+
+// Credits for the 3D layer (three.js, view3d), shown at the end of About (fetched once the title is up).
+setTimeout(() => fetch('./vendor3d/LICENSES.md').then((r) => (r.ok ? r.text() : '')).then((md) => {
+  if (!md) return;
+  const body = [];
+  for (const part of md.split(/\n\s*\n/)) { const t = part.trim(); if (t && !t.startsWith('#')) body.push(t.replace(/\s*\n\s*/g, ' ').replace(/[`*_]/g, '')); }
+  if (body.length) { ABOUT.push({ h: '3D graphics credits' }); for (const t of body) ABOUT.push({ p: t }); }
+}).catch(() => {}), 400);

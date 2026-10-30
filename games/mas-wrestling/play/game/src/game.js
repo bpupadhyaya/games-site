@@ -374,7 +374,7 @@ export function createGame(env) {
     state.lay = lay;
     drawStage(ctx, lay.stage, {
       hall: state.hall, t: state.t, B: state.B, pose: state.pose, looks: state.looks.map((i) => i), parts: state.parts, pops: state.pops,
-      hint: state.hint, cheer: state.cheer,
+      hint: state.hint, cheer: state.cheer, scaleMul: lay.land ? 1 : 1.14, focusY: lay.land ? 0.5 : 0.57,
     });
     drawHud(ctx, state, lay);
     drawMeters(ctx, state, lay);

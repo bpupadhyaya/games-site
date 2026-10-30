@@ -1,6 +1,7 @@
 // Everything drawn each frame. Reads `state` (game.js) and changes nothing. The cloth, board and seed sprites are cached (art.js).
 // Positions come from the live layout (layout.js): the board is a group drawn under a uniform scale, everything else sits in rectangles.
-import { PIT_R, PITCH, BTN, REF, pitLocal, trayLocal, geom, withGeom, TEXT_SCALES, AP_THINK_STEPS, bigMenu } from './layout.js';
+import { PIT_R, PITCH, BTN, REF, pitLocal, trayLocal, geom, withGeom, TEXT_SCALES, AP_THINK_STEPS, bigMenu, toLocal } from './layout.js';
+import { v3 } from './v3.js';
 import { drawTable, drawBoard, drawSeed, slot, WOODS, SEEDSETS, beginFrame } from './art.js';
 import { LEVELS } from './engine.js';
 import { RULES, HOWTO, ABOUT, FIGS } from './content.js';
@@ -70,7 +71,9 @@ function button(ctx, r, label, o = {}, scale = 1) {
   ctx.save(); if (o.dim) ctx.globalAlpha = 0.45;
   const rad = Math.min(18, r.h / 2.4);
   ctx.fillStyle = 'rgba(2,6,20,0.45)'; ctx.beginPath(); ctx.roundRect(r.x + 1, r.y + 5, r.w, r.h, rad); ctx.fill();
-  ctx.fillStyle = o.primary ? '#e0b048' : '#3b2415'; ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, rad); ctx.fill();
+  if (o.primary && v3.on) {   // the one dominant button: a lit brass plate with a soft glow
+    ctx.save(); ctx.shadowColor = 'rgba(255,200,90,0.55)'; ctx.shadowBlur = 22; const bg = ctx.createLinearGradient(0, r.y, 0, r.y + r.h); bg.addColorStop(0, '#f6d77a'); bg.addColorStop(1, '#d9a23c'); ctx.fillStyle = bg; ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, rad); ctx.fill(); ctx.restore();
+  } else { ctx.fillStyle = o.primary ? '#e0b048' : v3.on ? 'rgba(46,26,12,0.9)' : '#3b2415'; ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, rad); ctx.fill(); }
   ctx.strokeStyle = o.primary ? '#fff0b8' : 'rgba(240,200,96,0.6)'; ctx.lineWidth = 2; ctx.stroke();
   const base = o.size ?? 30, sc = Math.max(1, scale), padX = Math.min(14, r.w * 0.08), padY = 8;
   const f = fitBox(ctx, label, r.w - padX * 2, r.h - padY * 2, base * sc, Math.min(base, 18), 700, 1.12);
@@ -81,7 +84,7 @@ function button(ctx, r, label, o = {}, scale = 1) {
   note('button', label, r, f.over);
 }
 function panel(ctx, x, y, w, h, alpha = 0.88) {
-  ctx.save(); ctx.fillStyle = `rgba(12,18,36,${alpha})`; ctx.beginPath(); ctx.roundRect(x, y, w, h, 22); ctx.fill();
+  ctx.save(); ctx.fillStyle = `rgba(${v3.on ? '26,14,7' : '12,18,36'},${alpha})`; ctx.beginPath(); ctx.roundRect(x, y, w, h, 22); ctx.fill();
   ctx.strokeStyle = 'rgba(240,200,96,0.7)'; ctx.lineWidth = 2; ctx.stroke(); ctx.restore();
 }
 
@@ -96,7 +99,7 @@ function glow(ctx, q, rgb, a, sq) {
 }
 function tag(ctx, x, y, label, size = 21) {
   ctx.font = `700 ${size}px ${UI}`; const w = ctx.measureText(label).width + 18;
-  ctx.fillStyle = 'rgba(10,16,34,0.9)'; ctx.beginPath(); ctx.roundRect(x - w / 2, y - size * 0.85, w, size * 1.5, 10); ctx.fill();
+  ctx.fillStyle = v3.on ? 'rgba(26,14,7,0.92)' : 'rgba(10,16,34,0.9)'; ctx.beginPath(); ctx.roundRect(x - w / 2, y - size * 0.85, w, size * 1.5, 10); ctx.fill();
   ctx.strokeStyle = 'rgba(240,200,96,0.8)'; ctx.lineWidth = 1.5; ctx.stroke();
   ctx.textAlign = 'center'; ctx.fillStyle = CREAM; ctx.fillText(label, x, y + size * 0.3);
 }
@@ -111,11 +114,18 @@ function arcArrow(ctx, x, y, r, cw, color) {
 
 function drawPosition(ctx, state, pos, o = {}) {
   const set = state.seeds, t = state.t, pulse = state.calm ? 0.7 : 0.5 + 0.5 * Math.sin(t * 5);
-  drawBoard(ctx, state.wood);
+  // d3: the 3D board draws the wood, pits, seeds and rings; this layer only adds numbers, labels and effects at the projected points
+  const D3 = !!o.d3 && v3.on && !!v3.pit;
+  const P3 = (p, r, lift = 0) => { const s = v3.pit(p, r, lift), q = toLocal(s.x, s.y); return { x: q.x, y: q.y, k: Math.max(0.45, Math.min(1.3, s.k)) }; };
+  const A3 = (lx, ly, lift = 0) => { const s = v3.at(lx, ly, lift), q = toLocal(s.x, s.y); return { x: q.x, y: q.y, k: Math.max(0.45, Math.min(1.3, s.k)) }; };
+  if (!D3) drawBoard(ctx, state.wood);
   const sc = TEXT_SCALES[state.textScaleIdx] ?? 1, cs = o.countSize ?? Math.round(26 * Math.min(1.35, 1 + (sc - 1) * 0.18));
-  for (const m of o.marks || []) glow(ctx, pitLocal(m.p, m.r), COL[m.c] || m.rgb || COL.gold, (m.a ?? 1) * (m.pulse ? 0.55 + 0.45 * pulse : 1), m.r === NYUMBA);
+  for (const m of o.marks || []) {
+    if (D3) v3.marks.push({ p: m.p, r: m.r, rgb: COL[m.c] || m.rgb || COL.gold, a: (m.a ?? 1) * (m.pulse ? 0.55 + 0.45 * pulse : 1) });
+    else glow(ctx, pitLocal(m.p, m.r), COL[m.c] || m.rgb || COL.gold, (m.a ?? 1) * (m.pulse ? 0.55 + 0.45 * pulse : 1), m.r === NYUMBA);
+  }
   const A = o.anim;
-  for (let p = 0; p < 2; p++) for (let r = 0; r < 16; r++) {
+  if (!D3) for (let p = 0; p < 2; p++) for (let r = 0; r < 16; r++) {
     const n = pos.pits[p][r]; if (n <= 0) continue;
     const q = pitLocal(p, r); let dx = 0;
     if (o.shake && o.shake.p === p && o.shake.r === r && !state.calm) dx = Math.sin(o.shake.t * 60) * 5 * (1 - o.shake.t / 0.6);
@@ -126,18 +136,34 @@ function drawPosition(ctx, state, pos, o = {}) {
       drawSeed(ctx, set, s.v, q.x + s.x + dx, q.y + s.y + oy, s.rot, 1.2);
     }
   }
-  if (o.counts !== false) for (let p = 0; p < 2; p++) for (let r = 0; r < 16; r++) {
-    const n = pos.pits[p][r]; if (n <= 0) continue;
-    const q = pitLocal(p, r), y = p === 0 ? q.y + PIT_R + cs + 2 : q.y - PIT_R - 8;
-    ctx.textAlign = 'center'; ctx.font = `800 ${cs}px ${UI}`; ctx.lineJoin = 'round'; ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(14,6,0,0.85)'; ctx.strokeText(String(n), q.x, y); ctx.fillStyle = '#fff1c8'; ctx.fillText(String(n), q.x, y);
+  if (o.counts !== false) {
+    const gap = D3 ? Math.abs(P3(0, 0).y - P3(0, 15).y) * 0.5 : 0;     // half a row gap in group units (the board is tilted)
+    for (let p = 0; p < 2; p++) for (let r = 0; r < 16; r++) {
+      const n = pos.pits[p][r]; if (n <= 0) continue;
+      let x, y, fs = cs;
+      if (D3) { const q = P3(p, r); fs = Math.round(cs * Math.max(0.8, Math.min(1.1, q.k))); x = q.x; y = p === 0 ? q.y + gap + fs * 0.34 : q.y - gap + fs * 0.34; }
+      else { const q = pitLocal(p, r); x = q.x; y = p === 0 ? q.y + PIT_R + cs + 2 : q.y - PIT_R - 8; }
+      ctx.textAlign = 'center'; ctx.font = `800 ${fs}px ${UI}`; ctx.lineJoin = 'round'; ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(14,6,0,0.85)'; ctx.strokeText(String(n), x, y); ctx.fillStyle = '#fff1c8'; ctx.fillText(String(n), x, y);
+    }
   }
   // the stores
   const ph = (p) => (pos.stock[p] > 0 ? 'Namua' : 'Mtaji');
   for (let p = 0; p < 2; p++) {
     const T = p === 0 ? geom().TRAY.s : geom().TRAY.n, n = pos.stock[p];
-    for (let k = 0; k < n; k++) drawSeed(ctx, set, (k * 3 + p) % 4, T.x + 200 + (k % 11) * 30 + (Math.floor(k / 11) % 2) * 9, T.y + 25 + Math.floor(k / 11) * 28, ((k * 97) % 360) * Math.PI / 180, 1.0);
+    if (!D3) for (let k = 0; k < n; k++) drawSeed(ctx, set, (k * 3 + p) % 4, T.x + 200 + (k % 11) * 30 + (Math.floor(k / 11) % 2) * 9, T.y + 25 + Math.floor(k / 11) * 28, ((k * 97) % 360) * Math.PI / 180, 1.0);
     if (o.counts !== false) {
       const label = o.labels ? o.labels[p] : p === 0 ? 'You' : 'Computer';
+      if (D3) {
+        const a = A3(T.x + 20, T.y + T.h / 2), b = A3(T.x + T.w - 16, T.y + T.h / 2), fs = Math.round(24 * Math.max(0.78, Math.min(1.1, a.k))), txt = `${label} · ${ph(p)}`;
+        const f = fitSz(ctx, txt, fs, 700, UI, 240 * a.k + 40, 12), w = Math.min(300, ctx.measureText(txt).width + 22);
+        ctx.fillStyle = 'rgba(12,8,4,0.62)'; ctx.beginPath(); ctx.roundRect(a.x - 8, a.y - f * 0.8, w, f * 1.6, f * 0.8); ctx.fill();
+        text(ctx, txt, a.x + 3, a.y + f * 0.34, f, CREAM, UI, 700, 'left');
+        const big = n > 0 ? String(n) : `${sum(pos.pits[p])} on board`, fz = n > 0 ? Math.round(fs * 1.35) : fs;
+        ctx.font = `800 ${fz}px ${UI}`; const bw = ctx.measureText(big).width + 22;
+        ctx.fillStyle = 'rgba(12,8,4,0.62)'; ctx.beginPath(); ctx.roundRect(b.x - bw + 8, b.y - fz * 0.8, bw, fz * 1.6, fz * 0.8); ctx.fill();
+        text(ctx, big, b.x - 3, b.y + fz * 0.34, fz, GOLD, UI, 800, 'right');
+        continue;
+      }
       const f = fitSz(ctx, label, 26, 700, UI, 150, 14);
       text(ctx, label, T.x + 24, T.y + 33, f, CREAM, UI, 700, 'left'); text(ctx, ph(p), T.x + 24, T.y + 60, 20, 'rgba(248,235,204,0.8)', UI, 600, 'left');
       if (n === 0) text(ctx, `${sum(pos.pits[p])} on board`, T.x + T.w - 28, T.y + 47, 26, GOLD, UI, 700, 'right'); else text(ctx, String(n), T.x + T.w - 22, T.y + 50, 36, GOLD, UI, 800, 'right');
@@ -152,27 +178,31 @@ function drawPosition(ctx, state, pos, o = {}) {
     }
     ctx.restore();
   }
-  for (const tg of o.tags || []) { const q = pitLocal(tg.p, tg.r); tag(ctx, q.x, tg.below ? q.y + PIT_R + 30 : tg.p === 0 ? q.y - PIT_R - 20 : q.y + PIT_R + 24, tg.t, o.tagSize ?? 21); }
-  if (o.kbPit) glow(ctx, pitLocal(o.kbPit.p, o.kbPit.r), '125,255,155', 1, o.kbPit.r === NYUMBA);
+  for (const tg of o.tags || []) { const q = D3 ? P3(tg.p, tg.r) : pitLocal(tg.p, tg.r); tag(ctx, q.x, tg.below ? q.y + PIT_R + 30 : tg.p === 0 ? q.y - PIT_R - 20 : q.y + PIT_R + 24, tg.t, o.tagSize ?? 21); }
+  if (o.kbPit) { if (D3) v3.marks.push({ p: o.kbPit.p, r: o.kbPit.r, rgb: '125,255,155', a: 1 }); else glow(ctx, pitLocal(o.kbPit.p, o.kbPit.r), '125,255,155', 1, o.kbPit.r === NYUMBA); }
   // seeds being carried
   const V = A && A.vis;
   if (V) {
-    if (V.place) {
+    if (V.place && !D3) {
       const P = V.place, e = P.f * P.f * (3 - 2 * P.f), x = P.x0 + (P.x1 - P.x0) * e, y = P.y0 + (P.y1 - P.y0) * e - Math.sin(Math.PI * e) * 60;
       ctx.fillStyle = 'rgba(8,2,0,0.3)'; ctx.beginPath(); ctx.ellipse(x + 5, y + 24, 14, 7, 0, 0, TAU); ctx.fill();
       drawSeed(ctx, set, 1, x, y, e * 5, 1.15);
     }
     if (V.hand && V.hand.n > 0) {
-      const H2 = V.hand, hop = H2.hop || 0, x = H2.x, y = H2.y - 30 - hop;
-      ctx.fillStyle = 'rgba(8,2,0,0.3)'; ctx.beginPath(); ctx.ellipse(x + 6, H2.y + 12, 26 - hop * 0.12, 11, 0, 0, TAU); ctx.fill();
-      const n = Math.min(H2.n, 9); for (let k = 0; k < n; k++) { const s = slot(99, k, 30); drawSeed(ctx, set, s.v, x + s.x * 0.75, y + s.y * 0.65, s.rot, 1.05); }
-      ctx.fillStyle = 'rgba(12,16,34,0.92)'; ctx.beginPath(); ctx.arc(x + 28, y - 22, 16, 0, TAU); ctx.fill(); ctx.strokeStyle = GOLD; ctx.lineWidth = 2; ctx.stroke();
-      text(ctx, String(H2.n), x + 28, y - 15, 20, '#ffe9b0', UI, 800, 'center', false);
+      const H2 = V.hand, hop = H2.hop || 0;
+      let x = H2.x, y = H2.y - 30 - hop, bk = 1;
+      if (D3) { const q = A3(H2.x, H2.y, 4.2 + hop * 0.13); x = q.x; y = q.y - 8 * q.k; bk = Math.max(0.8, q.k); }
+      else {
+        ctx.fillStyle = 'rgba(8,2,0,0.3)'; ctx.beginPath(); ctx.ellipse(x + 6, H2.y + 12, 26 - hop * 0.12, 11, 0, 0, TAU); ctx.fill();
+        const n = Math.min(H2.n, 9); for (let k = 0; k < n; k++) { const s = slot(99, k, 30); drawSeed(ctx, set, s.v, x + s.x * 0.75, y + s.y * 0.65, s.rot, 1.05); }
+      }
+      ctx.fillStyle = 'rgba(12,16,34,0.92)'; ctx.beginPath(); ctx.arc(x + 28 * bk, y - 22 * bk, 16 * bk, 0, TAU); ctx.fill(); ctx.strokeStyle = GOLD; ctx.lineWidth = 2; ctx.stroke();
+      text(ctx, String(H2.n), x + 28 * bk, y - 15 * bk, Math.round(20 * bk), '#ffe9b0', UI, 800, 'center', false);
     }
     if (V.cap) {
-      const q = V.cap.q, f = V.cap.f;
-      ctx.strokeStyle = `rgba(255,214,120,${0.9 * (1 - f)})`; ctx.lineWidth = 7 * (1 - f) + 1; ctx.beginPath(); ctx.arc(q.x, q.y, PIT_R * (0.7 + 1.0 * f), 0, TAU); ctx.stroke();
-      text(ctx, `+${V.cap.n}`, q.x, q.y - 52 - f * 34, 36, `rgba(255,228,140,${1 - f * 0.55})`, FONT, 700);
+      const f = V.cap.f, q = D3 ? A3(V.cap.q.x, V.cap.q.y) : { x: V.cap.q.x, y: V.cap.q.y, k: 1 };
+      if (!D3) { ctx.strokeStyle = `rgba(255,214,120,${0.9 * (1 - f)})`; ctx.lineWidth = 7 * (1 - f) + 1; ctx.beginPath(); ctx.arc(q.x, q.y, PIT_R * (0.7 + 1.0 * f), 0, TAU); ctx.stroke(); }
+      text(ctx, `+${V.cap.n}`, q.x, q.y - (52 + f * 34) * q.k, Math.round(36 * q.k), `rgba(255,228,140,${1 - f * 0.55})`, FONT, 700);
     }
   }
 }
@@ -225,13 +255,18 @@ export function render(ctx, state, Lo) {
   const tx = (s, x, y, size, color, font, weight, align, shadow) => text(ctx, s, x, y, size, color, font, weight, align, shadow);
   const btn = (r, label, o) => button(ctx, r, label, o, scale);
 
-  drawTable(ctx, Lo, !!refScene || scene === 'settings');
+  if (!v3.on) drawTable(ctx, Lo, !!refScene || scene === 'settings');
+  else {
+    if (refScene || scene === 'settings') { ctx.fillStyle = 'rgba(10,6,4,0.58)'; ctx.fillRect(0, 0, Lo.w, Lo.h); }
+    const vg = ctx.createRadialGradient(Lo.w / 2, Lo.h / 2, Math.min(Lo.w, Lo.h) * 0.45, Lo.w / 2, Lo.h / 2, Math.hypot(Lo.w, Lo.h) * 0.56);   // soft lens vignette over the 3D scene
+    vg.addColorStop(0, 'rgba(6,3,1,0)'); vg.addColorStop(1, 'rgba(6,3,1,0.5)'); ctx.fillStyle = vg; ctx.fillRect(0, 0, Lo.w, Lo.h);
+  }
 
   const labels = scene === 'autoplay' || scene === 'autoplay-over' ? ['Bottom seat', 'Top seat'] : scene === 'lesson' ? ['You', 'Opponent'] : state.two ? ['Player one', 'Player two'] : ['You', 'Computer'];
   if (playScene) {
     const pulse = state.calm ? 0.7 : 0.5 + 0.5 * Math.sin(state.t * 5);
     const S = P.status;
-    ctx.fillStyle = 'rgba(8,14,34,0.6)'; ctx.beginPath(); ctx.roundRect(S.panel.x, S.panel.y, S.panel.w, S.panel.h, 28); ctx.fill();
+    ctx.fillStyle = v3.on ? 'rgba(26,14,7,0.66)' : 'rgba(8,14,34,0.6)'; ctx.beginPath(); ctx.roundRect(S.panel.x, S.panel.y, S.panel.w, S.panel.h, 28); ctx.fill();
     let l1, l2, l3 = '';
     const phase = (p) => (g.stock[p] > 0 ? 'namua' : 'mtaji');
     if (scene === 'lesson') { l1 = `Lesson ${state.lesson.i + 1} of ${LESSONS.length}`; l2 = LESSONS[state.lesson.i].title; }
@@ -262,8 +297,8 @@ export function render(ctx, state, Lo) {
     // the board group: drawn in group space under one uniform scale (count labels grow a little when the board shrinks)
     const k = Lo.grp.k, boost = Math.min(1.35, 1 + (scale - 1) * 0.18), cs = Math.round(Math.max(26, Math.min(32, Math.round(22 / k))) * boost);
     ctx.save(); ctx.translate(Lo.grp.ox, Lo.grp.oy); ctx.scale(k, k);
-    drawPosition(ctx, state, state.shown, { marks, anim: A, shake: state.shake, labels, kbPit: kb, countSize: cs });
-    if (state.prompt && state.prompt.arrows) for (const a of state.prompt.arrows) { const q = pitLocal(a.p, a.r); arcArrow(ctx, q.x, q.y, PIT_R + 11, a.cw, a.cw ? 'rgba(130,255,180,' + (0.65 + 0.35 * pulse) + ')' : 'rgba(255,200,110,' + (0.65 + 0.35 * pulse) + ')'); }
+    drawPosition(ctx, state, state.shown, { marks, anim: A, shake: state.shake, labels, kbPit: kb, countSize: cs, d3: true });
+    if (state.prompt && state.prompt.arrows) for (const a of state.prompt.arrows) { const q3 = v3.on && v3.pit ? v3.pit(a.p, a.r) : null, q = q3 ? { ...toLocal(q3.x, q3.y), k: Math.max(0.5, Math.min(1.2, q3.k)) } : { ...pitLocal(a.p, a.r), k: 1 }; arcArrow(ctx, q.x, q.y, (PIT_R + 11) * q.k, a.cw, a.cw ? 'rgba(130,255,180,' + (0.65 + 0.35 * pulse) + ')' : 'rgba(255,200,110,' + (0.65 + 0.35 * pulse) + ')'); }
     ctx.restore();
     { const F = geom().FRAME; note('board', 'board', { x: Lo.grp.ox + F.x * k, y: Lo.grp.oy + F.y * k, w: F.w * k, h: F.h * k }); }
 
@@ -307,7 +342,13 @@ export function render(ctx, state, Lo) {
 
   if (scene === 'title') {
     const T = Lo.title(!!state.saved, scale);
-    if (T.board) {
+    if (v3.on) {
+      // the 3D board is the hero between the title panel and the buttons (the camera is fitted to this rectangle)
+      const rows = Object.values(T.rows), minY = Math.min(...rows.map((r) => r.y)), minX = Math.min(...rows.map((r) => r.x)), py = T.panel.y + T.panel.h + 8;
+      v3.hero = minX > Lo.w * 0.4 && Lo.land ? { x: Lo.C.x0 + 6, y: py, w: minX - Lo.C.x0 - 22, h: Lo.C.y1 - 6 - py } : { x: Lo.C.x0 + 6, y: py + 2, w: Lo.C.w - 12, h: minY - py - 18 };
+      if (v3.hero.h < 110 || v3.hero.w < 150) v3.hero = null;
+    }
+    if (T.board && !v3.on) {
       withGeom('tall', () => {
         ctx.save(); ctx.translate(T.board.ox, T.board.oy); ctx.scale(T.board.s, T.board.s);
         const st = { ...state, shown: null };
@@ -317,9 +358,14 @@ export function render(ctx, state, Lo) {
       });
       note('board', 'mini board', { x: T.board.ox + 8 * T.board.s, y: T.board.oy + 330 * T.board.s, w: 704 * T.board.s, h: 850 * T.board.s });
     }
-    ctx.fillStyle = 'rgba(8,14,34,0.62)'; ctx.beginPath(); ctx.roundRect(T.panel.x, T.panel.y, T.panel.w, T.panel.h, 30); ctx.fill();
+    ctx.fillStyle = v3.on ? 'rgba(14,8,4,0.58)' : 'rgba(8,14,34,0.62)'; ctx.beginPath(); ctx.roundRect(T.panel.x, T.panel.y, T.panel.w, T.panel.h, 30); ctx.fill();
+    if (v3.on) { ctx.strokeStyle = 'rgba(240,200,96,0.55)'; ctx.lineWidth = 2; ctx.stroke(); }
     const f = fitSz(ctx, 'Bao la Kiswahili', T.title.size, 700, FONT, clearW(Lo, T.title), 40);
-    tx('Bao la Kiswahili', T.title.x, T.title.y, f, CREAM, FONT, 700);
+    if (v3.on) {   // gilded lettering: warm gradient, dark engraved shadow
+      ctx.save(); ctx.textAlign = 'center'; ctx.font = `700 ${f}px ${FONT}`;
+      const gg = ctx.createLinearGradient(0, T.title.y - f * 0.8, 0, T.title.y + f * 0.2); gg.addColorStop(0, '#fff2bf'); gg.addColorStop(0.5, '#f0c860'); gg.addColorStop(1, '#b9822a');
+      ctx.fillStyle = 'rgba(10,4,0,0.7)'; ctx.fillText('Bao la Kiswahili', T.title.x + 2, T.title.y + 4); ctx.fillStyle = gg; ctx.fillText('Bao la Kiswahili', T.title.x, T.title.y); ctx.restore();
+    } else tx('Bao la Kiswahili', T.title.x, T.title.y, f, CREAM, FONT, 700);
     tx('The great board game of the Swahili coast', T.tagline.x, T.tagline.y, fitSz(ctx, 'The great board game of the Swahili coast', T.tagline.size, 600, FONT, clearW(Lo, T.tagline), 16), 'rgba(248,235,204,0.92)', FONT, 600);
     const R = T.rows;
     if (R.resume) btn(R.resume, 'Continue your game', { primary: true, size: 32 });
@@ -390,7 +436,7 @@ export function render(ctx, state, Lo) {
     btn(B.pgBack, 'Back', { size: 28 }); btn(B.pgNext, last ? 'Done' : 'Next', { primary: true, size: 28 });
   } else if (scene === 'over' || scene === 'autoplay-over') {
     const o = Lo.over;
-    ctx.fillStyle = 'rgba(6,10,26,0.9)'; ctx.fillRect(0, 0, Lo.w, Lo.h);
+    ctx.fillStyle = v3.on ? 'rgba(10,6,4,0.78)' : 'rgba(6,10,26,0.9)'; ctx.fillRect(0, 0, Lo.w, Lo.h);
     ctx.save(); ctx.translate(o.text.ox, o.text.oy); ctx.scale(o.text.s, o.text.s);
     if (scene === 'over') {
       const won = g.winner === 'draw' ? 'A draw' : state.two ? (g.winner === 0 ? 'Player one wins' : 'Player two wins') : g.winner === 0 ? 'You win!' : 'The computer wins';

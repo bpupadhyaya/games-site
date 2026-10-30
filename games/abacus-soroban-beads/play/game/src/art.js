@@ -3,6 +3,7 @@
 import { theme, rr, mix, rgba } from './ui.js';
 import { abacusGeo } from './layout.js';
 import { digitsOf, heavenOf, earthOf } from './soroban.js';
+import { v3 } from './v3.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 export const posOf = (d) => ({ hp: heavenOf(d), ep: [0, 1, 2, 3].map((i) => (i < earthOf(d) ? 1 : 0)) });
@@ -38,6 +39,14 @@ export function drawBead(ctx, cx, cy, bw, bh, T, { glow = 0, alpha = 1, lit = 0 
   path(); ctx.lineJoin = 'round'; ctx.lineWidth = Math.max(1.2, bh * 0.045); ctx.strokeStyle = T.beadEdge; ctx.stroke();
   if (glow > 0) { path(); ctx.lineWidth = Math.max(3, bh * 0.1); ctx.strokeStyle = rgba(T.hl, 0.25 + 0.6 * glow); ctx.stroke(); path(); ctx.lineWidth = Math.max(1.5, bh * 0.045); ctx.strokeStyle = T.hl; ctx.stroke(); }
   ctx.restore();
+}
+
+// Glow outline only (hint rings) when the real bead is drawn by the 3D layer.
+function glowBead(ctx, cx, cy, bw, bh, T, glow) {
+  const fw = bw * 0.17, hx = bw / 2, hy = bh / 2;
+  const path = () => { ctx.beginPath(); ctx.moveTo(cx - fw, cy - hy); ctx.lineTo(cx + fw, cy - hy); ctx.lineTo(cx + hx, cy); ctx.lineTo(cx + fw, cy + hy); ctx.lineTo(cx - fw, cy + hy); ctx.lineTo(cx - hx, cy); ctx.closePath(); };
+  path(); ctx.lineJoin = 'round'; ctx.lineWidth = Math.max(3, bh * 0.1); ctx.strokeStyle = rgba(T.hl, 0.25 + 0.6 * glow); ctx.stroke();
+  path(); ctx.lineWidth = Math.max(1.5, bh * 0.045); ctx.strokeStyle = T.hl; ctx.stroke();
 }
 
 function frameArt(ctx, g, T) {
@@ -80,7 +89,8 @@ function rodArt(ctx, g, T, r) {
 
 // A = { rods, d[], hp[], ep[][], glow[], sel, hl:{rod, part:'h'|'e'|'rod', pulse} }
 export function drawAbacus(ctx, g, A, T, o = {}) {
-  frameArt(ctx, g, T);
+  const three = v3.on && !o.flat;          // the 3D layer draws frame, rods and beads; this layer adds rod glow, hint rings and digits
+  if (three) v3.frame = { g, A, T, hl: o.hl ?? null, t: o.t ?? 0, tilt: o.tilt ?? 0 }; else frameArt(ctx, g, T);
   const sp = g.sp, rods = g.rods, t = o.t ?? 0;
   for (let r = 0; r < rods; r++) {
     const rx = g.rodX(r);
@@ -89,13 +99,15 @@ export function drawAbacus(ctx, g, A, T, o = {}) {
       const gl = ctx.createLinearGradient(rx - sp / 2, 0, rx + sp / 2, 0); gl.addColorStop(0, rgba(T.hl, 0)); gl.addColorStop(0.5, rgba(T.hl, 0.16 + 0.12 * p)); gl.addColorStop(1, rgba(T.hl, 0));
       ctx.fillStyle = gl; ctx.fillRect(rx - sp / 2, g.top - g.fr * 0.4, sp, g.bottom - g.top + g.fr * 0.8);
     }
-    rodArt(ctx, g, T, r);
+    if (!three) rodArt(ctx, g, T, r);
   }
   for (let r = 0; r < rods; r++) {
     const rx = g.rodX(r), gl = A.glow?.[r] ?? 0, hlr = o.hl && o.hl.rod === r, pulse = hlr ? 0.5 + 0.5 * Math.sin(t * 6) : 0;
     const hpos = A.hp[r];
-    drawBead(ctx, rx, g.heavenY(hpos), g.bw, g.bh, T, { glow: hlr && (o.hl.part === 'h' || o.hl.part === 'rod') ? pulse : 0, lit: gl });
-    for (let i = 0; i < 4; i++) drawBead(ctx, rx, g.earthY(i, A.ep[r][i]), g.bw, g.bh, T, { glow: hlr && (o.hl.part === 'e' || o.hl.part === 'rod') ? pulse : 0, lit: gl });
+    const gh = hlr && (o.hl.part === 'h' || o.hl.part === 'rod') ? pulse : 0, ge = hlr && (o.hl.part === 'e' || o.hl.part === 'rod') ? pulse : 0;
+    if (three) { if (gh) glowBead(ctx, rx, g.heavenY(hpos), g.bw, g.bh, T, gh); if (ge) for (let i = 0; i < 4; i++) glowBead(ctx, rx, g.earthY(i, A.ep[r][i]), g.bw, g.bh, T, ge); continue; }
+    drawBead(ctx, rx, g.heavenY(hpos), g.bw, g.bh, T, { glow: gh, lit: gl });
+    for (let i = 0; i < 4; i++) drawBead(ctx, rx, g.earthY(i, A.ep[r][i]), g.bw, g.bh, T, { glow: ge, lit: gl });
   }
   if (o.labels) {
     ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -113,6 +125,6 @@ export function drawAbacus(ctx, g, A, T, o = {}) {
 // Rules / How to play illustration: the real beads in a static abacus, an optional highlighted rod and a caption of the value.
 export function drawFigure(ctx, rect, fig, t) {
   const T = theme(), A = staticAbacus(fig.value, fig.rods), g = abacusGeo({ x: rect.x, y: rect.y, w: rect.w, h: rect.h }, fig.rods, true);
-  drawAbacus(ctx, g, A, T, { labels: true, zeros: true, hl: fig.hl != null ? { rod: fig.hl, part: 'rod' } : null, t });
+  drawAbacus(ctx, g, A, T, { flat: true, labels: true, zeros: true, hl: fig.hl != null ? { rod: fig.hl, part: 'rod' } : null, t });
 }
 export { clamp };

@@ -131,6 +131,7 @@ function houseTexture(THREE) {
   g.fillStyle = '#3b2616'; g.fillRect(230, 52, 56, 76); g.fillStyle = '#c9402c'; g.fillRect(224, 46, 68, 8);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
 }
+const flatUV = (g) => { const uv = g.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, 0.02, 0.96); return g; };   // a plain patch of the whitewash: vertex colour only
 function buildHouses(THREE, rand, H = groundH) {
   const wallGeos = [], roofParts = [];
   const spots = [];
@@ -146,8 +147,13 @@ function buildHouses(THREE, rand, H = groundH) {
   for (const sp of spots) {
     const w = 11 + rand() * 4, d = 8 + rand() * 2;
     const box = (hh, y0, vlo, vhi, color) => { const g = new THREE.BoxGeometry(w, hh, d), uv = g.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setY(i, vlo + (vhi - vlo) * uv.getY(i)); g.translate(0, y0 + hh / 2, 0); return { geo: g, matrix: mat4(THREE, sp.x, sp.h, sp.z, 1, 1, 1, sp.ry), color }; };
-    wallGeos.push(box(5.5, -5.2, 0.55, 0.95, [0.62, 0.58, 0.52]));          // stone foundation, sunk into the slope
-    { const pad = new THREE.BoxGeometry(w + 9, 9, d + 9), uv = pad.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setY(i, 0.6 + 0.3 * uv.getY(i)); pad.translate(0, -4.5 + 0.28, 0); wallGeos.push({ geo: pad, matrix: mat4(THREE, sp.x, sp.h, sp.z, 1, 1, 1, sp.ry), color: [0.36, 0.5, 0.24] }); }   // the levelled yard the house stands on
+    // grounding: a low dry-stone foundation, then the levelled yard as an earth bank whose sides slope into the hillside (no vertical cliff faces),
+    // tinted with the terrain's own colour at that spot so the house sits IN the slope instead of on a floating block
+    { const g = new THREE.BoxGeometry(w + 0.5, 6.2, d + 0.5); flatUV(g); g.translate(0, -2.8, 0); wallGeos.push({ geo: g, matrix: mat4(THREE, sp.x, sp.h, sp.z, 1, 1, 1, sp.ry), color: [0.5, 0.47, 0.42] }); }
+    { const tc = terrainColor(sp.x, sp.z, sp.h, 0.15, 0.5), bank = new THREE.CylinderGeometry(Math.SQRT1_2, Math.SQRT1_2 * 2.4, 1, 4, 1, true); bank.rotateY(Math.PI / 4); bank.translate(0, -0.5, 0); flatUV(bank);
+      const yard = new THREE.PlaneGeometry(1, 1); yard.rotateX(-Math.PI / 2); flatUV(yard);
+      wallGeos.push({ geo: bank, matrix: mat4(THREE, sp.x, sp.h + 0.1, sp.z, w + 5, 8, d + 5, sp.ry), color: [tc[0] * 0.97, tc[1] * 0.98, tc[2] * 0.97] });
+      wallGeos.push({ geo: yard, matrix: mat4(THREE, sp.x, sp.h + 0.1, sp.z, w + 5, 1, d + 5, sp.ry), color: [tc[0] * 1.08, tc[1] * 1.04, tc[2] * 0.95] }); }
     wallGeos.push(box(3.3, 0.3, 0.5, 1.0, [1, 1, 1]));                       // whitewashed ground floor (door)
     wallGeos.push(box(3.0, 3.6, 0.0, 0.5, [1, 1, 1]));                       // timber upper floor with painted window frames
     const roof = new THREE.CylinderGeometry(0, 1, 1, 4, 1); roof.rotateY(Math.PI / 4); roof.translate(0, 0.5, 0);

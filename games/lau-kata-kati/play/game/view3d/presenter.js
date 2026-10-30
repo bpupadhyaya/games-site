@@ -224,24 +224,24 @@ export async function createPresenter({ kitCanvas, quality = 'high' }) {
   };
   const clothN = quilt('#202e6e', 'rgba(255,241,210,0.28)'), clothOn = quilt('#6a2420', 'rgba(255,230,190,0.32)', '#2a0a08'), clothDoc = quilt('#161f55', 'rgba(255,241,210,0.18)'), clothToast = quilt('#12183f', 'rgba(255,241,210,0.14)');
   const lacq = (c, em) => { const m = new THREE.MeshPhysicalMaterial({ color: c, roughness: 0.38, clearcoat: 0.9, clearcoatRoughness: 0.18, envMapIntensity: 0.3 }); if (em) { m.emissive = new THREE.Color(em); m.emissiveIntensity = 0.5; } return m; };
-  const lacqPrimary = lacq('#d23a30', '#3a0a06'), lacqNormal = lacq('#27388a', '#080c24'), lacqOn = lacq('#8a3028', '#2a0a08');
+  const lacqPrimary = lacq('#f2b52e', '#8a5a08'), lacqNormal = lacq('#27388a', '#080c24'), lacqOn = lacq('#8a3028', '#2a0a08'); lacqPrimary.emissiveIntensity = 0.75;
   const scrim = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ color: 0x0a0618, transparent: true, opacity: 0, depthWrite: false }));
   hud.add(scrim);
   const ROT = Math.PI / 2;
   function panelAt(i) {
     let p = hudPanels[i];
     if (!p) {
-      const g = new THREE.Group(), outer = new THREE.Mesh(flat, teak), trim = new THREE.Mesh(flat, brassM), inner = new THREE.Mesh(flat, clothN);
+      const g = new THREE.Group(), outer = new THREE.Mesh(flat, brassM), trim = new THREE.Mesh(flat, teak), inner = new THREE.Mesh(flat, clothN);
       g.add(outer, trim, inner); hud.add(g); p = { g, outer, trim, inner }; hudPanels.push(p);
     }
     return p;
   }
   function placePanel(i, r, rad, kind) {
     const p = panelAt(i); p.g.visible = true;
-    const cx = r.x + r.w / 2, cy = -(r.y + r.h / 2), z = -700, dep = kind === 'toast' ? 8 : 14, ins = kind === 'doc' ? 10 : 7;
+    const cx = r.x + r.w / 2, cy = -(r.y + r.h / 2), z = -700, dep = kind === 'toast' ? 8 : 14, ins = kind === 'doc' ? 14 : 11;
     p.outer.geometry = slabG(r.w, r.h, dep, rad, 5); p.outer.rotation.x = ROT; p.outer.position.set(cx, cy, z);
-    p.trim.geometry = slabG(r.w - ins * 1.1, r.h - ins * 1.1, dep + 1.5, Math.max(4, rad - ins * 0.5), 1.6); p.trim.rotation.x = ROT; p.trim.position.set(cx, cy, z);
-    p.inner.geometry = slabG(r.w - ins * 2.3, r.h - ins * 2.3, dep + 2.5, Math.max(3, rad - ins), 2.2); p.inner.rotation.x = ROT; p.inner.position.set(cx, cy, z);
+    p.trim.geometry = slabG(r.w - ins * 1.8, r.h - ins * 1.8, dep + 1.5, Math.max(4, rad - ins * 0.9), 1.6); p.trim.rotation.x = ROT; p.trim.position.set(cx, cy, z);
+    p.inner.geometry = slabG(r.w - ins * 2.6, r.h - ins * 2.6, dep + 2.5, Math.max(3, rad - ins * 1.2), 2.2); p.inner.rotation.x = ROT; p.inner.position.set(cx, cy, z);
     p.inner.material = kind === 'plateOn' ? clothOn : kind === 'doc' ? clothDoc : kind === 'toast' ? clothToast : clothN;
   }
   function buttonAt(i) {
@@ -268,8 +268,8 @@ export async function createPresenter({ kitCanvas, quality = 'high' }) {
   }
   const tmpV = new THREE.Vector3(), tmpW = new THREE.Vector3();
   // rect = the board's rectangle in virtual units (cloth width w, depth h); fit its width, and its height if that is the tighter limit
-  function fitCamera(rect, L, pitchDeg, fov, yawDeg = 0) {
-    const k = W / L.w, targetW = (rect.w + 10) * k, targetH = rect.h * k * 1.04, p = (pitchDeg * Math.PI) / 180, yaw = (yawDeg * Math.PI) / 180, lookY = 0.15;
+  function fitCamera(rect, L, pitchDeg, fov, yawDeg = 0, zoom = 1) {
+    const k = W / L.w, targetW = (rect.w + 10) * k * zoom, targetH = rect.h * k * 1.04, p = (pitchDeg * Math.PI) / 180, yaw = (yawDeg * Math.PI) / 180, lookY = 0.15;
     const hx = (viewS.rot ? 3.6 : 3.05) + 0.2, hz = (viewS.rot ? 3.05 : 3.6) + 0.2;
     camera.fov = fov; camera.clearViewOffset(); camera.aspect = W / H; camera.updateProjectionMatrix();
     let d = 24;
@@ -478,7 +478,7 @@ export async function createPresenter({ kitCanvas, quality = 'high' }) {
       heroState(state);
     } else {
       const b = L.board;
-      fitCamera({ x: b.x, y: b.y, w: b.w, h: b.h }, L, L.land ? 52 : (viewS.rot ? 54 : 60), 30, 0);
+      fitCamera({ x: b.x, y: b.y, w: b.w, h: b.h }, L, L.land ? 58 : (viewS.rot ? 54 : 66), 30, 0, L.land ? 1.05 : 1.06);
       boardState(state);
     }
   }

@@ -9,6 +9,7 @@ import { AI_LEVELS } from './ai.js';
 import { LESSONS } from './lessons.js';
 import { flowOf } from './pages.js';
 import { drawLockup, drawMoreLine } from './brand.js';
+import { v3 } from './v3.js';
 
 const FONT = '"Fredoka", "Trebuchet MS", system-ui, sans-serif', TAU = Math.PI * 2;
 const GOLD = '#f6d58a', CREAM = '#fff3d6';
@@ -25,6 +26,8 @@ export function render(ctx, state, L) {
 function draw(ctx, state, L) {
   const bs = Math.min(TEXT_SCALES[state.textScaleIdx] ?? 1, 1.16), ts = TEXT_SCALES[state.textScaleIdx] ?? 1, sc = state.scene, t = state.t, g = state.g;
   const W = L.w, H = L.h, FL = L.minText;
+  v3.pieces.length = 0; v3.pose = null; v3.inBoard = false; v3.theme = state.theme;
+  v3.active = v3.on && (sc === 'title' || sc === 'play' || sc === 'auto' || sc === 'lesson' || sc === 'daily');
   const text = (str, x, y, size, color = CREAM, align = 'center', weight = 600) => { ctx.textAlign = align; ctx.font = `${weight} ${Math.max(size, FL)}px ${FONT}`; ctx.fillStyle = color; ctx.fillText(str, x, y); };
   // the largest size <= size (not below ~0.85 of the floor) at which `str` fits `maxW`
   const fit = (str, maxW, size, weight = 600) => { let s = size; const lo = FL * 0.85; ctx.font = `${weight} ${s}px ${FONT}`; while (s > lo && ctx.measureText(str).width > maxW) { s = Math.max(lo, s * 0.93); ctx.font = `${weight} ${s}px ${FONT}`; } return s; };
@@ -64,7 +67,7 @@ function draw(ctx, state, L) {
     ctx.restore();
   };
   const panel = (r, a = 0.8, rad = 26) => { ctx.fillStyle = `rgba(22,11,5,${a})`; ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, rad); ctx.fill(); ctx.strokeStyle = 'rgba(255,214,150,0.35)'; ctx.lineWidth = 2; ctx.stroke(); };
-  const coinAt = (k, px, py, s = 1, lift = 0, alpha = 1) => drawPiece(ctx, k, px, py, s, lift, alpha);
+  const coinAt = (k, px, py, s = 1, lift = 0, alpha = 1) => { if (v3.active && v3.inBoard) v3.pieces.push({ k, x: px, y: py, s, lift, alpha }); else drawPiece(ctx, k, px, py, s, lift, alpha); };
   const dotted = (pts, color, w, dash, gap) => {
     ctx.save(); ctx.lineCap = 'round'; ctx.setLineDash([dash, gap]); ctx.strokeStyle = color; ctx.lineWidth = w; ctx.beginPath(); pts.forEach((p, i) => (i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]))); ctx.stroke(); ctx.restore();
   };
@@ -73,14 +76,14 @@ function draw(ctx, state, L) {
     for (const b of world) if (b.on && b.k === 'S') coinAt('S', sx(b.x), sy(b.y), 1, opts.lift ?? 0);
   };
   // run fn in the board's canonical space, placed at (cx, cy) with scale f
-  const inBoard = (cx, cy, f, fn) => { ctx.save(); ctx.translate(cx, cy); ctx.scale(f, f); ctx.translate(-CX, -CY); fn(); ctx.restore(); };
+  const inBoard = (cx, cy, f, fn) => { ctx.save(); ctx.translate(cx, cy); ctx.scale(f, f); ctx.translate(-CX, -CY); v3.inBoard = true; v3.pose = { cx, cy, f }; fn(); v3.inBoard = false; ctx.restore(); };
 
   // ---------------------------------------------------------------- TITLE
   if (sc === 'title') {
     const T = L.title(!!state.saved);
-    drawTable(ctx, W, H);
+    if (!v3.active) drawTable(ctx, W, H);
     inBoard(T.hero.cx, T.hero.cy, T.hero.sc, () => {
-      drawBoardOnly(ctx, state.theme); drawWorld(state.demo.world);
+      if (!v3.active) drawBoardOnly(ctx, state.theme); drawWorld(state.demo.world);
       for (const f of state.demo.fx) if (f.type === 'drop') { const a = Math.min(1, f.t / f.dur); coinAt(f.k, sx(f.x) + (sx(f.px) - sx(f.x)) * a, sy(f.y) + (sy(f.py) - sy(f.y)) * a, 1 - a * 0.6, 0, 1 - a); }
     });
     if (!L.land) {
@@ -217,11 +220,11 @@ function draw(ctx, state, L) {
 
   // ---------------------------------------------------------------- BOARD SCENES
   const P = L.play(sc);
-  drawTable(ctx, W, H);
+  if (!v3.active) drawTable(ctx, W, H);
   const side = g.turn, phase = state.phase;
   const lifted = state.drag && state.drag.mode === 'aim';
   inBoard(P.cx, P.cy, P.f, () => {
-    drawBoardOnly(ctx, state.theme);
+    if (!v3.active) drawBoardOnly(ctx, state.theme);
     // pieces
     const world = g.world;
     for (const b of world) if (b.on && b.k !== 'S') coinAt(b.k, sx(b.x), sy(b.y), 1, 0);

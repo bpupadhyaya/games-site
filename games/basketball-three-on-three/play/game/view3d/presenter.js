@@ -9,6 +9,7 @@ import { HOOP } from '../src/consts.js';
 const LIB = '../vendor3d/index.js';
 import { SCALE_BALL, BR, ROLES } from '../src/consts.js';
 const SKINS = ['tan', 'deep', 'peach', 'brown', 'clay', 'wood'];
+const GENDERS = ['m', 'm', 'm', 'm', 'm', 'm'];   // athlete_f ships trousers only: a basketball kit needs the shorts of athlete_m
 const HAIRS = ['black', 'black', 'brown', 'black', 'brown', 'blond'];
 export const MY_KITS = [
   { top: '#2467c9', bottoms: '#173c78', socks: '#f3f3f3', shoes: '#f3f3f3', trim: '#ffd23f' },
@@ -36,11 +37,11 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
   canvas.style.cssText = 'position:fixed;inset:0;width:100vw;height:100dvh;display:block;pointer-events:none;z-index:0';
   kitCanvas.parentElement.insertBefore(canvas, kitCanvas);
   kitCanvas.style.position = 'relative'; kitCanvas.style.zIndex = '1';
-  const stage = createStage({ canvas, quality, dprCap: 2, lighting: 'indoor', mode: 'continuous', shadows: false });
+  const stage = createStage({ canvas, quality, dprCap: 2, lighting: 'evening', mode: 'continuous', shadows: false });
   if (!stage.supported) { canvas.remove(); return { stage: null, wrap: (g) => g, ready_p: Promise.resolve(false) }; }
   stage.camera.near = 0.5; stage.camera.far = 90; stage.camera.updateProjectionMatrix();
-  stage.setLighting('indoor', { exposure: 0.95, hemi: 0.95, keyI: 2.4, rim: 0xcad8ff, rimI: 0.9 });
-  stage.setSky('#101c2c', '#101c2c', { near: 40, far: 90 });
+  stage.setLighting('evening', { exposure: 0.98, hemi: 0.95, keyI: 2.6, rim: 0xbcd0ff, rimI: 1.0 });
+  stage.setSky('#e59a7a', null);   // setLighting re-adds fog and sky haze: the neighbourhood backdrop must stay crisp
   const P = { stage, THREE, humans: [], actors: [], ball: null, hall: null, ready: false, lost: false, V3, exact: false, noRender: false, cam: { ...CAM } };
   const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
   stage.onContextLost(() => { P.lost = true; });
@@ -79,7 +80,7 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
     P.ball = buildBall(SCALE_BALL); stage.add(P.ball);
     for (let i = 0; i < 6; i++) {
       const team = i < 3 ? 0 : 1, role = i % 3;
-      const h = await loadHuman({ character: 'mannequin_m', kit: KITS[team], skin: SKINS[i], hair: HAIRS[i], legs: 'shorts' });
+      const h = await loadHuman({ character: GENDERS[i] === 'f' ? 'athlete_f' : 'athlete_m', kit: KITS[team], skin: SKINS[i], hair: HAIRS[i], legs: 'shorts', lod: 'auto' });
       h.groundClamp = 'auto'; h.footPlanting = true;
       h.play('ready_stance', { fade: 0, startTime: (i * 0.53) % 2.7 });
       const sc = ROLES[role].scale;

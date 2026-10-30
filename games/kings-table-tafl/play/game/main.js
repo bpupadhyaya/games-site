@@ -2,6 +2,7 @@ import { boot } from './kit/index.js';
 import { createGame, meta, wheelInput } from './src/game.js';
 import { host } from './src/layout.js';
 import { setLogo, setLockup } from './src/brand.js';
+import { v3 } from './src/v3.js';
 
 const canvas = document.getElementById('game');
 
@@ -19,10 +20,29 @@ window.addEventListener('safeinsets', syncHost);
 canvas.addEventListener('wheel', (e) => { e.preventDefault(); wheelInput.dy += e.deltaY * (720 / Math.max(1, Math.min(window.innerWidth, window.innerHeight))) * (e.deltaMode === 1 ? 16 : 1); }, { passive: false });
 
 // Dev tools only (?dev=1 or the app's Developer toggle): expose the game object for the layout/resize check scripts.
-const create = async (env) => { const game = await createGame(env); if (env.config.dev) window.__tafl = game; return game; };
+const create = async (env) => { const game = await createGame(env); if (env.config.dev) { window.__tafl = game; window.__tafl_v3 = v3; } return game; };
 
 // The Arcforge badge (see src/brand.js): optional, the credit line still reads without it.
 const af = new Image(); af.onload = () => setLogo(af); af.src = './brand/arcforge-af.png';
 const lock = new Image(); lock.onload = () => setLockup(lock); lock.src = './brand/arcforge-lockup.png';
 
-boot({ createGame: create, meta, canvas, background: '#0d0806' });
+// 3D presenter (a frozen shore at dusk, a carved soapstone board on a stone dais, iron helms and ivory cairns, behind the kit canvas). The game boots
+// at once on the flat 2D art; three.js is fetched and the scene built after that, then takes over. No WebGL, ?flat=1 or a lost context: the flat art stays.
+let presenter = null, inner = null;
+const bg = { toString: () => (v3.on ? 'rgba(0,0,0,0)' : '#0d0806') };     // read by the kit every frame, so the switch is instant
+const wrap = (g) => Object.assign(Object.create(g), g, {
+  render(ctx, view) {
+    if (v3.on && presenter) { ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height); ctx.restore(); }   // the kit's background fill is transparent now
+    g.render(ctx, view);
+    if (v3.on && presenter) presenter.post();
+  },
+});
+boot({ createGame: async (env) => (inner = wrap(await create(env))), meta, canvas, background: bg });
+if (!new URLSearchParams(location.search).has('flat')) {
+  const start = () => import('./view3d/presenter.js').then((m) => m.createPresenter({ kitCanvas: canvas })).then((p) => {
+    if (!p.ok) return;
+    const go = () => { if (!inner) return setTimeout(go, 30); presenter = p; p.attach(inner); if (new URLSearchParams(location.search).has('dev')) { window.__v3At = performance.now(); window.__tafl3d = p; } };
+    go();
+  }).catch((e) => console.warn('3D presenter unavailable; flat art stays', e));
+  requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(start, 30)));   // let the flat title paint and become interactive first
+}

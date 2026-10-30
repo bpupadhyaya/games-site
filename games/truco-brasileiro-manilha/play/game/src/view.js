@@ -6,6 +6,7 @@ import { drawBackground, drawTable, drawCard, button, plaque, rr, drawGesture, b
 import * as RL from './rules.js';
 import { levelOf } from './ai.js';
 import { RULES, ABOUT, HOWTO } from './rulesContent.js';
+import { v3, covers, flatAlpha } from './v3.js';
 import { drawCredit, drawMoreLine, drawLockup } from './brand.js';
 
 const TAU = Math.PI * 2;
@@ -70,7 +71,7 @@ export function render(ctx, state, L) {
   const sc = state.scene, t = state.t, V = makeV(ctx, L.minFont);
   fontMin.v = L.minFont;
   ctx.save();
-  drawBackground(ctx, t, L.w, L.h);
+  { const fa = flatAlpha(sc); if (fa > 0) { ctx.globalAlpha = fa; drawBackground(ctx, t, L.w, L.h); ctx.globalAlpha = 1; } else if (!covers(sc)) drawBackground(ctx, t, L.w, L.h); }
   if (sc === 'title') title(ctx, state, V, L);
   else if (sc === 'settings') settingsPage(ctx, state, V, L);
   else if (sc === 'about') refPage(ctx, state, V, L, ABOUT, state.aboutPage, 'About');
@@ -95,14 +96,16 @@ function zoomPills(ctx, state, V, L) {
 }
 function titleHeader(ctx, state, V, L, o) {
   const t = state.t, hd = o.hd, cx = hd.cx;
-  bunting(ctx, t, 0, 1, L.w);
+  const fa = flatAlpha('title'); ctx.save(); ctx.globalAlpha = fa;
+  if (fa > 0) bunting(ctx, t, 0, 1, L.w);
   const g = ctx.createRadialGradient(cx, hd.fanY, 20, cx, hd.fanY, Math.min(360, hd.aw * 0.5)); g.addColorStop(0, 'rgba(255,210,63,0.22)'); g.addColorStop(1, 'rgba(255,210,63,0)'); ctx.fillStyle = g; ctx.fillRect(cx - hd.aw / 2, hd.fanY - 380, hd.aw, 760);
-  const cards = fanCards(state.variant), s = hd.fanS;
+  const cards = fa > 0 ? fanCards(state.variant) : [], s = hd.fanS;
   cards.forEach((c, i) => {
     const a = (i - 1.5) * 0.2 + Math.sin(t * 0.8 + i) * 0.015, x = cx + (i - 1.5) * hd.fanGap, y = hd.fanY + Math.abs(i - 1.5) * 24 * s;
     ctx.save(); ctx.translate(x, y); ctx.rotate(a);
     drawCard(ctx, c, -CW * s / 2, -CH * s / 2, s, { big: state.set.big, four: state.set.four, man: true, t: t + i * 0.3 }); ctx.restore();
   });
+  ctx.restore();
   ctx.save(); ctx.shadowColor = 'rgba(255,200,40,0.7)'; ctx.shadowBlur = 30;
   const gr = ctx.createLinearGradient(0, hd.titleY - hd.titleSize * 0.75, 0, hd.titleY + 8); gr.addColorStop(0, '#fff2a0'); gr.addColorStop(1, '#f2b705');
   V.text('Truco', cx, hd.titleY, hd.titleSize, gr, FONT, 800); ctx.restore();
@@ -137,7 +140,7 @@ function title(ctx, state, V, L) {
 function titleLarge(ctx, state, V, L) {
   const k = TEXT_SCALES[state.textScaleIdx], LT = largeTitle(L.w, k, !!state.saved), sy = state.scroll, cx = L.w / 2;
   ctx.save(); ctx.translate(0, -sy);
-  bunting(ctx, state.t, 0, 1, L.w);
+  if (!covers('title')) bunting(ctx, state.t, 0, 1, L.w);
   ctx.save(); ctx.shadowColor = 'rgba(255,200,40,0.7)'; ctx.shadowBlur = 20;
   const gr = ctx.createLinearGradient(0, 120, 0, 230); gr.addColorStop(0, '#fff2a0'); gr.addColorStop(1, '#f2b705');
   V.text('Truco', cx, 220, 140, gr, FONT, 800); ctx.restore();
@@ -372,7 +375,8 @@ function table(ctx, state, V, L) {
   const { text, shadowText } = V, H = state.H, t = state.t, ui = state.ui, sc = state.scene, n = H.n, T = L.t;
   const big = state.set.big, four = state.set.four, calm = state.set.calm, isAuto = sc === 'auto', A = isAuto ? state.auto : null;
   const VR = RL.VARIANTS[H.variant];
-  drawTable(ctx, t, T.felt);
+  const fa = flatAlpha(sc), cov = covers(sc);
+  if (!cov || fa > 0) { ctx.save(); ctx.globalAlpha = fa; drawTable(ctx, t, T.felt); ctx.restore(); }
   globalThis.__previewBadge = T.previewBadge ?? null;
   const names = n === 4 ? NAMES4 : ['You', 'Opponent'];
   const scores = isAuto ? state.autoMatch.scores : state.match.scores;
@@ -408,7 +412,8 @@ function table(ctx, state, V, L) {
     if (faceUpSeat(s)) {
       if (p === 2) { const m = H.hands[s].length, sp = m > 1 ? Math.min(nCW * 1.12, 260 * (ns / 0.5) / (m - 1)) : 0; drawFaceHand(s, T.cx - (nCW + sp * (m - 1)) / 2, T.nTop, sp, 0, ns); }
       else if (p === 1) drawFaceHand(s, SD.cxE - SD.sCW / 2, SD.yc0 - SD.sCH / 2, 0, SD.step, ssc); else drawFaceHand(s, SD.cxW - SD.sCW / 2, SD.yc0 - SD.sCH / 2, 0, SD.step, ssc);
-    } else if (p === 2) { for (let k = 0; k < cnt; k++) drawCard(ctx, -1, T.cx - (nCW + T.nStep * 2) / 2 + k * T.nStep, T.nTop, ns, {}); }
+    } else if (cov && fa <= 0) { /* the 3D table draws the face-down hands */ }
+    else if (p === 2) { for (let k = 0; k < cnt; k++) drawCard(ctx, -1, T.cx - (nCW + T.nStep * 2) / 2 + k * T.nStep, T.nTop, ns, {}); }
     else if (p === 3) { for (let k = 0; k < cnt; k++) drawCard(ctx, -1, SD.cxW - SD.sCW / 2, SD.yc0 - SD.sCH / 2 + k * SD.step, ssc, { rot: Math.PI / 2 }); }
     else { for (let k = 0; k < cnt; k++) drawCard(ctx, -1, SD.cxE - SD.sCW / 2, SD.yc0 - SD.sCH / 2 + k * SD.step, ssc, { rot: -Math.PI / 2 }); }
   }
@@ -463,7 +468,7 @@ function table(ctx, state, V, L) {
   };
   hand.forEach((c, i) => { if (c !== ui.sel && !(ui.drag && ui.drag.card === c && ui.drag.moved)) drawHandCard(c, i); });
   const tt = state.show ? state.show.plays : H.plays;
-  for (const pl of tt) {
+  if (!(cov && fa <= 0)) for (const pl of tt) {
     const p = state.pos[pl.card]; if (!p) continue;
     const win = state.show && state.show.t > 0.15 && state.show.winner === pl.seat && state.show.t < 1.3;
     drawCard(ctx, pl.card, p.x, p.y, p.sc, { big, four, glow: win ? '#ffe08a' : null, man: H.pow[pl.card] >= 100, t });

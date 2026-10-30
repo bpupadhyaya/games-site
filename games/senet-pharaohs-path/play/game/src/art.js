@@ -16,13 +16,13 @@ export function bitmap(w, h, scale, paint) {
   } catch { return null; }
 }
 const GOLD = ['#fff0b0', '#e6b84a', '#a8761c'];
-function goldGrad(c, y0, y1) { const g = c.createLinearGradient(0, y0, 0, y1); g.addColorStop(0, GOLD[0]); g.addColorStop(0.45, GOLD[1]); g.addColorStop(1, GOLD[2]); return g; }
+export function goldGrad(c, y0, y1) { const g = c.createLinearGradient(0, y0, 0, y1); g.addColorStop(0, GOLD[0]); g.addColorStop(0.45, GOLD[1]); g.addColorStop(1, GOLD[2]); return g; }
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Wall and mat
 // ---------------------------------------------------------------------------------------------------------------------
 // The plaster wall, `w` wide and `wallH` tall: the top frieze is anchored to the top and the dado to the bottom, so a shorter wall crops the frieze.
-function paintWall(c, W, wallH) {
+export function paintWall(c, W, wallH) {
   const R = lcg(7), dy = wallH - 317;
   c.save(); c.beginPath(); c.rect(0, 0, W, wallH); c.clip();
   // painted plaster: warm sand, mottled, darker toward the edges
@@ -66,21 +66,33 @@ function paintWall(c, W, wallH) {
   c.fillStyle = '#231710'; c.fillRect(0, 312, W, 5);
   c.restore();
 }
-function paintMat(c, W, H, y0) {
-  const R = lcg(19);
+// The reed mat: one 240-unit woven tile painted once and repeated as a pattern (painting 5,000 cells per screen cost the first frame
+// tens of milliseconds on slow phones). Weave cells are 15 units, alternate direction.
+let matTile = null;
+function matPattern(c) {
+  if (matTile === null) matTile = bitmap(240, 240, 1.5, (t) => {
+    const R = lcg(19);
+    for (let gy = 0; gy < 16; gy++) for (let gx = 0; gx < 16; gx++) {
+      const x = gx * 15, y = gy * 15, horiz = (gx + gy) % 2 === 0, tn = R();
+      const g = horiz ? t.createLinearGradient(0, y, 0, y + 15) : t.createLinearGradient(x, 0, x + 15, 0);
+      const tone = 150 + tn * 40;
+      g.addColorStop(0, `rgb(${tone + 30},${tone - 10},${tone - 70})`); g.addColorStop(0.5, `rgb(${tone + 8},${tone - 32},${tone - 92})`); g.addColorStop(1, `rgb(${tone - 34},${tone - 62},${tone - 112})`);
+      t.fillStyle = g; t.fillRect(x, y, 15, 15);
+      t.strokeStyle = 'rgba(50,28,10,0.32)'; t.lineWidth = 1; t.strokeRect(x + 0.5, y + 0.5, 14, 14);
+      t.strokeStyle = 'rgba(255,225,160,0.18)'; t.beginPath();
+      if (horiz) { t.moveTo(x + 1, y + 5); t.lineTo(x + 14, y + 5); } else { t.moveTo(x + 5, y + 1); t.lineTo(x + 5, y + 14); }
+      t.stroke();
+    }
+  }) || 'none';
+  if (matTile === 'none') return null;
+  const pt = c.createPattern(matTile, 'repeat');
+  if (pt && pt.setTransform && typeof DOMMatrix !== 'undefined') pt.setTransform(new DOMMatrix([1 / 1.5, 0, 0, 1 / 1.5, 0, 0]));
+  return pt;
+}
+export function paintMat(c, W, H, y0) {
   c.fillStyle = '#a97d43'; c.fillRect(0, y0, W, H - y0);
-  // basket weave of reed strips, 15 px cells, alternate direction
-  for (let gy = 0; gy * 15 + y0 < H; gy++) for (let gx = 0; gx * 15 < W; gx++) {
-    const x = gx * 15, y = y0 + gy * 15, horiz = (gx + gy) % 2 === 0, t = R();
-    const g = horiz ? c.createLinearGradient(0, y, 0, y + 15) : c.createLinearGradient(x, 0, x + 15, 0);
-    const tone = 150 + t * 40;
-    g.addColorStop(0, `rgb(${tone + 30},${tone - 10},${tone - 70})`); g.addColorStop(0.5, `rgb(${tone + 8},${tone - 32},${tone - 92})`); g.addColorStop(1, `rgb(${tone - 34},${tone - 62},${tone - 112})`);
-    c.fillStyle = g; c.fillRect(x, y, 15, 15);
-    c.strokeStyle = 'rgba(50,28,10,0.32)'; c.lineWidth = 1; c.strokeRect(x + 0.5, y + 0.5, 14, 14);
-    c.strokeStyle = 'rgba(255,225,160,0.18)'; c.beginPath();
-    if (horiz) { c.moveTo(x + 1, y + 5); c.lineTo(x + 14, y + 5); } else { c.moveTo(x + 5, y + 1); c.lineTo(x + 5, y + 14); }
-    c.stroke();
-  }
+  const pt = matPattern(c);
+  if (pt) { c.save(); c.translate(0, y0); c.fillStyle = pt; c.fillRect(0, 0, W, H - y0); c.restore(); }
   // the ledge where the wall meets the table, with a soft shadow on the mat
   const sh = c.createLinearGradient(0, y0, 0, y0 + 63); sh.addColorStop(0, 'rgba(20,8,2,0.6)'); sh.addColorStop(1, 'rgba(20,8,2,0)');
   c.fillStyle = sh; c.fillRect(0, y0, W, 63);
@@ -97,7 +109,7 @@ function paintLamps(c, lamps) {
     c.strokeStyle = goldGrad(c, y - 10, y + 6); c.lineWidth = 2.2; c.beginPath(); c.ellipse(x, y - 4, 26, 8, 0, 0.1, Math.PI - 0.1); c.stroke();
   }
 }
-function paintVignette(c, W, H) {
+export function paintVignette(c, W, H) {
   const out = Math.hypot(W / 2, H / 2) * 1.15, v = c.createRadialGradient(W / 2, H * 0.513, out * 0.38, W / 2, H * 0.513, out);
   v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(10,3,0,0.62)');
   c.fillStyle = v; c.fillRect(0, 0, W, H);
@@ -107,21 +119,21 @@ function paintVignette(c, W, H) {
 // The board
 // ---------------------------------------------------------------------------------------------------------------------
 const goldStroke = (c, w) => { c.strokeStyle = goldGrad(c, 0, 1560); c.lineWidth = w; };
-function rosette(c, x, y, r) {                        // eight petals and a boss, pure geometry
+export function rosette(c, x, y, r) {                        // eight petals and a boss, pure geometry
   c.save(); c.translate(x, y);
   for (let k = 0; k < 8; k++) { c.save(); c.rotate((k * TAU) / 8); c.beginPath(); c.moveTo(0, -r * 0.25); c.quadraticCurveTo(r * 0.45, -r * 0.65, 0, -r); c.quadraticCurveTo(-r * 0.45, -r * 0.65, 0, -r * 0.25); c.fillStyle = goldGrad(c, -r, 0); c.fill(); c.strokeStyle = 'rgba(60,34,8,0.7)'; c.lineWidth = 1; c.stroke(); c.restore(); }
   c.beginPath(); c.arc(0, 0, r * 0.26, 0, TAU); c.fillStyle = '#1f5f9e'; c.fill(); c.strokeStyle = GOLD[1]; c.lineWidth = 2; c.stroke();
   c.restore();
 }
-function diamond(c, x, y, r) {
+export function diamond(c, x, y, r) {
   c.save(); c.translate(x, y); c.beginPath(); c.moveTo(0, -r); c.lineTo(r * 0.75, 0); c.lineTo(0, r); c.lineTo(-r * 0.75, 0); c.closePath();
   c.fillStyle = goldGrad(c, -r, r); c.fill(); c.strokeStyle = 'rgba(60,34,8,0.75)'; c.lineWidth = 1.2; c.stroke();
   c.beginPath(); c.moveTo(0, -r * 0.5); c.lineTo(r * 0.38, 0); c.lineTo(0, r * 0.5); c.lineTo(-r * 0.38, 0); c.closePath(); c.fillStyle = '#a3382a'; c.fill(); c.restore();
 }
-function zigzag(c, x, y, w) {                        // three water-like zigzag lines
+export function zigzag(c, x, y, w) {                        // three water-like zigzag lines
   for (let k = 0; k < 3; k++) { c.beginPath(); const yy = y - 14 + k * 14; c.moveTo(x - w / 2, yy); for (let j = 1; j <= 4; j++) c.lineTo(x - w / 2 + (w * j) / 4, yy + (j % 2 ? -5 : 5)); c.strokeStyle = '#1f5f9e'; c.lineWidth = 4; c.lineCap = 'round'; c.lineJoin = 'round'; c.stroke(); c.strokeStyle = 'rgba(200,235,255,0.55)'; c.lineWidth = 1.2; c.stroke(); }
 }
-function dots(c, x, y, n) {
+export function dots(c, x, y, n) {
   for (let k = 0; k < n; k++) { const yy = y + (k - (n - 1) / 2) * 20; const g = c.createRadialGradient(x - 3, yy - 3, 1, x, yy, 9); g.addColorStop(0, '#fff3bd'); g.addColorStop(0.5, '#e0b040'); g.addColorStop(1, '#8a5c14'); c.fillStyle = g; c.beginPath(); c.arc(x, yy, 8.5, 0, TAU); c.fill(); c.strokeStyle = 'rgba(50,28,6,0.8)'; c.lineWidth = 1; c.stroke(); }
 }
 function chevron(c, x, y, dir) {                     // a small gilded arrowhead in the groove; dir 0 down, 1 up, 2 right
@@ -302,7 +314,12 @@ function paintReel(c) {
   c.fillStyle = 'rgba(255,255,255,0.45)'; c.fillRect(bx - 21, by - 60, 3, 16); c.fillRect(bx - 21, by - 14, 3, 12);
 }
 const sprites = {};
+// The 3D presenter can hand in sprites rendered from its lit models ({ 1, 2, stick: [dark, light] }, same boxes as PBOX / SBOX), so the HUD,
+// result card and Rules pages show the same pieces as the board. Without it (no WebGL, tests) the painted sprites below are used.
+let lit = null;
+export const setSprites = (o) => { lit = o; };
 export function pieceSprite(kind) {
+  if (lit && lit[kind]) return lit[kind];
   if (!(kind in sprites)) sprites[kind] = bitmap(PBOX.w, PBOX.h, 3.5, kind === 1 ? paintCone : paintReel);
   return sprites[kind];
 }
@@ -332,5 +349,5 @@ function paintStick(c, light) {
   c.strokeStyle = light ? 'rgba(90,60,20,0.8)' : 'rgba(0,0,0,0.9)'; c.lineWidth = 1.4; rr(c, 3, 3, 144, 28, 14); c.stroke();
 }
 const sticks = {};
-export function stickSprite(light) { const k = light ? 1 : 0; if (!(k in sticks)) sticks[k] = bitmap(SBOX.w, SBOX.h, 2, (c) => paintStick(c, light)); return sticks[k]; }
+export function stickSprite(light) { const k = light ? 1 : 0; if (lit && lit.stick) return lit.stick[k]; if (!(k in sticks)) sticks[k] = bitmap(SBOX.w, SBOX.h, 2, (c) => paintStick(c, light)); return sticks[k]; }
 export const STICK = SBOX;

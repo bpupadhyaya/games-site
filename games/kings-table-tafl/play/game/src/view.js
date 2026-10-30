@@ -1,7 +1,8 @@
 // Everything drawn each frame. Reads `state` (game.js) and the live layout `L` (layout.js); changes nothing. Static art is cached (art.js).
 import { TEXT_SCALES, AP_THINK_STEPS, host } from './layout.js';
 import { drawScene, drawPiece, braid } from './art.js';
-import { SIZES, NAME, ATT, DEF, KING, isCorner } from './rules.js';
+import { SIZES, NAME, ATT, DEF, KING, isCorner, newGame } from './rules.js';
+import { v3 } from './v3.js';
 import { destinations } from './rules.js';
 import { LEVELS } from './engine.js';
 import { LESSONS } from './lessons.js';
@@ -16,12 +17,17 @@ export const pageMetrics = { max: 0, view: 0 };
 // Reader layout cache (wrapped lines + total height). readerStats.layouts counts rebuilds (tests read it).
 const readerCache = { pages: null, key: '', items: [], endY: 0 };
 export const readerStats = { layouts: 0 };
+let view3Start = null;                     // the opening 11x11 position, built once for the 3D title hero
 
 export function render(ctx, state, L) {
   const g = state.game, a = state.anim, scene = state.scene, n = g.n, cs = L.cell(n), K = L.k, big = state.big, calm = state.calm;
   const W = L.w, H = L.h, cx = W / 2;
   const boardScene = scene === 'play' || scene === 'over' || scene === 'lesson' || (scene === 'puzzle' && state.pz.status !== 'making') || scene === 'autoplay';
-  drawScene(ctx, boardScene ? n : 0, state.t, calm, L);
+  // 3D: the WebGL scene behind this canvas draws the room, the board and the pieces; this layer then draws only the HUD (plaques, text, buttons).
+  const use3 = v3.on && (boardScene || scene === 'title');
+  v3.frame = null;
+  if (!use3) drawScene(ctx, boardScene ? n : 0, state.t, calm, L);
+  const DARK = use3 ? 'rgba(10,15,26,0.88)' : 'rgba(14,7,3,0.86)', EDGE = use3 ? 'rgba(217,166,75,0.85)' : 'rgba(224,180,100,0.7)';
 
   // Text never below ~11 css px (a virtual unit is host.px css pixels).
   const floor = Math.min(24, 11 / Math.max(0.25, host.px));
@@ -58,9 +64,9 @@ export function render(ctx, state, L) {
     const rad = Math.min(16, r.h / 3);
     ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.beginPath(); ctx.roundRect(r.x + 3, r.y + 5, r.w, r.h, rad); ctx.fill();
     const gr = ctx.createLinearGradient(0, r.y, 0, r.y + r.h);
-    if (o.primary) { gr.addColorStop(0, '#f2d189'); gr.addColorStop(0.5, '#cf9d45'); gr.addColorStop(1, '#8f6320'); } else { gr.addColorStop(0, '#5d3d22'); gr.addColorStop(0.55, '#3b2412'); gr.addColorStop(1, '#251409'); }
+    if (o.primary) { gr.addColorStop(0, '#f2d189'); gr.addColorStop(0.5, '#cf9d45'); gr.addColorStop(1, '#8f6320'); } else if (use3) { gr.addColorStop(0, '#34445c'); gr.addColorStop(0.55, '#1f2b3d'); gr.addColorStop(1, '#131b29'); } else { gr.addColorStop(0, '#5d3d22'); gr.addColorStop(0.55, '#3b2412'); gr.addColorStop(1, '#251409'); }
     ctx.fillStyle = gr; ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, rad); ctx.fill();
-    ctx.strokeStyle = o.primary ? 'rgba(255,240,190,0.9)' : 'rgba(224,180,100,0.75)'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.strokeStyle = o.primary ? 'rgba(255,240,190,0.9)' : use3 ? 'rgba(217,166,75,0.9)' : 'rgba(224,180,100,0.75)'; ctx.lineWidth = 2; ctx.stroke();
     ctx.fillStyle = o.primary ? '#3a2208' : GOLD; ctx.textAlign = 'center';
     const fam = o.ui ? UI : FONT, maxW = r.w - 24;
     let sz = fs(o.size ?? 28); const lines = [label];
@@ -80,8 +86,8 @@ export function render(ctx, state, L) {
     lines.forEach((t2, i) => ctx.fillText(t2, r.x + r.w / 2, r.y + r.h / 2 + sz * 0.34 + (i - (lines.length - 1) / 2) * lh, maxW));
     ctx.restore();
   };
-  const panel = (x, y, w, h, rad = 20) => { ctx.fillStyle = 'rgba(14,7,3,0.86)'; ctx.beginPath(); ctx.roundRect(x, y, w, h, rad); ctx.fill(); ctx.strokeStyle = 'rgba(224,180,100,0.7)'; ctx.lineWidth = 2; ctx.stroke(); };
-  const card = (r) => { ctx.fillStyle = 'rgba(14,7,3,0.80)'; ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, 18); ctx.fill(); ctx.strokeStyle = 'rgba(224,180,100,0.55)'; ctx.lineWidth = 2; ctx.stroke(); };
+  const panel = (x, y, w, h, rad = 20) => { ctx.fillStyle = DARK; ctx.beginPath(); ctx.roundRect(x, y, w, h, rad); ctx.fill(); ctx.strokeStyle = EDGE; ctx.lineWidth = 2; ctx.stroke(); };
+  const card = (r) => { ctx.fillStyle = use3 ? 'rgba(10,15,26,0.84)' : 'rgba(14,7,3,0.80)'; ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, 18); ctx.fill(); ctx.strokeStyle = use3 ? 'rgba(217,166,75,0.7)' : 'rgba(224,180,100,0.55)'; ctx.lineWidth = 2; ctx.stroke(); };
   const pulse = calm ? 0.6 : 0.5 + 0.5 * Math.sin(state.t * 6);
   const BTN = L.BTN, AP = L.AP, HUD = L.hud;
 
@@ -100,7 +106,61 @@ export function render(ctx, state, L) {
     return { x: from.x + (to.x - from.x) * e, y: from.y + (to.y - from.y) * e, lift: Math.sin(Math.PI * f) * 0.6 };
   };
   const piece = (kind, x, y, o = {}) => drawPiece(ctx, n, kind, x, y, { ...o, scale: K * (o.scale ?? 1) });
+  // HUD chips (tray counts, turn icon): the same three pieces as the 3D board seen from above (iron helm, ivory cairn, gilded king)
+  const chip = (kind, x, y, o = {}) => {
+    const R = 36 * (o.scale ?? 1), g2 = ctx.createRadialGradient(x - R * 0.3, y - R * 0.35, R * 0.1, x, y, R * 1.05);
+    if (kind === 'A') { g2.addColorStop(0, '#56627a'); g2.addColorStop(0.6, '#232c3b'); g2.addColorStop(1, '#0f1520'); }
+    else if (kind === 'K') { g2.addColorStop(0, '#fff0b4'); g2.addColorStop(0.55, '#e3b04a'); g2.addColorStop(1, '#8a5f1a'); }
+    else { g2.addColorStop(0, '#fffaf0'); g2.addColorStop(0.6, '#eadcb8'); g2.addColorStop(1, '#b8a578'); }
+    ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.ellipse(x + R * 0.1, y + R * 0.2, R, R * 0.92, 0, 0, TAU); ctx.fill();
+    ctx.fillStyle = g2; ctx.beginPath(); ctx.arc(x, y, R, 0, TAU); ctx.fill();
+    ctx.strokeStyle = kind === 'A' ? '#d49a42' : kind === 'K' ? '#fff0b4' : '#b8a578'; ctx.lineWidth = Math.max(1.5, R * 0.14); ctx.stroke();
+    if (kind === 'K') { ctx.fillStyle = '#4aa8ff'; ctx.beginPath(); ctx.arc(x, y, R * 0.28, 0, TAU); ctx.fill(); }
+  };
+  const hudPiece = (kind, x, y, o) => (use3 ? chip(kind, x, y, o) : drawPiece(ctx, 7, kind, x, y, o));
+  // 3D hand-off: pieces and marks in cell units (column + 0.5, row + 0.5); the presenter draws them on the tilted board
+  const fill3 = () => {
+    const cc = (i) => ({ x: (i % n) + 0.5, y: ((i / n) | 0) + 0.5 });
+    v3.n = n; v3.t = state.t; v3.frame = { mode: 'play', rect: scene === 'play' && L.rect3play ? L.rect3play : L.rect3 };
+    const pcs = [], mks = [], cell = (i, kind, al) => { const c = cc(i); mks.push({ x: c.x, y: c.y, kind, a: al }); };
+    if (g.last && scene !== 'lesson' && scene !== 'puzzle') { cell(g.last.from, 'last', 0.35); cell(g.last.to, 'last', 0.5); }
+    if (scene === 'lesson' && !state.lesson.done) for (const [x, y] of LESSONS[state.lesson.i].at ?? []) mks.push({ x: x + 0.5, y: y + 0.5, kind: 'lesson', a: 0.55 + pulse * 0.4 });
+    if (state.marks && g.king >= 0 && scene !== 'over') {
+      const k = g.king;
+      for (const d of [1, -1, n, -n]) {
+        let i = k, path = [];
+        for (;;) {
+          const x = i % n, y = (i / n) | 0;
+          if ((d === 1 && x === n - 1) || (d === -1 && x === 0) || (d === n && y === n - 1) || (d === -n && y === 0)) break;
+          i += d; if (g.b[i] !== 0) { path = []; break; } path.push(i);
+        }
+        if (path.length && isCorner(n, path[path.length - 1])) for (const sq of path) cell(sq, 'path', 0.35 + pulse * 0.3);
+      }
+    }
+    if (state.sel >= 0 && !a) { cell(state.sel, 'sel', 0.55 + pulse * 0.3); for (const to of destinations(g, state.sel)) cell(to, 'dest', 0.7 + pulse * 0.3); }
+    if (state.hint && !a) { cell(state.hint.from, 'hint', 0.6 + pulse * 0.35); cell(state.hint.to, 'hint', 0.6 + pulse * 0.35); }
+    const dragFrom = state.drag && state.drag.moved ? state.drag.from : -1;
+    for (let i = 0; i < n * n; i++) {
+      const v = g.b[i]; if (!v) continue;
+      if (a && ((a.type !== 'refuse' && i === a.to) || (a.type === 'refuse' && i === a.from))) continue;
+      if (i === dragFrom) continue;
+      const c = cc(i); pcs.push({ x: c.x, y: c.y, kind: letter(v), lift: state.sel === i ? 0.6 + (calm ? 0 : Math.sin(state.t * 3) * 0.08) : 0 });
+    }
+    if (a && a.type === 'move' && a.caps.length) for (const cp of a.caps) { const c = cc(cp.at), f = Math.min(1, a.t / a.dur); pcs.push({ x: c.x, y: c.y, kind: letter(cp.v), s: Math.max(0.01, 1 - f * 1.1), lift: f * 0.8 }); }
+    if (a) {
+      const f = Math.min(1, a.t / a.dur), from = cc(a.from), to = cc(a.to);
+      if (a.type === 'refuse') {
+        const reach = a.to === a.from ? 0 : g.b[a.to] ? 0.5 : 0.9, out = f < 0.4 ? f / 0.4 : f < 0.6 ? 1 : 1 - (f - 0.6) / 0.4, e = out * out * (3 - 2 * out) * reach, shake = calm ? 0 : f >= 0.36 && f < 0.64 ? Math.sin(f * 90) * 0.07 : 0;
+        pcs.push({ x: from.x + (to.x - from.x) * e + shake, y: from.y + (to.y - from.y) * e, kind: letter(a.v), lift: 0.5 * Math.sin(Math.PI * Math.min(1, f * 1.1)) });
+      } else { const e = f * f * (3 - 2 * f); pcs.push({ x: from.x + (to.x - from.x) * e, y: from.y + (to.y - from.y) * e, kind: letter(a.v), lift: Math.sin(Math.PI * f) * 0.9 }); }
+    }
+    if (dragFrom >= 0 && v3.cellAt) { const c = v3.cellAt(state.drag.x, state.drag.y); if (c) pcs.push({ x: c.x, y: c.y, kind: letter(g.b[dragFrom]), lift: 1.1 }); }
+    if (a && a.type === 'move' && a.caps.length && !calm && a.t / a.dur > 0.4) for (const cp of a.caps) { const f = (a.t / a.dur - 0.4) / 0.6, c = cc(cp.at); mks.push({ x: c.x, y: c.y, kind: 'ring', a: 0.8 * (1 - f) }); }
+    if (state.kb && scene !== 'over') cell(Math.min(state.cursor, n * n - 1), 'cursor', 0.9);
+    v3.pieces = pcs; v3.marks = mks;
+  };
   const drawBoard = () => {
+    if (use3) { fill3(); return; }
     if (g.last && scene !== 'lesson' && scene !== 'puzzle') { glowSq(g.last.from, '255,200,110', 0.16); glowSq(g.last.to, '255,200,110', 0.22); }
     if (scene === 'lesson' && !state.lesson.done) for (const [x, y] of LESSONS[state.lesson.i].at ?? []) {
       const c = ctr(x + n * y); ctx.strokeStyle = `rgba(255,220,120,${0.55 + pulse * 0.4})`; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(c.x, c.y, cs * (0.34 + pulse * 0.05), 0, TAU); ctx.stroke();
@@ -143,7 +203,7 @@ export function render(ctx, state, L) {
     text(`${label}: ${count}`, T.x, T.y, T.size, CREAM, UI, 700, 'left');
     if (taken) text(`taken ${taken}`, T.taken.x, T.taken.y, T.taken.size, 'rgba(240,207,134,0.8)', UI, 500, T.taken.align);
     const sz = SIZES[n], tot = kind === 'A' ? sz.att : sz.def + 1, P = T.pieces;
-    for (let k = 0; k < count && k < tot; k++) drawPiece(ctx, 7, kind === 'A' ? 'A' : 'D', P.x + (k % P.cols) * P.dx, P.y + Math.floor(k / P.cols) * P.dy, { scale: P.s });
+    for (let k = 0; k < count && k < tot; k++) hudPiece(kind === 'A' ? 'A' : 'D', P.x + (k % P.cols) * P.dx, P.y + Math.floor(k / P.cols) * P.dy, { scale: P.s });
   };
   // A heading: one line shrunk to fit, or (spec.lines > 1) wrapped.
   const heading = (str, T, color = GOLD) => {
@@ -158,8 +218,8 @@ export function render(ctx, state, L) {
     let box;
     if (M.grow) { const lines = wrapLines(state.msg.text, ms, r.w - 50); box = { x: r.x, y: r.y, w: r.w, h: 34 + lines.length * lh }; }
     else box = r;
-    ctx.fillStyle = 'rgba(16,8,3,0.92)'; ctx.beginPath(); ctx.roundRect(box.x, box.y, box.w, box.h, 16); ctx.fill();
-    ctx.strokeStyle = 'rgba(240,207,134,0.8)'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.fillStyle = use3 ? 'rgba(10,15,26,0.94)' : 'rgba(16,8,3,0.92)'; ctx.beginPath(); ctx.roundRect(box.x, box.y, box.w, box.h, 16); ctx.fill();
+    ctx.strokeStyle = use3 ? 'rgba(217,166,75,0.9)' : 'rgba(240,207,134,0.8)'; ctx.lineWidth = 2; ctx.stroke();
     if (M.grow) { const lines = wrapLines(state.msg.text, ms, r.w - 50); lines.forEach((ln, i) => text(ln, box.x + box.w / 2, box.y + 40 + i * lh, ms, CREAM, UI, 600)); }
     else {
       const inner = { x: box.x + 14, y: box.y + 8, w: box.w - 28, h: box.h - 16 };
@@ -175,6 +235,13 @@ export function render(ctx, state, L) {
   const whoText = () => (g.winner ? '' : state.two ? `${NAME[g.turn][0].toUpperCase() + NAME[g.turn].slice(1)} to move` : g.turn === state.human ? `Your move (${NAME[g.turn]})` : `The computer thinks${'.'.repeat(1 + (Math.floor(state.t * 3) % 3))}`);
 
   if (boardScene) {
+    if (use3 && !L.land) {     // 3D: a wood-and-brass plaque behind the header text so it reads on the bright snow
+      const y0 = Math.max(L.ins.t + 8, 60), pr = scene === 'play' && L.plaque ? L.plaque : { x: 10, y: y0, w: W - 20, h: Math.max(60, L.rect3.y - y0 - 4) };
+      ctx.save(); ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.roundRect(pr.x + 3, pr.y + 6, pr.w, pr.h, 22); ctx.fill();
+      const pg = ctx.createLinearGradient(0, pr.y, 0, pr.y + pr.h); pg.addColorStop(0, 'rgba(36,48,68,0.96)'); pg.addColorStop(1, 'rgba(14,20,32,0.96)');
+      ctx.fillStyle = pg; ctx.beginPath(); ctx.roundRect(pr.x, pr.y, pr.w, pr.h, 22); ctx.fill(); ctx.strokeStyle = 'rgba(217,166,75,0.95)'; ctx.lineWidth = 3; ctx.stroke();
+      ctx.strokeStyle = 'rgba(217,166,75,0.35)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.roundRect(pr.x + 7, pr.y + 7, pr.w - 14, pr.h - 14, 16); ctx.stroke(); ctx.restore();
+    }
     if (L.land) { card(L.leftCard); if (L.rightCard) { card(L.rightCard); if (L.badgeFits) drawBadgeStack(ctx, L.rightCard.x + L.rightCard.w / 2, L.rightCard.y + L.rightCard.h - 16, L.rightCard.w - 28); } }
     if (scene === 'lesson') {
       const l = LESSONS[state.lesson.i], T = HUD.lesson;
@@ -210,7 +277,7 @@ export function render(ctx, state, L) {
       const sz = SIZES[n], T = HUD.play;
       if (T.title) { shadowText('Tafl', T.title.x, T.title.y, T.title.size); }
       if (T.sub) text(`${L.land ? 'Tafl · ' : ''}${sz.name} ${n}x${n}`, T.sub.x, T.sub.y, T.sub.size, 'rgba(240,207,134,0.85)', UI, 600, T.sub.align, L.land ? L.leftCard.w - 32 : 0);
-      drawPiece(ctx, 7, g.turn === ATT ? 'A' : 'K', T.icon.x, T.icon.y, { scale: T.icon.s });
+      hudPiece(g.turn === ATT ? 'A' : 'K', T.icon.x, T.icon.y, { scale: T.icon.s });
       const who = whoText();
       if (T.turn.lines > 1) wrapLines(who, fs(T.turn.size), T.turn.maxW, 700).slice(0, T.turn.lines).forEach((ln, i) => text(ln, T.turn.x, T.turn.y + i * T.turn.lh, T.turn.size, CREAM, UI, 700, 'left'));
       else text(who, T.turn.x, T.turn.y, T.turn.size, CREAM, UI, 700, 'left', T.turn.maxW);
@@ -245,10 +312,15 @@ export function render(ctx, state, L) {
   // ---- title and other menus ------------------------------------------------------------------------------------------
   if (scene === 'title' || scene === 'demo-limit') {
     const T = L.title(!!state.saved), hr = T.hero, bob = calm ? 0 : Math.sin(state.t * 1.4) * 4;
-    if (T.wide) { ctx.fillStyle = 'rgba(0,0,0,0.34)'; ctx.fillRect(0, 0, W, H); const c0 = T.rows.learn.x - 16; ctx.fillStyle = 'rgba(8,4,2,0.55)'; ctx.fillRect(c0, 0, W - c0, H); }
+    const SCRIM = use3 ? '10,15,26' : '8,4,2';
+    if (use3) {   // dusk scrim: dark behind the title block so the gold lettering always reads on the bright snow
+      const sg = ctx.createLinearGradient(0, 0, 0, hr.y + 270); sg.addColorStop(0, 'rgba(8,12,24,0.92)'); sg.addColorStop(0.75, 'rgba(8,12,24,0.7)'); sg.addColorStop(1, 'rgba(8,12,24,0)');
+      if (T.wide) { ctx.fillStyle = 'rgba(8,12,24,0.45)'; ctx.fillRect(0, 0, T.rows.learn.x - 16, H); } else { ctx.fillStyle = sg; ctx.fillRect(0, 0, W, hr.y + 270); }
+      const c0 = T.wide ? T.rows.learn.x - 16 : 0; ctx.fillStyle = `rgba(${SCRIM},0.72)`; if (T.wide) ctx.fillRect(c0, 0, W - c0, H); else ctx.fillRect(0, hr.y + hr.h, W, H - hr.y - hr.h);
+    } else if (T.wide) { ctx.fillStyle = 'rgba(0,0,0,0.34)'; ctx.fillRect(0, 0, W, H); const c0 = T.rows.learn.x - 16; ctx.fillStyle = 'rgba(8,4,2,0.55)'; ctx.fillRect(c0, 0, W - c0, H); }
     else { ctx.fillStyle = 'rgba(0,0,0,0.30)'; ctx.fillRect(0, hr.y + (L.tall ? 60 : 0), W, hr.h - (L.tall ? 60 : 0)); ctx.fillStyle = 'rgba(8,4,2,0.55)'; ctx.fillRect(0, hr.y + hr.h, W, H - hr.y - hr.h); }
     // hero: the king between his guard and the attackers, in the hearth light
-    const hx = hr.x + hr.w / 2, hh = hr.h, full = hh >= 430;
+    const hx = hr.x + hr.w * (use3 && T.wide ? 0.22 : 0.5), hh = hr.h, full = hh >= 430, hw = use3 && T.wide ? hr.w * 0.42 : hr.w;
     let yy = hr.y;
     if (full) {
       const bw0 = Math.min(290, hr.w / 2 - 20), by0 = hr.y + 35;
@@ -258,13 +330,19 @@ export function render(ctx, state, L) {
     const tsz = full ? 112 : Math.max(56, Math.min(100, hh * 0.3)), tY = full ? hr.y + 145 : hr.y + 16 + tsz * 0.82 + (L.ins.back && !T.wide ? 0 : 0);
     const ty0 = Math.max(tY, T.wide ? 0 : 0);
     const tagY = ty0 + (full ? 55 : tsz * 0.4 + 14), credY = tagY - 12, msgY = credY + 46;
-    shadowText('TAFL', hx, ty0, tsz, GOLD, FONT, 800, hr.w - 40);
-    text("The king's table of the North", hx, tagY, 28, CREAM, FONT, 600, 'center', hr.w - 40);
+    shadowText('TAFL', hx, ty0, tsz, GOLD, FONT, 800, hw - 40);
+    text("The king's table of the North", hx, tagY, 28, CREAM, FONT, 600, 'center', hw - 40);
     if (T.lock) drawTitleLockup(ctx, T.lock, state.lockPress > 0);
     if (state.msg && scene === 'title') { ctx.save(); ctx.globalAlpha = Math.min(1, (state.msg.hold - state.msg.t) / 0.5); wrap(state.msg.text, hx, msgY, 22, Math.min(600, hr.w - 40), '#ffe9b0'); ctx.restore(); }
     // pieces fill what is left of the hero
     const top2 = (state.msg && scene === 'title' ? msgY + 60 : credY + 36), rem = hr.y + hh - top2;
-    if (rem >= 110) {
+    if (use3) {
+      // the board itself is the hero: the opening position, slowly turning (presenter), fitted under the title block
+      if (!view3Start) view3Start = newGame(11).b.map((v, i) => (v ? { x: (i % 11) + 0.5, y: ((i / 11) | 0) + 0.5, kind: letter(v), lift: 0 } : null)).filter(Boolean);
+      v3.n = 11; v3.pieces = view3Start; v3.marks = []; v3.t = state.t;
+      const x0 = T.wide ? hr.x + hr.w * 0.44 : 4, w0 = T.wide ? hr.w * 0.56 : W - 8, yy0 = T.wide ? 6 : Math.max(top2 - 6, hr.y), hh0 = hr.y + hh - yy0 + 8;
+      v3.frame = { mode: 'title', rect: { x: x0, y: yy0, w: w0, h: Math.max(200, hh0) } };
+    } else if (rem >= 110) {
       const ks = Math.max(0.4, Math.min(1, rem / 290)), xs = Math.min(1, (hr.w - 30) / 640), cy2 = top2 + rem / 2 + 2;
       const gl = ctx.createRadialGradient(hx, cy2, 20, hx, cy2, 300 * ks); gl.addColorStop(0, `rgba(255,170,70,${0.32 + (calm ? 0 : 0.05 * Math.sin(state.t * 5))})`); gl.addColorStop(1, 'rgba(255,170,70,0)');
       ctx.fillStyle = gl; ctx.fillRect(hr.x, cy2 - 300 * ks, hr.w, 600 * ks);
@@ -277,8 +355,8 @@ export function render(ctx, state, L) {
   if (scene === 'title') {
     const T = L.title(!!state.saved), R = T.rows, solvedToday = state.daily.solvedDay === state.daily.day;
     if (R.resume) button(R.resume, 'Continue your game', { primary: true, size: 26 });
-    button(R.learn, 'Learn to play', { primary: !state.learned && !R.resume, size: 26 });
-    button(R.big, 'Play Copenhagen 11x11', { primary: state.learned && !R.resume, size: 26 });
+    button(R.learn, 'Learn to play', { primary: !use3 && !state.learned && !R.resume, size: 26 });
+    button(R.big, 'Play Copenhagen 11x11', { primary: use3 ? !R.resume : state.learned && !R.resume, size: use3 ? 30 : 26 });
     button(R.small, 'Play Brandubh 7x7 (starter)', { size: 24 });
     button(R.daily, solvedToday ? `Daily puzzle: solved · streak ${state.daily.streak}` : state.daily.streak ? `Daily puzzle · streak ${state.daily.streak}` : 'Daily puzzle', { size: 24 });
     button(R.two, 'Two players, one phone', { size: 24 });

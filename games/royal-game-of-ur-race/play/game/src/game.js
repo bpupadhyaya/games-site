@@ -13,6 +13,7 @@ import { HERITAGE } from './heritage.js';
 import { RULES } from './content.js';
 import { createPuzzleMaker, puzzleGame, puzzleKey } from './puzzles.js';
 import { render, docMetrics } from './view.js';
+import { v3 } from './v3.js';
 
 // Fluid viewport (kit 1.7.1): the short side is always 720 units, the long side follows the screen, in portrait and landscape.
 // `meta.width/height` are updated live by the kit on every resize; every position comes from layoutFor(meta.width, meta.height).
@@ -43,6 +44,9 @@ export function createGame(env) {
   const lay = () => layoutFor(meta.width, meta.height);
   const boardKind = () => (state.scene === 'autoplay' || state.scene === 'autoplay-over' ? 'auto' : state.scene === 'lesson' || state.scene === 'puzzle' ? 'text' : 'play');
   const bd = () => lay().board(boardKind());                         // the board layout of the current scene
+  // screen <-> board space: through the 3D camera while the 3D board is shown (taps land on the tilted board), else the flat transform
+  const toBoardPt = (x, y) => (v3.on && v3.toBoard && v3.toBoard(x, y)) || bd().toBoard(x, y);
+  const toScreenPt = (bx, by) => (v3.on && v3.toScreen ? v3.toScreen(bx, by, 0) : bd().toScreen(bx, by));
   let drag = null;
   let thinker = null, hintThinker = null, puzzleToday = null;
   const maker = createPuzzleMaker(state.daily.day);
@@ -166,7 +170,7 @@ export function createGame(env) {
 
   // What a tap on the board means during the CHOOSE phase. Returns a legal move to play, or null.
   function tapChoose(tap) {
-    const g = state.game, s = g.turn, moves = legalMoves(g), bp = bd().toBoard(tap.x, tap.y), cell = cellNear(bp.x, bp.y);       // the tap, in board space
+    const g = state.game, s = g.turn, moves = legalMoves(g), bp = toBoardPt(tap.x, tap.y), cell = cellNear(bp.x, bp.y);       // the tap, in board space
     const inReserve = inRect(RESERVE_RECT(s), bp.x, bp.y), inHome = inRect(HOME_RECT(s), bp.x, bp.y);
     let pieceI = -1;
     if (cell) pieceI = pieceAtCell(s, cell); else if (inReserve && waitingCount(g, s)) pieceI = firstWaiting(s);
@@ -222,7 +226,7 @@ export function createGame(env) {
       }
     }
   }
-  const onBoard = (tap, side) => { const bp = bd().toBoard(tap.x, tap.y); return !!(cellNear(bp.x, bp.y) || inRect(RESERVE_RECT(side), bp.x, bp.y)); };
+  const onBoard = (tap, side) => { const bp = toBoardPt(tap.x, tap.y); return !!(cellNear(bp.x, bp.y) || inRect(RESERVE_RECT(side), bp.x, bp.y)); };
   const tapDice = (tap) => tap && inRect(bd().tray, tap.x, tap.y);
 
   function updateTitle(tap) {
@@ -423,7 +427,7 @@ export function createGame(env) {
       state.sel = m.i;
       const dc = destCell(m);
       const B = bd(), bp = dc ? cellCenter(dc.lane, dc.c) : press(HOME_RECT(g.turn));
-      return B.toScreen(bp.x, bp.y);
+      return B && toScreenPt(bp.x, bp.y);
     }
     return null;
   }

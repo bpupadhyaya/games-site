@@ -108,6 +108,19 @@ export function hitScreen(x, y, scroll) {
 // The current Start / Back pins of the setup screen (their rectangles depend on the screen shape).
 export const setupPinRects = (state) => (LAID.key === 'setup' && LAID.pins) || frameFor(state, 'setup').pins;
 
+// Title lettering: a deep cast shadow, a dark bevel edge, a metallic cream-to-gold face and a bright top highlight.
+function embossed(ctx, text, x, y, font, cols, px) {
+  ctx.save(); ctx.font = font; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; ctx.lineJoin = 'round';
+  ctx.shadowColor = 'rgba(4,14,8,0.75)'; ctx.shadowBlur = px * 0.16; ctx.shadowOffsetY = px * 0.06;
+  ctx.lineWidth = px * 0.11; ctx.strokeStyle = '#3a2208'; ctx.strokeText(text, x, y + px * 0.035);
+  ctx.shadowColor = 'transparent';
+  ctx.fillStyle = '#5a3610'; ctx.fillText(text, x, y + px * 0.035);
+  const g = ctx.createLinearGradient(0, y - px * 0.78, 0, y + px * 0.05);
+  g.addColorStop(0, cols[0]); g.addColorStop(0.5, cols[1]); g.addColorStop(0.56, cols[2]); g.addColorStop(1, cols[1]);
+  ctx.fillStyle = g; ctx.fillText(text, x, y);
+  ctx.lineWidth = Math.max(1, px * 0.018); ctx.strokeStyle = 'rgba(255,255,255,0.55)'; ctx.strokeText(text, x, y - px * 0.012);
+  ctx.restore();
+}
 const heroArt = (hs = 1) => ({
   t: 'art', h: 470 * hs,
   draw(ctx, w) {
@@ -116,8 +129,8 @@ const heroArt = (hs = 1) => ({
     drawMarble(ctx, cx - 170, 70, 26, { kind: 'glass', variant: 0, side: 0 }, { rot: 0.6, ra: 0.3 });
     drawMarble(ctx, cx + 170, 70, 26, { kind: 'glass', variant: 3, side: 0 }, { rot: 1.4, ra: 0.9 });
     drawMarble(ctx, cx, 54, 32, { kind: 'king', variant: 0, side: 0 }, { rot: 0.9, ra: 0.5 });
-    ctx.font = `800 128px ${FONT}`; textShadow(ctx, 'Marbles', cx, 196, '#fff8e0', 16);
-    ctx.font = `italic 800 60px ${FONT}`; textShadow(ctx, 'Ring and Shoot', cx, 262, '#ffd978', 12);
+    embossed(ctx, 'Marbles', cx, 196, `800 128px ${FONT}`, ['#fffdf2', '#f6e3b0', '#d9a54a'], 128);
+    embossed(ctx, 'Ring and Shoot', cx, 262, `italic 800 60px ${FONT}`, ['#fff2b8', '#f2bb3e', '#b8741a'], 60);
     ctx.font = `600 27px ${FONT}`; textShadow(ctx, 'The playground game, kancha to kelereng', cx, 312, '#ffeec8', 6);
     ctx.strokeStyle = 'rgba(255,236,190,0.55)'; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(cx - 200, 342); ctx.lineTo(cx - 40, 342); ctx.moveTo(cx + 40, 342); ctx.lineTo(cx + 200, 342); ctx.stroke();

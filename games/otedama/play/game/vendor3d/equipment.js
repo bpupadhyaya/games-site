@@ -153,35 +153,53 @@ export function addCap(human, { color = 0x1f4aa8 } = {}) {
   return addTo(head, g);
 }
 
+// ---- capsule limb clothing (1.13.0) ---------------------------------------------------------------------------------------------------
+// Closed, tapered CAPSULES (lathe: hemisphere - taper - hemisphere) riding on the bones. Segments of one limb share the joint radius and the
+// joint is a sphere, so a bent knee/elbow/shoulder is watertight: no open tube ends, no skin slit, no z-fighting rim (the old open DoubleSide
+// cylinders cut slits into the shorts and gaped at the knee). Never use open cylinders for sleeves or trousers.
+const _y = new THREE.Vector3(0, 1, 0);
+/** Tapered capsule along +Y from y=0 (radius r0) to y=len (radius r1), hemispherical caps. */
+export function limbCapsuleGeometry(r0, r1, len, seg = 20) {
+  const pts = [], N = 7;
+  for (let i = 0; i <= N; i++) { const a = -Math.PI / 2 + (i / N) * (Math.PI / 2); pts.push(new THREE.Vector2(Math.max(0, r0 * Math.cos(a)), r0 * Math.sin(a))); }
+  for (let i = 0; i <= N; i++) { const a = (i / N) * (Math.PI / 2); pts.push(new THREE.Vector2(Math.max(0, r1 * Math.cos(a)), len + r1 * Math.sin(a))); }
+  const g = new THREE.LatheGeometry(pts, seg); g.computeVertexNormals(); return g;
+}
+function limbTube(bone, child, r0, r1, m, { from = 0, to = 1, ra, rb } = {}) {
+  const dir = child.position.clone(); const len = dir.length(); dir.normalize();
+  const a = from * len, bEnd = to * len;
+  const rr = (t) => r0 + (r1 - r0) * t;
+  const mesh = new THREE.Mesh(limbCapsuleGeometry(ra !== undefined ? ra : rr(from), rb !== undefined ? rb : rr(to), bEnd - a), m);
+  mesh.quaternion.setFromUnitVectors(_y, dir);
+  mesh.position.copy(dir).multiplyScalar(a);
+  mesh.castShadow = true; mesh.renderOrder = 0;
+  return mesh;
+}
+const matSolid = (c, r = 0.9) => new THREE.MeshStandardMaterial({ color: c, roughness: r });
+
 /**
- * Full-length trousers (cricket whites) over the bare thighs/knees of the shorts-wearing athlete_m: a tapered tube per thigh and shin plus a knee cap sphere, riding on the
- * bones so a deep knee bend never shows skin. athlete_f already wears trousers (no-op for her unless force: true).
+ * Full-length trousers (cricket whites, track pants) over the bare thighs/knees of the shorts-wearing athlete_m: one closed tapered capsule per thigh and
+ * shin, joint spheres at hip and knee, a hip block over the shorts' waist, so a deep knee bend never shows skin or shorts. athlete_f already wears
+ * trousers (no-op for her unless force: true). `fit`: 1 = trousers (default), <1 slimmer (0.9 leggings over shorts is not possible: the shorts stay
+ * the floor).
  */
-export function addWhites(human, { color = 0xf2f2ee, force = false } = {}) {
+export function addWhites(human, { color = 0xf2f2ee, force = false, fit = 1, matchShorts = true } = {}) {
   const parts = [];
   if (human.info.sex === 'f' && !force) return { parts, remove() {} };
-  const m = mat(color, 0.9);
-  const H = human.info.height ? human.info.height / 1.8 : 1;
+  // the shorts underneath take the trouser colour (call setKit({bottoms}) BEFORE addWhites, or pass the same colour), so wherever the shorts bulge past the slim trousers no navy shows
+  const saved = [];
+  if (matchShorts && human.setKit) { for (const mt of human.mats) { const u = mt.userData.tint; if (u && u.uBottoms) saved.push([u.uBottoms.value, u.uBottoms.value.clone()]); } human.setKit({ bottoms: color }); }
+  const m = matSolid(color, 0.9);
+  const H = (human.info.height ? human.info.height / 1.8 : 1) * fit;
   for (const s of ['L', 'R']) {
     const thigh = human.bones[`Bip01_${s}_Thigh`], calf = human.bones[`Bip01_${s}_Calf`], foot = human.bones[`Bip01_${s}_Foot`];
     if (!thigh || !calf || !foot) continue;
-    const seg = (bone, child, r0, r1, overlap = 0.0) => {
-      const dir = child.position.clone(); const len = dir.length(); dir.normalize();
-      const geo = new THREE.CylinderGeometry(r1, r0, len + overlap, 20, 1, true);   // top = r1 (child side), bottom = r0 ... three puts +Y first
-      const mesh = new THREE.Mesh(geo, m); mesh.material.side = THREE.DoubleSide;
-      mesh.quaternion.setFromUnitVectors(_yAxis, dir);
-      mesh.position.copy(dir).multiplyScalar((len - overlap) * 0.5);
-      shadowed(mesh); return mesh;
-    };
-    // CylinderGeometry(radiusTop, radiusBottom): +Y end is the child end, so pass (child radius, parent radius)
-    parts.push(addTo(thigh, seg(thigh, calf, 0.104 * H, 0.078 * H, 0.0)));
-    parts.push(addTo(calf, seg(calf, foot, 0.074 * H, 0.056 * H, 0.0)));
-    const cap = new THREE.Mesh(new THREE.SphereGeometry(0.079 * H, 18, 12), m); shadowed(cap); parts.push(addTo(calf, cap));
-    const cuff = new THREE.Mesh(new THREE.CylinderGeometry(0.058 * H, 0.058 * H, 0.03, 18, 1, true), m); cuff.material.side = THREE.DoubleSide;
-    cuff.quaternion.setFromUnitVectors(_yAxis, foot.position.clone().normalize()); cuff.position.copy(foot.position).multiplyScalar(0.97);
-    parts.push(addTo(calf, cuff));
+    // wide where the shorts bulge (hip), hugging the knee: two capsules sharing the joint radius at 45% of the thigh
+    parts.push(addTo(thigh, limbTube(thigh, calf, 0, 0, m, { from: 0, to: 0.45, ra: 0.122 * H, rb: 0.096 * H })));
+    parts.push(addTo(thigh, limbTube(thigh, calf, 0, 0, m, { from: 0.45, to: 1, ra: 0.096 * H, rb: 0.084 * H })));
+    parts.push(addTo(calf, limbTube(calf, foot, 0.084 * H, 0.056 * H, m, { from: 0, to: 0.97 })));
   }
-  return { parts, remove() { parts.forEach((p) => p.remove()); } };
+  return { parts, remove() { parts.forEach((p) => p.remove()); saved.forEach(([c, v]) => c.copy(v)); } };
 }
 
 /** One call: the full batter's kit (helmet, pads, gloves). Returns {remove()}. */

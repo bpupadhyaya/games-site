@@ -229,3 +229,8 @@ export function flowHit(lay, top, scroll, x, y) {
   }
   return null;
 }
+
+// Hand-off between the 2D layer (view.js) and the optional 3D presenter (view3d/presenter.js). The simulation never reads this.
+// `on` is set only while a WebGL context is alive and the lit rink is built; `mix` (0..1) counts the fade-in. With it off every
+// screen draws exactly as before (the baked 2D sheet is the fallback).
+export const v3 = { on: false, mix: 0 };

@@ -133,7 +133,22 @@ export function drawLawn(ctx, cam, t) {
 // thing are still drawn live on top. Without OffscreenCanvas (headless tests, very old web views) or if anything fails, the same pictures are drawn directly.
 let baked = null;
 export const bakeOn = { v: true };
+// The 3D layer (view3d/presenter.js) draws the lawn, fence, board and bags behind the transparent 2D canvas with the SAME pinhole. The 2D
+// scene stays as the fallback (no WebGL, lost context) and cross-fades out. `want` is what this frame asks the presenter to show.
+export const v3 = { on: false, mix: 0, want: null, bags: null, clip: null };
+const v3alpha = () => (v3.on ? 1 - v3.mix : 1);
+export function deviceRect(m, x, y, w, h) { return { x: m.a * x + m.e, y: m.d * y + m.f, w: m.a * w, h: m.d * h }; }
 export function drawStill(ctx, cam, t) {
+  let m = null;
+  try { m = ctx.getTransform ? ctx.getTransform() : null; } catch { m = null; }
+  v3.want = m ? { m, cam: { ...cam }, clip: v3.clip } : null;
+  const a = v3alpha();
+  if (a < 0.01) return;
+  if (a >= 1) { drawStill2d(ctx, cam, t); return; }
+  ctx.save(); ctx.globalAlpha *= a; drawStill2d(ctx, cam, t); ctx.restore();
+}
+function drawStill2d(ctx, cam, t) {
+  if (cam.mv) { drawBackdrop(ctx, cam, t); drawLawn(ctx, cam, t); drawProps(ctx, cam); drawBoard(ctx, cam); return; }
   const direct = () => { drawBackdrop(ctx, cam, t); drawLawn(ctx, cam, t); drawProps(ctx, cam); drawBoard(ctx, cam); };
   let k = 0;
   try { const tr = ctx.getTransform ? ctx.getTransform() : null; k = tr ? Math.hypot(tr.a, tr.b) : 0; } catch { k = 0; }
@@ -245,7 +260,7 @@ function frameBoard(yaw) {
   return { e1, n, e2: cross(n, e1) };
 }
 function frameFlat(yaw) { const n = [0, 1, 0], e1 = [Math.cos(yaw), 0, -Math.sin(yaw)]; return { e1, n, e2: cross(n, e1) }; }
-function blendFrame(a, b, k) {
+export function blendFrame(a, b, k) {
   let n = norm(a.n.map((v, i) => lerp(v, b.n[i], k)));
   if (dot(a.n, b.n) < 0) n = b.n;
   let e1 = a.e1.map((v, i) => lerp(v, b.e1[i], k)); const d = dot(e1, n); e1 = norm(e1.map((v, i) => v - n[i] * d));
@@ -343,6 +358,11 @@ export function drawFlightShadow(ctx, cam, b) {
 
 // All bags (resting, sliding, in the air) from far to near. `bags` are already interpolated.
 export function drawBags(ctx, cam, bags, opts = {}) {
+  const ghost = opts.shadow === false;
+  if (!ghost) { v3.bags = bags; const a = v3alpha(); if (a < 0.01) return; if (a < 1) { ctx.save(); ctx.globalAlpha *= a; drawBags2d(ctx, cam, bags, opts); ctx.restore(); return; } }
+  drawBags2d(ctx, cam, bags, opts);
+}
+function drawBags2d(ctx, cam, bags, opts = {}) {
   const list = bags.filter((b) => b.st !== 'rack').map((b) => { const p = bagPose(b); return { b, z: p.c[2] + (p.free ? 0.12 : 0), free: !!p.free }; });
   list.sort((a, c) => c.z - a.z);
   for (const e of list) if (e.free || e.b.st === 'ground') drawFlightShadow(ctx, cam, e.b.st === 'ground' ? { ...e.b, y: 0 } : e.b);

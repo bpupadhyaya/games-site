@@ -74,7 +74,9 @@ export async function createPresenter({ kitCanvas, quality = 'high' }) {
   motes.frustumCulled = false; scene.add(motes);
 
   let hand = null, showMotes = false;
-  if (!qs.has('nohand')) createNeedleHand(scene).then((h) => { hand = h; applyTier(); }).catch((e) => console.warn('hand unavailable', e));
+  // the hand is modelled and meshed in the background once the first frames are on screen, so it never delays the title
+  let handReq = qs.has('nohand');
+  const requestHand = () => { handReq = true; createNeedleHand(scene).then((h) => { hand = h; applyTier(); }).catch((e) => console.warn('hand unavailable', e)); };
 
   // ---- environment map ------------------------------------------------------------------------------------------------------------------
   function buildEnv() {
@@ -235,17 +237,18 @@ export async function createPresenter({ kitCanvas, quality = 'high' }) {
       }
       a.needsUpdate = true;
     }
-    // hand: order is stage/human update first (inside hand.update), then props are read from the posed bones
+    // hand: placed from the needle (the pinch sits on it), after the needle was posed this frame
     if (hand) {
       const nd = out.needle, want = !!(nd && fr.hand && !fr.done);
       if (want || hand.shown > 0.01) {
         const n = view.nstate;
         backH.copy(n.dir).setY(0); if (backH.lengthSq() < 1e-6) backH.set(0.6, 0, 0.8); backH.normalize();
-        dWant.copy(backH).multiplyScalar(0.55).add(tmpBias).normalize();
-        handDir.v.lerp(dWant, 1 - Math.exp(-dt * 5)).normalize();
+        // the arm comes mostly from the sewer's side; it turns only a little with the needle's heading (the needle pivots in the pinch)
+        dWant.copy(backH).multiplyScalar(0.3).add(tmpBias).normalize();
+        handDir.v.lerp(dWant, 1 - Math.exp(-dt * 2.5)).normalize();
         gripV.copy(n.tip).addScaledVector(n.dir, 0.032);
         const wig = Math.sin(clock * 9) * 0.5;
-        hand.update(gripV, handDir.v, want, dt, wig);
+        hand.update(gripV, handDir.v, want, dt, wig, n.dir, 0.0015);
       }
     }
     // live frame
@@ -257,6 +260,7 @@ export async function createPresenter({ kitCanvas, quality = 'high' }) {
     renderer.render(scene, camera);
     if (v3.gauge) renderSpool(v3.gauge, T, dt);
     inited = true;
+    if (!handReq && clock > 0.35) requestHand();
   }
   const tmpBias = new THREE.Vector3(0.75, 0, 0.66);
 

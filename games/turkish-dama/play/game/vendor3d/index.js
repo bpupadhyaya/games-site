@@ -10,9 +10,13 @@ export { addSportClips, addBatClips, addThrowClips, addFieldClips, BAT_LEAD } fr
 export { makeCricketBat, makeBall, makeStumps, makeStick } from './props.js';
 export * as THREE from './three.js';
 export * as board3d from './board3d.js';
-export const VIEW3D_VERSION = '1.7.0';
+export const VIEW3D_VERSION = '1.12.0';
+export { buildScenery, loadSceneryCatalogue, pickScenery, defaultSceneryBase, SCENERY_PRESET_NAMES, TIME_OF_DAY } from './scenery3d.js';
 export { addGloves, addPads, addWhites, addHelmet, addCap, equipBatter } from './equipment.js';
 export { buildLodSet, LOD_NAMES, LOD_POLICY, screenHeightPx, pickLod } from './lod.js';
+export { measureLimbs, limbIssues, limbSanity, restLengths, LIMIT as LIMB_LIMITS } from './limbs.js';
 export { createCrowd } from './crowd.js';
+export { createCrowd3d, CULTURES } from './crowd3d.js';
 export { createBlobShadows } from './blob.js';
 export { footQuat, footContactPoint, ankleForBall, solveFootBall, bodyPoint, capsulesOf, penetration, resolvePenetration, rotateBody, palmPoint, palmFrame, forearmPoint, handQuat, solvePalmBall, reachEnvelope } from './contact.js';
+export { loadHorse, Horse3D, HORSE_GAITS, HORSE_COATS, gaitAt } from "./horse3d.js";

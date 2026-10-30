@@ -120,8 +120,25 @@ export async function createArcher(spec) {
   return a;
 }
 
-// Put the archer's hands where the bow is. F = unit vector to the board, p = draw fraction (0 at the brace, 1 at full draw), pull = extra pull-back after the release (m).
-export function poseShooter(a, F, p, { sway = null, pull = 0, up = 0, lower = 0 } = {}) {
+// A critically damped spring per hand target: the IK targets never jump (arriving at the line, the release, the bow coming down), they accelerate and settle.
+// st holds {x, v} per key; dt <= 0 (paused) holds still. The first call starts from `from` (the hand where the clip has it) so the arms rise from the carry.
+function spring(st, key, target, from, dt, w) {
+  let s = st[key];
+  if (!s) { s = st[key] = { x: (from || target).clone(), v: V() }; }
+  if (dt > 0) {
+    const n = Math.max(1, Math.ceil(dt * w / 0.25)), hdt = dt / n;
+    for (let i = 0; i < n; i++) {
+      s.v.x += (w * w * (target.x - s.x.x) - 2 * w * s.v.x) * hdt; s.v.y += (w * w * (target.y - s.x.y) - 2 * w * s.v.y) * hdt; s.v.z += (w * w * (target.z - s.x.z) - 2 * w * s.v.z) * hdt;
+      s.x.addScaledVector(s.v, hdt);
+    }
+  }
+  return target.copy(s.x);
+}
+
+// Put the archer's hands where the bow is. F = unit vector to the board, p = draw fraction (0 at the brace, 1 at full draw), pull = the bow's roll forward after
+// the release. follow = seconds since the release (null before): the drawing hand stays at the anchor and carries on backwards (follow-through) while the
+// string snaps back to the brace and vibrates. spr = { st, dt, w }: smooth the hand targets with springs (presenter state per archer).
+export function poseShooter(a, F, p, { sway = null, pull = 0, up = 0, lower = 0, follow = null, spr = null } = {}) {
   const h = a.h, t = a.tmp, R = t.f.set(-F.z * 0 + F.z * -1 * 0, 0, 0);
   // right of the shooter, looking along F with chest facing right: R = F rotated by -90 deg about Y
   R.set(-F.z, 0, F.x).negate();
@@ -132,7 +149,8 @@ export function poseShooter(a, F, p, { sway = null, pull = 0, up = 0, lower = 0 
   if (sway) bowHand.addScaledVector(R, sway.dr);
   const nockRest = V().copy(bowHand).addScaledVector(F, -0.17);
   const anchor = V().copy(mid).addScaledVector(F, 0.03 * sc).addScaledVector(R, 0.05 * sc); anchor.y = lsh.y + 0.1 * sc;
-  const hand = V().copy(nockRest).lerp(anchor, p); hand.addScaledVector(F, -pull);
+  const hand = follow === null ? V().copy(nockRest).lerp(anchor, p) : V().copy(anchor);
+  if (follow !== null) { const k = 1 - Math.pow(1 - Math.min(1, follow / 0.22), 3); hand.addScaledVector(F, -0.1 * sc * k).addScaledVector(R, 0.035 * sc * k); hand.y += 0.012 * k; }
   const lPole = V().copy(lsh).addScaledVector(F, 0.3).addScaledVector(R, 0.0); lPole.y -= 0.35;
   const rPole = V().copy(rsh).addScaledVector(F, -0.7).addScaledVector(R, 0.0); rPole.y += 0.05;
   if (lower > 0) {
@@ -142,17 +160,18 @@ export function poseShooter(a, F, p, { sway = null, pull = 0, up = 0, lower = 0 
     bowHand.lerp(carryL, lower); hand.lerp(carryR, lower);
     lPole.lerp(V().copy(hipL).addScaledVector(F, -0.2).addScaledVector(R, 0.3), lower); rPole.lerp(V().copy(hipR).addScaledVector(F, -0.4), lower);
   }
+  if (spr) { const fresh = spr.st.fresh; spr.st.fresh = false; spring(spr.st, 'L', bowHand, fresh ? null : h.bonePosition('L_Hand', V()), spr.dt, spr.w); spring(spr.st, 'R', hand, fresh ? null : h.bonePosition('R_Hand', V()), spr.dt, spr.wR || spr.w); }
   h.setReach('L', bowHand, { weight: 1, pole: lPole });
   h.setReach('R', hand, { weight: 1, pole: rPole });
-  h.setFingers('L', 'fist'); h.setFingers('R', 'pinch');
+  h.setFingers('L', 'fist'); h.setFingers('R', follow !== null && follow > 0.03 ? 'open' : 'pinch');
   // bow: grip at the bow hand, string side towards the shooter
   const bow = a.bow; bow.visible = true;
   bow.position.copy(bowHand).addScaledVector(F, 0.0); bow.position.y -= 0.0;
   bow.rotation.set(0, F.z > 0 ? Math.PI : 0, 0);
   bow.rotateZ(0.04); if (lower > 0) bow.rotateX(-0.35 * lower); if (pull > 0) bow.rotateX(-pull * 1.7);
   bow.updateMatrixWorld(true);
-  // nock point of the string, in bow-local space
-  const nockLocal = bow.worldToLocal(hand.clone());
+  // nock point of the string, in bow-local space: on the hand while drawn; after the release back at the brace (17 cm from the grip) with a fading vibration
+  const nockLocal = follow === null ? bow.worldToLocal(hand.clone()) : V(0, 0, 0.17 - 0.03 * Math.exp(-follow * 16) * Math.sin(follow * 110));
   bow.userData.setNock(nockLocal);
   const ar = a.arrow; ar.visible = true;
   ar.position.copy(hand); ar.lookAt(V().copy(hand).add(F).setY(hand.y + 0.012)); ar.visible = lower < 0.4;

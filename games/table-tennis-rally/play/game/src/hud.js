@@ -50,42 +50,45 @@ function sideCard(ctx, G, r, who, w, m, mirror) {
   const hue = isP ? 190 : (opp ? opp.hue : 215);
   ctx.save();
   const gr = ctx.createLinearGradient(r.x, r.y, r.x + r.w, r.y + r.h);
-  gr.addColorStop(0, isP ? 'rgba(10,95,120,0.92)' : `hsla(${hue},60%,26%,0.92)`); gr.addColorStop(1, isP ? 'rgba(8,40,70,0.92)' : `hsla(${hue},60%,14%,0.92)`);
-  ctx.fillStyle = gr; ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, 20); ctx.fill();
+  gr.addColorStop(0, '#4a3220'); gr.addColorStop(1, '#2a1b10');
+  ctx.fillStyle = gr; ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, 16); ctx.fill();
+  const accent = isP ? 'hsl(190,70%,50%)' : `hsl(${hue},65%,55%)`;
+  ctx.fillStyle = accent; ctx.beginPath(); ctx.roundRect(mirror ? r.x + r.w - 6 : r.x, r.y + 8, 6, r.h - 16, 3); ctx.fill();
   const serving = w.phase !== 'intro' && w.server === who;
-  ctx.lineWidth = serving ? 3 : 1.5; ctx.strokeStyle = serving ? COL.orange : 'rgba(180,210,255,0.3)'; ctx.stroke();
+  ctx.lineWidth = serving ? 3 : 2; ctx.strokeStyle = serving ? '#ffe08a' : 'rgba(214,170,80,0.7)'; ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, 16); ctx.stroke();
   ctx.restore();
   const ar = Math.min(r.h * 0.34, 38), ax = mirror ? r.x + r.w - ar - 12 : r.x + ar + 12;
   avatar(ctx, ax, r.y + r.h * 0.42, ar, isP ? (m.kind === 'auto' ? 'C' : 'YOU') : initials(name), hue);
   const tx = mirror ? ax - ar - 12 : ax + ar + 12, al = mirror ? 'right' : 'left';
-  const nsz = Math.min(26, r.h * 0.2);
-  const maxNameW = r.w - ar * 2 - 28 - r.h * 0.9;
+  const nsz = Math.min(26, r.h * 0.33);
+  const maxNameW = r.w - ar * 2 - 28 - r.h * 0.95;
   let nm = name.toUpperCase();
   let sz = nsz; while (ui.measure(ctx, nm, sz, { disp: true, weight: 800, fixed: true }) > maxNameW && sz > 12) sz -= 1;
-  ui.text(ctx, nm, tx + 0, r.y + r.h * 0.4, sz, { disp: true, weight: 800, align: al, fixed: true });
-  if (!w.machine) pips(ctx, mirror ? tx : tx, r.y + r.h * 0.66, w.games[who], w.need, 6, COL.gold, mirror ? 'right' : 'left');
-  if (serving) ballIcon(ctx, mirror ? tx - (ui.measure(ctx, nm, sz, { disp: true, weight: 800, fixed: true }) + 18) : tx + ui.measure(ctx, nm, sz, { disp: true, weight: 800, fixed: true }) + 18, r.y + r.h * 0.4 - sz * 0.3, 8);
+  ui.text(ctx, nm, tx + 0, r.y + r.h * 0.5, sz, { disp: true, weight: 800, align: al, fixed: true });
+  if (!w.machine) pips(ctx, mirror ? tx : tx, r.y + r.h * 0.76, w.games[who], w.need, 6, COL.gold, mirror ? 'right' : 'left');
+  if (serving) ballIcon(ctx, mirror ? tx - (ui.measure(ctx, nm, sz, { disp: true, weight: 800, fixed: true }) + 18) : tx + ui.measure(ctx, nm, sz, { disp: true, weight: 800, fixed: true }) + 18, r.y + r.h * 0.5 - sz * 0.3, 7);
   const sc = String(w.machine ? '' : w.score[who]);
   const ssz = r.h * 0.74;
   ui.text(ctx, sc, mirror ? r.x + 16 : r.x + r.w - 16, r.y + r.h * 0.78, ssz, { disp: true, weight: 800, align: mirror ? 'left' : 'right', fixed: true, shadow: true });
 }
 function scoreTop(ctx, G, w, m) {
   const { L, ui } = G, t = L.top, U = L.U;
-  const back = L.back.w ? L.back.w + 8 : 0;
-  ui.text(ctx, infoLine(w, m), U.x + U.w / 2, t.y + 34, 20, { align: 'center', weight: 700, color: 'rgba(214,230,255,0.82)', fixed: false });
-  ui.button(ctx, 'pause', R(U.x + U.w - 62, t.y + 6, 54, 54), '', { kind: 'chip', icon: 'pause', size: 24 });
+  ui.text(ctx, infoLine(w, m), U.x + U.w / 2, t.y + 22, 18, { align: 'center', weight: 700, color: 'rgba(226,214,184,0.9)', fixed: false });
+  const pb = 50, cy = t.y + 30, ch = t.h - 36;
   if (w.machine) {
-    const cy = t.y + 54, ch = t.h - 62, cw = U.w - 24;
-    ui.panel(ctx, R(U.x + 12, cy, cw, ch), { fill: 'rgba(8,15,30,0.7)', radius: 20, shadow: false });
-    ui.text(ctx, String(w.streak), U.x + U.w / 2, cy + ch * 0.8, ch * 0.78, { disp: true, weight: 800, align: 'center', fixed: true, shadow: true });
-    ui.text(ctx, 'IN A ROW', U.x + U.w / 2 + ch * 0.62 + (String(w.streak).length - 1) * ch * 0.18, cy + ch * 0.8, 20, { disp: true, weight: 700, color: COL.dim });
-    for (let i = 0; i < 3; i++) { ballIcon(ctx, U.x + 40 + i * 34, cy + ch * 0.5, 12); if (i >= w.lives) { ctx.save(); ctx.fillStyle = 'rgba(8,15,30,0.7)'; ctx.beginPath(); ctx.arc(U.x + 40 + i * 34, cy + ch * 0.5, 13, 0, 6.3); ctx.fill(); ctx.restore(); } }
-    ui.text(ctx, `BEST ${Math.max(G.state.progress.stats.bestStreak, w.stats.bestStreak)}`, U.x + U.w - 28, cy + ch * 0.5 + 8, 22, { disp: true, weight: 700, align: 'right', color: COL.dim });
+    const cw = U.w - 24 - pb - 8;
+    ui.panel(ctx, R(U.x + 12, cy, cw, ch), { fill: 'rgba(40,26,14,0.9)', radius: 16, shadow: false });
+    ui.text(ctx, String(w.streak), U.x + 12 + cw / 2 - 40, cy + ch * 0.8, ch * 0.78, { disp: true, weight: 800, align: 'center', fixed: true, shadow: true });
+    ui.text(ctx, 'IN A ROW', U.x + 12 + cw / 2 - 40 + ch * 0.5 + (String(w.streak).length - 1) * ch * 0.18, cy + ch * 0.76, 20, { disp: true, weight: 700, color: COL.dim });
+    for (let i = 0; i < 3; i++) { ballIcon(ctx, U.x + 36 + i * 30, cy + ch * 0.5, 11); if (i >= w.lives) { ctx.save(); ctx.fillStyle = 'rgba(40,26,14,0.8)'; ctx.beginPath(); ctx.arc(U.x + 36 + i * 30, cy + ch * 0.5, 12, 0, 6.3); ctx.fill(); ctx.restore(); } }
+    ui.text(ctx, `BEST ${Math.max(G.state.progress.stats.bestStreak, w.stats.bestStreak)}`, U.x + 12 + cw - 16, cy + ch * 0.5 + 8, 20, { disp: true, weight: 700, align: 'right', color: COL.dim });
+    ui.button(ctx, 'pause', R(U.x + U.w - pb - 8, cy + (ch - pb) / 2, pb, pb), '', { kind: 'chip', icon: 'pause', size: 24 });
     return;
   }
-  const cy = t.y + 54, ch = t.h - 62, cw = (U.w - 24 - 10) / 2;
+  const cw = (U.w - 24 - pb - 12) / 2;
   sideCard(ctx, G, R(U.x + 12, cy, cw, ch), 'p', w, m, false);
-  sideCard(ctx, G, R(U.x + 12 + cw + 10, cy, cw, ch), 'o', w, m, true);
+  ui.button(ctx, 'pause', R(U.x + 12 + cw + 6, cy + (ch - pb) / 2, pb, pb), '', { kind: 'chip', icon: 'pause', size: 24 });
+  sideCard(ctx, G, R(U.x + 12 + cw + pb + 12, cy, cw, ch), 'o', w, m, true);
 }
 
 // ---- panels (landscape) ---------------------------------------------------------------------------------------------------------------

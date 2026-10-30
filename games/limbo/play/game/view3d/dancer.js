@@ -2,7 +2,7 @@
 //
 // The shared view3d layer supplies the person (athlete_m / athlete_f), the IK and the finger rig; this file poses the skeleton from the engine's
 // side-view joints (engine.pose): the trunk arches back over lumbar and thoracic spine, the knees flex, the pelvis sways to the beat, the arms
-// balance in three dimensions, the bare feet roll heel to toe, and the wrap, sash and headband tails follow with their own cloth physics.
+// balance in three dimensions, the feet roll heel to toe, and the wrap, sash and headband tails follow with their own cloth physics.
 import { loadHuman, Clip, CLIP_BONES, semanticRot, THREE } from '../vendor3d/index.js';
 import { Cloth } from './cloth.js';
 
@@ -10,142 +10,6 @@ const { Vector3, Quaternion, Euler } = THREE;
 const D2R = Math.PI / 180;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const bi = (n) => CLIP_BONES.indexOf(`Bip01_${n}`);
-
-// Barefoot on the sand: drop the trainer triangles, repaint the shoe and sock texture area in skin colour (a canvas copy of THIS person's
-// texture: the shared vendored textures stay untouched).
-function bareFeet(human) {
-  const N = 1024;
-  human._applyRest(); human.root.updateMatrixWorld(true);
-  const ank = { L: human.bones.Bip01_L_Foot.getWorldPosition(new THREE.Vector3()), R: human.bones.Bip01_R_Foot.getWorldPosition(new THREE.Vector3()) };
-  const v3 = new THREE.Vector3();
-  human.root.traverse((o) => {
-    if (!o.isSkinnedMesh || o.geometry.userData.barefoot) return;
-    const geo = o.geometry, ix = geo.index, si = geo.attributes.skinIndex, sw = geo.attributes.skinWeight, ps = geo.attributes.position;
-    if (!ix || !si) return;
-    o.updateMatrixWorld(true);
-    const foot = new Set(o.skeleton.bones.map((bn, i) => (/_(Foot|Toe0)$/.test(bn.name) ? i : -1)).filter((i) => i >= 0));
-    const calf = new Set(o.skeleton.bones.map((bn, i) => (/_Calf$/.test(bn.name) ? i : -1)).filter((i) => i >= 0));
-    const n = ps.count, w = new Float32Array(n), wc = new Float32Array(n), low = new Uint8Array(n);
-    const secs = { L: [], R: [] };
-    for (let i = 0; i < n; i++) {
-      for (let k = 0; k < 4; k++) { const b = si.getComponent(i, k), s = sw.getComponent(i, k); if (foot.has(b)) w[i] += s; if (calf.has(b)) wc[i] += s; }
-      v3.fromBufferAttribute(ps, i).applyMatrix4(o.matrixWorld);
-      const ay = Math.min(ank.L.y, ank.R.y);
-      if (v3.y < ay + 0.115 && (w[i] + wc[i]) > 0.6) low[i] = 1;      // the sock cuff and the lowest bit of the shin: replaced by our own ankle
-      if (v3.y >= ay + 0.118 && v3.y < ay + 0.16 && wc[i] > 0.6) secs[v3.distanceTo(ank.L) < v3.distanceTo(ank.R) ? 'L' : 'R'].push(v3.clone());
-    }
-    const a = ix.array;
-    for (let t = 0; t < a.length; t += 3) {
-      const g = (j) => a[t + j];
-      if ((w[g(0)] > 0.55 && w[g(1)] > 0.55 && w[g(2)] > 0.55) || (low[g(0)] && low[g(1)] && low[g(2)])) { a[t + 1] = a[t]; a[t + 2] = a[t]; }
-    }
-    ix.needsUpdate = true; geo.userData.barefoot = true;
-    human._legSec = secs;
-  });
-  const cv = () => { const c = globalThis.document.createElement('canvas'); c.width = c.height = N; return c; };
-  const read = (img) => { const c = cv(); const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(img, 0, 0, N, N); return { c, g, d: g.getImageData(0, 0, N, N) }; };
-  for (const m of human.mats) {
-    if (m.userData.kind !== 'body' || !m.map || !m.userData.tint) continue;
-    const u = m.userData.tint;
-    const A = read(m.map.image), M = read(u.tMask.value.image), S = read(u.tSkin.value.image);
-    const a = A.d.data, mk = M.d.data, sk = S.d.data;
-    let r = 0, g = 0, b = 0, n = 0;
-    for (let y = 540; y < 760; y += 2) for (let x = 40; x < 270; x += 2) { const i = (y * N + x) * 4; r += a[i]; g += a[i + 1]; b += a[i + 2]; n++; }
-    r /= n; g /= n; b /= n;
-    const paint = (x0, y0, x1, y1, test) => {
-      for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
-        const i = (y * N + x) * 4;
-        if (test && !test(i)) continue;
-        const L = 0.299 * a[i] + 0.587 * a[i + 1] + 0.114 * a[i + 2];
-        const sh = Math.pow(clamp(L / 215, 0.55, 1.12), 0.55);
-        a[i] = clamp(r * sh, 0, 255); a[i + 1] = clamp(g * sh, 0, 255); a[i + 2] = clamp(b * sh, 0, 255); a[i + 3] = 255;
-        sk[i] = 255; mk[i] = 0; mk[i + 1] = 0; mk[i + 2] = 0;
-      }
-    };
-    paint(225, 868, 400, 1024);                                              // trainers -> bare feet
-    paint(630, 868, 805, 1024);
-    paint(0, 436, 330, 500, (i) => mk[i + 2] > 100 || (a[i] > 200 && a[i + 1] > 200));   // sock tops
-    paint(700, 436, 1024, 500, (i) => mk[i + 2] > 100 || (a[i] > 200 && a[i + 1] > 200));
-    A.g.putImageData(A.d, 0, 0); M.g.putImageData(M.d, 0, 0); S.g.putImageData(S.d, 0, 0);
-    const tex = (c, srgb) => { const t = new THREE.CanvasTexture(c); t.flipY = false; t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace; t.generateMipmaps = true; t.minFilter = THREE.LinearMipmapLinearFilter; t.anisotropy = 4; return t; };
-    m.map = tex(A.c, true); u.tMask.value = tex(M.c, false); u.tSkin.value = tex(S.c, false);
-    m.needsUpdate = true;
-  }
-}
-
-// Bare feet: a lofted foot (heel, arch, ball, instep sloping to the toes) with five toes and nails, plus a skin sleeve over the ankle that
-// hides the painted sock line. Parented to the foot bones in the foot's own rest frame, so it follows the IK and the heel-toe roll.
-const FOOT_SECTIONS = [   // z (forward from the ankle), half width, top y, bottom y   (y = 0 at the ankle; the floor is at about -0.085)
-  [-0.050, 0.030, -0.040, -0.072], [-0.036, 0.038, -0.012, -0.084], [-0.010, 0.040, 0.006, -0.085], [0.020, 0.039, 0.000, -0.080],
-  [0.055, 0.042, -0.030, -0.076], [0.095, 0.047, -0.056, -0.084], [0.130, 0.047, -0.067, -0.085], [0.158, 0.043, -0.071, -0.085],
-];
-function footGeometry(med) {
-  const M = 14, pos = [], idx = [];
-  const ring = (z, hw, top, bot) => {
-    const cy = (top + bot) / 2, hh = (top - bot) / 2;
-    for (let j = 0; j < M; j++) {
-      const a = (j / M) * Math.PI * 2, c = Math.cos(a), s = Math.sin(a), e = 0.62;
-      const px = Math.sign(c) * Math.pow(Math.abs(c), e) * hw, py = Math.sign(s) * Math.pow(Math.abs(s), e) * hh;
-      pos.push(px, cy + py, z);
-    }
-  };
-  for (const s of FOOT_SECTIONS) ring(...s);
-  const N = FOOT_SECTIONS.length;
-  for (let i = 0; i < N - 1; i++) for (let j = 0; j < M; j++) { const a = i * M + j, b = i * M + (j + 1) % M, c = a + M, d2 = b + M; idx.push(a, c, b, b, c, d2); }
-  // end caps (heel back, toe front)
-  const cb = pos.length / 3; pos.push(0, (FOOT_SECTIONS[0][2] + FOOT_SECTIONS[0][3]) / 2, FOOT_SECTIONS[0][0] - 0.004);
-  const cf = pos.length / 3; pos.push(0, (FOOT_SECTIONS[N - 1][2] + FOOT_SECTIONS[N - 1][3]) / 2, FOOT_SECTIONS[N - 1][0] + 0.01);
-  for (let j = 0; j < M; j++) { idx.push(cb, j, (j + 1) % M); const o = (N - 1) * M; idx.push(cf, o + (j + 1) % M, o + j); }
-  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
-  void med; return g;
-}
-function addFeet(human, hex) {
-  human._applyRest(); human.root.updateMatrixWorld(true);
-  const mat = new THREE.MeshStandardMaterial({ color: hex, roughness: 0.72, metalness: 0 });
-  const toeMat = new THREE.MeshStandardMaterial({ color: new THREE.Color(hex).multiplyScalar(0.97), roughness: 0.72, metalness: 0 });
-  const nailMat = new THREE.MeshStandardMaterial({ color: new THREE.Color(hex).lerp(new THREE.Color('#f2d6c8'), 0.45), roughness: 0.4, metalness: 0 });
-  const geo = footGeometry();
-  const toeG = new THREE.CapsuleGeometry(1, 1, 3, 8);
-  for (const side of ['L', 'R']) {
-    const fb = human.bones[`Bip01_${side}_Foot`];
-    const fr = human._sole[side];
-    const upV = fr.up.clone().normalize(), fwdV = fr.fwd.clone().normalize();
-    fwdV.addScaledVector(upV, -fwdV.dot(upV)).normalize();
-    const leftV = upV.clone().cross(fwdV).normalize();
-    const g = new THREE.Group(); g.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(leftV, upV, fwdV));
-    const foot = new THREE.Mesh(geo, mat); foot.castShadow = true; g.add(foot);
-    const medial = side === 'L' ? -1 : 1;
-    // toes: big toe first (medial side), then four smaller ones curving away
-    const R = [0.0145, 0.0105, 0.0098, 0.0088, 0.0078], X = [0.027, 0.0095, -0.0065, -0.0215, -0.0335], Lg = [0.030, 0.026, 0.022, 0.019, 0.015], Z = [0.17, 0.176, 0.174, 0.166, 0.156];
-    R.forEach((r, i) => {
-      const t = new THREE.Mesh(toeG, toeMat);
-      t.scale.set(r, Lg[i] * 0.5, r * 0.82); t.rotation.x = Math.PI / 2; t.rotation.z = (i - 0) * 0.06 * medial;
-      t.position.set(medial * X[i], -0.073 + (i === 0 ? 0.004 : 0), Z[i] + Lg[i] * 0.25);
-      g.add(t);
-      const nail = new THREE.Mesh(new THREE.SphereGeometry(1, 8, 6), nailMat); nail.scale.set(r * 0.62, 0.0022, r * 0.5);
-      nail.position.set(medial * X[i], -0.073 + (i === 0 ? 0.004 : 0) + r * 0.82, Z[i] + Lg[i] * 0.55); g.add(nail);
-    });
-    fb.add(g);
-    // lower shin and ankle in skin colour, from the ankle up into the leg over the removed sock cuff (radius measured from the leg itself);
-    // attached to the calf bone with its rest transform
-    const calfB = human.bones[`Bip01_${side}_Calf`];
-    const A = fb.getWorldPosition(new THREE.Vector3());
-    const sec = (human._legSec && human._legSec[side]) || [];
-    const top = new THREE.Vector3(A.x, A.y + 0.14, A.z); let rTop = 0.036;
-    if (sec.length > 4) {
-      top.set(0, 0, 0); sec.forEach((p) => top.add(p)); top.multiplyScalar(1 / sec.length);
-      rTop = sec.reduce((s, p) => s + Math.hypot(p.x - top.x, p.z - top.z), 0) / sec.length;
-    }
-    const bot = new THREE.Vector3(A.x, A.y + 0.012, A.z);
-    const axis = top.clone().sub(bot), len = axis.length() + 0.03; axis.normalize();
-    const tube = new THREE.Mesh(new THREE.CylinderGeometry(rTop * 0.97, rTop * 0.72, len, 16, 1, false), mat);
-    tube.position.copy(bot).addScaledVector(axis, len / 2 - 0.0);
-    tube.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), axis);
-    tube.castShadow = true;
-    calfB.attach(tube);
-  }
-  return [mat, toeMat];
-}
 
 // One skeleton "pose clip" rewritten every frame (the same trick as the wrestlers): rest pose + semantic bone offsets.
 class Pose {
@@ -211,14 +75,13 @@ const YAW = Math.PI / 2;                         // the dancer walks towards +x
  */
 export async function createDancer({ base, character = 'athlete_m', kit, skin = '#8a5a3c', hair = '#1b1210', quality = 'medium' } = {}) {
   const human = await loadHuman({ character, base, kit: kit || { top: '#ff6a4d', bottoms: '#18b7a6', socks: '#ffffff' }, skin, hair });
-  bareFeet(human);
-  const footMats = addFeet(human, skin);
+  human.setKit({ shoes: '#f4efe6', socks: '#ffffff' });   // the athlete's own continuous skinned legs, with light canvas shoes and socks
   const bandMat = addBand(human, '#ffd873');
   const cloth = new Cloth(human, {});
   const pose = new Pose(human);
   human.root.traverse((o) => { if (o.isMesh || o.isSkinnedMesh) { o.castShadow = quality !== 'low'; o.frustumCulled = false; } });
 
-  const D = { human, cloth, root: human.root, footMats, bandMat, group: cloth.group, lookKey: '', quality, rootX: 0 };
+  const D = { human, cloth, root: human.root, bandMat, group: cloth.group, lookKey: '', quality, rootX: 0 };
   const v = new Vector3(), up = new Vector3(0, 1, 0), zax = new Vector3(0, 0, 1), qy = new Quaternion(), qz = new Quaternion(), qt = new Quaternion();
   const deg = (r) => r / D2R;
   const gait = { init: false, reset: false, f: [null, null], lastHip: 0, w: 1 };
@@ -231,9 +94,8 @@ export async function createDancer({ base, character = 'athlete_m', kit, skin = 
   D.setLook = (lk) => {
     if (D.lookKey === lk.name) return;
     D.lookKey = lk.name;
-    human.setKit({ top: lk.top, bottoms: lk.bottom, socks: '#ffffff' });
+    human.setKit({ top: lk.top, bottoms: lk.bottom, socks: '#ffffff', shoes: '#f4efe6' });
     human.setSkin(lk.skin); human.setHair(lk.hair);
-    for (const m of footMats) m.color.set(lk.skin).multiplyScalar(m === footMats[1] ? 0.96 : 1);
     bandMat.color.set(lk.band);
     cloth.setColors({ wrap: lk.wrap || lk.band, trim: lk.top, sash: lk.top, band: lk.band });
   };

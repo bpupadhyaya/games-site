@@ -3,6 +3,8 @@
 // where there is no OffscreenCanvas (tests) it is simply painted directly. Light comes from the fire at the lower left.
 import { STROKE_INFO, ZONE_BASS, ZONE_TONE } from './rhythm.js';
 import { DRUM_RY, DRUM_BODY } from './layout.js';
+// The lit 3D drum (web/view3d/drum3d.js) plugs in here from main.js; without it (tests, no WebGL) the painted drum is used.
+export const drum3d = { start: null, ready: () => false, draw: null, dent: null, state: { fade: 0 } };
 
 export const FONT = '"Cormorant Garamond", Georgia, serif';
 export const UI = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
@@ -213,6 +215,7 @@ class Path2DLike {
   clip() { this.c.clip(); }
 }
 
+const SEEN = new WeakSet();
 let cached = null;
 function staticLayer(rx, ry, scale) {
   const key = `${Math.round(rx)}|${scale.toFixed(2)}`;
@@ -236,9 +239,22 @@ export function drawDrum(ctx, g, fx = {}) {
   const sx = fx.shake ? fx.shake.x : 0, sy = fx.shake ? fx.shake.y : 0;
   ctx.translate(cx + sx, cy + sy);
   const m = ctx.getTransform?.(), scale = Math.max(0.5, (m && m.a) || 1) / 1;
-  const layer = staticLayer(rx, ry, scale);
-  if (layer) ctx.drawImage(layer.off, layer.ox, layer.oy, layer.w, layer.h);
-  else paintStatic(ctx, rx, ry);
+  // The lit 3D drum when it is ready (crossfades in over the painted one); the painted drum otherwise (loading, no WebGL, lost context).
+  drum3d.start?.();
+  const live3d = drum3d.ready() && !fx.flat, d3 = drum3d.state;
+  if (live3d) d3.fade = Math.min(1, d3.fade + 0.06);
+  let drawn3d = false;
+  if (!live3d || d3.fade < 1) {
+    const layer = staticLayer(rx, ry, scale);
+    if (layer) ctx.drawImage(layer.off, layer.ox, layer.oy, layer.w, layer.h);
+    else paintStatic(ctx, rx, ry);
+  }
+  if (live3d) {
+    for (const r of fx.ripples ?? []) if (!SEEN.has(r)) { SEEN.add(r); drum3d.dent((r.x - cx) / rx, (r.y - cy) / ry, r.stroke, r.vel ?? 0.9); }
+    let x0 = -rx * 1.3, x1 = rx * 1.3, y0 = -ry * 1.35, y1 = ry + DRUM_BODY * rx + rx * 0.45;
+    if (g.clip) { x0 = Math.max(x0, g.clip.x - cx - sx); x1 = Math.min(x1, g.clip.x + g.clip.w - cx - sx); y0 = Math.max(y0, g.clip.y - 6 - cy - sy); y1 = Math.min(y1, g.clip.y + g.clip.h - cy - sy); }
+    drawn3d = drum3d.draw(ctx, { cx: 0, cy: 0, rx, ry }, { x: x0, y: y0, w: x1 - x0, h: y1 - y0 }, fx.t ?? 0, { alpha: d3.fade, calm: fx.calm });
+  }
 
   // dynamic skin layer: zone hints, glows, guide, ripples
   ctx.save(); ctx.beginPath(); ctx.ellipse(0, 0, rx * 0.965, ry * 0.965, 0, 0, 7); ctx.clip();
@@ -249,13 +265,12 @@ export function drawDrum(ctx, g, fx = {}) {
     if (gl > 0.02) ring(zones[s][0], zones[s][1], rgba(STROKE_INFO[s].color, 0.2 * gl * gl + 0.04 * gl));
   }
   if (fx.guide) { const s = fx.guide.stroke, a = 0.2 + 0.2 * (fx.guide.pulse ?? 0.5); ring(zones[s][0], zones[s][1], rgba(STROKE_INFO[s].color, a)); }
-  if (!fx.calm) { const fl = 0.07 + 0.04 * Math.sin((fx.t ?? 0) * 7.1) + 0.03 * Math.sin((fx.t ?? 0) * 13.3), gg = ctx.createRadialGradient(-rx * 0.5, ry * 0.35, 0, -rx * 0.5, ry * 0.35, rx * 0.9); gg.addColorStop(0, `rgba(255,170,80,${fl})`); gg.addColorStop(1, 'rgba(255,170,80,0)'); ctx.fillStyle = gg; ctx.fillRect(-rx, -ry, rx * 2, ry * 2); }
+  if (!fx.calm && !drawn3d) { const fl = 0.07 + 0.04 * Math.sin((fx.t ?? 0) * 7.1) + 0.03 * Math.sin((fx.t ?? 0) * 13.3), gg = ctx.createRadialGradient(-rx * 0.5, ry * 0.35, 0, -rx * 0.5, ry * 0.35, rx * 0.9); gg.addColorStop(0, `rgba(255,170,80,${fl})`); gg.addColorStop(1, 'rgba(255,170,80,0)'); ctx.fillStyle = gg; ctx.fillRect(-rx, -ry, rx * 2, ry * 2); }
   for (const k of [ZONE_BASS, ZONE_TONE]) { ctx.beginPath(); ctx.ellipse(0, 0, rx * k, ry * k, 0, 0, 7); ctx.setLineDash([rx * 0.04, rx * 0.035]); ctx.strokeStyle = fx.labels ? 'rgba(60,35,15,0.55)' : 'rgba(60,35,15,0.22)'; ctx.lineWidth = rx * 0.008; ctx.stroke(); ctx.setLineDash([]); }
   for (const r of fx.ripples ?? []) {
     const px = r.x - cx, py = r.y - cy, a = 1 - r.age / 0.7;
     if (a <= 0) continue;
-    const dent = ctx.createRadialGradient(px, py, 0, px, py, rx * 0.26); dent.addColorStop(0, `rgba(70,40,15,${0.34 * Math.max(0, 1 - r.age / 0.28)})`); dent.addColorStop(1, 'rgba(70,40,15,0)');
-    ctx.fillStyle = dent; ctx.fillRect(px - rx * 0.3, py - rx * 0.3, rx * 0.6, rx * 0.6);
+    if (!drawn3d) { const dg = ctx.createRadialGradient(px, py, 0, px, py, rx * 0.26); dg.addColorStop(0, `rgba(70,40,15,${0.34 * Math.max(0, 1 - r.age / 0.28)})`); dg.addColorStop(1, 'rgba(70,40,15,0)'); ctx.fillStyle = dg; ctx.fillRect(px - rx * 0.3, py - rx * 0.3, rx * 0.6, rx * 0.6); }
     for (let k = 0; k < 2; k++) {
       const rr = (r.age * 0.9 + k * 0.1) * rx * 0.75 + rx * 0.04;
       ctx.beginPath(); ctx.ellipse(px, py, rr, rr * DRUM_RY, 0, 0, 7);

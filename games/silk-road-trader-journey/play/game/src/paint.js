@@ -301,14 +301,14 @@ export function landscape(ctx, r, biome, time = 'day', scroll = 0, t = 0, o = {}
 export function finish(ctx, r, time = 'day', o = {}) {
   const K = SKY[time] ?? SKY.day;
   ctx.save(); ctx.beginPath(); ctx.rect(r.x, r.y, r.w, r.h); ctx.clip();
-  if (K.tint[3] > 0) { ctx.globalCompositeOperation = time === 'night' ? 'multiply' : 'soft-light'; ctx.fillStyle = `rgba(${K.tint[0]},${K.tint[1]},${K.tint[2]},${K.tint[3] * (time === 'night' ? 1 : 2.4)})`; ctx.fillRect(r.x, r.y, r.w, r.h); ctx.globalCompositeOperation = 'source-over'; }
+  if (K.tint[3] > 0 && !o.soft) { ctx.globalCompositeOperation = time === 'night' ? 'multiply' : 'soft-light'; ctx.fillStyle = `rgba(${K.tint[0]},${K.tint[1]},${K.tint[2]},${K.tint[3] * (time === 'night' ? 1 : 2.4)})`; ctx.fillRect(r.x, r.y, r.w, r.h); ctx.globalCompositeOperation = 'source-over'; }
   if (o.dust) {
     const a = clamp(o.dust, 0, 1);
     ctx.fillStyle = `rgba(214,170,110,${0.55 * a})`; ctx.fillRect(r.x, r.y, r.w, r.h);
     for (let i = 0; i < 40; i++) { const x = r.x + ((hash(i) * r.w * 1.4 + (o.t ?? 0) * (240 + i * 7)) % (r.w * 1.4)) - r.w * 0.2, y = r.y + hash(i + 70) * r.h; ctx.fillStyle = `rgba(240,205,150,${0.28 * a})`; ctx.fillRect(x, y, 30 + hash(i + 9) * 60, 1.5 + hash(i + 3) * 2); }
   }
   const v = ctx.createRadialGradient(r.x + r.w / 2, r.y + r.h * 0.55, Math.min(r.w, r.h) * 0.35, r.x + r.w / 2, r.y + r.h * 0.55, Math.max(r.w, r.h) * 0.8);
-  v.addColorStop(0, 'rgba(10,5,20,0)'); v.addColorStop(1, `rgba(10,5,20,${0.42 + K.dark * 0.2})`);
+  v.addColorStop(0, 'rgba(10,5,20,0)'); v.addColorStop(1, `rgba(10,5,20,${(0.42 + K.dark * 0.2) * (o.soft ? 0.55 : 1)})`);
   ctx.fillStyle = v; ctx.fillRect(r.x, r.y, r.w, r.h);
   ctx.restore();
 }

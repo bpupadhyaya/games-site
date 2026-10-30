@@ -4,7 +4,7 @@
   "tagline": "One crown per row, column and region. No touching.",
   "genre": "logic puzzle (grid placement)",
   "orientation": "any",
-  "version": "0.2.4",
+  "version": "0.3.0",
   "monetization": {
     "model": "free",
     "previewSeconds": 90

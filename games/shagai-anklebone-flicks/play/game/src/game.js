@@ -7,6 +7,7 @@ import { chooseAction, bestAction, describeAction } from './ai.js';
 import { screenButtons, screenLayout, readerMax, TEXT_SCALES, AP_THINK_STEPS, zoomOf, rideInfo } from './ui.js';
 import { render as draw } from './view.js';
 import { RIDER } from './art.js';
+import { v3 } from './v3.js';
 
 // `meta.width/height` are updated live by the kit on every resize (fluid viewport: the short side is always 720 units);
 // every position comes from layoutFor(meta.width, meta.height).
@@ -274,6 +275,7 @@ export function createGame(env) {
   }
   function tapBoard(x, y) {
     ({ x, y } = toCanon(lay().play.mat, x, y));   // the bones live in the mat's canonical coordinates
+    if (v3.on && v3.minv) [x, y] = v3.minv(x, y);   // 3D: through the tilted rug
     if (state.phase === 'throw') { if (isHuman()) say('TAP or SWIPE UP on the felt mat to toss the bones.'); return; }
     if (state.phase !== 'decide') return;
     const i = boneAt(x, y);
@@ -408,7 +410,7 @@ export function createGame(env) {
         const b = btnAt(ptr.x, ptr.y), afZone = sc === 'title' && L.title.lock ? creditHit(L.title.lock.r) : null;
         state.press = { x: ptr.x, y: ptr.y, moved: false, s0: state.scroll, b: b && !b.dim ? b.id : null, af: Boolean(afZone && inRect(afZone, ptr.x, ptr.y)) };
         if (!b && inPlay && !state.menuOpen && !paused) {
-          const cm = toCanon(L.play.mat, ptr.x, ptr.y);
+          const cm = toCanon(L.play.mat, ptr.x, ptr.y); if (v3.on && v3.minv) [cm.x, cm.y] = v3.minv(cm.x, cm.y);
           if (canThrow() && inRect({ x: TRAY.x, y: TRAY.y - 20, w: TRAY.w, h: TRAY.h + 40 }, cm.x, cm.y)) { doToss(); state.press = null; }
           else if (aiTurn() && sc === 'play' && state.phase !== 'won') state.fast = true;
           else if (sc === 'play') tapBoard(ptr.x, ptr.y);

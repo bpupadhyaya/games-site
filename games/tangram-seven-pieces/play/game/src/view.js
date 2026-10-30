@@ -11,6 +11,7 @@ import { TEXT_SCALES } from './ui.js';
 import { layout, TOOLBAR_IDS } from './layout.js';
 import { drawLockup, drawCredit, drawMoreLine } from './brand.js';
 import { levelName, pieceName, THINK_STEPS, chapterUnlocked } from './screens.js';
+import { v3, flatAlpha } from './v3.js';
 
 const SQUARE_DISSECTION = [
   [0, [[0, 0], [4, 0], [2, 2]]], [1, [[4, 0], [4, 4], [2, 2]]], [2, [[0, 2], [0, 4], [2, 4]]], [5, [[0, 2], [1, 1], [2, 2], [1, 3]]],
@@ -243,6 +244,13 @@ function drawArt(ctx, name, x, y, w, h, S, b) {
   ctx.restore();
 }
 
+// Flat night-sky backdrop; over the 3D desk it only shows while the crossfade runs.
+function backdrop(ctx, t, moon, w, h) {
+  const fa = flatAlpha();
+  if (fa <= 0) return;
+  ctx.save(); ctx.globalAlpha = fa; background(ctx, t, 0, moon, w, h); ctx.restore();
+}
+
 // --------------------------------------------------------------------------------------- title
 const ATTRACT = ['cat2', 'trapezoidhouse', 'arrow', 'fish', 'lantern', 'canoe', 'duck', 'crown'];
 function attractLevels() {
@@ -250,21 +258,19 @@ function attractLevels() {
   return found.length ? found : [LEVELS[0]];
 }
 
-function drawAttract(ctx, S) {
+// The title's attract loop: the seven pieces fly in, assemble a figure, hold, then scatter. Shared by the flat art and the 3D
+// presenter (which builds the same moment in lit 3D), so both show the same figure at the same time. Title space (720 x 830).
+export function attractFrame(t) {
   const list = attractLevels();
   const PERIOD = 10;
-  const cyc = Math.floor(S.t / PERIOD);
-  const ph = (S.t % PERIOD);
+  const cyc = Math.floor(t / PERIOD);
+  const ph = (t % PERIOD);
   const lv = list[cyc % list.length];
   const g = levelGeo(lv);
   const s = 66;
   const cx = 360, cy = 650;
   const bb = g.box;
   const mid = [(bb.x0 + bb.x1) / 2, (bb.y0 + bb.y1) / 2];
-  // halo
-  const hg = ctx.createRadialGradient(cx, cy, 20, cx, cy, 300);
-  hg.addColorStop(0, 'rgba(232,196,106,0.16)'); hg.addColorStop(1, 'rgba(232,196,106,0)');
-  ctx.fillStyle = hg; ctx.fillRect(0, 380, 720, 560);
   const pieces = g.poses.map((pose, i) => {
     const c = centroidOfPose(pose);
     const fx = cx + (c[0] - mid[0]) * s, fy = cy + (c[1] - mid[1]) * s;
@@ -272,15 +278,26 @@ function drawAttract(ctx, S) {
     const rad = 330 + hash(cyc * 17 + i) * 90;
     const sx = cx + Math.cos(a) * rad, sy = cy + Math.sin(a) * rad * 0.8;
     const stag = i * 0.13;
-    let k = clamp01((ph - 0.3 - stag) / 1.6);
-    let out = clamp01((ph - 7.6 - stag * 0.6) / 1.5);
+    const k = clamp01((ph - 0.3 - stag) / 1.6);
+    const out = clamp01((ph - 7.6 - stag * 0.6) / 1.5);
     const pos = backOut(k) * (1 - ease(out));
-    return { pose, fx, fy, sx, sy, pos, spin: (hash(cyc * 7 + i) < 0.5 ? -1 : 1) * (2 + i % 3), i };
+    const spin = (hash(cyc * 7 + i) < 0.5 ? -1 : 1) * (2 + i % 3);
+    return { kind: pose.kind, f: pose.f, rot: pose.r + spin * (1 - pos), x: sx + (fx - sx) * pos, y: sy + (fy - sy) * pos, pos, lift: 0.25 * (1 - Math.abs(pos - 0.5) * 2) + 0.12, i };
   });
-  for (const p of pieces) {
-    const x = p.sx + (p.fx - p.sx) * p.pos, y = p.sy + (p.fy - p.sy) * p.pos;
-    const rot = p.pose.r + p.spin * (1 - p.pos);
-    drawPiece(ctx, pxOf(p.pose.kind, rot, p.pose.f, 0, 0, s).map(([qx, qy]) => [qx + x, qy + y]), p.pose.kind, { lift: 0.25 * (1 - Math.abs(p.pos - 0.5) * 2) + 0.12 });
+  return { lv, g, s, cx, cy, mid, ph, cyc, pieces };
+}
+
+function drawAttract(ctx, S) {
+  const A = attractFrame(S.t), { g, s, cx, cy, mid, ph } = A;
+  const fa = flatAlpha();
+  if (fa > 0) {
+    ctx.save(); ctx.globalAlpha = fa;
+    // halo
+    const hg = ctx.createRadialGradient(cx, cy, 20, cx, cy, 300);
+    hg.addColorStop(0, 'rgba(232,196,106,0.16)'); hg.addColorStop(1, 'rgba(232,196,106,0)');
+    ctx.fillStyle = hg; ctx.fillRect(0, 380, 720, 560);
+    for (const p of A.pieces) drawPiece(ctx, pxOf(p.kind, p.rot, p.f, 0, 0, s).map(([qx, qy]) => [qx + p.x, qy + p.y]), p.kind, { lift: p.lift });
+    ctx.restore();
   }
   if (ph > 2.2 && ph < 7.8) {
     // shimmer sweep
@@ -291,7 +308,7 @@ function drawAttract(ctx, S) {
       outlinePath(ctx, loops); ctx.clip();
       const sx = cx - 250 + k * 500;
       const sg = ctx.createLinearGradient(sx - 60, 0, sx + 60, 0);
-      sg.addColorStop(0, 'rgba(255,255,255,0)'); sg.addColorStop(0.5, 'rgba(255,255,255,0.45)'); sg.addColorStop(1, 'rgba(255,255,255,0)');
+      sg.addColorStop(0, 'rgba(255,255,255,0)'); sg.addColorStop(0.5, `rgba(255,255,255,${v3.on ? 0.3 : 0.45})`); sg.addColorStop(1, 'rgba(255,255,255,0)');
       ctx.fillStyle = sg; ctx.fillRect(sx - 80, 400, 160, 520);
       ctx.restore();
     }
@@ -300,7 +317,7 @@ function drawAttract(ctx, S) {
 
 function drawTitle(ctx, S, ui) {
   const L = layout(), Tt = L.title;
-  background(ctx, S.t, 0, [Tt.tx + 128 * Tt.k, Tt.ty + 168 * Tt.k], L.w, L.h);
+  backdrop(ctx, S.t, [Tt.tx + 128 * Tt.k, Tt.ty + 168 * Tt.k], L.w, L.h);
   ctx.save();
   ctx.translate(Tt.tx, Tt.ty); ctx.scale(Tt.k, Tt.k);
   drawAttract(ctx, S);
@@ -324,7 +341,7 @@ function drawTitle(ctx, S, ui) {
 
 function drawDocScreen(ctx, S, ui) {
   const L = layout();
-  background(ctx, S.t, 0, [L.w - 130, 170], L.w, L.h);
+  backdrop(ctx, S.t, [L.w - 130, 170], L.w, L.h);
   if (ui.panel) panel(ctx, ui.panel.x, ui.panel.y, ui.panel.w, ui.panel.h, {});
   drawDocBlocks(ctx, S, ui, S.scroll[ui.scrollKey] ?? 0);
   drawFixed(ctx, S, ui.fixed);
@@ -448,9 +465,16 @@ function drawGhost(ctx, puz, slotIdx, color, a, strong) {
 
 function drawPuzzle(ctx, S, T, auto) {
   const puz = S.puz, L = layout(), BOARD = L.board;
-  drawBoardPanel(ctx, BOARD);
-  drawCutout(ctx, puz.g.loops.map((l) => l.map(puz.g.toPx)), { top: BOARD.y, bottom: BOARD.y + BOARD.h });
-  if (S.guides) drawGuides(ctx, puz);
+  // Over the 3D table the board, the silhouette, the tray and the pieces are lit 3D (view3d/presenter.js); the flat art below
+  // only draws without WebGL (or fades out during the crossfade). Hints, ghosts, the handle and the win shimmer stay 2D on top.
+  const fa = flatAlpha();
+  ctx.save(); ctx.globalAlpha = fa;
+  if (fa > 0) {
+    drawBoardPanel(ctx, BOARD);
+    drawCutout(ctx, puz.g.loops.map((l) => l.map(puz.g.toPx)), { top: BOARD.y, bottom: BOARD.y + BOARD.h });
+    if (S.guides) drawGuides(ctx, puz);
+  }
+  ctx.restore();
   // hint / auto-play ghosts
   const pulse = 0.5 + 0.5 * Math.sin(S.t * 5);
   if (auto && auto.phase === 'reveal') {
@@ -463,10 +487,10 @@ function drawPuzzle(ctx, S, T, auto) {
   if (auto && auto.phase === 'think' && auto.scan != null) {
     drawGhost(ctx, puz, auto.scan, '#ffffff', 0.05 + 0.1 * pulse, false);
   }
-  drawTrayPanel(ctx, L.tray);
-  // snap preview ring
+  if (fa > 0) { ctx.save(); ctx.globalAlpha = fa; drawTrayPanel(ctx, L.tray); ctx.restore(); }
+  // snap preview ring (in 3D it is a glow on the board under the held piece)
   const prev = snapPreview(puz);
-  if (prev) {
+  if (prev && !v3.on) {
     polyPath(ctx, prev);
     ctx.fillStyle = 'rgba(255,236,160,0.2)'; ctx.fill();
     ctx.strokeStyle = 'rgba(255,236,160,0.9)'; ctx.lineWidth = 3; ctx.setLineDash([6, 6]); ctx.stroke(); ctx.setLineDash([]);
@@ -476,12 +500,14 @@ function drawPuzzle(ctx, S, T, auto) {
     const p = puz.pieces[idx];
     const poly = displayPolyPx(puz, p);
     const sel = puz.selected === idx;
-    let sc = 1 + 0.06 * p.lift;
-    if (p.pop > 0) sc *= 1 + 0.07 * Math.sin(p.pop * Math.PI);
-    const flip = p.flipT > 0 ? Math.cos((1 - p.flipT) * Math.PI) : 1;
-    const hintPiece = puz.hint && puz.hint.piece === idx;
-    const autoPiece = auto && (auto.phase === 'reveal') && auto.target && auto.target.piece === idx;
-    drawPiece(ctx, poly, p.kind, { lift: p.lift, sx: sc * (p.flipT > 0 ? -flip : 1) * (p.flipT > 0 ? 1 : 1), sy: sc, glow: Math.max(p.glow * 0.8, hintPiece || autoPiece ? 0.55 + 0.45 * pulse : 0), alpha: 1 });
+    if (fa > 0) {
+      let sc = 1 + 0.06 * p.lift;
+      if (p.pop > 0) sc *= 1 + 0.07 * Math.sin(p.pop * Math.PI);
+      const flip = p.flipT > 0 ? Math.cos((1 - p.flipT) * Math.PI) : 1;
+      const hintPiece = puz.hint && puz.hint.piece === idx;
+      const autoPiece = auto && (auto.phase === 'reveal') && auto.target && auto.target.piece === idx;
+      drawPiece(ctx, poly, p.kind, { lift: p.lift, sx: sc * (p.flipT > 0 ? -flip : 1) * (p.flipT > 0 ? 1 : 1), sy: sc, glow: Math.max(p.glow * 0.8, hintPiece || autoPiece ? 0.55 + 0.45 * pulse : 0), alpha: fa });
+    }
     if (sel && !puz.done && !auto) {
       ctx.save();
       ctx.strokeStyle = `rgba(255,255,255,${0.55 + 0.25 * Math.sin(S.t * 6)})`; ctx.lineWidth = 2.5; ctx.setLineDash([9, 6]);
@@ -571,7 +597,7 @@ function drawAutoBar(ctx, S, T, auto) {
 function drawPlay(ctx, S, ui) {
   const T = (k, v) => tr(S.lang, k, v);
   const L = layout();
-  background(ctx, S.t, 0, [L.w - 130, 150], L.w, L.h);
+  backdrop(ctx, S.t, [L.w - 130, 150], L.w, L.h);
   const puz = S.puz;
   const auto = S.scene === 'auto' ? S.auto : null;
   const lv = puz.level;
@@ -607,20 +633,21 @@ function drawPlay(ctx, S, ui) {
 
 export function render(ctx, S, ui) {
   ctx.textBaseline = 'alphabetic';
+  if (v3.on) ctx.clearRect(0, 0, layout().w, layout().h);   // the 3D table shows through the transparent 2D canvas
   switch (S.scene) {
     case 'title': drawTitle(ctx, S, ui); break;
     case 'levels': case 'howto': case 'rules': case 'about': case 'settings': drawDocScreen(ctx, S, ui); break;
     case 'demo-limit':
-      background(ctx, S.t, 0, [layout().w - 130, 170], layout().w, layout().h);
+      backdrop(ctx, S.t, [layout().w - 130, 170], layout().w, layout().h);
       panel(ctx, ui.panel.x, ui.panel.y, ui.panel.w, ui.panel.h, {});
       drawDocBlocks(ctx, S, ui, S.scroll[ui.scrollKey] ?? 0);
       drawFixed(ctx, S, ui.fixed);
       break;
     case 'play': case 'auto':
-      if (!S.puz) { background(ctx, S.t, 0, [layout().w - 130, 170], layout().w, layout().h); break; }
+      if (!S.puz) { backdrop(ctx, S.t, [layout().w - 130, 170], layout().w, layout().h); break; }
       drawPlay(ctx, S, ui);
       break;
-    default: background(ctx, S.t, 0, [layout().w - 130, 170], layout().w, layout().h);
+    default: backdrop(ctx, S.t, [layout().w - 130, 170], layout().w, layout().h);
   }
   if (S.overlay) drawOverlay(ctx, S, ui);
 }

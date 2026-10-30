@@ -111,7 +111,7 @@ function renderTitle(ctx, st, L) {
     txt(ctx, 'Colin-Maillard  ·  Gallina ciega  ·  Blindekuh', S.x + S.w / 2, A.y + titleH * 0.4 + size * 1.25, clamp(S.w * 0.03, 18, 24), PAL.dim, { align: 'center', maxW: S.w - 40 });
   }
   hero(ctx, st, heroArea);
-  button(ctx, T.play, 'Play', { kind: 'primary', size: 44, icon: 'play' });
+  button(ctx, T.play, 'Play', { kind: 'gold', size: 44, icon: 'play' });
   button(ctx, T.auto, 'Watch and Learn', { kind: 'quiet', size: 30, icon: 'ear' });
   button(ctx, T.how, 'How to Play', { kind: 'ghost', size: 26, icon: 'hint' });
   button(ctx, T.rules, 'Rules', { kind: 'ghost', size: 26, icon: 'scroll' });
@@ -185,7 +185,7 @@ function renderMeet(ctx, st, L, pl) {
       txt(ctx, `${r.head} · ${r.trinket}`, cx0 + cw / 2, cy0 + 10 + ps + 44 + fs * 1.3, fs, PAL.dim, { align: 'center', weight: 600, maxW: cw - 10 });
     }
   });
-  button(ctx, M.start, w.mode === 'seek' ? 'Put on the blindfold' : 'Start hiding', { kind: 'primary', size: 34, icon: 'play' });
+  button(ctx, M.start, w.mode === 'seek' ? 'Put on the blindfold' : 'Start hiding', { kind: 'gold', size: 34, icon: 'play' });
 }
 
 // ---- the playing screen ----------------------------------------------------------------------------------------------------------------
@@ -428,7 +428,7 @@ function renderPlay(ctx, st, L, view, meta, helpers) {
   ctx.lineWidth = 2; const brim = ctx.createLinearGradient(0, b.y, 0, b.y + b.h); brim.addColorStop(0, 'rgba(255,226,150,0.9)'); brim.addColorStop(1, 'rgba(140,100,30,0.8)');
   ctx.strokeStyle = brim; rrect(ctx, b, b.h / 2); ctx.stroke();
   const label = w.mode === 'seek' ? (pl.auto ? `Caught ${w.caught.length} of ${w.party.length}` : `${mmss(w.timeLeft)} sand · caught ${w.caught.length} of ${w.party.length}`) : `Hidden ${Math.floor(w.t)} of ${HIDE_TIME} s${w.close ? ` · close calls ${w.close}` : ''}`;
-  txt(ctx, label, b.x + b.w / 2, b.y + b.h / 2, 18, '#241608', { align: 'center', weight: 800, maxW: b.w - 20 });
+  txt(ctx, label, b.x + b.w / 2, b.y + b.h / 2, 18, '#fff8e6', { align: 'center', weight: 800, maxW: b.w - 20, stroke: 4.5, strokeColor: 'rgba(24,12,4,0.9)' });
   trayChips(ctx, st, P, pl);
   drawArena(ctx, st, L, pl, view);
   // messages
@@ -510,7 +510,7 @@ function renderResult(ctx, st, L) {
       ctx.strokeStyle = 'rgba(232,194,106,0.45)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.roundRect(cx, cy, ww, hh, 18); ctx.stroke();
     }
   }
-  button(ctx, Rr.again, 'Play again', { kind: 'primary', size: 30 });
+  button(ctx, Rr.again, 'Play again', { kind: 'gold', size: 30 });
   button(ctx, Rr.rooms, 'Rooms', { kind: 'quiet', size: 30 });
   button(ctx, Rr.menu, 'Menu', { kind: 'ghost', size: 30 });
   drawMoreLine(ctx, Rr.more.x, Rr.more.y, 15);

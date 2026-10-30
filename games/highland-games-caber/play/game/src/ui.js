@@ -23,24 +23,60 @@ export function setPress(ptr) {
 }
 const BTN_FILL = {
   disabled: ['rgba(200,205,225,0.35)', 'rgba(255,255,255,0.25)'],
-  primary: ['#3d7a4c', '#25533a'],
-  active: ['#b9892f', '#85601c'],
-  dark: ['rgba(24,36,32,0.86)', 'rgba(246,240,226,0.35)'],
-  plain: ['#f6f0e2', 'rgba(24,34,30,0.45)'],
+  primary: ['#2f6b40', '#163a24'],
+  active: ['#b9892f', '#6e4e16'],
+  dark: ['rgba(20,32,27,0.9)', 'rgba(8,14,12,0.9)'],
+  plain: ['#f4ecd8', 'rgba(74,52,30,0.75)'],
 };
+// The festival look: every panel and button is a piece of the same Highland kit. Dark pieces are a muted hunting-tartan cloth
+// (a woven sett drawn once into a pattern), light pieces are parchment, and each piece has a dark outer edge and a thin brass rule
+// just inside it, like the brass-edged signboards at a games field. Flat fills, no gloss shapes.
+const TARTAN = {};
+function tartan(ctx, kind) {
+  if (TARTAN[kind] !== undefined) return TARTAN[kind];
+  TARTAN[kind] = null;
+  try {
+    const doc = globalThis.document; if (!doc || typeof ctx.createPattern !== 'function') return null;
+    const c = doc.createElement('canvas'); c.width = c.height = 96; const g = c.getContext('2d');
+    const base = kind === 'green' ? '#2c6640' : '#16251f';
+    g.fillStyle = base; g.fillRect(0, 0, 96, 96);
+    const bands = kind === 'green' ? [[0, 18, 'rgba(10,30,20,0.35)'], [40, 6, 'rgba(10,30,20,0.3)'], [62, 3, 'rgba(240,196,85,0.18)'], [72, 14, 'rgba(20,40,70,0.22)']]
+      : [[0, 20, 'rgba(40,70,52,0.30)'], [44, 6, 'rgba(30,48,80,0.30)'], [64, 2, 'rgba(240,196,85,0.16)'], [76, 12, 'rgba(40,70,52,0.22)']];
+    for (const [o, w, col] of bands) { g.fillStyle = col; g.fillRect(o, 0, w, 96); g.fillRect(0, o, 96, w); }
+    g.globalAlpha = 0.07; g.strokeStyle = '#000'; g.lineWidth = 1;
+    for (let i = -96; i < 96; i += 4) { g.beginPath(); g.moveTo(i, 96); g.lineTo(i + 96, 0); g.stroke(); }
+    TARTAN[kind] = ctx.createPattern(c, 'repeat');
+  } catch { TARTAN[kind] = null; }
+  return TARTAN[kind];
+}
+// fill a rounded shape in the kit look: kind 'dark' | 'green' | 'parchment' | 'gold'
+export function kitFill(ctx, x, y, w, h, r, kind = 'dark', o = {}) {
+  ctx.save();
+  if (o.shadow !== false) { roundPath(ctx, x, y + (o.lift ?? 5), w, h, r); ctx.fillStyle = 'rgba(7,13,12,0.36)'; ctx.fill(); }
+  roundPath(ctx, x, y, w, h, r);
+  const pat = kind === 'dark' || kind === 'green' ? tartan(ctx, kind) : null;
+  const solid = kind === 'green' ? '#2f6b40' : kind === 'parchment' ? '#f4ecd8' : kind === 'gold' ? '#c3922f' : '#16251f';
+  ctx.globalAlpha = o.alpha ?? 1;
+  ctx.fillStyle = solid; ctx.fill();
+  if (pat) { ctx.fillStyle = pat; ctx.fill(); }
+  if (kind === 'parchment' && typeof ctx.createLinearGradient === 'function') { const gr = ctx.createLinearGradient(0, y, 0, y + h); gr.addColorStop(0, 'rgba(255,252,240,0.35)'); gr.addColorStop(1, 'rgba(160,120,70,0.16)'); ctx.fillStyle = gr; ctx.fill(); }
+  ctx.globalAlpha = 1;
+  ctx.lineWidth = 2; ctx.strokeStyle = kind === 'parchment' ? 'rgba(74,52,30,0.75)' : 'rgba(5,10,8,0.85)'; ctx.stroke();
+  if (w > 24 && h > 24) { const i = Math.min(5, h * 0.08); roundPath(ctx, x + i, y + i, w - 2 * i, h - 2 * i, Math.max(2, r - i)); ctx.lineWidth = 1.4; ctx.strokeStyle = kind === 'parchment' ? 'rgba(176,132,48,0.7)' : 'rgba(226,186,92,0.62)'; ctx.stroke(); }
+  ctx.restore();
+}
 export function paintButton(ctx, r, o = {}) {
   const { primary = false, active = false, disabled = false, dark = false } = o;
   const k = disabled ? 'disabled' : primary ? 'primary' : active ? 'active' : dark ? 'dark' : 'plain';
   const pressed = !disabled && PRESS.on && PRESS.x >= r.x && PRESS.x <= r.x + r.w && PRESS.y >= r.y && PRESS.y <= r.y + r.h;
-  const [fill, edge] = BTN_FILL[k];
   const dy = pressed ? 3 : 0;
-  ctx.save();
-  if (!disabled) { roundPath(ctx, r.x, r.y + (pressed ? 2 : 5), r.w, r.h, 18); ctx.fillStyle = pressed ? 'rgba(7,13,12,0.25)' : 'rgba(7,13,12,0.34)'; ctx.fill(); }
-  roundPath(ctx, r.x, r.y + dy, r.w, r.h, 18);
-  ctx.fillStyle = fill; ctx.fill();
-  if (pressed) { ctx.fillStyle = 'rgba(7,13,12,0.16)'; ctx.fill(); }
-  ctx.lineWidth = 1.5; ctx.strokeStyle = edge; ctx.stroke();
-  ctx.restore();
+  if (k === 'disabled') {
+    const [fill, edge] = BTN_FILL[k];
+    ctx.save(); roundPath(ctx, r.x, r.y, r.w, r.h, 18); ctx.fillStyle = fill; ctx.fill(); ctx.lineWidth = 1.5; ctx.strokeStyle = edge; ctx.stroke(); ctx.restore();
+  } else {
+    kitFill(ctx, r.x, r.y + dy, r.w, r.h, 18, k === 'primary' ? 'green' : k === 'active' ? 'gold' : k === 'dark' ? 'dark' : 'parchment', { lift: pressed ? 2 : 5 });
+    if (pressed) { ctx.save(); roundPath(ctx, r.x, r.y + dy, r.w, r.h, 18); ctx.fillStyle = 'rgba(7,13,12,0.16)'; ctx.fill(); ctx.restore(); }
+  }
   return { dy, light: primary || active || dark };
 }
 
@@ -77,6 +113,9 @@ export function fitPx(ctx, text, weight, px, maxW, min = 12) {
 
 export function panel(ctx, x, y, w, h, opts = {}) {
   const { r = 26, fill = C.paper, stroke = 'rgba(24,34,30,0.5)', shadow = true } = opts;
+  // dark panels and the parchment paper use the festival kit; any other fill keeps the plain look
+  if (fill === C.paper) { kitFill(ctx, x, y, w, h, r, 'parchment', { shadow, lift: 6 }); return; }
+  if (/^rgba\((1[0-9]|2[0-9]),(2[0-9]|3[0-9]),(2[0-9]|3[0-9]),0\.9/.test(fill.replace(/ /g, ''))) { kitFill(ctx, x, y, w, h, r, 'dark', { shadow, lift: 6 }); return; }
   ctx.save();
   if (shadow) { roundPath(ctx, x, y + 6, w, h, r); ctx.fillStyle = 'rgba(7,13,12,0.38)'; ctx.fill(); }
   roundPath(ctx, x, y, w, h, r);
@@ -205,6 +244,19 @@ export function drawFlow(ctx, lay, top, bottom, scroll, o = {}) {
   }
   ctx.restore();
 }
+// small line icons for the menu grid (drawn only when the label leaves room for them, so 300% text never collides)
+function drawIcon(ctx, name, x, y, s, col) {
+  ctx.save(); ctx.translate(x, y); ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = Math.max(2, s * 0.13); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  const P = () => ctx.beginPath();
+  if (name === 'caber') { ctx.rotate(-0.35); P(); ctx.moveTo(-s * 0.12, s); ctx.lineTo(-s * 0.2, -s); ctx.lineTo(s * 0.2, -s); ctx.lineTo(s * 0.12, s); ctx.closePath(); ctx.fill(); }
+  else if (name === 'eye') { P(); ctx.moveTo(-s, 0); ctx.quadraticCurveTo(0, -s * 0.9, s, 0); ctx.quadraticCurveTo(0, s * 0.9, -s, 0); ctx.stroke(); P(); ctx.arc(0, 0, s * 0.32, 0, Math.PI * 2); ctx.fill(); }
+  else if (name === 'hand') { P(); ctx.arc(0, -s * 0.2, s * 0.7, 0, Math.PI * 2); ctx.stroke(); P(); ctx.moveTo(-s * 0.3, s * 0.95); ctx.lineTo(s * 0.3, s * 0.95); ctx.stroke(); P(); ctx.moveTo(-s * 0.16, -s * 0.38); ctx.lineTo(s * 0.26, -s * 0.2); ctx.lineTo(-s * 0.16, s * 0.0); ctx.closePath(); ctx.fill(); }
+  else if (name === 'book') { P(); ctx.moveTo(0, -s * 0.6); ctx.lineTo(-s, -s * 0.8); ctx.lineTo(-s, s * 0.7); ctx.lineTo(0, s * 0.9); ctx.lineTo(s, s * 0.7); ctx.lineTo(s, -s * 0.8); ctx.closePath(); ctx.moveTo(0, -s * 0.6); ctx.lineTo(0, s * 0.9); ctx.stroke(); }
+  else if (name === 'info') { P(); ctx.arc(0, 0, s * 0.95, 0, Math.PI * 2); ctx.stroke(); P(); ctx.arc(0, -s * 0.45, s * 0.13, 0, Math.PI * 2); ctx.fill(); P(); ctx.moveTo(0, -s * 0.1); ctx.lineTo(0, s * 0.55); ctx.stroke(); }
+  else if (name === 'gear') { for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; P(); ctx.moveTo(Math.cos(a) * s * 0.6, Math.sin(a) * s * 0.6); ctx.lineTo(Math.cos(a) * s, Math.sin(a) * s); ctx.stroke(); } P(); ctx.arc(0, 0, s * 0.6, 0, Math.PI * 2); ctx.stroke(); P(); ctx.arc(0, 0, s * 0.22, 0, Math.PI * 2); ctx.fill(); }
+  else if (name === 'sound' || name === 'mute') { P(); ctx.moveTo(-s, -s * 0.3); ctx.lineTo(-s * 0.5, -s * 0.3); ctx.lineTo(0, -s * 0.8); ctx.lineTo(0, s * 0.8); ctx.lineTo(-s * 0.5, s * 0.3); ctx.lineTo(-s, s * 0.3); ctx.closePath(); ctx.fill(); P(); if (name === 'sound') { ctx.arc(s * 0.1, 0, s * 0.5, -0.9, 0.9); ctx.moveTo(s * 0.45, -s * 0.75); ctx.arc(s * 0.1, 0, s * 0.85, -0.9, 0.9); } else { ctx.moveTo(s * 0.3, -s * 0.4); ctx.lineTo(s, s * 0.4); ctx.moveTo(s, -s * 0.4); ctx.lineTo(s * 0.3, s * 0.4); } ctx.stroke(); }
+  ctx.restore();
+}
 function drawButtonRect(ctx, r, it, wd) {
   const { disabled = false } = wd;
   const { dy, light } = paintButton(ctx, r, wd);
@@ -215,6 +267,11 @@ function drawButtonRect(ctx, r, it, wd) {
   const subLines = wd.sub ? (() => { ctx.font = `400 ${subPx(it.fs)}px ${FONT}`; const l = wrapLines(ctx, wd.sub, r.w - 28); ctx.font = `700 ${it.fs}px ${FONT}`; return l; })() : [];
   const total = it.lines.length * it.fs * 1.15 + subLines.length * subPx(it.fs);
   let y = r.y + dy + (r.h - total) / 2 + it.fs * 0.88;
+  if (wd.icon) {
+    let lw = 0; for (const l of it.lines) lw = Math.max(lw, ctx.measureText(l).width);
+    const is = Math.min(16, r.h * 0.2);
+    if (lw + 4 * is + 40 <= r.w) drawIcon(ctx, wd.icon, r.x + 14 + is * 1.2, r.y + dy + (wd.sub ? r.h * 0.32 : r.h / 2), is, light ? 'rgba(255,250,240,0.9)' : 'rgba(110,74,30,0.85)');
+  }
   it.lines.forEach((l) => { ctx.fillText(l, r.x + r.w / 2, y); y += it.fs * 1.15; });
   if (subLines.length) {
     ctx.font = `400 ${subPx(it.fs)}px ${FONT}`; ctx.globalAlpha = 0.85;

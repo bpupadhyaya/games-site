@@ -181,8 +181,12 @@ function buildPlay(F, n, mode, coach) {
       L.pull = R(cx, U.y1 - 10 - pullH, cw, pullH);
     }
   } else {
-    const panelW = clamp(U.w * 0.34, 340, 560);
-    const panel = R(U.x1 - m - panelW, U.y0 + m, panelW, U.h - 2 * m);
+    // arranging with no coach card: the panel only needs the title, the info line and the four tools, so it is slimmer and shorter and the
+    // cards get the rest of the screen (a full-height panel left a big empty dark block)
+    const slim = mode === 'arrange' && !coach;
+    const panelW = slim ? clamp(U.w * 0.31, 390, 480) : clamp(U.w * 0.34, 340, 560);
+    const panelH = slim ? Math.min(U.h - 2 * m, hudH + 14 + 2 * 64 + gap + 36) : U.h - 2 * m;
+    const panel = R(U.x1 - m - panelW, U.y0 + (slim ? (U.h - panelH) / 2 : m), panelW, panelH);
     L.panel = panel;
     const leftX = U.x0 + m, leftW = panel.x - m - leftX;
     L.hud = { title: R(panel.x + 16, panel.y + 8, panel.w - 100, hudH - 10), info: { x: panel.x + panel.w / 2, y: panel.y + hudH + 10 } };
@@ -192,7 +196,7 @@ function buildPlay(F, n, mode, coach) {
     const bottom = panel.y + panel.h - 12;
     if (mode === 'arrange') {
       L.gridArea = area;
-      L.ctl = R(panel.x + 12, bottom - Math.max(ctlH, 170) - (coach ? 0 : 60), panel.w - 24, Math.max(ctlH, 170) + (coach ? 0 : 60));
+      L.ctl = slim ? R(panel.x + 12, bottom - (2 * 64 + gap), panel.w - 24, 2 * 64 + gap) : R(panel.x + 12, bottom - Math.max(ctlH, 170) - (coach ? 0 : 60), panel.w - 24, Math.max(ctlH, 170) + (coach ? 0 : 60));
     } else {
       L.stageArea = area;
       const pullH = 88;

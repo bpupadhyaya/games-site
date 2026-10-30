@@ -64,6 +64,17 @@ export function render(ctx, state, L) {
       ctx.strokeStyle = o.primary ? 'rgba(255,214,150,0.85)' : 'rgba(255,226,170,0.5)'; ctx.lineWidth = 2; ctx.stroke();
       ctx.strokeStyle = 'rgba(255,255,255,0.10)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.roundRect(r.x + 3, r.y + 3, r.w - 6, r.h - 6, Math.max(2, rad - 3)); ctx.stroke();
     }
+    if (o.glyph) {   // compact icon button: line glyph above a short label
+      const gc = r.x + r.w / 2, gy = r.y + r.h * 0.38, gs = Math.min(r.h * 0.2, 17), col0 = o.dim && v3.on ? 'rgba(255,226,170,0.55)' : GOLD;
+      ctx.strokeStyle = col0; ctx.fillStyle = col0; ctx.lineWidth = 3.2; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath();
+      if (o.glyph === 'rules') { ctx.roundRect(gc - gs * 0.75, gy - gs, gs * 1.5, gs * 2, 3); ctx.moveTo(gc - gs * 0.35, gy - gs * 0.4); ctx.lineTo(gc + gs * 0.35, gy - gs * 0.4); ctx.moveTo(gc - gs * 0.35, gy + gs * 0.05); ctx.lineTo(gc + gs * 0.35, gy + gs * 0.05); ctx.moveTo(gc - gs * 0.35, gy + gs * 0.5); ctx.lineTo(gc + gs * 0.1, gy + gs * 0.5); ctx.stroke(); }
+      else if (o.glyph === 'how') { ctx.arc(gc, gy, gs, 0, 7); ctx.stroke(); ctx.beginPath(); ctx.moveTo(gc - gs * 0.3, gy - gs * 0.35); ctx.lineTo(gc - gs * 0.3, gy + gs * 0.5); ctx.lineTo(gc + gs * 0.6, gy + 0.08 * gs); ctx.closePath(); ctx.fill(); }
+      else if (o.glyph === 'about') { ctx.arc(gc, gy, gs, 0, 7); ctx.stroke(); ctx.beginPath(); ctx.moveTo(gc, gy - gs * 0.05); ctx.lineTo(gc, gy + gs * 0.5); ctx.stroke(); ctx.beginPath(); ctx.arc(gc, gy - gs * 0.45, 2.4, 0, 7); ctx.fill(); }
+      else { for (const k of [-0.55, 0, 0.55]) { ctx.moveTo(gc - gs, gy + k * gs); ctx.lineTo(gc + gs, gy + k * gs); } ctx.stroke(); ctx.beginPath(); for (const [k, dx] of [[-0.55, 0.35], [0, -0.4], [0.55, 0.25]]) { ctx.moveTo(gc + dx * gs + 4.5, gy + k * gs); ctx.arc(gc + dx * gs, gy + k * gs, 4.5, 0, 7); } ctx.fill(); }
+      let gsz = 22; ctx.font = `700 ${gsz}px ${UI}`; while (gsz > minU && ctx.measureText(label).width > r.w - 8) { gsz--; ctx.font = `700 ${gsz}px ${UI}`; }
+      text(label, gc, r.y + r.h - Math.max(12, r.h * 0.17), gsz, col0, UI, 700);
+      ctx.restore(); return;
+    }
     const size = o.size ?? 28, maxW = r.w - 20, col = o.primary || (v3.on && o.on) ? '#fff6e0' : o.dim && v3.on ? 'rgba(255,226,170,0.55)' : GOLD, cy = r.y + r.h / 2;
     const w1 = (str, s) => { ctx.font = `700 ${s}px ${UI}`; return ctx.measureText(str).width; };
     let s1 = size; while (s1 > minU && w1(label, s1) > maxW) s1 -= 1;
@@ -110,8 +121,8 @@ export function render(ctx, state, L) {
       button(Rr.play, 'Play the computer', { primary: !Rr.resume, size: 32, sub: `${LEVELS[state.level].name} · as ${NAMES[state.humanSide]}` });
       button(Rr.two, 'Two players', { size: 26 }); button(Rr.learn, state.learned ? 'Learn' : 'Learn to play', { size: 26, primary: false });
       button(Rr.auto, 'Auto Play · Watch & Learn', { size: 26 });
-      button(Rr.rules, 'Rules', { size: 26 }); button(Rr.how, 'How to Play', { size: 26 });
-      button(Rr.about, 'About', { size: 26 }); button(Rr.settings, 'Settings', { size: 26 });
+      button(Rr.rules, 'Rules', { glyph: 'rules' }); button(Rr.how, 'How to', { glyph: 'how' });
+      button(Rr.about, 'About', { glyph: 'about' }); button(Rr.settings, 'Settings', { glyph: 'settings' });
       if (state.msg) fitText(state.msg.text, L.w / 2, T.rows.play.y - 14, 24, L.w - 40, GOLD, UI, 600);
     }
     // the Arcforge lockup, bottom centre under the menu

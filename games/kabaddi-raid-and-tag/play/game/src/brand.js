@@ -5,6 +5,9 @@ const UI = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 let logo = null, lockup = null;
 export const setLogo = (img) => { logo = img; };
 export const setLockup = (img) => { lockup = img; };
+let hero = null;
+export const setHero = (img) => { hero = img; };
+export const heroImage = () => (has(hero) ? hero : null);
 const has = (i) => !!(i && i.width);
 export const lockupSize = (h) => (has(lockup) ? { w: Math.round(h * lockup.width / lockup.height), h } : { w: 0, h: 0 });
 

@@ -2,6 +2,7 @@
 // The table, board and seed sprites are cached (art.js). The board is drawn in canonical units under one transform (L.board).
 import { TALL, TEXT_SCALES, AP_THINK_STEPS, pitAtCol } from './layout.js';
 const PIT_R = TALL.pitR, FRAME = TALL.frame, pitPos = TALL.pit, TRAY = { bottom: TALL.tray[0], top: TALL.tray[1] };
+import { v3, flatAlpha } from './v3.js';
 import { drawTable, drawBoard, drawSeed, slot, WOODS, SEEDSETS } from './art.js';
 import { legalMoves } from './rules.js';
 import { LEVELS } from './engine.js';
@@ -81,6 +82,8 @@ export function render(ctx, state, L) {
     if (o.primary) { gr.addColorStop(0, '#fbdc8c'); gr.addColorStop(0.55, '#e0a83e'); gr.addColorStop(1, '#b9791f'); } else { gr.addColorStop(0, '#6d4022'); gr.addColorStop(0.5, '#4a2812'); gr.addColorStop(1, '#2f1608'); }
     ctx.fillStyle = gr; ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, rad); ctx.fill();
     ctx.strokeStyle = o.primary ? 'rgba(255,240,190,0.85)' : 'rgba(243,207,122,0.55)'; ctx.lineWidth = 2.5; ctx.stroke();
+    // a thin inlaid line just inside the edge: the plaque is carved and inlaid, not glossy
+    ctx.strokeStyle = o.primary ? 'rgba(120,64,10,0.55)' : 'rgba(243,207,122,0.22)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.roundRect(r.x + 6, r.y + 6, r.w - 12, r.h - 12, Math.max(4, rad - 6)); ctx.stroke();
     let sz = Math.min(o.size ?? 30, Math.max(20, r.h * 0.4));
     sz = fitSz(label, sz, 700, UI, r.w - 16, 16);
     ctx.textAlign = 'center'; ctx.font = `700 ${sz}px ${UI}`;
@@ -90,7 +93,10 @@ export function render(ctx, state, L) {
   };
   const panel = (x, y, w, h, alpha = 0.86) => {
     ctx.save(); ctx.fillStyle = `rgba(26,10,3,${alpha})`; ctx.beginPath(); ctx.roundRect(x, y, w, h, 24); ctx.fill();
-    ctx.strokeStyle = 'rgba(243,207,122,0.75)'; ctx.lineWidth = 2.5; ctx.stroke(); ctx.restore();
+    ctx.strokeStyle = 'rgba(243,207,122,0.75)'; ctx.lineWidth = 2.5; ctx.stroke();
+    ctx.strokeStyle = 'rgba(243,207,122,0.2)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.roundRect(x + 8, y + 8, w - 16, h - 16, 18); ctx.stroke();
+    ctx.fillStyle = 'rgba(224,166,58,0.9)'; for (const [qx, qy] of [[x + 14, y + 14], [x + w - 14, y + 14], [x + 14, y + h - 14], [x + w - 14, y + h - 14]]) { ctx.beginPath(); ctx.arc(qx, qy, 3.2, 0, TAU); ctx.fill(); }
+    ctx.restore();
   };
   const rpanel = (r, alpha) => panel(r.x, r.y, r.w, r.h, alpha);
   // text fitted into a rect: wraps, and shrinks the font until every line fits the height
@@ -142,10 +148,20 @@ export function render(ctx, state, L) {
   const group = (G, y0) => { ctx.translate(G.cx, G.top); ctx.scale(G.sc, G.sc); ctx.translate(-360, -y0); };
 
   // ---- table -----------------------------------------------------------------------------------------------------------------------
-  drawTable(ctx, state.wood, L, boardScene && L.tall);
+  const three = v3.on, fa = flatAlpha();            // three: a lit 3D board is drawn behind this canvas; fa: how much of the flat art still shows (crossfade)
+  v3.scene = null;
+  if (three) {
+    let rc, kind = 'play', gg = G;
+    if (boardScene) rc = { x: B.cx - G.foot.w * B.s / 2, y: B.cy - G.foot.h * B.s / 2, w: G.foot.w * B.s, h: G.foot.h * B.s };
+    else if (scene === 'title' || scene === 'demo-limit') { const H = L.title(!!state.saved).hero; kind = 'hero'; rc = { x: H.cx - 330 * H.sc, y: H.top + 232 * H.sc, w: 660 * H.sc, h: 350 * H.sc }; gg = TALL; }
+    else { kind = 'hero'; rc = { x: L.w * 0.05, y: L.h * 0.2, w: L.w * 0.9, h: L.h * 0.5 }; gg = TALL; }
+    v3.frame(rc, kind, state.t, gg, state.wood);
+    if (!boardScene) v3.scene = { pits: new Array(14).fill(5), store: [0, 0], set: state.seeds, marks: [], geo: TALL };
+  }
+  if (fa > 0) { ctx.save(); ctx.globalAlpha = fa; drawTable(ctx, state.wood, L, boardScene && L.tall); ctx.restore(); }
 
   if (boardScene) {
-    ctx.save(); boardXform(); drawBoard(ctx, state.wood, G); ctx.restore();
+    if (fa > 0) { ctx.save(); ctx.globalAlpha = fa; boardXform(); drawBoard(ctx, state.wood, G); ctx.restore(); }
     if (L.wide && !L.long) { rpanel(L.leftCard, 0.42); rpanel(L.rightCard, 0.42); }
     // header lines: [text, role, colour] in reading order
     let head;
@@ -195,11 +211,11 @@ export function render(ctx, state, L) {
     }
     ctx.save(); boardXform();
     // a moving chevron along the carved arrows: the direction of sowing
-    if (!state.calm) { const f = (state.t * 0.5) % 1; for (const { y, dir: d, x0, x1 } of G.arrows) { const x = d > 0 ? x0 + (x1 - x0) * f : x1 - (x1 - x0) * f; ctx.strokeStyle = `rgba(255,214,120,${0.9 * Math.sin(Math.PI * f)})`; ctx.lineWidth = 4.5; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath(); ctx.moveTo(x - d * 9, y - 9); ctx.lineTo(x + d * 9, y); ctx.lineTo(x - d * 9, y + 9); ctx.stroke(); } }
-    contents(state.shown.pits, state.shown.store, { legal, labels: scene === 'autoplay' || scene === 'autoplay-over' ? ['Bottom seat', 'Top seat'] : scene === 'lesson' || scene === 'puzzle' ? ['You', 'Opponent'] : state.two ? ['Player one', 'Player two'] : ['You', 'Computer'] });
-    if (state.kb && scene !== 'over') { const p = G.pit(pitAtCol(g.turn, state.cursor)); ctx.strokeStyle = '#7dff9a'; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(p.x, p.y, G.pitR + 7, 0, TAU); ctx.stroke(); }
+    if (!state.calm && !three) { const f = (state.t * 0.5) % 1; for (const { y, dir: d, x0, x1 } of G.arrows) { const x = d > 0 ? x0 + (x1 - x0) * f : x1 - (x1 - x0) * f; ctx.strokeStyle = `rgba(255,214,120,${0.9 * Math.sin(Math.PI * f)})`; ctx.lineWidth = 4.5; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath(); ctx.moveTo(x - d * 9, y - 9); ctx.lineTo(x + d * 9, y); ctx.lineTo(x - d * 9, y + 9); ctx.stroke(); } }
+    if (fa > 0) { ctx.save(); ctx.globalAlpha = fa; contents(state.shown.pits, state.shown.store, { legal, labels: scene === 'autoplay' || scene === 'autoplay-over' ? ['Bottom seat', 'Top seat'] : scene === 'lesson' || scene === 'puzzle' ? ['You', 'Opponent'] : state.two ? ['Player one', 'Player two'] : ['You', 'Computer'] , counts: !three }); ctx.restore(); }
+    if (state.kb && scene !== 'over' && !three) { const p = G.pit(pitAtCol(g.turn, state.cursor)); ctx.strokeStyle = '#7dff9a'; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(p.x, p.y, G.pitR + 7, 0, TAU); ctx.stroke(); }
     // the carried seeds, and capture flourish
-    if (A) {
+    if (A && !three) {
       const r = A.r, o = G.pit(r.pit);
       if (A.phase === 'lift' || A.phase === 'sow') {
         let x, y, gy, hop = 0;
@@ -223,6 +239,47 @@ export function render(ctx, state, L) {
       if (A.phase === 'end' && r.slam) text('Grand slam: nothing is taken', G.mid.x, G.mid.y + 6, 34, '#ffd7a0', FONT, 700);
     }
     ctx.restore();
+    if (three) {
+      // describe the board for the 3D presenter, then draw the numbers on it (projected onto the tilted board)
+      const marks = [], pulse = state.calm ? 0.6 : 0.5 + 0.5 * Math.sin(state.t * 5), mk = (i, kind, a, grow = 1) => { const p = G.pit(i); marks.push({ x: p.x, y: p.y, kind, a, grow }); };
+      for (const i of legal) mk(i, 'legal', 0.4 + pulse * 0.5);
+      if (state.hint && !A) mk(state.hint.pit, 'hint', 0.6 + pulse * 0.4);
+      if (A && A.phase === 'capwait') for (const c of A.r.captured) mk(c, 'cap', 0.5 + Math.abs(Math.sin(A.timer * 14)) * 0.5);
+      if (state.ref && !A) mk(state.ref.pit, 'ref', 0.9 * (1 - state.ref.t / 0.6), 0.9);
+      if (state.kb && scene !== 'over') mk(pitAtCol(g.turn, state.cursor), 'kb', 0.85);
+      let carry = null, cap = null, land = null, capText = null, slamText = false;
+      if (A) {
+        const r = A.r, o = G.pit(r.pit);
+        if (A.phase === 'lift' || A.phase === 'sow') {
+          let x, gy, hop = 0, lift;
+          if (A.phase === 'lift') { const f = Math.min(1, A.timer / Math.max(0.01, state.calm ? 0.11 : 0.22)); x = o.x; gy = o.y; lift = 3 * f; }
+          else { const from = A.idx === 0 ? o : G.pit(r.path[A.idx - 1]), to = G.pit(r.path[Math.min(A.idx, r.path.length - 1)]), f = Math.min(1, A.timer / A.sd), e = f * f * (3 - 2 * f); x = from.x + (to.x - from.x) * e; gy = from.y + (to.y - from.y) * e; hop = state.calm ? 0 : Math.sin(Math.PI * f) * 26; lift = 3 + hop * 0.1; }
+          carry = { x, y: gy, lift, n: A.n };
+        }
+        if (A.phase === 'cap') {
+          const c = r.captured[A.cap], f = Math.min(1, A.timer / Math.max(0.01, state.calm ? 0.17 : 0.34)), e = f * f * (3 - 2 * f), cnt = r.lone ? 1 : state.shown.pits[c];
+          cap = { pit: c, n: cnt, e, player: r.player, skip: !r.lone }; capText = { c, cnt, f };
+          if (!state.calm) mk(c, 'cap', 0.85 * (1 - f), 0.8 + 0.9 * f);
+        }
+        if (A.phase === 'end' && r.slam) slamText = true;
+        if (A.lastDrop !== undefined && A.dropT < 0.24 && !state.calm && A.idx >= 1) land = { pit: A.lastDrop, from: A.idx >= 2 ? r.path[A.idx - 2] : r.pit, f: A.dropT / 0.24 };
+      }
+      v3.scene = { pits: state.shown.pits, store: state.shown.store, set: state.seeds, geo: G, marks, carry, cap, land };
+      const labels = scene === 'autoplay' || scene === 'autoplay-over' ? ['Bottom seat', 'Top seat'] : scene === 'lesson' || scene === 'puzzle' ? ['You', 'Opponent'] : state.two ? ['Player one', 'Player two'] : ['You', 'Computer'];
+      ctx.textAlign = 'center';
+      for (let i = 0; i < 14; i++) {
+        const n = state.shown.pits[i]; if (n <= 0) continue; const p = G.pit(i), q = v3.at(p.x, G.countY(i, big), 0), sz = (big ? 34 : 27) * q.k;
+        ctx.font = `800 ${sz}px ${UI}`; ctx.lineWidth = 5 * q.k; ctx.strokeStyle = 'rgba(30,10,2,0.9)'; ctx.strokeText(String(n), q.x, q.y); ctx.fillStyle = '#ffecc0'; ctx.fillText(String(n), q.x, q.y);
+      }
+      for (const pl of [0, 1]) {
+        const n = state.shown.store[pl], lb = G.label(pl), ct = G.count(pl), ql = v3.at(lb.x, lb.y, 0), qc = v3.at(ct.x, ct.y, 0);
+        text(labels[pl], ql.x, ql.y, fitSz(labels[pl], (big ? 28 : 24) * ql.k, 700, UI, G.long ? 86 * ql.k : 400, 12), CREAM, UI, 700, lb.align);
+        text(String(n), qc.x, qc.y, (big ? 50 : 44) * qc.k, GOLD, FONT, 700, ct.align);
+      }
+      if (carry && carry.n > 0) { const q = v3.at(carry.x + 26, carry.y - 6, 5.5 + carry.lift), rad = 15 * q.k; ctx.fillStyle = 'rgba(30,10,2,0.9)'; ctx.beginPath(); ctx.arc(q.x, q.y, rad, 0, TAU); ctx.fill(); ctx.strokeStyle = GOLD; ctx.lineWidth = 2; ctx.stroke(); text(String(carry.n), q.x, q.y + 7 * q.k, 20 * q.k, '#ffe9b0', UI, 800, 'center', false); }
+      if (capText) { const p = G.pit(capText.c), q = v3.at(p.x, p.y, 7 + capText.f * 4); text(`+${capText.cnt}`, q.x, q.y, 34 * q.k, `rgba(255,224,130,${1 - capText.f * 0.6})`, FONT, 700); }
+      if (slamText) { const q = v3.at(G.mid.x, G.mid.y, 0); text('Grand slam: nothing is taken', q.x, q.y, 34 * q.k, '#ffd7a0', FONT, 700); }
+    }
     // message panel (a lesson's instruction stays up until the player has done it)
     const mr = scene === 'autoplay' ? L.msgA : L.msg, msz = big ? 34 : 28;
     if (state.msg && scene !== 'over') {
@@ -247,11 +304,13 @@ export function render(ctx, state, L) {
     if (scene === 'title' && T.card) rpanel(T.card, 0.4);
     ctx.save(); group(T.hero, 100);
     // the title: a smaller, real board under the name
-    ctx.save(); ctx.translate(360, 300 - 400 * 0.6); ctx.scale(0.6, 0.6); ctx.translate(-360, 0);
-    drawBoard(ctx, state.wood);
-    const idle = { pits: new Array(14).fill(5), store: [0, 0] };
-    contents(idle, idle.store, { counts: false });
-    ctx.restore();
+    if (fa > 0) {
+      ctx.save(); ctx.globalAlpha = fa; ctx.translate(360, 300 - 400 * 0.6); ctx.scale(0.6, 0.6); ctx.translate(-360, 0);
+      drawBoard(ctx, state.wood);
+      const idle = { pits: new Array(14).fill(5), store: [0, 0] };
+      contents(idle, idle.store, { counts: false });
+      ctx.restore();
+    }
     text('Songo', 360, 196, 122, CREAM, FONT);
     text('The sowing game of Central Africa', 360, 250, 26, 'rgba(251,232,191,0.9)', FONT, 500);
     ctx.restore();
@@ -260,8 +319,8 @@ export function render(ctx, state, L) {
   if (scene === 'title') {
     const T = L.title(!!state.saved), R = T.rows, solved = state.daily.solvedDay === state.daily.day;
     if (R.resume) button(R.resume, 'Continue your game', { primary: true, size: 32 });
-    button(R.learn, 'Learn to play', { primary: !state.learned && !R.resume, size: 32 });
-    button(R.play, 'Play the computer', { primary: state.learned && !R.resume, size: 32 });
+    button(R.learn, 'Learn to play', { size: 30 });
+    button(R.play, 'Play the computer', { primary: !R.resume, size: 34 });
     button(R.two, 'Two players, one phone', { size: 30 });
     button(R.daily, solved ? `Daily puzzle: solved · streak ${state.daily.streak}` : state.daily.streak ? `Daily puzzle · streak ${state.daily.streak}` : 'Daily puzzle', { size: 30 });
     button(R.autoplay, 'Auto Play · Watch & Learn', { size: 28 });
@@ -282,7 +341,7 @@ export function render(ctx, state, L) {
     ctx.restore();
   } else if (scene === 'settings') {
     const S = L.settings, lv = LEVELS[state.level];
-    rpanel(S.panel, 0.5);
+    rpanel(S.panel, three ? 0.86 : 0.5);
     text('Settings', S.title.x, S.title.y, S.title.size, CREAM, FONT);
     button(S.rows.level, `Computer level: ${lv.name}`, { size: S.size });
     button(S.rows.sound, state.sound ? 'Sound: on' : 'Sound: off', { size: S.size });

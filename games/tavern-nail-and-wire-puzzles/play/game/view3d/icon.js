@@ -5,6 +5,7 @@ import { buildBar, buildPiece } from './models.js';
 import { createHands } from './hands.js';
 import { LEVELS, replay } from '../src/levels.js';
 import { ROT } from '../src/wire.js';
+import { liveGeometry } from '../src/scene.js';
 
 const q = new URLSearchParams(location.search);
 const SIZE = Number(q.get('size') || 2048);
@@ -58,15 +59,21 @@ key.target.position.copy(target);
 // the hand pinches the ring's top from behind
 const handScene = new THREE.Scene();
 handScene.environment = scene.environment; handScene.environmentIntensity = 0.6;
-const hKey = new THREE.DirectionalLight(0xffd29a, 2.4); hKey.position.copy(key.position);
+const hKey = new THREE.DirectionalLight(0xffd29a, Number(q.get('hk') || 1.5)); hKey.position.copy(key.position);
 handScene.add(hKey, hKey.target, new THREE.HemisphereLight(0xffd9a8, 0x2a1608, 0.9));
 const hands = await createHands(handScene);
-// grip point: the first loose piece's top
-const gp = new THREE.Vector3(st[0].x, st[0].y + Number(q.get('gy') || 1.2), -st[0].z);
+scene.add(hands.shadowRoot);
+// grip point: the first loose piece's top; the wire runs along wx/wy/wz there (default: along x)
+// or, with gu=k, the middle of wire unit k of that piece (the wire's own direction there)
+let gp = new THREE.Vector3(st[0].x + Number(q.get('gx') || 0), st[0].y + Number(q.get('gy') || 1.2), -st[0].z + Number(q.get('gz') || 0));
+let wdir = new THREE.Vector3(Number(q.get('wx') ?? 1), Number(q.get('wy') ?? 0), Number(q.get('wz') ?? 0));
+if (q.has('gu')) {
+  const u = liveGeometry(lv.puzzle.loose[0].shape, st[0], null).units[Number(q.get('gu'))];
+  gp = new THREE.Vector3((u[0] + u[3]) / 2, (u[1] + u[4]) / 2, -(u[2] + u[5]) / 2); wdir = new THREE.Vector3(u[3] - u[0], u[4] - u[1], -(u[5] - u[2]));
+}
 const camFlat = cam.position.clone();
 const noHand = q.has('nohand');
-for (let i = 0; i < 12; i++) hands.update(gp, camFlat, !noHand, 0.1, 0);
-hands.hand.human.update(0);
+for (let i = 0; i < 40; i++) hands.update(gp, camFlat, !noHand, 0.1, 0, wdir, matY);
 
 function render() {
   renderer.setViewport(0, 0, SIZE, SIZE);

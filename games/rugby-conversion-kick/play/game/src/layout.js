@@ -85,10 +85,10 @@ export function hudLayout(idx, w = W, h = H) {
 }
 function panelRows(p, m, fit, wide) {
   // rows inside a panel rect p: aim, tilt, power, kick
-  const pad = Math.round(16 * Math.min(m, 1.2)), gap = Math.round(10 * fit);
+  const pad = Math.round(14 * Math.min(m, 1.2)), gap = Math.round(8 * fit);
   const x = p.x + pad, wd = p.w - 2 * pad;
   const mm = Math.min(m, 1.35);
-  const hAim = Math.max(tapMin(), Math.round(76 * mm * fit)), hTilt = Math.max(tapMin(), Math.round(92 * mm * fit)), hPow = Math.round(132 * mm * fit), hKick = Math.max(tapMin(), Math.round(96 * mm * fit));
+  const hAim = Math.max(tapMin(), Math.round(64 * mm * fit)), hTilt = Math.max(tapMin(), Math.round(76 * mm * fit)), hPow = Math.round(104 * mm * fit), hKick = Math.max(tapMin(), Math.round(88 * mm * fit));
   let y = p.y + Math.round(pad * 0.8);
   const aim = R(x, y, wd, hAim); y += hAim + gap;
   const tilt = R(x, y, wd, hTilt); y += hTilt + gap;
@@ -113,8 +113,8 @@ function buildHud(idx, w, h) {
     const ph = Math.min(maxP, rows0.total);
     const panel = R(host.l + 8, B - ph - 8, w - host.l - host.r - 16, ph);
     const rows = panelRows(panel, m, fit, false);
-    const cardW = Math.min(250, Math.round(w * 0.36)), cardH = Math.round(124 * Math.min(m, 1.25));
-    const cy = topY + bh + 12 + Math.ceil(26 / Math.max(0.3, host.px || 0.6));
+    const cardW = Math.min(240, Math.round(w * 0.34)), cardH = Math.round(98 * Math.min(m, 1.25));
+    const cy = topY + bh + 8 + Math.ceil(26 / Math.max(0.3, host.px || 0.6));
     const wind = R(host.l + 12, cy, cardW, cardH), spot = R(w - host.r - 12 - cardW, cy, cardW, cardH);
     const band = { left: 0, right: w, top: cy + 6, bottom: panel.y - 6 };
     return { wide, m, panel, rows, pause, think, label, wind, spot, band, banner: R(w * 0.08, band.top + (band.bottom - band.top) * 0.14, w * 0.84, 150), prompt: R(w * 0.06, panel.y - 112, w * 0.88, 100), fit };

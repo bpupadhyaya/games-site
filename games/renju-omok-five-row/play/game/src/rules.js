@@ -20,7 +20,7 @@ export const foulText = (f) => FOUL_TEXT[f] ?? f;
 
 export const other = (c) => 3 - c;
 export const xyOf = (n, idx) => [idx % n, (idx / n) | 0];
-export const nameOf = (n, idx) => 'ABCDEFGHJKLMNOPQRS'[idx % n] + (n - ((idx / n) | 0));    // like a Go board: columns A-S without I, rows counted from the bottom
+export const nameOf = (n, idx) => 'ABCDEFGHJKLMNOPQRST'[idx % n] + (n - ((idx / n) | 0));    // like a Go board: columns A-S without I, rows counted from the bottom
 
 // `opening` (Renju only): 'none' | 'restricted' (Black's second stone must be outside the central 5 x 5) | 'swap' (after the third stone the
 // side that plays White may swap colours; the app asks, rules.js only knows the stones).

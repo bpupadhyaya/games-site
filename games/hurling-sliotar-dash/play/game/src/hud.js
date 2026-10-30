@@ -1,7 +1,7 @@
 // In-play HUD: scoreboard, controlled-player marker, strike bar, prompts, banners, the four round buttons and the floating stick,
 // Think and Watch & Learn panels, and the flat 2D pitch used when WebGL is missing. Everything follows the text size (PLAY_M).
 import { SW, H, host, PLAY_M, hudLayout, inRect } from './layout.js';
-import { FONT, C, roundPath, drawButton, panel, wrapLines, fitPx } from './ui.js';
+import { FONT, C, roundPath, drawButton, panel, wrapLines, fitPx, woodPlaque } from './ui.js';
 import { HW, HL, GOAL_HW, BAR, ROLES, CHARGE_SEC, SWEET, LEVELS } from './consts.js';
 import { projectV, camFor } from './camera.js';
 import { LESSONS } from './content.js';
@@ -53,6 +53,7 @@ function scoreboard(ctx, G, s, m0) {
   const g = ctx.createLinearGradient(0, 0, 0, T + th + 24); g.addColorStop(0, 'rgba(4,16,10,0.9)'); g.addColorStop(1, 'rgba(4,16,10,0)');
   ctx.fillStyle = g; ctx.fillRect(0, 0, SW, T + th + 24);
   const colw = sb.colw;
+  woodPlaque(ctx, sb.lx0 - 18, T + 4, sb.rx1 - sb.lx0 + 36, th - 8, 22, 0.93);
   for (const i of [0, 1]) {
     const left = i === 0, x0 = left ? sb.lx0 : sb.rx1 - colw;
     ctx.fillStyle = TEAM_COL[i]; roundPath(ctx, x0, T + 14, 10, th - 40, 5); ctx.fill();
@@ -93,7 +94,7 @@ function wrappedBox(ctx, text, y, size, o = {}) {
   ctx.font = `${o.weight ?? 700} ${size}px ${FONT}`;
   const lines = wrapLines(ctx, text, pw - 32);
   const ph = lines.length * size * 1.25 + 18;
-  roundPath(ctx, cx - pw / 2, y, pw, ph, 16); ctx.fillStyle = o.bg ?? 'rgba(4,16,10,0.72)'; ctx.fill();
+  roundPath(ctx, cx - pw / 2, y, pw, ph, 16); ctx.fillStyle = o.bg ?? 'rgba(46,28,16,0.88)'; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(217,166,76,0.9)'; ctx.stroke();
   ctx.fillStyle = o.color ?? '#fff6e4'; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
   lines.forEach((l, i) => ctx.fillText(l, cx, y + 10 + size * (0.95 + i * 1.25)));
   return ph;
@@ -161,10 +162,14 @@ function circleButton(ctx, c, label, o = {}) {
   const r = c.r * (held ? 0.94 : 1);
   ctx.beginPath(); ctx.arc(c.x, c.y + (held ? 2 : 5), r, 0, TAU); ctx.fillStyle = 'rgba(4,16,10,0.4)'; ctx.fill();
   ctx.beginPath(); ctx.arc(c.x, c.y, r, 0, TAU);
-  ctx.fillStyle = disabled ? 'rgba(60,80,70,0.55)' : primary ? '#1e9a5f' : 'rgba(16,44,30,0.88)'; ctx.fill();
+  const cg = ctx.createLinearGradient(0, c.y - r, 0, c.y + r);
+  if (disabled) cg.addColorStop(0, 'rgba(70,56,44,0.6)'), cg.addColorStop(1, 'rgba(40,30,22,0.6)');
+  else if (primary) cg.addColorStop(0, '#ffe08a'), cg.addColorStop(1, '#ee9c2c');
+  else cg.addColorStop(0, '#7a4e2c'), cg.addColorStop(1, '#3d2414');
+  ctx.fillStyle = cg; ctx.fill();
   if (held && !disabled) { ctx.fillStyle = 'rgba(255,246,228,0.22)'; ctx.fill(); }
-  ctx.lineWidth = glow ? 5 : 2.5; ctx.strokeStyle = glow ? '#ffd97a' : 'rgba(255,246,228,0.5)'; ctx.stroke();
-  ctx.fillStyle = disabled ? 'rgba(235,238,255,0.5)' : '#fffaf0'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.lineWidth = glow ? 6 : 3.5; ctx.strokeStyle = glow ? '#fff3b0' : disabled ? 'rgba(200,170,110,0.35)' : '#d9a64c'; ctx.stroke();
+  ctx.fillStyle = disabled ? 'rgba(235,225,205,0.5)' : primary ? '#2e1a05' : '#fff3d8'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   const px = fitPx(ctx, label, 800, Math.round(c.r * 0.36), c.r * 1.55, 12);
   ctx.font = `800 ${px}px ${FONT}`; ctx.fillText(label, c.x, c.y - (sub ? px * 0.35 : 0));
   if (sub) { const sp = Math.max(minU(), Math.round(px * 0.55)); ctx.font = `600 ${sp}px ${FONT}`; ctx.globalAlpha = 0.85; ctx.fillText(sub, c.x, c.y + px * 0.62); ctx.globalAlpha = 1; }
@@ -235,7 +240,7 @@ export function renderHud(ctx, G, view, ui) {
     const bw = Math.min(SW - 80 - host.l - host.r, 680), bcx = (SW + host.l - host.r) / 2;
     const lines = wrapLines(ctx, txt, bw - 10);
     const ph = lines.length * big * 1.15 + 24, py = y + 4;
-    roundPath(ctx, bcx - bw / 2, py, bw, ph, 20); ctx.fillStyle = 'rgba(4,16,10,0.8)'; ctx.fill(); ctx.lineWidth = 4; ctx.strokeStyle = col; ctx.stroke();
+    roundPath(ctx, bcx - bw / 2, py, bw, ph, 20); ctx.fillStyle = 'rgba(46,28,16,0.9)'; ctx.fill(); ctx.lineWidth = 4; ctx.strokeStyle = col; ctx.stroke();
     ctx.fillStyle = '#fff6e4'; lines.forEach((l, i) => ctx.fillText(l, bcx, py + 14 + big * (0.95 + i * 1.15)));
     ctx.restore();
   } else if (G.feedback && s.t - G.feedback.t < 1.2) {
@@ -272,7 +277,7 @@ function renderWatchPanel(ctx, G, s, lay, m) {
   const lines = wrapLines(ctx, msg, pw - 56);
   const maxPh = land ? Math.min(H * 0.26, byTop - H * 0.62) : Math.min(H * 0.34, byTop - 260);   // the pitch stays visible; longer text scrolls inside the panel
   const ph = Math.max(ps * 1.25 + 20, Math.min(maxPh, lines.length * ps * 1.25 + 20)), py = byTop - ph - 12;
-  roundPath(ctx, barX, py, pw, ph, 16); ctx.fillStyle = 'rgba(4,16,10,0.88)'; ctx.fill();
+  roundPath(ctx, barX, py, pw, ph, 16); ctx.fillStyle = 'rgba(46,28,16,0.92)'; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(217,166,76,0.9)'; ctx.stroke();
   const wcol = w.phase === 'think' ? '#ffe9a0' : w.phase === 'reveal' ? '#7fe8d6' : '#ff9a86';
   scrollBox(ctx, G, { x: barX + 16, y: py + 8, w: pw - 56, h: ph - 16 }, lines.map((t) => ({ text: t, font: `600 ${ps}px ${FONT}`, color: wcol, lh: ps * 1.25 })), msg.replace(/^THINK \d+s/, 'THINK'));
   const labels = [w.paused ? 'Resume' : 'Pause', 'Think −', 'Think +', 'Exit'];

@@ -183,10 +183,11 @@ function stands(g) {
 
 function towers(g) {
   const parts = [];
-  for (const [x, y] of [[-26.5, -6], [26.5, -6], [-26.5, 48], [26.5, 48], [-26.5, 21], [26.5, 21]]) {
+  // the landscape camera sits on the +x side and the portrait camera at the low-y end: no mast stands between a camera and the pattern
+  for (const [x, y] of [[-26.5, -6], [-26.5, 48], [26.5, 48], [-26.5, 21]]) {
     parts.push({ geo: new THREE.CylinderGeometry(0.16, 0.24, 13, 8), matrix: T(x, 6.5, -y), color: lin('#8c8f94') });
-    parts.push({ geo: new THREE.BoxGeometry(2.4, 0.9, 0.5), matrix: T(x, 13.2, -y, 0.35, x > 0 ? 0.5 : -0.5, 0), color: lin('#2a2c30') });
-    for (let i = 0; i < 4; i++) parts.push({ geo: new THREE.BoxGeometry(0.42, 0.3, 0.1), matrix: T(x + (i - 1.5) * 0.52, 13.15, -y + 0.3, 0.35, x > 0 ? 0.5 : -0.5, 0), color: lin('#fff6d8') });
+    parts.push({ geo: new THREE.BoxGeometry(1.7, 0.55, 0.3), matrix: T(x, 13.2, -y, 0.35, x > 0 ? 0.5 : -0.5, 0), color: lin('#3c3f45') });
+    for (let i = 0; i < 4; i++) parts.push({ geo: new THREE.BoxGeometry(0.34, 0.22, 0.1), matrix: T(x + (i - 1.5) * 0.4, 13.15, -y + 0.2, 0.35, x > 0 ? 0.5 : -0.5, 0), color: lin('#fff6d8') });
   }
   g.add(solid(parts));
 }

@@ -21,7 +21,10 @@ export function bandOf(G) {
 }
 export const hudCam = (G) => { const S = G.S.s; const lay = G.mode === 'watch' ? watchLayout(G.settings.textIdx, W, H) : hudLayout(G.settings.textIdx, W, H); return camFor(W, H, S, lay.band); };
 
-const card = (ctx, r, o = {}) => panel(ctx, r.x, r.y, r.w, r.h, { r: 18, fill: o.fill || 'rgba(10,26,44,0.78)', stroke: o.stroke || 'rgba(255,246,228,0.35)', shadow: true });
+// wood-and-brass plaque: a walnut gradient with a brass rim
+export const wood = (ctx, r) => { const g = ctx.createLinearGradient(0, r.y, 0, r.y + r.h); g.addColorStop(0, 'rgba(70,45,26,0.93)'); g.addColorStop(1, 'rgba(36,22,12,0.95)'); return g; };
+const BRASS = 'rgba(214,170,84,0.85)';
+const card = (ctx, r, o = {}) => panel(ctx, r.x, r.y, r.w, r.h, { r: 16, fill: o.fill || wood(ctx, r), stroke: o.stroke || BRASS, shadow: true });
 const txt = (ctx, s, x, y, size, color = CREAM, align = 'left', weight = 700, font = FONT) => { ctx.font = `${weight} ${Math.max(minFont(1), Math.round(size))}px ${font}`; ctx.fillStyle = color; ctx.textAlign = align; ctx.textBaseline = 'alphabetic'; ctx.fillText(s, x, y); };
 
 // ---- wind dial -----------------------------------------------------------------------------------------------------------------------
@@ -62,17 +65,16 @@ export function drawSpotCard(ctx, r, S, m = 1) {
   const sp = S.spot, win = windowDeg(sp);
   const sz = Math.max(13, 15 * Math.min(m, 1.2));
   txt(ctx, 'SPOT', r.x + 14, r.y + 22, sz, 'rgba(255,246,228,0.6)', 'left', 800);
-  const bigS = fitPx(ctx, `${sp.d} m`, 800, Math.min(54, r.h * 0.4), r.w - 30, 18);
-  txt(ctx, `${sp.d} m`, r.x + 14, r.y + r.h * 0.52, bigS, GOLD, 'left', 800, DISPLAY);
+  const bigS = fitPx(ctx, `${sp.d} m`, 800, Math.min(40, r.h * 0.36), r.w * 0.5, 18);
+  txt(ctx, `${sp.d} m`, r.x + r.w - 14, r.y + 22 + bigS * 0.35, bigS, GOLD, 'right', 800, DISPLAY);
   const side = sp.sx === 0 ? 'On the middle line' : `${Math.abs(sp.sx)} m ${sp.sx < 0 ? 'left' : 'right'}`;
   const l1 = fitPx(ctx, side, 700, Math.max(15, 19 * Math.min(m, 1.2)), r.w - 24, 11);
-  txt(ctx, side, r.x + 14, r.y + r.h * 0.52 + l1 * 1.35, l1, CREAM, 'left', 600);
+  txt(ctx, side, r.x + 14, r.y + r.h * 0.62 + l1 * 0.3, l1, CREAM, 'left', 600);
   const l2 = `Window ${r1(win)}°`;
   const f2 = fitPx(ctx, l2, 700, Math.max(15, 19 * Math.min(m, 1.2)), r.w - 24, 11);
-  txt(ctx, l2, r.x + 14, r.y + r.h * 0.52 + l1 * 1.35 + f2 * 1.35, f2, win < 8 ? '#ff9f6b' : '#9be7c4', 'left', 700);
+  txt(ctx, l2, r.x + 14, r.y + r.h - 12, f2, win < 8 ? '#ff9f6b' : '#9be7c4', 'left', 700);
 }
 
-// ---- marks on the picture --------------------------------------------------------------------------------------------------------------
 function dotted(ctx, pts, color, w = 4, dash = [2, 12]) {
   const ok = pts.filter(Boolean);
   if (ok.length < 2) return;
@@ -136,7 +138,7 @@ export function drawRing(ctx, cam, S, t, lay, mine = true) {
 export function drawPanel(ctx, G, lay, hot) {
   const S = G.S.s, ready = S.phase === 'ready' && G.humanTurn, m = lay.m;
   const p = lay.panel, rw = lay.rows;
-  panel(ctx, p.x, p.y, p.w, p.h, { r: 26, fill: 'rgba(8,22,38,0.88)', stroke: 'rgba(255,246,228,0.3)' });
+  panel(ctx, p.x, p.y, p.w, p.h, { r: 24, fill: wood(ctx, p), stroke: BRASS });
   const dim = ready ? 1 : 0.5;
   ctx.save(); ctx.globalAlpha = dim;
   // aim

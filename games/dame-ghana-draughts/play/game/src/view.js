@@ -5,6 +5,7 @@ import { drawTable, drawBoard, weaveRule, FRAME, SLAB, WOOD_NAMES } from './art.
 import { drawPiece, SET_NAMES, SIDE_NAMES, pieceShadow } from './pieces.js';
 import { LEVELS, VARIANTS, sqName, count } from './engine.js';
 import { DIAGRAMS, RULES, HOWTO, ABOUT } from './content.js';
+import { v3 } from './v3.js';
 import { animPos, animRemoved, animEffects } from './anim.js';
 import { drawCredit, drawMoreLine, edgeStroke } from './brand.js';
 
@@ -19,11 +20,13 @@ export const DOCS = { rules: { title: 'Rules', secs: RULES }, howto: { title: 'H
 
 export const sideName = (set, side) => SIDE_NAMES[set][side];
 
+const scene0 = (st) => st.scene;
 export function render(ctx, state, L, aux) {
   const tr = ctx.getTransform?.(), px = tr && tr.a ? Math.max(1, tr.a) : 2;
   { ctx.font = `700 40px ${FONT}`; const a = ctx.measureText('Hamburgefonstiv').width; ctx.font = `600 40px ${UI}`; const k = `${a}/${ctx.measureText('Hamburgefonstiv').width}`; if (k !== fitKey || fitMemo.size > 3000) { fitMemo.clear(); fitKey = k; } }
   const memo = (key, fn) => { let v = fitMemo.get(key); if (v === undefined) { v = fn(); fitMemo.set(key, v); } return v; };
   ui.buttons.length = 0;
+  const D3 = v3.on; if (!D3 || scene0(state) === 'title') v3.hero = null;
   const scene = state.scene, set = state.set, g = state.game, n = g.n;
   const minU = Math.max(13, 11.5 / (host.px || 0.5));
   const scale = TEXT_SCALES[state.textScaleIdx] ?? 1;
@@ -45,7 +48,17 @@ export function render(ctx, state, L, aux) {
     const x = align === 'center' ? r.x + r.w / 2 : align === 'right' ? r.x + r.w : r.x;
     ls.forEach((ln, i) => text(ln, x, top + i * lh, s, color, UI, weight, align));
   };
+  // wood and brass plaque (3D look): a walnut slab with a brass rim and an inner groove
+  const plaque = (r, rad, hot) => {
+    ctx.save(); ctx.fillStyle = 'rgba(10,4,0,0.45)'; ctx.beginPath(); ctx.roundRect(r.x + 1, r.y + 5, r.w, r.h, rad); ctx.fill(); ctx.restore();
+    const g2 = ctx.createLinearGradient(0, r.y, 0, r.y + r.h); if (hot) { g2.addColorStop(0, '#8a5a30'); g2.addColorStop(1, '#5a3418'); } else { g2.addColorStop(0, '#5c3a1f'); g2.addColorStop(1, '#2e1a0b'); }
+    ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, rad); ctx.fillStyle = g2; ctx.fill();
+    ctx.save(); ctx.clip(); ctx.strokeStyle = 'rgba(255,214,160,0.05)'; ctx.lineWidth = 1.2; for (let yy = r.y + 6; yy < r.y + r.h; yy += 7) { ctx.beginPath(); ctx.moveTo(r.x, yy); ctx.bezierCurveTo(r.x + r.w * 0.3, yy + 2, r.x + r.w * 0.7, yy - 2, r.x + r.w, yy + 1); ctx.stroke(); } ctx.restore();
+    ctx.strokeStyle = hot ? '#e8c46a' : 'rgba(213,166,77,0.7)'; ctx.lineWidth = hot ? 3 : 2.2; ctx.stroke();
+    ctx.strokeStyle = 'rgba(15,6,0,0.55)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.roundRect(r.x + 4, r.y + 4, r.w - 8, r.h - 8, Math.max(2, rad - 4)); ctx.stroke();
+  };
   const panel = (r, rad = 20, fill = 'rgba(18,10,5,0.62)', brand = true) => {
+    if (D3) { plaque(r, rad, false); return; }
     ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, rad); ctx.fillStyle = fill; ctx.fill();
     ctx.strokeStyle = 'rgba(246,223,174,0.22)'; ctx.lineWidth = 2; ctx.stroke();
     if (brand) edgeStroke(ctx, r, rad, 0.3);
@@ -91,7 +104,7 @@ export function render(ctx, state, L, aux) {
     });
   };
 
-  drawTable(ctx, L.w, L.h, px);
+  if (!D3) drawTable(ctx, L.w, L.h, px);
 
   // ---------------------------------------------------------------- scenes
   if (scene === 'title') drawTitle();
@@ -103,6 +116,13 @@ export function render(ctx, state, L, aux) {
 
   // ================================================================ title
   function heroBoard(cx, cy, bs) {                    // a tilted board with a capture in progress
+    if (D3) {                                          // the 3D board is fitted to this rectangle; the same pieces are handed to it in cell units
+      v3.hero = { x: cx - bs * 0.5, y: cy - bs * 0.46, w: bs, h: bs * 0.92 };
+      for (const [r, c, sd] of [[1, 2, -1], [2, 5, -1], [3, 2, -1], [0, 5, -1], [6, 1, 1], [5, 4, 1], [6, 5, 1], [7, 2, 1]]) v3.pieces.push({ cx: c + 0.5, cy: r + 0.5, side: sd, king: false });
+      v3.pieces.push({ cx: 3.5, cy: 4.5, side: 1, king: true, lift: 0.5 + (state.calm ? 0 : Math.sin(state.t * 2) * 0.1) });
+      v3.marks.push({ cx: 3.5, cy: 4.5, kind: 'glow', color: 'rgb(255,220,120)', a: 0.5 });
+      return;
+    }
     ctx.save(); ctx.translate(cx, cy); ctx.rotate(-0.07 + Math.sin(state.t * 0.5) * (state.calm ? 0 : 0.012));
     drawBoard(ctx, state.wood, 8, -bs / 2, -bs / 2, bs, px);
     const cell = (bs * 0.848) / 8, ox = -bs / 2 + bs * 0.076, oy = -bs / 2 + bs * 0.076, at = (r, c) => ({ x: ox + (c + 0.5) * cell, y: oy + (r + 0.5) * cell });
@@ -125,14 +145,16 @@ export function render(ctx, state, L, aux) {
     }
     const s = Math.min(H.w / 620, H.h / 520, 1.5), cx = H.x + H.w / 2;
     const small = H.h < 300 * 1 || s < 0.5;
-    const ty = H.y + (small ? H.h * 0.46 : 112 * s);
+    const ty = H.y + (small ? H.h * 0.46 : (D3 ? 78 : 112) * s);
     text('WEST AFRICAN DRAUGHTS', cx, H.y + (small ? H.h * 0.14 : 26 * s) + 12, Math.max(minU, 25 * s), 'rgba(246,223,174,0.85)', UI, 700);
-    const tsz = (small ? Math.min(H.h * 0.42, 120) : 150 * s);
+    const tsz = (small ? Math.min(H.h * 0.42, 120) : (D3 ? 120 : 150) * s);
     ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.6)'; ctx.shadowBlur = 14; ctx.shadowOffsetY = 5;
     text('Dame', cx, ty + tsz * 0.5, tsz, GOLD, FONT, 700); ctx.restore();
-    if (!small) text('Flying kings. Backward captures.', cx, ty + 150 * s * 0.5 + 56 * s, Math.max(minU, 28 * s), CREAM, FONT, 700);
+    if (!small) text('Flying kings. Backward captures.', cx, ty + tsz * 0.5 + (D3 ? 44 : 56) * s, Math.max(minU, 28 * s), CREAM, FONT, 700);
     if (small) return;
-    const bs = Math.min(H.w * 0.72, 330 * s * 1.2, H.h - (ty - H.y) - 150 * s * 0.5 - 90 * s), by = ty + 150 * s * 0.5 + 84 * s;
+    let bs = Math.min(H.w * 0.72, 330 * s * 1.2, H.h - (ty - H.y) - 150 * s * 0.5 - 90 * s), by = ty + 150 * s * 0.5 + 84 * s;
+    if (D3) by = ty + tsz * 0.5 + 60 * s;
+    if (D3) bs = Math.min(H.w * 0.96, (H.y + H.h - by - 6) / 0.9);
     if (bs < 110) return;
     heroBoard(cx, by + bs / 2, bs);
   }
@@ -190,34 +212,44 @@ export function render(ctx, state, L, aux) {
     ctx.restore();
   }
   function drawPlay() {
-    const geo = boardFrame(); labels(geo);
+    const geo = D3 ? boardGeo(L, n, state.human === -1) : boardFrame(); if (!D3) labels(geo);
+    const cc = (p) => ({ cx: (p.x - geo.gx) / geo.cell, cy: (p.y - geo.gy) / geo.cell }), at3 = (i) => cc(geo.center(i));
     const a = state.anim, pulse = state.calm ? 0.6 : 0.5 + 0.5 * Math.sin(state.t * 5.5);
     const human = state.human, R2 = geo.cell * 0.425;
     // square tints: the last move, then selection, destinations, hint
-    const tint = (i, col) => { const r = geo.rect(i); ctx.fillStyle = col; ctx.fillRect(r.x, r.y, r.w, r.h); };
+    const tint = (i, col) => {
+      if (D3) { const m = /rgba\((\d+),(\d+),(\d+),([\d.]+)\)/.exec(col), q = at3(i); if (m) v3.marks.push({ cx: q.cx, cy: q.cy, kind: 'square', color: `rgb(${m[1]},${m[2]},${m[3]})`, a: Math.min(1, +m[4] * 1.5) }); return; }
+      const r = geo.rect(i); ctx.fillStyle = col; ctx.fillRect(r.x, r.y, r.w, r.h); };
     if (g.last && !a) { tint(g.last.from, 'rgba(255,214,110,0.18)'); tint(g.last.to, 'rgba(255,214,110,0.3)'); }
     if (scene === 'play' && !a && !state.autoMode) {
-      if (aux.mustCap && state.sel < 0 && aux.humanTurn) for (const i of aux.capFrom) { const c = geo.center(i); ctx.strokeStyle = `rgba(255,120,80,${0.55 + pulse * 0.4})`; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(c.x, c.y, R2 * (1.12 + pulse * 0.08), 0, TAU); ctx.stroke(); }
+      if (aux.mustCap && state.sel < 0 && aux.humanTurn) for (const i of aux.capFrom) { if (D3) { const q = at3(i); v3.marks.push({ cx: q.cx, cy: q.cy, kind: 'ring', color: '#ff7850', a: 0.6 + pulse * 0.4, r: 1.3 + pulse * 0.06 }); continue; } const c = geo.center(i); ctx.strokeStyle = `rgba(255,120,80,${0.55 + pulse * 0.4})`; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(c.x, c.y, R2 * (1.12 + pulse * 0.08), 0, TAU); ctx.stroke(); }
       if (state.sel >= 0) {
         tint(state.sel, 'rgba(120,255,170,0.3)');
         let at = state.sel; // the trail of landings already chosen
-        for (const s of state.path) { const p0 = geo.center(at), p1 = geo.center(s); ctx.strokeStyle = 'rgba(255,236,150,0.8)'; ctx.lineWidth = 5; ctx.setLineDash([10, 8]); ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y); ctx.stroke(); ctx.setLineDash([]); at = s; }
+        for (const s of state.path) { if (D3) { const q = at3(s); v3.marks.push({ cx: q.cx, cy: q.cy, kind: 'ring', color: '#ffec96', a: 0.9, r: 1.2 }); at = s; continue; } const p0 = geo.center(at), p1 = geo.center(s); ctx.strokeStyle = 'rgba(255,236,150,0.8)'; ctx.lineWidth = 5; ctx.setLineDash([10, 8]); ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y); ctx.stroke(); ctx.setLineDash([]); at = s; }
         if (state.marks !== false) for (const i of aux.dests) {
           const c = geo.center(i), cap = aux.mustCap;
+          if (D3) { const q = at3(i); v3.marks.push({ cx: q.cx, cy: q.cy, kind: 'dot', color: cap ? '#ff7850' : '#ffe27a', a: 0.6 + pulse * 0.3, r: 1.9 }); continue; }
           ctx.fillStyle = cap ? `rgba(255,120,80,${0.5 + pulse * 0.3})` : `rgba(255,236,150,${0.45 + pulse * 0.25})`;
           ctx.beginPath(); ctx.arc(c.x, c.y, R2 * 0.42, 0, TAU); ctx.fill();
           ctx.strokeStyle = cap ? 'rgba(255,170,130,0.9)' : 'rgba(255,248,210,0.9)'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(c.x, c.y, R2 * 0.58, 0, TAU); ctx.stroke();
         }
       }
     }
-    if (state.hint && !a) { for (const i of [state.hint.from, ...state.hint.path]) { const c = geo.center(i); ctx.strokeStyle = `rgba(120,255,170,${0.55 + pulse * 0.4})`; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(c.x, c.y, R2 * 1.1, 0, TAU); ctx.stroke(); } }
+    if (state.hint && !a) { for (const i of [state.hint.from, ...state.hint.path]) { if (D3) { const q = at3(i); v3.marks.push({ cx: q.cx, cy: q.cy, kind: 'ring', color: '#78ffaa', a: 0.65 + pulse * 0.35, r: 1.4 }); continue; } const c = geo.center(i); ctx.strokeStyle = `rgba(120,255,170,${0.55 + pulse * 0.4})`; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(c.x, c.y, R2 * 1.1, 0, TAU); ctx.stroke(); } }
 
     // pieces, top row to bottom row. During an animation the board shows the position BEFORE the move, minus pieces already jumped.
     const cells = a ? a.pre : g.cells;
     const removed = a ? animRemoved(a) : null;
     const hidden = new Set(state.path.length && state.sel >= 0 ? aux.partialCaps : []);
+    const put3 = (x, y, side, king, o = {}) => {
+      const q = cc({ x, y });
+      v3.pieces.push({ cx: q.cx, cy: q.cy, side, king, lift: o.lift || 0, s: o.s });
+      if (o.glow) v3.marks.push({ cx: q.cx, cy: q.cy, kind: 'glow', color: `rgb(${o.glow})`, a: 0.75 });
+    };
     const drawAt = (i, v, o = {}) => {
       const c = geo.center(i);
+      if (D3) { if (o.alpha !== undefined && o.alpha < 0.5) return; put3(c.x, c.y, Math.sign(v), Math.abs(v) === 2, o); return; }
       drawPiece(ctx, c.x, c.y, R2, Math.sign(v), Math.abs(v) === 2, set, o);
     };
     const order = []; for (let i = 0; i < cells.length; i++) if (cells[i]) order.push(i);
@@ -237,21 +269,29 @@ export function render(ctx, state, L, aux) {
     }
     if (state.sel >= 0 && state.path.length && !a) {   // the piece mid-chain, shown on its last chosen landing
       const last = state.path[state.path.length - 1], c = geo.center(last), v = g.cells[state.sel];
-      drawPiece(ctx, c.x, c.y, R2, Math.sign(v), Math.abs(v) === 2, set, { lift: 0.5 });
+      if (D3) put3(c.x, c.y, Math.sign(v), Math.abs(v) === 2, { lift: 0.5 }); else drawPiece(ctx, c.x, c.y, R2, Math.sign(v), Math.abs(v) === 2, set, { lift: 0.5 });
     }
     if (a) {
       const p = animPos(a, geo);
       {
-        drawPiece(ctx, p.x, p.y, R2, a.side, p.king, set, { lift: p.lift });
-        if (p.stamp > 0) { ctx.strokeStyle = `rgba(255,236,160,${0.8 * p.stamp})`; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(p.x, p.y, R2 * (1 + (1 - p.stamp) * 1.2), 0, TAU); ctx.stroke(); }
+        if (D3) { put3(p.x, p.y, a.side, p.king, { lift: p.lift }); if (p.stamp > 0) { const q = cc(p); v3.marks.push({ cx: q.cx, cy: q.cy, kind: 'ring', color: '#ffecA0', a: 0.8 * p.stamp, r: 1.3 + (1 - p.stamp) * 1.2 }); } }
+        else drawPiece(ctx, p.x, p.y, R2, a.side, p.king, set, { lift: p.lift });
+        if (!D3 && p.stamp > 0) { ctx.strokeStyle = `rgba(255,236,160,${0.8 * p.stamp})`; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(p.x, p.y, R2 * (1 + (1 - p.stamp) * 1.2), 0, TAU); ctx.stroke(); }
       }
       for (const fx of animEffects(a, geo)) {
+        if (D3) {
+          if (fx.type === 'ring') { const q = cc(fx); v3.marks.push({ cx: q.cx, cy: q.cy, kind: 'ring', color: '#ffe9be', a: 0.7 * fx.a, r: 0.9 + fx.k * 0.9 }); }
+          else if (fx.type === 'chip') put3(fx.x, fx.y, fx.side, false, { lift: fx.lift + 1.1 * Math.sin(Math.PI * (1 - fx.a)), s: Math.max(0.05, fx.a) });
+          else if (fx.type === 'spark') { const q = cc(fx), pp = v3.proj && v3.proj(q.cx, q.cy); if (pp) { ctx.fillStyle = `rgba(255,214,110,${fx.a})`; ctx.beginPath(); ctx.arc(pp.x, pp.y, fx.r, 0, TAU); ctx.fill(); } }
+          continue;
+        }
         if (fx.type === 'ring') { ctx.strokeStyle = `rgba(255,236,190,${0.7 * fx.a})`; ctx.lineWidth = 5 * fx.a + 1; ctx.beginPath(); ctx.ellipse(fx.x, fx.y, R2 * (0.5 + fx.k * 1.1), R2 * (0.45 + fx.k * 0.95), 0, 0, TAU); ctx.stroke(); }
         else if (fx.type === 'chip') { drawPiece(ctx, fx.x, fx.y, R2 * fx.s, fx.side, false, set, { alpha: fx.a, shadow: false, lift: fx.lift }); }
         else if (fx.type === 'spark') { ctx.fillStyle = `rgba(255,214,110,${fx.a})`; ctx.beginPath(); ctx.arc(fx.x, fx.y, fx.r, 0, TAU); ctx.fill(); }
       }
     }
-    if (state.kb && scene === 'play') { const c = geo.center(state.cursor); ctx.strokeStyle = '#7dff9a'; ctx.lineWidth = 4; ctx.strokeRect(c.x - geo.cell / 2 + 3, c.y - geo.cell / 2 + 3, geo.cell - 6, geo.cell - 6); }
+    if (D3 && state.kb && scene === 'play') { const q = at3(state.cursor); v3.marks.push({ cx: q.cx, cy: q.cy, kind: 'cursor', a: 1 }); }
+    else if (state.kb && scene === 'play') { const c = geo.center(state.cursor); ctx.strokeStyle = '#7dff9a'; ctx.lineWidth = 4; ctx.strokeRect(c.x - geo.cell / 2 + 3, c.y - geo.cell / 2 + 3, geo.cell - 6, geo.cell - 6); }
 
     // ---- cards, message, buttons
     const mine = (side) => side === human;
@@ -262,9 +302,9 @@ export function render(ctx, state, L, aux) {
     const turnSide = g.winner ? 0 : g.turn;
     const card = (r, side, padL = 0) => {
       const active = turnSide === side && scene === 'play';
-      panel(r, 20, active ? 'rgba(52,32,10,0.78)' : 'rgba(18,10,5,0.62)', false);
+      if (D3) plaque(r, 20, active); else panel(r, 20, active ? 'rgba(52,32,10,0.78)' : 'rgba(18,10,5,0.62)', false);
       if (active) { ctx.save(); ctx.strokeStyle = `rgba(243,207,122,${0.55 + pulse * 0.35})`; ctx.lineWidth = 3; ctx.beginPath(); ctx.roundRect(r.x + 1, r.y + 1, r.w - 2, r.h - 2, 19); ctx.stroke(); ctx.restore(); }
-      else edgeStroke(ctx, r, 20, 0.22);
+      else if (!D3) edgeStroke(ctx, r, 20, 0.22);
       const tall = r.h >= 165;
       const ir = Math.min(30, r.h * 0.28, r.w * 0.12), ix = r.x + 22 + padL + ir, iy = tall ? r.y + 22 + ir : r.y + Math.min(r.h * 0.38, 12 + ir + 6);
       drawPiece(ctx, ix, iy, ir * 1.0, side, false, set, { shadow: true });
@@ -305,7 +345,7 @@ export function render(ctx, state, L, aux) {
     const status = statusText();
     if (L.mode === 'port') {
       const mr = { x: M.x, y: M.y + 2, w: M.w, h: M.h - 4 };
-      ctx.save(); ctx.beginPath(); ctx.roundRect(mr.x, mr.y, mr.w, mr.h, 14); ctx.fillStyle = state.msg && mAlpha > 0 ? 'rgba(10,5,2,0.75)' : 'rgba(0,0,0,0.25)'; ctx.fill();
+      ctx.save(); ctx.beginPath(); ctx.roundRect(mr.x, mr.y, mr.w, mr.h, 14); ctx.fillStyle = state.msg && mAlpha > 0 ? 'rgba(10,5,2,0.75)' : D3 ? 'rgba(10,5,2,0.6)' : 'rgba(0,0,0,0.25)'; ctx.fill();
       if (state.msg && mAlpha > 0) { ctx.strokeStyle = `rgba(243,207,122,${0.8 * mAlpha})`; ctx.lineWidth = 2; ctx.stroke(); }
       ctx.restore();
       wrapBox(state.msg && mAlpha > 0.05 ? state.msg.text : status, { x: mr.x + 10, y: mr.y + 2, w: mr.w - 20, h: mr.h - 4 }, scale > 1 ? 28 : 25, state.msg && mAlpha > 0.05 ? '#fff3d6' : GOLD);

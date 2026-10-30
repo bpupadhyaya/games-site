@@ -136,15 +136,14 @@ export function heroScaleFor(state) {
 export function titleWidgets(state, wide = false, hs = 1) {
   const sound = state.settings.sound, rec = state.record ?? {};
   const wd = wide ? [] : [heroArt(hs), { t: 'gap', h: 40 * hs }];
-  wd.push({ t: 'btn', id: 'play', label: 'Play vs Computer', primary: true, h: 92 });
-  wd.push({ t: 'btn', id: 'two', label: 'Two Players', row: 1 });
-  wd.push({ t: 'btn', id: 'watch', label: 'Watch & Learn', row: 1 });
-  wd.push({ t: 'btn', id: 'record', label: 'Your Record', sub: `${rec.played ?? 0} played · ${(rec.wins ?? []).reduce((a, b) => a + b, 0)} won`, h: 84 });
-  wd.push({ t: 'btn', id: 'howto', label: 'How to Play', row: 2 });
-  wd.push({ t: 'btn', id: 'rules', label: 'Rules', row: 2 });
-  wd.push({ t: 'btn', id: 'about', label: 'About', row: 2 });
-  wd.push({ t: 'btn', id: 'settings', label: 'Settings', row: 3 });
-  wd.push({ t: 'btn', id: 'sound', label: sound ? 'Sound: On' : 'Sound: Off', row: 3 });
+  wd.push({ t: 'btn', id: 'play', label: 'Play vs Computer', primary: true, h: 112 });
+  wd.push({ t: 'btn', id: 'two', label: 'Two Players', row: 1, dark: true });
+  wd.push({ t: 'btn', id: 'watch', label: 'Watch & Learn', row: 1, dark: true });
+  wd.push({ t: 'btn', id: 'howto', label: 'How to Play', row: 2, dark: true });
+  wd.push({ t: 'btn', id: 'rules', label: 'Rules', row: 2, dark: true });
+  wd.push({ t: 'btn', id: 'about', label: 'About', row: 2, dark: true });
+  wd.push({ t: 'btn', id: 'record', label: 'Your Record', sub: `${rec.played ?? 0} played · ${(rec.wins ?? []).reduce((a, b) => a + b, 0)} won`, row: 3, dark: true });
+  wd.push({ t: 'btn', id: 'settings', label: 'Settings (sound, text)', row: 3, dark: true });
   return wd;
 }
 

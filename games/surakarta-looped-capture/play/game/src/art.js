@@ -162,6 +162,21 @@ export function icon(ctx, name, x, y, s, color = '#fff') {
     rr(ctx, -r * 0.6, -r * 0.2, r * 1.2, r * 0.95, 5); ctx.fill();
   } else if (name === 'check') {
     ctx.beginPath(); ctx.moveTo(-r * 0.6, 0); ctx.lineTo(-r * 0.15, r * 0.45); ctx.lineTo(r * 0.65, -r * 0.5); ctx.stroke();
+  } else if (name === 'book') {
+    ctx.beginPath(); ctx.moveTo(0, -r * 0.55); ctx.quadraticCurveTo(-r * 0.5, -r * 0.8, -r * 0.9, -r * 0.55); ctx.lineTo(-r * 0.9, r * 0.6); ctx.quadraticCurveTo(-r * 0.5, r * 0.35, 0, r * 0.6); ctx.quadraticCurveTo(r * 0.5, r * 0.35, r * 0.9, r * 0.6); ctx.lineTo(r * 0.9, -r * 0.55); ctx.quadraticCurveTo(r * 0.5, -r * 0.8, 0, -r * 0.55); ctx.moveTo(0, -r * 0.55); ctx.lineTo(0, r * 0.6); ctx.stroke();
+  } else if (name === 'question') {
+    ctx.beginPath(); ctx.arc(0, -r * 0.2, r * 0.42, Math.PI * 1.1, Math.PI * 2.35); ctx.quadraticCurveTo(r * 0.3, r * 0.3, 0, r * 0.42); ctx.stroke();
+    ctx.beginPath(); ctx.arc(0, r * 0.8, r * 0.09, 0, Math.PI * 2); ctx.fill();
+  } else if (name === 'scroll') {
+    ctx.beginPath(); ctx.moveTo(-r * 0.55, -r * 0.8); ctx.lineTo(r * 0.55, -r * 0.8); ctx.lineTo(r * 0.55, r * 0.8); ctx.lineTo(-r * 0.55, r * 0.8); ctx.closePath(); ctx.stroke();
+    for (const yy of [-0.4, 0, 0.4]) { ctx.beginPath(); ctx.moveTo(-r * 0.3, r * yy); ctx.lineTo(r * 0.3, r * yy); ctx.stroke(); }
+  } else if (name === 'info') {
+    ctx.beginPath(); ctx.arc(0, 0, r * 0.8, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, -r * 0.05); ctx.lineTo(0, r * 0.42); ctx.stroke(); ctx.beginPath(); ctx.arc(0, -r * 0.36, r * 0.09, 0, Math.PI * 2); ctx.fill();
+  } else if (name === 'gear') {
+    ctx.beginPath(); ctx.arc(0, 0, r * 0.3, 0, Math.PI * 2); ctx.stroke();
+    for (let i = 0; i < 8; i++) { const an = i * Math.PI / 4; ctx.beginPath(); ctx.moveTo(Math.cos(an) * r * 0.55, Math.sin(an) * r * 0.55); ctx.lineTo(Math.cos(an) * r * 0.85, Math.sin(an) * r * 0.85); ctx.stroke(); }
+    ctx.beginPath(); ctx.arc(0, 0, r * 0.55, 0, Math.PI * 2); ctx.stroke();
   } else if (name === 'eye') {
     ctx.beginPath(); ctx.moveTo(-r * 0.85, 0); ctx.quadraticCurveTo(0, -r * 0.8, r * 0.85, 0); ctx.quadraticCurveTo(0, r * 0.8, -r * 0.85, 0); ctx.stroke();
     ctx.beginPath(); ctx.arc(0, 0, r * 0.24, 0, Math.PI * 2); ctx.fill();
@@ -366,17 +381,27 @@ export function drawBoard(ctx, th, geo, o = {}) {
 
 // A glowing trail along a route (list of nodes from rules.captureRoute). `from`..`to` are fractions of its length (0..1).
 export function routeGeom(route, geo) {
-  const pts = routePoints(route).map((p) => geo.pt(p.x, p.y));
+  const g = routePoints(route), pts = g.map((p) => geo.pt(p.x, p.y));
+  // lengths are measured on the board (grid units x the cell size), so a trail runs at the same pace wherever the camera looks from
   const cum = [0];
-  for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
-  return { pts, cum, len: cum[cum.length - 1] || 1 };
+  for (let i = 1; i < g.length; i++) cum.push(cum[i - 1] + Math.hypot(g[i].x - g[i - 1].x, g[i].y - g[i - 1].y) * geo.u);
+  return { pts, g, u: geo.u, cum, len: cum[cum.length - 1] || 1 };
 }
-export function pointAlong(rg, s) {
+function segAt(rg, s) {
   const t = Math.max(0, Math.min(rg.len, s));
   let i = 1;
   while (i < rg.cum.length - 1 && rg.cum[i] < t) i++;
-  const a = rg.pts[i - 1], b = rg.pts[i], seg = rg.cum[i] - rg.cum[i - 1] || 1, f = (t - rg.cum[i - 1]) / seg;
+  const seg = rg.cum[i] - rg.cum[i - 1] || 1;
+  return [i, (t - rg.cum[i - 1]) / seg];
+}
+export function pointAlong(rg, s) {
+  const [i, f] = segAt(rg, s), a = rg.pts[i - 1], b = rg.pts[i];
   return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f];
+}
+// the same position in grid coordinates (the 3D presenter places a stone with it)
+export function pointAlongG(rg, s) {
+  const [i, f] = segAt(rg, s), a = rg.g[i - 1], b = rg.g[i];
+  return [a.x + (b.x - a.x) * f, a.y + (b.y - a.y) * f];
 }
 export function strokeRoute(ctx, rg, s0, s1, color, glowRgb, w, a = 1) {
   if (s1 <= s0) return;

@@ -113,7 +113,7 @@ export function layoutDoc(blocks, scale, width, opts = {}) {
       const inner = it.lines.length * it.line + (subLines.length ? subLines.length * it.size * 0.78 + sp(4, scale) : 0);
       const h = Math.max(sp(b.minH ?? 84, scale), inner + sp(34, scale));
       it.h = h + sp(16, scale);
-      it.btns.push({ id: b.id, x: side, y, w: W, h, disabled: b.disabled });
+      it.btns.push({ id: b.id, x: side, y, w: W, h, disabled: b.disabled, icon: b.icon });
       it.bh = h;
     } else if (b.t === 'row') {
       it.size = (b.size ?? 28) * scale;
@@ -131,7 +131,7 @@ export function layoutDoc(blocks, scale, width, opts = {}) {
         for (const q of b.items) {
           const lines = wrap(q.label, it.size, W - pad);
           const h = Math.max(sp(b.minH ?? 84, scale), lines.length * it.line + sp(32, scale));
-          it.btns.push({ id: q.id, x: side, y: yy, w: W, h, disabled: q.disabled, label: q.label, lines, kind: q.kind });
+          it.btns.push({ id: q.id, x: side, y: yy, w: W, h, disabled: q.disabled, label: q.label, lines, kind: q.kind, icon: q.icon });
           yy += h + sp(12, scale);
         }
         it.h = yy - y + sp(4, scale);
@@ -147,7 +147,7 @@ export function layoutDoc(blocks, scale, width, opts = {}) {
           x += w + gap;
         }
         for (const c of cells) {
-          it.btns.push({ id: c.q.id, x: c.x, y, w: c.w, h: maxH, disabled: c.q.disabled, label: c.q.label, lines: c.lines, kind: c.q.kind, flex: c.q.flex });
+          it.btns.push({ id: c.q.id, x: c.x, y, w: c.w, h: maxH, disabled: c.q.disabled, label: c.q.label, lines: c.lines, kind: c.q.kind, flex: c.q.flex, icon: c.q.icon });
         }
         it.h = maxH + sp(16, scale);
       }

@@ -126,3 +126,7 @@ export function drawDie(ctx, x, y, rot, face, z = 0, k = 1) {
   for (const [px, py] of PIPS[face] || []) { ctx.beginPath(); ctx.arc(px * s * 0.26, py * s * 0.26, s * 0.075, 0, TAU); ctx.fillStyle = face === 1 ? '#a3282d' : '#3a1a0c'; ctx.fill(); }
   ctx.restore();
 }
+
+// For the 3D presenter: paints the flat game's own cowry art (4x) into a canvas context the presenter owns, so a shell in 3D wears the same markings.
+export function paintCowrySprite(x, which) { x.scale(4, 4); paintCowry(x, which === 'mouth'); }
+export const COWRY_SIZE = { w: COWRY.w * 4, h: COWRY.h * 4 };

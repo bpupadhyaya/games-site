@@ -49,6 +49,7 @@ export function dressBody(human, c, tone = null) {
     const u = m.userData.tint;
     const A = read(m.map.image), M = read(u.tMask.value.image), K = read(u.tSkin.value.image);
     const a = A.d.data, mk = M.d.data, sk = K.d.data;
+    const sk0 = sk.slice();                       // the base figure's skin texels (before any paint)
     const tm = tone && TONES[tone];
     if (tm) for (let i = 0; i < a.length; i += 4) if (sk[i] > 128) { a[i] = Math.min(255, a[i] * tm[0]); a[i + 1] = Math.min(255, a[i + 1] * tm[1]); a[i + 2] = Math.min(255, a[i + 2] * tm[2]); }
     // The layer's shader turns near-black cloth texels into light cloth ("hem paint"): marking the painted texels as skin (with the skin recolour left
@@ -76,6 +77,10 @@ export function dressBody(human, c, tone = null) {
     paint(712, 0, 1024, 862, c.hoseR, 170, null, 0.6);
     paint(222, 858, 430, 1024, '#1b0f08', 150, null, 0.7);
     paint(594, 858, 812, 1024, '#1b0f08', 150, null, 0.7);
+    // the bare arms of the base figure (upper arm + forearm, down to the wrist) sit in the lower outer blocks of the atlas: both sleeves in the sleeve
+    // colour (the hose paint used to reach them, so one arm wore the white hose colour and looked like a plaster cast)
+    paint(0, 478, 414, 872, c.sleeve, 170, (i) => sk0[i] > 128, 0.6);
+    paint(610, 478, 1024, 872, c.sleeve, 170, (i) => sk0[i] > 128, 0.6);
     A.g.putImageData(A.d, 0, 0); M.g.putImageData(M.d, 0, 0); K.g.putImageData(K.d, 0, 0);
     const tex = (e, srgb) => { const t = new THREE.CanvasTexture(e); t.flipY = false; t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace; t.generateMipmaps = true; t.minFilter = THREE.LinearMipmapLinearFilter; t.anisotropy = 4; return t; };
     m.map = tex(A.e, true); u.tMask.value = tex(M.e, false); u.tSkin.value = tex(K.e, false);

@@ -1,6 +1,6 @@
 // Drawing for every screen. render() is the single entry point; text screens are in docview.js.
 import { PAL, UI, DISPLAY, rgba, clamp, clamp01, drawSea, windStreaks, drawIsland, drawIslets, drawCompass, drawWindArrow, drawShipTop, drawShipSide, drawGood, drawPortMarker, dottedRoute, drawParticles, portSeed } from './art.js';
-import { txt, button, panel, rrect, chip, wrap, icon, fitText, minUnits, bar, lettering } from './ui.js';
+import { inlay, txt, button, panel, rrect, chip, wrap, icon, fitText, minUnits, bar, lettering } from './ui.js';
 import { renderDoc } from './docview.js';
 import { ABOUT, HOWTO, RULES } from './content.js';
 import { GOODS, PORTS, SIZES, TIMBERS, RIGS, MODES, RANKS, SET_NAME, SETTINGS, TUNE, MONTHS, SEASON_NAME, CLASS_NAME,
@@ -176,9 +176,9 @@ function renderYard(ctx, st, L) {
   edgeStroke(ctx, pv, 24, 0.35);
   // stats (with a slate backing under the controls so they read over the beach)
   if (d3) { const b = { x: Math.min(Y.stats.x, Y.right.x) - 6, y: Y.stats.y - 6, w: Math.max(Y.stats.x + Y.stats.w, Y.right.x + Y.right.w) - Math.min(Y.stats.x, Y.right.x) + 12, h: Y.right.y + Y.right.h - Y.stats.y + 12 };
-    if (L.mode === 'wide') { panel(ctx, { x: Y.stats.x - 6, y: Y.stats.y - 6, w: Y.stats.w + 12, h: Y.stats.h + 12 }, { fill: 'rgba(8,26,34,0.9)', rad: 20 }); panel(ctx, { x: Y.right.x - 8, y: Y.right.y - 4, w: Y.right.w + 16, h: Y.right.h + 8 }, { fill: 'rgba(8,26,34,0.9)', rad: 22 }); }
-    else panel(ctx, b, { fill: 'rgba(8,26,34,0.9)', rad: 22 }); }
-  else panel(ctx, Y.stats, { fill: 'rgba(4,22,32,0.84)', rad: 18 });
+    if (L.mode === 'wide') { panel(ctx, { x: Y.stats.x - 6, y: Y.stats.y - 6, w: Y.stats.w + 12, h: Y.stats.h + 12 }, { wood: true, fill: '#33200f', rad: 20 }); panel(ctx, { x: Y.right.x - 8, y: Y.right.y - 4, w: Y.right.w + 16, h: Y.right.h + 8 }, { wood: true, fill: '#33200f', rad: 22 }); }
+    else panel(ctx, b, { wood: true, fill: '#33200f', rad: 22 }); }
+  else panel(ctx, Y.stats, { wood: true, fill: '#33200f', rad: 18 });
   statBars(ctx, { x: Y.stats.x + 8, y: Y.stats.y + 6, w: Y.stats.w - 16, h: Y.stats.h - 12 }, spec);
   const cr = Y.right;
   if (y.phase === 'choose') {
@@ -250,7 +250,7 @@ function monthLabel(v) { return `${MONTHS[monthOf(v)]}`; }
 
 function renderHud(ctx, st, L, v) {
   const H = L.voy.hud, pl = st.pl;
-  panel(ctx, H, { fill: 'rgba(8,26,34,0.92)', rad: 18, noRivets: true });
+  panel(ctx, H, { wood: true, fill: '#33200f', rad: 18, noRivets: true });
   const x = H.x, y = H.y, hh = H.h, pad = 14, pauseW = hh - 12;
   const seg = (H.w - pauseW - 8) / 3;
   const left = Math.min(seg * 1.05, 250);
@@ -332,7 +332,7 @@ function renderMap(ctx, st, L, v, wind) {
   // the wind chip (top-left of the chart)
   const cls = windClass(wind.str);
   const chipX = M.x + 12, chipY = M.y + 12, cw = Math.min(250, M.w * 0.46);
-  panel(ctx, { x: chipX, y: chipY, w: cw, h: 62 }, { fill: 'rgba(8,26,34,0.9)', rad: 14, noRivets: true, noShadow: true });
+  panel(ctx, { x: chipX, y: chipY, w: cw, h: 62 }, { wood: true, fill: '#33200f', rad: 14, noRivets: true });
   drawWindArrow(ctx, chipX + 34, chipY + 31, 20, wind.dir, wind.str, wind.squall ? PAL.coralHi : PAL.foam);
   txt(ctx, wind.squall ? 'Squall' : CLASS_NAME[cls], chipX + 68, chipY + 22, 24, wind.squall ? PAL.coralHi : PAL.text, { weight: 800, maxW: cw - 76 });
   txt(ctx, 'Wind today', chipX + 68, chipY + 45, 18, PAL.dim, { weight: 600, maxW: cw - 76 });
@@ -451,7 +451,7 @@ function renderSeaPanel(ctx, st, L, v) {
   txt(ctx, `${Math.round(Math.min(s.dist, pl.dispProg))} / ${s.dist} nm`, lg.x + lg.w - 6, lg.y + 22, 20, PAL.text, { align: 'right', weight: 700 });
   // wind card
   const wcard = R.wind, w = windAt(v), course = bearing(s.from, s.to), ang = angDiff(course, w.dir), cls = windClass(w.str);
-  ctx.fillStyle = 'rgba(235,250,245,0.08)'; rrect(ctx, wcard, 16); ctx.fill();
+  inlay(ctx, wcard, 16);
   const dcx = wcard.x + wcard.h / 2 + 6, dcy = wcard.y + wcard.h / 2, dr = wcard.h * 0.36;
   ctx.fillStyle = 'rgba(4,22,32,0.7)'; ctx.beginPath(); ctx.arc(dcx, dcy, dr * 1.35, 0, TAU); ctx.fill();
   ctx.strokeStyle = 'rgba(220,245,240,0.25)'; ctx.lineWidth = 2; ctx.stroke();
@@ -467,8 +467,7 @@ function renderSeaPanel(ctx, st, L, v) {
   SETTINGS.forEach((sname, i) => {
     const r = R.set[i], dr2 = dayRun(v, sname), on = pl.lastSetting === sname && pl.hold;
     const col = sname === 'full' ? PAL.gold : sname === 'reef' ? '#7fd0c6' : '#9fb4c0';
-    ctx.fillStyle = on ? rgba(sname === 'full' ? '#f2c65a' : '#7fd0c6', 0.2) : 'rgba(235,250,245,0.08)'; rrect(ctx, r, 18); ctx.fill();
-    ctx.lineWidth = best === sname ? 4 : on ? 3 : 1.5; ctx.strokeStyle = best === sname ? PAL.coralHi : on ? col : 'rgba(220,245,240,0.28)'; rrect(ctx, r, 18); ctx.stroke();
+    inlay(ctx, r, 18, { lit: on ? (sname === 'full' ? '#f2c65a' : '#7fd0c6') : null, w: best === sname ? 4 : on ? 3 : 1.8, stroke: best === sname ? PAL.coralHi : on ? col : 'rgba(217,173,78,0.5)' });
     // little sail glyph
     const gx = r.x + r.w / 2, gy = r.y + r.h * 0.26, gs = Math.min(r.h * 0.2, 28);
     ctx.fillStyle = col; ctx.strokeStyle = col; ctx.lineWidth = 3;
@@ -520,7 +519,7 @@ function renderVoyage(ctx, st, L, view, meta, pauseItems) {
 // ---- result ----------------------------------------------------------------------------------------------------------------------------
 function renderResult(ctx, st, L) {
   const r = st.result, Rr = L.result, p = Rr.panel, wide = L.mode === 'wide' || p.w > p.h * 1.15;
-  panel(ctx, p, { fill: 'rgba(8,26,34,0.92)' }); edgeStroke(ctx, p, 28, 0.55);
+  panel(ctx, p, { wood: true, fill: '#33200f' }); edgeStroke(ctx, p, 28, 0.55);
   const head = r.mode === 'auto' ? 'LESSON COMPLETE' : r.sunk ? 'THE SHIP IS LOST' : 'THE VOYAGE IS OVER';
   txt(ctx, head, p.x + p.w / 2, p.y + 44, 22, PAL.dim, { align: 'center', weight: 800 });
   const lx = wide ? p.x + p.w * 0.27 : p.x + p.w / 2, rx0 = wide ? p.x + p.w * 0.5 : p.x + 32, rw = wide ? p.w * 0.48 - 24 : p.w - 64;

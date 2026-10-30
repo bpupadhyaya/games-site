@@ -40,7 +40,7 @@ const grainPattern = (ctx) => {
 // A plank of koa: dark-to-warm gradient, grain, a lit top edge and a shadowed lower edge, optional brass line and kapa teeth.
 export function wood(ctx, x, y, w, h, o = {}) {
   const { r = 18, tone = 'mid', shadow = true, brass = false, hi = true, teeth = false, alpha = 1, press = 0 } = o;
-  const T = { dark: ['#2a140a', '#4a2412'], mid: ['#4a2512', '#7a4220'], warm: ['#6a3618', '#9a5a2c'], red: ['#a8232a', '#d63a3a'], teal: ['#0d6f6a', '#17b3a7'], grey: ['#5a5046', '#6d6358'] }[tone] || ['#4a2512', '#7a4220'];
+  const T = { dark: ['#2a140a', '#4a2412'], mid: ['#4a2512', '#7a4220'], warm: ['#6a3618', '#9a5a2c'], red: ['#a8232a', '#d63a3a'], gold: ['#8a5a0c', '#d9a02a'], teal: ['#0d6f6a', '#17b3a7'], grey: ['#5a5046', '#6d6358'] }[tone] || ['#4a2512', '#7a4220'];
   ctx.save();
   ctx.globalAlpha = alpha;
   if (shadow) { roundPath(ctx, x, y + 6 - press, w, h, r); ctx.fillStyle = 'rgba(4,10,16,0.42)'; ctx.fill(); }
@@ -69,8 +69,8 @@ export function wood(ctx, x, y, w, h, o = {}) {
   }
   ctx.restore();
 }
-const FILL = { disabled: 'dark', primary: 'red', active: 'teal', dark: 'dark', plain: 'mid' };
-// One button look for the whole game: carved koa (plain), vermilion lacquer (primary), jade lacquer (active); it sinks 3 px while pressed.
+const FILL = { disabled: 'dark', primary: 'gold', active: 'teal', dark: 'dark', plain: 'mid' };
+// One button look for the whole game: carved koa (plain), brass-gold lacquer (primary), jade lacquer (active); it sinks 3 px while pressed.
 export function paintButton(ctx, r, o = {}) {
   const { primary = false, active = false, disabled = false, dark = false } = o;
   const k = disabled ? 'disabled' : primary ? 'primary' : active ? 'active' : dark ? 'dark' : 'plain';

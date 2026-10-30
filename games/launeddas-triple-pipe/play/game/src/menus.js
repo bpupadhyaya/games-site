@@ -278,7 +278,7 @@ export function renderSetup(ctx, state) {
   const y0 = SETUP_PINS.start.y - 56;
   const g = ctx.createLinearGradient(0, y0, 0, H);
   g.addColorStop(0, 'rgba(16,8,12,0)'); g.addColorStop(0.2, 'rgba(16,8,12,0.88)'); g.addColorStop(1, 'rgba(16,8,12,0.96)');
-  ctx.fillStyle = g; ctx.fillRect(0, y0, W, H - y0);
+  if (!active()) { ctx.fillStyle = g; ctx.fillRect(0, y0, W, H - y0); }
   drawButton(ctx, SETUP_PINS.start, 'Start the tune', { primary: true, size: LAND ? 28 : 32 });
   drawButton(ctx, SETUP_PINS.back, 'Back', { dark: true, size: LAND ? 26 : 28 });
   if (state.setupMsg) { ctx.textAlign = 'center'; ctx.font = `700 22px ${FONT}`; ctx.fillStyle = '#ffd9a0'; ctx.fillText(state.setupMsg, W / 2, SETUP_PINS.start.y - 16); }

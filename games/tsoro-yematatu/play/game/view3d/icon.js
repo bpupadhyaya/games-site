@@ -11,7 +11,7 @@ const SIZE = P('size', 2048);
 const gl = document.createElement('canvas'); gl.width = gl.height = SIZE;
 const renderer = new THREE.WebGLRenderer({ canvas: gl, antialias: true, alpha: true, preserveDrawingBuffer: true });
 renderer.setPixelRatio(1); renderer.setSize(SIZE, SIZE, false);
-renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = P('exp', 0.78);
+renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = P('exp', 0.7);
 renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap;
 renderer.setClearColor(0x000000, 0);
 
@@ -40,7 +40,7 @@ for (const i of [0, 1, 4]) { const p = ptXZ(V, i), m = new THREE.Mesh(new THREE.
   for (let k = 0; k < 30; k++) { const t = (k * 0.618) % 1, p = ptXZ(V, [0, 1, 4][k % 3]); const s = new THREE.Mesh(sp, sm); s.position.set(p.x + Math.sin(k * 2.1) * 0.55, SY + 0.45 + t * 1.5, p.z + Math.cos(k * 1.7) * 0.4); s.scale.setScalar(0.4 + (k % 4) * 0.25); scene.add(s); } }
 
 const cam = new THREE.PerspectiveCamera(P('fov', 22), 1, 0.5, 200);
-const pitch = P('pitch', 41) * Math.PI / 180, dist = P('dist', 18), yaw = P('yaw', -9) * Math.PI / 180, look = [P('lx', 0), P('ly', 0.25), P('lz', 0.15)];
+const pitch = P('pitch', 46) * Math.PI / 180, dist = P('dist', 15.6), yaw = P('yaw', -9) * Math.PI / 180, look = [P('lx', 0), P('ly', 0.25), P('lz', 0.15)];
 cam.position.set(look[0] + Math.sin(yaw) * Math.cos(pitch) * dist, look[1] + Math.sin(pitch) * dist, look[2] + Math.cos(yaw) * Math.cos(pitch) * dist); cam.lookAt(...look);
 renderer.render(scene, cam);
 const subject = document.createElement('canvas'); subject.width = subject.height = SIZE; subject.getContext('2d').drawImage(gl, 0, 0);
@@ -72,7 +72,7 @@ x.fillStyle = sh; x.save(); x.translate(0, S * 0.1); x.scale(1, 0.85); x.fillRec
 x.filter = `blur(${S * 0.006}px)`; x.drawImage(out, 0, 0); x.filter = 'none';
 x.drawImage(subject, 0, 0);
 x.save(); x.globalCompositeOperation = 'lighter'; x.filter = `blur(${S * 0.014}px)`; x.globalAlpha = 0.34; x.drawImage(subject, 0, 0); x.restore();
-const vg = x.createRadialGradient(S / 2, S / 2, S * 0.4, S / 2, S / 2, S * 0.76); vg.addColorStop(0, 'rgba(20,6,10,0)'); vg.addColorStop(1, 'rgba(20,6,10,0.55)'); x.fillStyle = vg; x.fillRect(0, 0, S, S);
+const vg = x.createRadialGradient(S / 2, S / 2, S * 0.4, S / 2, S / 2, S * 0.76); vg.addColorStop(0, 'rgba(20,6,10,0)'); vg.addColorStop(0, 'rgba(20,6,10,0.05)'); vg.addColorStop(1, 'rgba(12,4,8,0.8)'); x.fillStyle = vg; x.fillRect(0, 0, S, S);
 const star = (px, py, r, a) => { x.save(); x.translate(px * S, py * S); x.globalAlpha = a; x.fillStyle = '#fff6dc'; x.beginPath(); for (let k = 0; k < 8; k++) { const an = (k / 8) * TAU - Math.PI / 2, rr = k % 2 ? r * 0.16 : r; x.lineTo(Math.cos(an) * rr, Math.sin(an) * rr); } x.closePath(); x.fill(); x.restore(); };
 star(0.2, 0.3, S * 0.03, 0.9); star(0.3, 0.2, S * 0.018, 0.7);
 const small = document.createElement('canvas'); small.width = small.height = 1024; const sx = small.getContext('2d'); sx.imageSmoothingQuality = 'high'; sx.drawImage(out, 0, 0, 1024, 1024);

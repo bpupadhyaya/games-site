@@ -3,6 +3,7 @@
 import { R, GHO_R, PIT, YARD_R, HOME } from './sim.js';
 import { roundPath } from './ui.js';
 import { minU } from './layout.js';
+import { v3 } from './v3.js';
 
 const TAU = Math.PI * 2;
 
@@ -40,6 +41,7 @@ const CHALK = Array.from({ length: 3 }, () => Array.from({ length: CHALK_N }, ()
 const CHALK_DUST = Array.from({ length: 70 }, () => ({ a: rnd() * TAU, off: (rnd() - 0.5) * 16, r: 0.7 + rnd() * 1.6, al: 0.15 + rnd() * 0.3 }));
 
 export function drawFloor(ctx, W0 = GW, H0 = GH) {
+  if (v3.on) return;                   // the lit ground is behind the canvas
   // the ground is painted once in 720 x 1280 and scaled (uniformly, centred) to cover any screen shape
   const k = Math.max(W0 / GW, H0 / GH), W = GW, H = GH;
   ctx.save();
@@ -95,6 +97,7 @@ function paintFloor(ctx, W, H) {
 
 // The chalk circle, the hole and the resting place of the hand (world coordinates).
 export function drawYard(ctx, pitR = PIT.r) {
+  if (v3.on) { if (v3.frame) v3.frame.pitR = pitR; return; }
   // chalk circle: three uneven passes
   ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   const passes = [[7, 0.55, 0], [3.6, 0.5, 1], [2, 0.4, 2]];
@@ -155,6 +158,11 @@ export function drawShadow(ctx, x, y, z = 0, scale = 1, rr = R) {
 // One pebble. o: { z, glow (0-1), ring (colour), alpha, scale, spin, inPit }
 export function drawStone(ctx, s, o = {}) {
   const z = o.z ?? 0, sc = (o.scale ?? 1) * (1 + z / 380);
+  if (v3.on && v3.frame) {              // the lit stone is drawn by the 3D layer; only the selection ring stays flat
+    v3.frame.items.push({ id: s.id, x: s.x, y: s.y, z, rot: (s.rot ?? 0) + (o.spin ?? 0), sc: o.scale ?? 1, inPit: !!o.inPit, alpha: o.alpha ?? 1, glow: o.glow ?? 0 });
+    if (o.ring) { ctx.save(); ctx.strokeStyle = o.ring; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(s.x, s.y, R * 1.4, 0, TAU); ctx.stroke(); ctx.restore(); }
+    return;
+  }
   const P = STONE_PAL[s.id % STONE_PAL.length];
   if (!o.noShadow) drawShadow(ctx, s.x, s.y, z, o.scale ?? 1);
   const x = s.x, y = s.y - z * 0.55;
@@ -185,6 +193,7 @@ export function drawStone(ctx, s, o = {}) {
 
 // The throwing stone: larger, pale and smooth, with a warm band so it is never confused with the pile.
 export function drawGho(ctx, x, y, z = 0, o = {}) {
+  if (v3.on && v3.frame) { v3.frame.ghos.push({ x, y, z, spin: o.spin ?? 0, alpha: o.alpha ?? 1, glow: o.glow ?? 0, sc: o.scale ?? 1 }); return; }
   const sc = (o.scale ?? 1) * (1 + z / 380), r = GHO_R;
   if (!o.noShadow) drawShadow(ctx, x, y, z, o.scale ?? 1, GHO_R);
   const cy = y - z * 0.55;

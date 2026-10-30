@@ -1,11 +1,9 @@
 // Offline app-icon render (developer tool, not part of the game): node tools/render-icon.mjs --root web --page icon.html?size=2048 --out store
 // Draws the SAME models the game uses (models.js): a pale beech disc mid-slide down the long board toward the brass-plated arches,
-// a real hand just letting go of it, the brown-cafe table in soft focus with candle bokeh. Tilt-shift depth of field, bloom, vignette.
+// the player's modelled hand pushing it off, the brown-cafe table in soft focus with candle bokeh. Tilt-shift depth of field, bloom, vignette.
 import * as THREE from '../vendor3d/three.js';
 import * as B from '../vendor3d/board3d.js';
-import * as V3D from '../vendor3d/index.js';
-import { createHand } from './hand3d.js';
-import { loadHandRig, poseHand } from './handrig.js';
+import { loadHands } from './handrig.js';
 import { buildBoard, buildWorld, makeDisc, softTex, WX, WZ, BOARD_HALF_X } from './models.js';
 
 const q = new URLSearchParams(location.search);
@@ -34,21 +32,20 @@ for (let k = 0; k < 4; k++) { board.getObjectByName(`plate${k}`).rotation.x = 0.
   for (let i = 0; i < 18; i++) { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: bt, color: i % 4 === 0 ? 0xffe9b0 : 0xffa24a, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false, fog: false })); sp.position.set(-14 + i * 1.7, 3.2 + Math.sin(i * 1.7) * 1.4, -30); sp.scale.setScalar(1.6 + (i % 3) * 0.9); scene.add(sp); } }
 
 const put = (side, x, y, o = {}) => { const d = makeDisc(side); d.position.set(WX(x), o.lift ?? 0, WZ(y)); d.rotation.set(o.rx || 0, o.ry ?? 0.3, o.rz || 0); scene.add(d); return d; };
-// the hero disc mid-slide with its powder wake; two more near the arches, one dark
-put(0, 100, 222, { lift: 0.02, ry: 0.5 });
+// the hero disc under the player's fingers with a little powder wake; two more near the arches, one dark
+const HX = Number(q.get('hx') || 86), HY = Number(q.get('hy') || 200);
+put(0, HX, HY, { lift: 0, ry: 0.5 });
 put(1, 40, 60, { ry: 1.1 }); put(0, 150, 100, { ry: 2.0 }); put(1, 122, 32, { ry: 0.2 });
 { const t = softTex('255,248,230', 0.9, 128);
-  for (let i = 0; i < 16; i++) { const u = i / 15, sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, transparent: true, opacity: 0.4 * (1 - u), depthWrite: false })); sp.position.set(WX(104) + Math.sin(i * 1.7) * 0.25 * u, 0.12 + u * 0.2, WZ(225 + u * 110)); sp.scale.setScalar(0.6 + u * 1.4); scene.add(sp); } }
-// the hand that has just let go
-const hd = await loadHandRig(THREE, V3D, createHand, 0);
-scene.add(hd.h.object, hd.sleeve);
-hd.h.object.visible = true; hd.sleeve.visible = true;
-hd.fingers = { thumb: 0.15, index: 0.02, middle: 0.02, ring: 0.05, pinky: 0.08, spread: 0.55, thumbOut: 0.7 };
-poseHand(THREE, hd, new THREE.Vector3(WX(Number(q.get('hx') || 60)), Number(q.get('hh') || 1.5), WZ(Number(q.get('hy') || 300))), new THREE.Vector3(Number(q.get('hf') || 0.45), 0, -1).normalize(), 0.55, 1, 1 / 60, 40);
+  for (let i = 0; i < 16; i++) { const u = i / 15, sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, transparent: true, opacity: 0.4 * (1 - u), depthWrite: false })); sp.position.set(WX(HX) + Math.sin(i * 1.7) * 0.25 * u, 0.12 + u * 0.2, WZ(HY + 14 + u * 80)); sp.scale.setScalar(0.6 + u * 1.4); scene.add(sp); } }
+// the hand pushing the hero disc away (the modelled hand, placed from the disc so the pads sit on its back rim)
+const hd = (await loadHands(THREE))[Number(q.get('hi') ?? 1)];   // the tan hand reads best on the pale beech
+scene.add(hd.root); hd.root.visible = true;
+hd.place(new THREE.Vector3(WX(HX), 0, WZ(HY)), new THREE.Vector3(0, 0, -1), Number(q.get('yaw') || 1.0), Number(q.get('lift') || 0), Number(q.get('tilt') || 0));
 
 const cam = new THREE.PerspectiveCamera(Number(q.get('fov') || 36), 1, 0.5, 220);
-const tgt = new THREE.Vector3(Number(q.get('tx') || 0.1), Number(q.get('ty') || 0.6), Number(q.get('tz') || -2.6));
-cam.position.set(Number(q.get('cx') || 1.6), Number(q.get('cy') || 5.8), Number(q.get('cz') || 12.4)); cam.lookAt(tgt);
+const tgt = new THREE.Vector3(Number(q.get('tx') || 0.1), Number(q.get('ty') || 0.6), Number(q.get('tz') || -1.5));
+cam.position.set(Number(q.get('cx') || 1.6), Number(q.get('cy') || 4.6), Number(q.get('cz') || 10.5)); cam.lookAt(tgt);
 renderer.render(scene, cam);
 const snap = document.createElement('canvas'); snap.width = snap.height = SIZE; snap.getContext('2d').drawImage(gl, 0, 0);
 

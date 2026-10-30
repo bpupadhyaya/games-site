@@ -33,11 +33,11 @@ export function frame(w, h) {
 // A soroban of `rods` rods inside `rect`. Rod index r = 0 is the ones rod (rightmost). All sizes derive from `slot`, one bead's height.
 export function abacusGeo(rect, rods, labels = true) {
   const label = labels ? 0.95 : 0.1;
-  const slot = clamp(Math.min(rect.w / (rods * 1.56 + 1.1), rect.h / (8.65 + label)), 14, 104);
-  const fr = slot * 0.55, sp = Math.max(slot * 1.56, Math.min(slot * 2.05, (rect.w - 2 * fr) / rods)), W = rods * sp + 2 * fr, H = slot * 8.65;
+  const slot = clamp(Math.min(rect.w / (rods * 1.56 + 1.1), rect.h / (8.65 + label)), 14, 150);
+  const fr = slot * 0.55, sp = Math.max(slot * 1.56, Math.min(slot * 2.9, (rect.w - 2 * fr) / rods)), W = rods * sp + 2 * fr, H = slot * 8.65;
   const x = rect.x + (rect.w - W) / 2, y = rect.y + (rect.h - H - slot * label) / 2;
   const top = y + fr, beamTop = top + 2 * slot, beamH = slot * 0.55, beamBot = beamTop + beamH;
-  const g = { x, y, w: W, h: H, slot, sp, fr, bw: slot * 1.5, bh: slot * 1.0, top, beamTop, beamH, beamBot, bottom: beamBot + 5 * slot, labelY: y + H + slot * 0.5, rods, rect };
+  const g = { x, y, w: W, h: H, slot, sp, fr, bw: slot * clamp(sp / slot * 0.72, 1.5, 1.8), bh: slot * 1.0, top, beamTop, beamH, beamBot, bottom: beamBot + 5 * slot, labelY: y + H + slot * 0.5, rods, rect };
   g.rodX = (r) => x + fr + sp * (rods - 1 - r + 0.5);
   g.heavenY = (pos) => top + slot * (0.5 + pos);              // pos 0 = away (up), 1 = at the beam
   g.earthY = (i, pos) => beamBot + slot * (0.5 + i + 1 - pos);  // pos 0 = away (down), 1 = at the beam

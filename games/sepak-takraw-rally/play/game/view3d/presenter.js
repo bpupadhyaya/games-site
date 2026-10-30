@@ -54,10 +54,10 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
     stage.setLighting(venue === 'beach' ? 'day' : 'indoor', venue === 'beach' ? {} : { exposure: 0.72, hemi: 0.6, keyI: 2.3 });
     if (venue === 'hall') stage.setSky('#0c1824', '#0c1824', { near: 22, far: 70 });
     P.ball = buildBall(); stage.add(P.ball);
-    const char = women ? 'mannequin_f' : 'mannequin_m';
+    const char = women ? 'athlete_f' : 'athlete_m';
     for (let i = 0; i < 6; i++) {
       const team = i < 3 ? 0 : 1;
-      const h = await loadHuman({ character: char, kit: KITS[team], skin: SKINS[i], hair: HAIRS[i], legs: 'shorts' });
+      const h = await loadHuman({ character: char, top: 'long', kit: KITS[team], skin: SKINS[i], hair: HAIRS[i], legs: 'shorts' });
       h.groundClamp = 'auto'; h.footPlanting = true;
       h.play('ready_stance', { fade: 0 });
       if (quality !== 'high' && team === 1) h.model.traverse((o) => { if (o.isMesh || o.isSkinnedMesh) o.castShadow = false; });   // the far team is small: no shadow pass for it on medium / low

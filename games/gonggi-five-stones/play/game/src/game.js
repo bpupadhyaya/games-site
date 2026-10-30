@@ -13,6 +13,7 @@ import {
 import { LEVELS, PERFECT, planRound, rankPlans, chooseHold, scatterChoice, executeHeight, executeEps, kkHeight, kkTap } from './ai.js';
 import { inRect, playLayout, toWorld, TEXT_SCALES, THINK_STEPS, setupPins, refLayout, setScreen } from './layout.js';
 import { renderPlay } from './view.js';
+import { v3 } from './v3.js';
 import { renderTitle, renderSetup, renderSettings, renderResult, renderPause, renderPages, renderDemoLimit, renderLessons, renderLessonIntro, hitScreen, flowMeta, READER, refCloseRect, ensureLayout, lockupZone } from './menus.js';
 import { LESSONS, DEMO_LESSONS } from './lessons.js';
 import { pagesFor, tx } from './content.js';
@@ -31,7 +32,7 @@ const MATCH_VERSION = 1;
 export function createGame(env) {
   const { rng, audio, storage, config, monetization } = env;
   const fx = rng.fork(), aiRng = rng.fork(), rollRng = rng.fork(), scatRng = rng.fork();
-  const shotSeed = config.seed >= 800001 && config.seed <= 800060 && typeof location !== 'undefined' && /[?&]shot=1/.test(location.search) ? config.seed - 800000 : 0;
+  const shotSeed = config.seed >= 800001 && config.seed <= 800060 && typeof location !== 'undefined' && /[?&](shot|still)=1/.test(location.search) ? config.seed - 800000 : 0;   // still=1: the same staged moment with the live loop (3D shots)
   const state = {
     scene: 'title', back: 'title', t: 0, paused: false, pauseMenu: false, demo: !!config.demo, freeze: false, shot: !!shotSeed,
     settings: { lang: 'en', sound: true, calm: false, textIdx: 0, thinkIdx: 1 },
@@ -526,7 +527,8 @@ export function createGame(env) {
       if (ptr.released && state.ui.drag) { const d = state.ui.drag; state.ui.drag = null; if (d.moved < 10) handlePauseTap(hitScreen(ptr.x, ptr.y, state.ui.scroll)); }
       return;
     }
-    const wp = toWorld(L.view, ptr.x, ptr.y);
+    // 3D on: the cloth is seen through a tilted camera, so the finger is projected onto it (same world units as the flat view)
+    const wp = (v3.on && v3.pick && v3.pick(ptr.x, ptr.y)) || toWorld(L.view, ptr.x, ptr.y);
     const ai = actorIsAI();
     // ---- buttons (always live)
     if (ptr.pressed) {

@@ -18,7 +18,7 @@ export async function createPresenter({ kitCanvas, quality = 'high' }) {
   const noop = { wrap: (g) => g, ok: false };
   const qs = new URLSearchParams(location.search);
   if (qs.has('flat')) return noop;
-  let V3D, createToy;
+  let createToy;
   const canvas = document.createElement('canvas');
   canvas.style.cssText = 'position:fixed;inset:0;width:100vw;height:100dvh;display:block;pointer-events:none;z-index:0';
   let renderer;
@@ -62,9 +62,8 @@ export async function createPresenter({ kitCanvas, quality = 'high' }) {
   // the toy (hands load a skinned mesh): the 2D art stays until it is ready
   const whenReady = (async () => {
     try {
-      V3D = await import('../vendor3d/index.js');
       ({ createToy } = await import('./toy.js'));
-      toy = await createToy(V3D, { skin: 'tan' });
+      toy = await createToy({ skin: 'tan' });
       toyScene.add(toy.root);
       try { renderThumbs(); } catch (e) { console.warn('rotor thumbnails failed', e); }
       ready = true; v3.on = !lost;

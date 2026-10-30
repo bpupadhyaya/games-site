@@ -174,7 +174,7 @@ export function buildTable() {
   const g = new THREE.Group(); g.name = 'table';
   const top = new THREE.Mesh(new THREE.PlaneGeometry(120, 120), B.material('darkWood', { color: '#3a1f10', color2: '#5a3820', seed: 12, repeat: [14, 14], roughness: 0.5 }));
   top.rotation.x = -Math.PI / 2; top.position.y = -0.002; top.receiveShadow = true; g.add(top);
-  const kil = new THREE.Mesh(new THREE.PlaneGeometry(13.4, 13.4), new THREE.MeshStandardMaterial({ map: canvasTex(kilimCanvas()), roughness: 0.96, bumpScale: 0.3 }));
+  const kil = new THREE.Mesh(new THREE.PlaneGeometry(24, 24), new THREE.MeshStandardMaterial({ map: canvasTex(kilimCanvas()), color: 0x9c8c84, roughness: 0.96, bumpScale: 0.3 }));
   kil.rotation.x = -Math.PI / 2; kil.position.y = 0.006; kil.receiveShadow = true; g.add(kil);
   return g;
 }

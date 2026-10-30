@@ -4,7 +4,7 @@
   "tagline": "Knock the blocks, throw them back, topple the king.",
   "genre": "lawn game / throwing skill",
   "orientation": "any",
-  "version": "1.1.2",
+  "version": "1.2.0",
   "monetization": {
     "model": "premium",
     "priceUsd": 2.99,

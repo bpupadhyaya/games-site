@@ -1,10 +1,11 @@
 // Everything drawn each frame. Reads `state` (game.js) and changes nothing. The table, the stands, the board and
 // every piece are cached sprites/layers (art.js, pieces.js), so a frame is cheap. All positions come from the live
 // layout (layout.js `layoutFor`), so one drawing path serves every phone and tablet in portrait and landscape.
-import { sqCenter, STAND_ORDER, TEXT_SCALES, THINK_STEPS } from './layout.js';
+import { sqCenter, geom, STAND_ORDER, TEXT_SCALES, THINK_STEPS } from './layout.js';
+import { v3, flatAlpha } from './v3.js';
 import { drawTable, drawBoard, drawStand } from './art.js';
 import { drawPiece, fontReady, JP } from './pieces.js';
-import { LETTER, NAME, base, mFrom, mTo, isDrop, mDrop, inCheck } from './rules.js';
+import { LETTER, NAME, base, mFrom, mTo, isDrop, mDrop, inCheck, newGame } from './rules.js';
 import { LEVELS } from './engine.js';
 import { LESSONS } from './lessons.js';
 import { ABOUT, HOWTO, RULES } from './content.js';
@@ -37,10 +38,13 @@ export function readerSections(list) {
 const wrapCache = new Map();
 export function render(ctx, state, h) {
   const { L, B, flip, bottomSide, buttons } = h, G = B ? B.g : null;
+  v3.frame = null;
+  const setCanon = (n) => { const c = geom(n); v3.n = n; v3.gcx = c.gx + c.gw / 2; v3.gcy = c.gy + c.gw / 2; v3.cell = c.cell; };
   const t = state.t, calm = state.prefs.calm, big = state.prefs.big ? 1.16 : 1;
   const T = calm ? 0 : t;                       // ambient time (frozen when motion is reduced)
   const lang = state.prefs.lang === 'en' ? 'en' : 'jp';
-  const minU = L.minU;                          // smallest type (units) that is still ~11 css px
+  const minU = L.minU;
+  const NAMEC = v3.on ? '#3a2410' : 'rgba(247,236,210,0.85)';                          // smallest type (units) that is still ~11 css px
   // In English mode the piece already shows the Western letter as its primary glyph, so the small helper
   // overlay ("Western letters on pieces") only applies in 日本語 mode, where it sits under the kanji.
   const pieceOpts = (tt) => ({ label: lang === 'jp' && state.prefs.labels ? LETTER[tt] : undefined, lang });
@@ -71,6 +75,13 @@ export function render(ctx, state, h) {
     return lines.length * s * 1.28;
   };
   const panel = (x, y, w, hh, alpha = 0.78, r = 20) => {
+    if (v3.on) {      // 3D look: a wood plaque with a brass keyline
+      ctx.save(); ctx.beginPath(); ctx.roundRect(x, y, w, hh, r);
+      const pg = ctx.createLinearGradient(0, y, 0, y + hh); pg.addColorStop(0, '#6a4528'); pg.addColorStop(0.55, '#4a2f1a'); pg.addColorStop(1, '#33200f');
+      ctx.shadowColor = 'rgba(30,18,6,0.45)'; ctx.shadowBlur = 14; ctx.shadowOffsetY = 4; ctx.fillStyle = pg; ctx.globalAlpha = Math.max(0.82, alpha); ctx.fill(); ctx.shadowColor = 'transparent'; ctx.globalAlpha = 1;
+      ctx.strokeStyle = 'rgba(214,168,76,0.85)'; ctx.lineWidth = 2.4; ctx.stroke();
+      ctx.beginPath(); ctx.roundRect(x + 5, y + 5, w - 10, hh - 10, Math.max(4, r - 5)); ctx.strokeStyle = 'rgba(255,224,170,0.14)'; ctx.lineWidth = 1.5; ctx.stroke(); ctx.restore(); return;
+    }
     ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 18; ctx.shadowOffsetY = 6;
     ctx.beginPath(); ctx.roundRect(x, y, w, hh, r); ctx.fillStyle = `rgba(22,13,7,${alpha})`; ctx.fill(); ctx.restore();
     ctx.strokeStyle = 'rgba(242,213,144,0.5)'; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.roundRect(x + 0.8, y + 0.8, w - 1.6, hh - 1.6, r); ctx.stroke();
@@ -82,17 +93,18 @@ export function render(ctx, state, h) {
     ctx.fillStyle = 'rgba(0,0,0,0.42)'; ctx.beginPath(); ctx.roundRect(b.x + 2, b.y + 7, b.w, b.h, rad); ctx.fill();
     const primary = b.primary, sel = b.toggle || b.pill;
     const gr = ctx.createLinearGradient(0, b.y, 0, b.y + b.h);
-    if (primary) { gr.addColorStop(0, '#d7473a'); gr.addColorStop(1, '#8b1a12'); }
+    if (primary && v3.on) { gr.addColorStop(0, '#f6dc8e'); gr.addColorStop(1, '#c19438'); }
+    else if (primary) { gr.addColorStop(0, '#d7473a'); gr.addColorStop(1, '#8b1a12'); }
     else if (sel) { gr.addColorStop(0, '#9a6a2c'); gr.addColorStop(1, '#5e3c14'); }
     else { gr.addColorStop(0, '#5f4127'); gr.addColorStop(1, '#33200f'); }
     ctx.fillStyle = gr; ctx.beginPath(); ctx.roundRect(b.x, b.y, b.w, b.h, rad); ctx.fill();
-    ctx.strokeStyle = primary ? 'rgba(255,214,150,0.85)' : sel ? 'rgba(255,224,150,0.9)' : 'rgba(242,213,144,0.45)'; ctx.lineWidth = primary || sel ? 2.4 : 1.6;
+    ctx.strokeStyle = primary && v3.on ? 'rgba(255,246,214,0.95)' : primary ? 'rgba(255,214,150,0.85)' : sel ? 'rgba(255,224,150,0.9)' : 'rgba(242,213,144,0.45)'; ctx.lineWidth = primary || sel ? 2.4 : 1.6;
     ctx.beginPath(); ctx.roundRect(b.x + 0.8, b.y + 0.8, b.w - 1.6, b.h - 1.6, rad - 1); ctx.stroke();
-    const size = Math.min((b.small ? 26 : b.tile ? 27 : 34) * (b.tile ? 1 : big > 1 ? 1.08 : 1), b.h * 0.42);
+    const size = Math.min((b.small ? 26 : b.tile ? 27 : 34) * (b.tile ? 1 : big > 1 ? 1.08 : 1) * (b.hero ? 1.25 : 1), b.h * 0.42);
     const reserve = b.pill !== undefined ? 130 * pk + 20 : 34;
     ctx.font = `700 ${size}px ${DISPLAY}`;
     let sz = size; while (ctx.measureText(b.label).width > b.w - reserve && sz > 15) { sz -= 1; ctx.font = `700 ${sz}px ${DISPLAY}`; }
-    text(b.label, b.x + (b.w - (b.pill !== undefined ? 120 * pk : 0)) / 2 + (b.pill !== undefined ? 6 : 0), b.y + b.h / 2 + sz * 0.3, sz, primary ? '#fff2d8' : PAPER, DISPLAY, 700, 'center');
+    text(b.label, b.x + (b.w - (b.pill !== undefined ? 120 * pk : 0)) / 2 + (b.pill !== undefined ? 6 : 0), b.y + b.h / 2 + sz * 0.3, sz, primary ? (v3.on ? '#2b1c06' : '#fff2d8') : PAPER, DISPLAY, 700, 'center');
     if (b.pill !== undefined) {
       const pw = 84 * pk, ph = 40 * pk, px = b.x + b.w - pw - 32 * pk, py = b.y + b.h / 2 - ph / 2;
       ctx.fillStyle = b.pill ? '#2f7a45' : '#3a2a1a'; ctx.beginPath(); ctx.roundRect(px, py, pw, ph, ph / 2); ctx.fill();
@@ -106,11 +118,12 @@ export function render(ctx, state, h) {
   const drawButtons = (filter) => { for (const b of buttons) if (!filter || filter(b)) button(b); };
 
   // ---- background: table, petals, lantern glow ---------------------------------------------------------------------
-  drawTable(ctx, L.w, L.h);
-  petals(ctx, T, L.w, L.h);
-
   const scene = state.scene;
   const onBoard = scene === 'play' || scene === 'lesson' || scene === 'puzzle' || scene === 'auto';
+  // with the 3D scene on, the board screens and the title are the scene itself (the flat table only fades out right after it takes over)
+  const scene3 = v3.on && (onBoard || (scene === 'title' && L.title(!!state.saved).v3));
+  if (!scene3) { drawTable(ctx, L.w, L.h); petals(ctx, T, L.w, L.h); }
+  else { const fa = flatAlpha(); if (fa > 0.01) { ctx.save(); ctx.globalAlpha = fa; drawTable(ctx, L.w, L.h); ctx.restore(); } }
 
   if (onBoard) drawBoardScene();
   else if (scene === 'title') drawTitle();
@@ -127,6 +140,13 @@ export function render(ctx, state, h) {
   function drawTitle() {
     const tg = titleGeom({ saved: state.saved, prefs: state.prefs }, L), TL = tg.T;
     for (const l of TL.lanterns) lantern(ctx, l.x, l.y, l.s, T, l.ph);
+    if (scene3 && TL.v3) {      // the 3D board in the middle of the title, set up for a game; the name sits on a wood plaque above it
+      v3.frame = { mode: 'title', rect: TL.v3 }; v3.n = 9; v3.flip = false; v3.lang = lang; v3.pieces.length = 0; v3.marks.length = 0; setCanon(9);
+      const b0 = newGame().b, cg = geom(9);
+      for (let i = 0; i < b0.length; i++) { const c = b0[i]; if (!c) continue; const p = sqCenter(cg, i, false); v3.pieces.push({ x: p.x, y: p.y, t: c & 15, owner: c >> 4, rot: (c >> 4) === 0 ? 0 : 1, lang }); }
+      const top = Math.max(L.U.y0 + 6, TL.markY - TL.markSize * 0.96), pw = Math.min(L.land ? TL.split - L.U.x0 - 16 : L.U.w - 16, 640);
+      panel(TL.cx - pw / 2, top, pw, TL.tagY + 16 - top, 0.9, 24);
+    }
     // the mark
     const ms = TL.markSize, k = ms / 190;
     if (lang === 'en') {
@@ -159,12 +179,13 @@ export function render(ctx, state, h) {
     }
     // The decorative text is placed off the list's own geometry (it grows by one row with a saved game), never a fixed number.
     const lx = TL.x + TL.fullW / 2;
-    text('Language', lx, tg.labelY - 4, Math.max(22, minU), 'rgba(247,236,210,0.55)', UI, 600);
+    if (scene3) panel(lx - 90, tg.labelY - 27, 180, 33, 0.9, 14);
+    text('Language', lx, tg.labelY - 4, Math.max(22, minU), scene3 ? 'rgba(247,236,210,0.8)' : 'rgba(247,236,210,0.55)', UI, 600);
     const bits = [];
     if (state.stats.played > 0) bits.push(`Played ${state.stats.played} · Won ${state.stats.wins}`);
     if (state.daily.streak > 0) bits.push(`Streak ${state.daily.streak}d`);
     const limit = L.land ? L.U.y1 - 6 : TL.lockupY - 4;
-    if (bits.length && tg.afterY + 26 <= limit) fitLine(bits.join('   '), lx, tg.afterY + 22, 25, TL.fullW + 40, 'rgba(247,236,210,0.7)', UI, 500);
+    if (bits.length && tg.afterY + 26 <= limit) fitLine(bits.join('   '), lx, tg.afterY + 22, 25, TL.fullW + 40, scene3 ? '#3a2410' : 'rgba(247,236,210,0.7)', UI, 500);
     { const lw = TL.lockupH * 1200 / 327, pad = TL.lockupH * 0.12; ctx.save(); ctx.globalAlpha = state.lockPress > 0 ? 0.7 : 1; ctx.fillStyle = 'rgba(10,8,24,0.55)'; ctx.beginPath(); ctx.roundRect(TL.lockupX - lw / 2 - pad, TL.lockupY - pad, lw + 2 * pad, TL.lockupH + 2 * pad, (TL.lockupH + 2 * pad) * 0.3); ctx.fill(); ctx.restore(); }
     drawLockup(ctx, TL.lockupX, TL.lockupY, TL.lockupH, { alpha: state.lockPress > 0 ? 0.7 : 1 });
   }
@@ -283,12 +304,12 @@ export function render(ctx, state, h) {
       const nameTop = autoScene ? 'Computer (Gote)' : state.two ? 'Gote' : `Computer  ·  ${LEVELS[state.level].name}`;
       const nameBot = autoScene ? 'Computer (Sente)' : state.two ? 'Sente' : 'You';
       const nmW = (B.mode === 'wide' ? B.pw - 40 : L.U.w - 160);
-      fitLine(nameTop, B.nameTop.x, B.nameTop.y, nameSz(B.nameTop), nmW, 'rgba(247,236,210,0.85)', UI, 600, 'left'); dot(B.nameTop, topSide);
-      fitLine(nameBot, B.nameBot.x, B.nameBot.y, nameSz(B.nameBot), nmW, 'rgba(247,236,210,0.85)', UI, 600, 'left'); dot(B.nameBot, bs);
+      fitLine(nameTop, B.nameTop.x, B.nameTop.y, nameSz(B.nameTop), nmW, NAMEC, UI, 600, 'left'); dot(B.nameTop, topSide);
+      fitLine(nameBot, B.nameBot.x, B.nameBot.y, nameSz(B.nameBot), nmW, NAMEC, UI, 600, 'left'); dot(B.nameBot, bs);
       const think = state.thinking ? 'Thinking' : autoScene && state.autoPhase ? (state.autoPhase === 'think' ? 'Thinking' : 'This is the move') : null;
       if (think) {
         const dots = calm ? 3 : 1 + (Math.floor(t * 3) % 3);
-        text(think === 'Thinking' ? 'Thinking' + '.'.repeat(dots) : think, B.think.x, B.think.y, Math.max(B.think.size, minU), GOLD, UI, 600, B.think.align);
+        text(think === 'Thinking' ? 'Thinking' + '.'.repeat(dots) : think, B.think.x, B.think.y, Math.max(B.think.size, minU), v3.on ? '#7a2a10' : GOLD, UI, 600, B.think.align);
       }
     } else {
       const c = B.card; panel(c.x, c.y, c.w, c.h, 0.9, 20);
@@ -299,6 +320,7 @@ export function render(ctx, state, h) {
     drawTray(B.bot, bs, 'bot');
     if (lessonScene || puzzleScene) { /* names drawn above */ }
 
+    if (v3.on) collect3D(); else {
     // the board
     drawBoard(ctx, n, g);
     // coordinates on the margin of the slab
@@ -384,17 +406,64 @@ export function render(ctx, state, h) {
     }
     if (a) drawAnim(a, ps, sh);
 
+    }
+
     drawMessage();
   }
 
+  // What the 3D presenter draws this frame, in canonical board units (the same data the flat layer paints with)
+  function collect3D() {
+    const n = G.n, pos = state.game, bs = bottomSide, cg = geom(n), a = state.anim, calm = state.prefs.calm;
+    setCanon(n); v3.frame = { mode: 'play', rect: B.view3 }; v3.flip = !!flip; v3.lang = lang;
+    const P = v3.pieces, M = v3.marks; P.length = 0; M.length = 0;
+    const cp = (i) => sqCenter(cg, i, flip), pulse = (k) => (calm ? 0.6 : (Math.sin(t * k) + 1) / 2);
+    if (state.lastMove !== null && scene === 'play') { const m = state.lastMove; if (!isDrop(m)) M.push({ ...cp(mFrom(m)), kind: 'last', a: 0.55 }); M.push({ ...cp(mTo(m)), kind: 'last', a: 0.85 }); }
+    if (scene === 'lesson' && !state.lesson.done) for (const [r, c] of LESSONS[state.lesson.i].mark) M.push({ ...cp(r * n + c), kind: 'lesson', a: 0.55 + 0.45 * pulse(4) });
+    for (const sd of [0, 1]) if (pos.kings[sd] >= 0 && !state.result && inCheck(pos, sd)) M.push({ ...cp(pos.kings[sd]), kind: 'check', a: 0.5 + 0.35 * pulse(7) });
+    if (state.sel && state.sel.sq !== undefined) M.push({ ...cp(state.sel.sq), kind: 'sel', a: 0.95 });
+    for (const to of state.targets) M.push({ ...cp(to), kind: pos.b[to] ? 'ring' : 'dot', a: 0.7 + 0.3 * pulse(5) });
+    if (scene === 'auto' && state.autoPhase === 'reveal' && state.autoChosenTo >= 0) M.push({ ...cp(state.autoChosenTo), kind: 'chosen', a: 0.7 + 0.3 * pulse(7) });
+    if (state.hint) {
+      const m = state.hint.m, tt = cp(mTo(m)); M.push({ ...tt, kind: 'sel', a: 0.8 });
+      if (!isDrop(m)) { const ff = cp(mFrom(m)); M.push({ ...ff, kind: 'sel', a: 0.8 }, { ...ff, x2: tt.x, y2: tt.y, kind: 'hint', a: 0.85 }); }
+    }
+    if (state.kb) M.push({ ...cp(state.cursor), kind: 'cursor', a: 0.9 });
+    const rotOf = (owner) => (owner === bs ? 0 : 1), opt = (tt) => pieceOpts(tt);
+    for (let i = 0; i < pos.b.length; i++) {
+      const c = pos.b[i]; if (!c) continue;
+      if (a && a.kind !== 'refuse' && a.to === i) continue;
+      if (a && a.kind === 'refuse' && a.from === i) continue;
+      const p = cp(i), owner = c >> 4, tt = c & 15, lifted = state.sel && state.sel.sq === i;
+      P.push({ x: p.x, y: p.y, t: tt, owner, rot: rotOf(owner), label: opt(tt).label, lang, lift: lifted ? 0.7 : 0 });
+    }
+    if (!a) return;
+    const stand = (by) => (by === bs ? B.bot : B.top), slotC = (by, tt) => { const s = stand(by).slot(Math.max(0, STAND_ORDER.indexOf(tt))); return v3.toCanon ? v3.toCanon(s.x, s.y) : cp(a.to); };
+    const to = cp(a.to), cell = a.cell & 15, mdur = a.cap ? 0.22 : a.dur, f = Math.min(1, a.t / mdur), e = ease(f);
+    if (a.kind === 'refuse') {
+      const from = a.from >= 0 ? cp(a.from) : slotC(a.by, cell), ff = Math.min(1, a.t / a.dur), out = ff < 0.38 ? ff / 0.38 : ff < 0.62 ? 1 : 1 - (ff - 0.62) / 0.38, oe = ease(out) * 0.62;
+      const shake = calm ? 0 : ff >= 0.34 && ff < 0.66 ? Math.sin(ff * 100) * 5 : 0;
+      P.push({ x: from.x + (to.x - from.x) * oe + shake, y: from.y + (to.y - from.y) * oe, t: cell, owner: a.by, rot: rotOf(a.by), label: opt(cell).label, lang, lift: 0.6 });
+      M.push({ ...to, kind: 'ring', a: 0.9 * (1 - Math.abs(ff - 0.5) * 1.4) });
+      return;
+    }
+    const from = a.kind === 'drop' ? slotC(a.by, cell) : cp(a.from), tt = a.promo && f > 0.75 ? cell + 8 : cell;
+    P.push({ x: from.x + (to.x - from.x) * e, y: from.y + (to.y - from.y) * e, t: tt, owner: a.by, rot: rotOf(a.by), label: opt(tt).label, lang, lift: Math.sin(Math.PI * f) * 1.1 * (calm ? 0.4 : 1) });
+    if (a.promo && f > 0.75 && !calm) M.push({ ...to, kind: 'check', a: 1 - (f - 0.75) * 3.5 });
+    if (a.cap && a.t > 0.12) {
+      const cf = Math.min(1, (a.t - 0.12) / (a.dur - 0.12)), ce = ease(cf), capT = base(a.cap & 15), dst = slotC(a.by, capT);
+      P.push({ x: to.x + (dst.x - to.x) * ce, y: to.y + (dst.y - to.y) * ce, t: capT, owner: a.by, rot: rotOf(a.by), lang, lift: 0.4 + Math.sin(Math.PI * cf) * 1.4 });
+    }
+  }
+
   function nameLabel(nm, str, side) {
-    fitLine(str, nm.x, nm.y, nm.size, 300, 'rgba(247,236,210,0.85)', UI, 600, 'left');
+    fitLine(str, nm.x, nm.y, nm.size, 300, NAMEC, UI, 600, 'left');
     if (!state.result && state.game.turn === side) { ctx.fillStyle = `rgba(255,214,120,${0.7 + (calm ? 0 : 0.3 * Math.sin(t * 5))})`; ctx.beginPath(); ctx.arc(nm.dotX, nm.y - 8, 6, 0, TAU); ctx.fill(); }
   }
 
   // the title / subtitle above the board (a card of its own in landscape)
   function drawHeader() {
     const H = B.hdr, lessonScene = scene === 'lesson', puzzleScene = scene === 'puzzle', autoScene = scene === 'auto';
+    if (v3.on) { const pw = H.wide ? H.w : Math.min(H.maxW + 40, L.U.w - 24); panel(H.wide ? H.x : H.cx - pw / 2, H.y, pw, H.h - 2, 0.9, 20); }
     const sub = autoScene ? `Watch & Learn  ·  think time ${THINK_STEPS[state.autoThinkIdx]}s` : lessonScene ? `Lesson ${state.lesson.i + 1} of ${LESSONS.length}` : puzzleScene ? (state.pz.extra ? 'Practice puzzle' : `Same puzzle for everyone today${state.daily.streak ? '   ·   streak ' + state.daily.streak : ''}`) : state.two ? 'Two players on one phone' : `${state.variant === 'mini' ? 'Mini shogi   ·   ' : ''}${LEVELS[state.level].name}   ·   you are ${state.human === 0 ? 'Sente (first)' : 'Gote (second)'}`;
     if (autoScene) fitLine('Auto Play', H.cx, H.titleY, H.titleSize * 0.9, H.maxW, GOLD);
     else if (lessonScene) fitLine(LESSONS[state.lesson.i].title, H.cx, H.titleY, H.titleSize * 0.84, H.maxW, GOLD);

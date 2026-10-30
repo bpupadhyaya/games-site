@@ -339,14 +339,15 @@ export async function createPresenter({ kitCanvas, quality = 'high' }) {
       const L = layoutOf(state);
       boardRoot.rotation.y = L.rot ? -Math.PI / 2 : 0; boardRoot.updateMatrixWorld(true);
       // the tilt that fills the board's rectangle best (steeper for tall rectangles, lower for wide ones)
-      let best = 72, bf = -1;
-      for (const p of [72, 66, 60, 54, 48]) { const f = fitCamera(L.rect, p, 28, 0, 6); if (f > bf + 0.015) { bf = f; best = p; } }
+      // a gently tilted view: the lowest tilt that still fills nearly as much of the rectangle as the best one
+      const fits = [62, 54, 48].map((p) => [p, fitCamera(L.rect, p, 28, 0, 6)]), top = Math.max(...fits.map((f) => f[1]));
+      const best = fits.filter((f) => f[1] >= top - 0.3).map((f) => f[0]).pop();
       fitCamera(L.rect, best, 28, 0, 6);
     } else {
       const bl = LAY.bgLayout();
       boardRoot.rotation.y = bl.rot ? -Math.PI / 2 : 0; boardRoot.updateMatrixWorld(true);
       const sway = Math.sin(clock * 0.21) * 6;
-      let rect = { x: 24, y: Lh * 0.36, w: Lw - 48, h: Lh * 0.62 };
+      let rect = { x: 24, y: Lh * (state.scene === 'title' ? 0.575 : 0.36), w: Lw - 48, h: Lh * (state.scene === 'title' ? 0.415 : 0.62) };
       if (land) {
         rect = { x: 20, y: Lh * 0.1, w: Lw - 40, h: Lh * 0.86 };
         if (state.scene === 'title') { try { const fr = frameFor(state, 'title'); if (fr.hero) rect = { x: Math.max(8, fr.hero.x0), y: Lh * 0.36, w: Math.max(200, fr.hero.x1 - fr.hero.x0), h: Lh * 0.62 }; } catch (e) { /* keep default */ } }

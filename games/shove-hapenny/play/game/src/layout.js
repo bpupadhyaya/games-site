@@ -28,7 +28,7 @@ export const BW = WX1 - WX0, BH = WY1 - WY0;
 
 const cache = new Map();
 export function playLayout(z = 1, watch = false) {
-  const key = `${W}x${H}|${z}|${watch ? 1 : 0}|${Math.round(host.t)},${Math.round(host.r)},${Math.round(host.b)},${Math.round(host.l)},${Math.round(host.back)}|${host.px.toFixed(2)}`;
+  const key = `${v3.on ? 3 : 2}|${W}x${H}|${z}|${watch ? 1 : 0}|${Math.round(host.t)},${Math.round(host.r)},${Math.round(host.b)},${Math.round(host.l)},${Math.round(host.back)}|${host.px.toFixed(2)}`;
   let L = cache.get(key);
   if (!L) {
     const land = W > H;
@@ -39,7 +39,7 @@ export function playLayout(z = 1, watch = false) {
     }
     // Portrait with height to spare (a tall phone: the board is as wide as the screen and the HUD is small): scale the HUD up, as far as the
     // board stays exactly as wide, so the spare height becomes bigger score cards, text and buttons instead of an empty band.
-    if (!land && L.rect.w >= W - 2 * L.pad - 1) {
+    if (!land && !v3.on && L.rect.w >= W - 2 * L.pad - 1) {
       const w0 = L.rect.w;
       for (let zz = Math.max(z, 2); zz > z + 0.01; zz -= 0.125) {
         const c = portrait(zz, watch);

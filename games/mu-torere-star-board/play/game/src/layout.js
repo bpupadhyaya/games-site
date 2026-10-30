@@ -9,6 +9,7 @@
 //   compact  portrait tablets / small phones / squarish windows: blocks stacked top to bottom, the board takes what is left.
 //   wide     landscape: the star on the left, one column of blocks on the right.
 // The star board's own geometry (points 0..7 round the rim, 8 = the putahi) is unchanged.
+import { v3 } from './v3.js';
 export const W = 720, H = 1560;
 export const BX = 360, BY = 935;
 export const PR = 240;        // distance from the centre to a star point (where stones sit)
@@ -25,6 +26,7 @@ export const inRect = (r, x, y) => !!r && x >= r.x && x <= r.x + r.w && y >= r.y
 export const mid = (r) => ({ x: r.x + r.w / 2, y: r.y + r.h / 2 });
 // Which board point a tap means (nearest point within reach), or -1. `B` = the board placement {cx, cy, k} from layoutFor().play().
 export function pointNear(x, y, B) {
+  if (v3.on && v3.pick) return v3.pick(x, y);                       // the tilted 3D board (presenter ray cast)
   let best = -1, bd = Infinity;
   for (let i = 0; i < 9; i++) { const p = pointPos(i, B.cx, B.cy, B.k), d = Math.hypot(p.x - x, p.y - y); if (d < bd) { bd = d; best = i; } }
   return bd < Math.max(74 * B.k, 40) ? best : -1;

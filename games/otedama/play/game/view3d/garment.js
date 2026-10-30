@@ -70,7 +70,7 @@ export function dressKimono(V3, human, { cloth = '#1a2860', under = '#efe3c8', s
   const sp = human.bones.Bip01_Spine1, pelvis = human.bones.Bip01_Pelvis;
 
   // ---- body shell: sash to shoulders (world frame at the seated pose, +z the front) ------------------------------------------------
-  const RX = [[0.20, 0.158], [0.30, 0.160], [0.38, 0.153], [0.46, 0.152], [0.54, 0.166], [0.60, 0.184], [0.64, 0.170], [0.67, 0.140], [0.70, 0.100]];
+  const RX = [[0.20, 0.158], [0.30, 0.160], [0.38, 0.153], [0.46, 0.152], [0.54, 0.166], [0.60, 0.184], [0.64, 0.192], [0.67, 0.160], [0.70, 0.100]];
   const RZ = [[0.20, 0.116], [0.30, 0.120], [0.38, 0.130], [0.46, 0.142], [0.54, 0.136], [0.60, 0.120], [0.64, 0.108], [0.67, 0.096], [0.70, 0.086]];
   const CZ = [[0.20, -0.015], [0.30, -0.016], [0.38, -0.022], [0.46, -0.030], [0.54, -0.042], [0.60, -0.066], [0.64, -0.080], [0.67, -0.090], [0.70, -0.095]];
   const CX = -0.008;
@@ -161,7 +161,7 @@ export function dressKimono(V3, human, { cloth = '#1a2860', under = '#efe3c8', s
     const up = human.bones[`Bip01_${s}_UpperArm`], fo = human.bones[`Bip01_${s}_Forearm`], ha = human.bones[`Bip01_${s}_Hand`];
     if (!up || !fo || !ha) continue;
     tube(up, fo, 0.056, 0.054);
-    const sh = new THREE.Mesh(new THREE.SphereGeometry(0.056, 20, 14), clothMat); sh.frustumCulled = false; up.add(sh); parts.push({ bone: up, obj: sh });
+    const sh = new THREE.Mesh(new THREE.SphereGeometry(0.066, 24, 16), clothMat); sh.frustumCulled = false; up.add(sh); parts.push({ bone: up, obj: sh });
     const el = new THREE.Mesh(new THREE.SphereGeometry(0.058, 20, 14), clothMat); el.frustumCulled = false; fo.add(el); parts.push({ bone: fo, obj: el });
     tube(fo, ha, 0.058, 0.050, 0.05);
     const dd = ha.position.clone().normalize();

@@ -398,7 +398,7 @@ export function createGame(env) {
       else if (H.phase === 'play') choice = { kind: 'play', p: H.turn, c: pickCard(H, H.turn, tb.level, rng).card };
       if (!choice) return; // hand already over; waiting for handEnd()'s own summary/over screen
       tb.autoChoice = choice; tb.autoPhase = 'think'; tb.autoTimer = THINK_STEPS[state.autoThinkIdx];
-      say(`${SEAT_NAMES[choice.p]} is thinking…`, tb.autoTimer + AUTO_REVEAL_SECS + 1);
+      say(`${choice.p === 0 ? 'You are' : SEAT_NAMES[choice.p] + ' is'} thinking…`, tb.autoTimer + AUTO_REVEAL_SECS + 1);
       return;
     }
     tb.autoTimer -= dt;

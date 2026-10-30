@@ -70,6 +70,31 @@ export function panel(ctx, x, y, w, h, opts = {}) {
   ctx.restore();
 }
 
+// A carved walnut plaque with a brass edge and four rivets: the scoreboard cards of the play screen (the same wood as the inn's panelling).
+export function plaque(ctx, x, y, w, h, { r = 16, active = false, shadow = true } = {}) {
+  ctx.save();
+  if (shadow) { roundPath(ctx, x, y + 6, w, h, r); ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fill(); }
+  roundPath(ctx, x, y, w, h, r);
+  const g = ctx.createLinearGradient(0, y, 0, y + h); g.addColorStop(0, active ? '#69421f' : '#47301a'); g.addColorStop(0.55, active ? '#47290f' : '#2f1d0e'); g.addColorStop(1, active ? '#34200c' : '#21140a');
+  ctx.fillStyle = g; ctx.fill();
+  ctx.save(); roundPath(ctx, x, y, w, h, r); ctx.clip(); ctx.lineWidth = 1;
+  for (let i = 0, n = Math.ceil(h / 5); i < n; i++) {
+    const yy = y + 3 + i * 5, a = ((i * 37) % 7) - 3;
+    ctx.strokeStyle = i % 3 ? 'rgba(0,0,0,0.2)' : 'rgba(255,214,150,0.07)';
+    ctx.beginPath(); ctx.moveTo(x, yy); ctx.bezierCurveTo(x + w * 0.3, yy + a, x + w * 0.62, yy - a * 0.8, x + w, yy + a * 0.5); ctx.stroke();
+  }
+  const hl = ctx.createLinearGradient(0, y, 0, y + h * 0.4); hl.addColorStop(0, 'rgba(255,225,170,0.16)'); hl.addColorStop(1, 'rgba(255,225,170,0)'); ctx.fillStyle = hl; ctx.fillRect(x, y, w, h * 0.4);
+  ctx.restore();
+  roundPath(ctx, x + 2, y + 2, w - 4, h - 4, Math.max(2, r - 2)); ctx.lineWidth = active ? 3.4 : 2.2; ctx.strokeStyle = active ? '#f2cb66' : 'rgba(217,174,82,0.7)'; ctx.stroke();
+  roundPath(ctx, x + 6, y + 6, w - 12, h - 12, Math.max(2, r - 6)); ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(0,0,0,0.4)'; ctx.stroke();
+  const rv = Math.min(3.4, h * 0.05), ox = Math.max(r * 0.55, 9), oy = Math.max(r * 0.55, 9);
+  for (const [px, py] of [[x + ox, y + oy], [x + w - ox, y + oy], [x + ox, y + h - oy], [x + w - ox, y + h - oy]]) {
+    const rg = ctx.createRadialGradient(px - rv * 0.3, py - rv * 0.3, 0, px, py, rv); rg.addColorStop(0, '#fff0b8'); rg.addColorStop(1, '#a8741c');
+    ctx.beginPath(); ctx.arc(px, py, rv, 0, 6.2832); ctx.fillStyle = rg; ctx.fill();
+  }
+  ctx.restore();
+}
+
 // Greedy word wrap. A single word wider than the column (a long hyphenated word at 300% text) is broken after a hyphen,
 // else by characters, so nothing ever runs outside its panel.
 // Greedy word wrap. A single word wider than the column (a long hyphenated word at 300% text) is broken after a hyphen,

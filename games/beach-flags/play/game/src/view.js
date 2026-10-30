@@ -115,7 +115,7 @@ function drawDive(ctx, L, state, round, adv) {
   const big = Math.min(Math.round(r.h * 0.42), L.fs.big * 1.1);
   ctx.fillStyle = can ? '#fffdf4' : 'rgba(40,60,80,0.6)'; ctx.font = `800 ${big}px ${DISPLAY}`;
   ctx.fillText('DIVE', r.x + r.w / 2, r.y + dy + r.h * (r.h > 90 ? 0.42 : 0.5));
-  if (r.h > 90) { ctx.font = `700 ${Math.max(12, Math.round(L.fs.small))}px ${FONT}`; ctx.globalAlpha = 0.9; ctx.fillText('stretch for the flag when it is close', r.x + r.w / 2, r.y + dy + r.h * 0.76); }
+  if (r.h > 90) { let fz = Math.max(12, Math.round(L.fs.small)); ctx.font = `700 ${fz}px ${FONT}`; const tw = ctx.measureText('stretch for the flag when it is close').width; if (tw > r.w - 12) { fz = Math.max(9, Math.floor(fz * (r.w - 12) / tw)); ctx.font = `700 ${fz}px ${FONT}`; } ctx.globalAlpha = 0.9; ctx.fillText('stretch for the flag when it is close', r.x + r.w / 2, r.y + dy + r.h * 0.76); }
   ctx.restore();
 }
 // Cards sit low on the screen, in the sand below the racers, so the flags at the far end of the beach are never covered.

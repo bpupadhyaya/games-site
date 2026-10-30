@@ -1,8 +1,7 @@
-// One mounted player: a real 3D man (view3d athlete_m) seated on the 3D horse (horse.js), dressed as a steppe rider: felt hat, belted coat
+// One mounted player: a real 3D man (view3d athlete_m) seated on the shared rigged horse (view3d horse3d), dressed as a steppe rider: felt hat, belted coat
 // with sleeves, dark trousers, riding boots. The pose is authored procedurally on the skeleton from the sim's presentation state (lean,
 // action, charge, throw progress, carry): seat on the saddle, feet in the stirrups (IK), left hand on the reins, right hand does the work.
-import { loadHuman, Clip, CLIP_BONES, semanticRot, THREE } from '../vendor3d/index.js';
-import { createHorse } from './horse.js';
+import { loadHuman, loadHorse, Clip, CLIP_BONES, semanticRot, THREE } from '../vendor3d/index.js';
 
 const { Vector3, Quaternion, Euler, Group, Mesh, MeshStandardMaterial, CylinderGeometry, SphereGeometry, TorusGeometry, BoxGeometry, Matrix4, CanvasTexture, SRGBColorSpace, LinearMipmapLinearFilter, NoColorSpace, DoubleSide } = THREE;
 const D2R = Math.PI / 180;
@@ -10,10 +9,20 @@ const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const lerp = (a, b, t) => a + (b - a) * t;
 const bi = (n) => CLIP_BONES.indexOf(`Bip01_${n}`);
 
-// seat geometry (horse space, metres)
-const SEAT = { y: 1.5, z: 0.1 };            // top of the saddle under the rider
-const STIRRUP = { x: 0.3, y: 0.95, z: 0.13 };
-const REIN_HAND = { x: 0.07, y: 1.62, z: 0.58 };
+// seat geometry: the hand targets below are authored relative to a reference seat at (0, 1.5, 0.1) in horse space and are carried onto the
+// shared horse's real saddle frame every frame (hs() below), so they follow its back as it pitches and bobs
+const SEAT = { y: 1.5, z: 0.1 };
+const REIN_HAND = { x: 0.07, y: 1.66, z: 0.5 };
+const SEAT_DROP = 0.8;                         // rider root below the seat plane (the shared horse's 'centralasian' seat)
+// the team's horse colour -> a coat for the shared horse (light greys stay grey, the rest are bay-type coats with dark points)
+function coatFor(hex, seed) {
+  const c = new THREE.Color(hex), hsl = {}; c.getHSL(hsl, THREE.SRGBColorSpace);
+  const marks = seed % 3 === 1 ? { socks: { LH: 0.22, RH: 0.16 } } : {};
+  const blaze = seed % 2 === 0 ? 'blaze' : 'star';
+  if (hsl.l > 0.62) return { coat: 'grey', body: hex, blaze: 'none', seed: seed + 1 };
+  const pts = '#' + new THREE.Color().setHSL(hsl.h, Math.min(1, hsl.s * 0.8), Math.max(0.04, hsl.l * 0.32), THREE.SRGBColorSpace).getHexString(THREE.SRGBColorSpace);
+  return { coat: hsl.l < 0.16 ? 'black' : 'bay', body: hex, points: pts, mane: pts, blaze, seed: seed + 1, ...marks };
+}
 
 // ---------------------------------------------------------------------------------------------------------------------------------
 // Clothes as tapered tubes riding on the bones (they follow every pose and never show skin or trainers): sleeves with trim cuffs, trousers,
@@ -38,12 +47,16 @@ export function dressLimbs(human, { sleeve, trim, trousers, boot, legs = true })
     const b = (n) => human.bones[`Bip01_${s}_${n}`];
     const up = b('UpperArm'), fo = b('Forearm'), ha = b('Hand'), th = b('Thigh'), ca = b('Calf'), ft = b('Foot'), to = b('Toe0');
     if (!up || !fo || !ha || !th || !ca || !ft) continue;
-    tubeOn(up, fo, 0.066, 0.05, sleeveM, { overlap: 0.03, from: -0.07 });
-    tubeOn(fo, ha, 0.05, 0.04, sleeveM, { overlap: 0.0 });
+    tubeOn(up, fo, 0.078, 0.058, sleeveM, { overlap: 0.04, from: 0 });
+    tubeOn(fo, ha, 0.055, 0.042, sleeveM, { overlap: 0.0, from: -0.06 });
+    const elbow = new Mesh(new SphereGeometry(0.056, 14, 10), sleeveM); fo.add(elbow);   // closes the sleeve over the bent elbow
     const cuff = new Mesh(new CylinderGeometry(0.043, 0.043, 0.035, 14, 1, true), trimM); cuff.material.side = DoubleSide;
     cuff.quaternion.setFromUnitVectors(Yax, ha.position.clone().normalize()); cuff.position.copy(ha.position).multiplyScalar(-0.02);
     fo.add(cuff);
-    const cap = new Mesh(new SphereGeometry(0.074, 16, 12), sleeveM); cap.position.set(0, 0.012, 0); up.add(cap);
+    const cap = new Mesh(new SphereGeometry(0.08, 18, 14), sleeveM); cap.position.copy(fo.position).multiplyScalar(0.02); up.add(cap);
+    // the coat's shoulder seam: a soft yoke from the collarbone over the top of the shoulder, so no skin shows between body and sleeve
+    const cl = human.bones[`Bip01_${s}_Clavicle`];
+    if (cl) { const yoke = new Mesh(new SphereGeometry(0.07, 16, 12), sleeveM); yoke.position.copy(up.position).multiplyScalar(0.55); yoke.scale.set(1.5, 0.9, 1.0); cl.add(yoke); }
     if (!legs) { parts.push(up); continue; }
     tubeOn(th, ca, 0.104, 0.078, trouserM, { overlap: 0.0 });
     tubeOn(ca, ft, 0.074, 0.056, trouserM, { overlap: 0.0, from: 0, to: 0.5 });
@@ -127,7 +140,7 @@ let ballTex = null;
 // ---------------------------------------------------------------------------------------------------------------------------------
 const SKINS = ['#d9a47c', '#c98f66', '#e2b28c', '#b87f58'];
 const HAIRS = ['black', 'black', 'brown', 'black'];
-export async function createRider({ base, trim, horse: horseHex, kit, blanket, mane, variant = 0 }) {
+export async function createRider({ base, trim, horse: horseHex, kit, blanket, mane, variant = 0, hq = false }) {
   const human = await loadHuman({ character: 'athlete_m', base, kit: { top: kit, bottoms: '#2a2f45', socks: '#2a1c14' }, skin: SKINS[variant % 4], hair: HAIRS[variant % 4] });
   // bare the feet: the riding boots (dressLimbs) replace the trainers, so drop every triangle that sits on the foot / toe bones
   human.root.traverse((o) => {
@@ -142,7 +155,13 @@ export async function createRider({ base, trim, horse: horseHex, kit, blanket, m
     ix.needsUpdate = true; geo.userData.barefoot = true;
   });
   dressLimbs(human, { sleeve: new THREE.Color(kit).multiplyScalar(0.96).getHex(), trim: new THREE.Color(trim).getHex(), trousers: 0x2a2f45, boot: 0x2a1a10 });
-  const horse = createHorse({ coat: horseHex, blanket: blanket || kit, trim, mane });
+  // the shared rigged horse (view3d horse3d: natural anatomy, distance-driven gaits with planted hooves, strand mane and tail, Central Asian
+  // wooden saddle on a felt blanket in the team colours)
+  const horse = await loadHorse({ base, coat: coatFor(horseHex || '#7a4a2a', variant), mane: 'loose', tack: 'centralasian', tackColors: { blanket: blanket || kit, trim }, quality: hq ? 'high' : 'medium' });
+  // loadHorse clones the skeleton but shares the mesh geometry between horses, and the coat is painted into that geometry's vertex colours:
+  // give every horse its own copy so each team keeps its own coat
+  for (const m of horse.meshes) m.geometry = m.geometry.clone();
+  horse.setCoat(coatFor(horseHex || '#7a4a2a', variant));
   const group = new Group();
   group.add(horse.root);
   group.add(human.root);
@@ -162,8 +181,9 @@ export async function createRider({ base, trim, horse: horseHex, kit, blanket, m
     skirt.userData.trimM.color.copy(C(l.trim));
     hat.userData.knobM.color.copy(C(l.trim));
     // markings follow the coat colour (stable per team): white socks on the lighter bays, a blaze on some
-    let hs = 0; for (const ch of String(l.horse)) hs = (hs * 31 + ch.charCodeAt(0)) >>> 0;
-    horse.setLook({ coat: l.horse, blanket: l.kit, trim: l.trim, mane: l.mane, socks: hs % 3 === 1 ? '#efe7d6' : null, blaze: hs % 2 === 0 });
+    let hsh = 0; for (const ch of String(l.horse)) hsh = (hsh * 31 + ch.charCodeAt(0)) >>> 0;
+    horse.setCoat(coatFor(l.horse, hsh % 6));
+    horse.setTack('centralasian', { blanket: l.kit, trim: l.trim });
   }
   // the ball (carried in the right hand when the sim says so)
   if (!ballTex) ballTex = ballTexture();
@@ -201,6 +221,12 @@ export async function createRider({ base, trim, horse: horseHex, kit, blanket, m
    * s: { ph, spd, t, f (facing -1..1), lean, kind, reachX, tugKick, throwP, charge, carry, stun, cheer, dt }
    */
   let prevF = null;
+  const seatQ = new Quaternion(), qTmp = new Quaternion(), qRoll = new Quaternion(), gq = new Quaternion(), upL = new Vector3(), seatL = new Vector3();
+  const ZA = new Vector3(0, 0, 1), YA = new Vector3(0, 1, 0);
+  let seatInit = false, havePrev = false, moved = false;
+  const gpos = new Vector3(), gprev = new Vector3(), fwdW = new Vector3();
+  // a point authored in the reference horse space (seat at 0, 1.5, 0.1) carried onto the real saddle frame (group-local)
+  const hs = (x, y, z, out = new Vector3()) => out.set(x, y - SEAT.y, z - SEAT.z).applyQuaternion(seatQ).add(seatL);
   function pose(s) {
     const dt = s.dt ?? 1 / 60;
     // the camera always sees the near (camera-side) flank. Facing right that is the man's RIGHT side, facing left (the model turned by
@@ -210,37 +236,57 @@ export async function createRider({ base, trim, horse: horseHex, kit, blanket, m
     group.rotation.y = (Math.PI / 2) * (1 - s.f);
     group.updateMatrixWorld(true);
     const turn = prevF === null ? 0 : (s.f - prevF) / Math.max(dt, 1e-3); prevF = s.f;
-    const h = horse.pose({ ph: s.ph, spd: s.spd, t: s.t, stun: s.stun, dt: s.dt, turn });
-    const g = h.g, bob = h.bob;
+    // the horse: speed from the sim; its stride phase advances with the distance travelled (hooves stay planted), hair and stirrups swing
+    // speed = the distance this rider really travelled along the horse's heading this frame (the stride phase then matches the ground and
+    // planted hooves do not slide); a model that is not being moved (icon, viewer) uses the sim's speed instead
+    group.getWorldPosition(gpos);
+    let vRun = s.stun ? Math.min(s.spd, 1.2) : s.spd;
+    if (havePrev && dt > 1e-4 && dt < 0.2) {
+      const dx = gpos.x - gprev.x, dz = gpos.z - gprev.z;
+      if (dx * dx + dz * dz > 1e-10) { fwdW.set(0, 0, 1).applyQuaternion(group.getWorldQuaternion(qTmp)); vRun = Math.max(0, (dx * fwdW.x + dz * fwdW.z) / dt); moved = true; }
+      else if (moved) vRun = 0;
+    }
+    gprev.copy(gpos); havePrev = true;
+    horse.drive(vRun, clamp(turn * 0.15, -1.2, 1.2));
+    if (moved) horse.v = vRun;                        // no smoothing lag against the real motion
+    horse.update(Math.max(dt, 1e-4));
+    group.updateMatrixWorld(true);
+    // saddle frame in group space: the back's orientation, low-passed so the rider absorbs the bounce (as the shared seat does)
+    gq.copy(group.quaternion).invert();
+    qTmp.copy(horse.b.Spine2.getWorldQuaternion(qTmp)).premultiply(group.getWorldQuaternion(new Quaternion()).invert());
+    if (!seatInit || dt > 0.2) { seatQ.copy(qTmp); seatInit = true; } else seatQ.slerp(qTmp, Math.min(1, dt * 14));
+    upL.copy(YA).applyQuaternion(seatQ);
+    group.worldToLocal(horse.tack.saddle.getWorldPosition(seatL)).addScaledVector(upL, 0.06);
+    const g = clamp((horse.v - 2) / 7, 0, 1), bob = 0;
     const fwd = clamp(0.1 + g * 0.2 + s.lean * 0.95 - (s.charge || 0) * 0.15, -0.2, 1.25);
     const side = (s.kind === 'grab' ? -s.lean * 1.1 : s.kind === 'tug' ? -s.lean * 0.6 : 0) * mir;
-    const rock = Math.sin(6.283 * s.ph * 2 + 0.3) * 0.02 * g;
+    const rock = Math.sin(horse.phase * 6.283 * 2 + 0.3) * 0.012 * g;
     // hanging off the near side to reach the ground / a rival's ball: the whole man rolls about the saddle (his feet stay in the stirrups)
     const roll = (s.kind === 'grab' ? s.lean * 0.78 : s.kind === 'tug' ? s.lean * 0.5 : 0) * mir;
-    human.root.rotation.z = roll;
-    human.root.position.set(SEAT.y * Math.sin(roll), SEAT.y * (1 - Math.cos(roll)), 0);
+    qRoll.setFromAxisAngle(ZA, roll);
+    human.root.quaternion.copy(seatQ).multiply(qRoll);
+    human.root.position.copy(seatL).add(new Vector3(0, -SEAT_DROP, 0).applyQuaternion(human.root.quaternion));
     group.updateMatrixWorld(true);
-    const thighFlex = 62, thighOut = 14;
     const flexs = (fwd * 180 / Math.PI);
     const twistAct = s.throwP >= 0 ? lerp(-20, 25, clamp(s.throwP, 0, 1)) : (s.charge > 0.05 ? -18 * s.charge : 0);
     writePose({
-      Pelvis: { flex: 10 + flexs * 0.12, side: side * 8, twist: 0 },
+      Pelvis: { flex: 6 + flexs * 0.12, side: side * 8, twist: 0 },
       Spine: { flex: flexs * 0.22, side: side * 8, twist: (s.kind === 'tug' ? -10 : 0) * mir },
       Spine1: { flex: flexs * 0.32, side: side * 14 },
       Spine2: { flex: flexs * 0.34, side: side * 14, twist: twistAct * mir },
       Neck: { flex: -flexs * 0.25 - 4 },
       Head: { flex: -flexs * 0.1 },
-      L_Thigh: { flex: thighFlex, abduct: thighOut }, R_Thigh: { flex: thighFlex, abduct: thighOut },
-      L_Calf: { flex: 78 }, R_Calf: { flex: 78 },
-    }, [side * -0.12, SEAT.y + 0.1 - ph0 + bob + rock, SEAT.z]);
-    // shoulder predictions in horse space (near side = negative x of the unmirrored layout; mx() flips it for a left-facing rider)
+      L_Thigh: { flex: 74, abduct: 26 }, R_Thigh: { flex: 74, abduct: 26 },
+      L_Calf: { flex: 90 }, R_Calf: { flex: 90 },
+    }, [side * -0.12, rock, 0]);
+    // shoulder predictions in reference horse space (near side = negative x of the unmirrored layout; mx() flips it for a left-facing rider)
     const mx = (x) => x * mir;
-    const sh = { x: -0.2 + Math.abs(side) * -0.28, y: SEAT.y + 0.1 + bob + 0.5 * Math.cos(fwd) - Math.abs(side) * 0.15, z: SEAT.z + 0.5 * Math.sin(fwd) };
-    for (const [sd, sx] of [['L', 1], ['R', -1]]) human.setReachFoot(sd, toWorld(sx * STIRRUP.x, STIRRUP.y + bob * 0.5, STIRRUP.z), 1);
+    const sh = { x: -0.2 + Math.abs(side) * -0.28, y: SEAT.y + 0.1 + 0.5 * Math.cos(fwd) - Math.abs(side) * 0.15, z: SEAT.z + 0.5 * Math.sin(fwd) };
+    for (const sd of ['L', 'R']) human.setReachFoot(sd, horse.tack.stirrup[sd].tread.getWorldPosition(w).addScaledVector(upL.clone().applyQuaternion(group.getWorldQuaternion(qTmp)), 0.08), 1);
     // far hand: the reins
-    human.setReach(reinSide, toWorld(mx(-REIN_HAND.x), REIN_HAND.y + bob, REIN_HAND.z + fwd * 0.12), { weight: 1 });
+    human.setReach(reinSide, group.localToWorld(hs(mx(-REIN_HAND.x), REIN_HAND.y, REIN_HAND.z + fwd * 0.12, w2)), { weight: 1 });
     // near hand: depends on what the rider is doing
-    let tx = -0.06, ty = REIN_HAND.y - 0.02 + bob, tz = REIN_HAND.z - 0.02;
+    let tx = -0.06, ty = REIN_HAND.y - 0.02, tz = REIN_HAND.z - 0.02;
     let fingers = 'relaxed';
     if (s.throwP >= 0) {
       const t = clamp(s.throwP, 0, 1), a = lerp(-2.7, 0.2, t);
@@ -258,8 +304,9 @@ export async function createRider({ base, trim, horse: horseHex, kit, blanket, m
       tx = sh.x - 0.1 + Math.sin(s.t * 12) * 0.08; ty = sh.y + 0.7; tz = sh.z + 0.05; fingers = 'open';
     }
     tx = mx(tx);
-    api.lastReach.set(tx, ty, tz);
-    human.setReach(actSide, toWorld(tx, ty, tz), { weight: 1 });
+    hs(tx, ty, tz, api.lastReach);
+    if (s.kind === 'grab') api.lastReach.y = ty;              // the ground is the ground, not saddle-relative
+    human.setReach(actSide, group.localToWorld(api.lastReach.clone()), { weight: 1 });
     human.setFingers(actSide, fingers);
     human.setFingers(reinSide, 'relaxed');
     human.update(dt);
@@ -272,19 +319,14 @@ export async function createRider({ base, trim, horse: horseHex, kit, blanket, m
       ball.position.set(tmp.x - mx(0.02), tmp.y - 0.25, tmp.z + 0.06);
       ball.rotation.y = s.t * 2;
     }
-    // reins and stirrup leathers follow the hands / feet (horse space)
+    // reins run from the bit to the rein hand, and to the working hand only while it is free
     group.updateMatrixWorld(true);
-    horse.mouthPoint(w2); group.worldToLocal(w2);
-    human.handPosition(reinSide, tmp); group.worldToLocal(tmp);
-    horse.placeBetween(horse.reins[0], w2.clone().add(new Vector3(0.05 * mir, 0, 0)), tmp.clone());
-    human.handPosition(actSide, tmp); group.worldToLocal(tmp);
-    horse.placeBetween(horse.reins[1], w2.clone().add(new Vector3(-0.05 * mir, 0, 0)), s.kind || s.carry || s.charge > 0.02 || s.throwP >= 0 ? new Vector3(mx(-0.07), REIN_HAND.y + bob, REIN_HAND.z - 0.02) : tmp.clone());
-    for (const [i, sx] of [[0, 1], [1, -1]]) {
-      horse.placeBetween(horse.straps[i], new Vector3(sx * 0.25, 1.38 + bob, STIRRUP.z), new Vector3(sx * STIRRUP.x, STIRRUP.y + 0.06 + bob * 0.5, STIRRUP.z));
-      horse.irons[i].position.set(sx * STIRRUP.x, STIRRUP.y - 0.03 + bob * 0.5, STIRRUP.z + 0.02);
-    }
+    const busy = !!(s.kind || s.carry || s.charge > 0.02 || s.throwP >= 0);
+    const ht = horse.tack.handTargets;
+    ht[reinSide] = group.worldToLocal(human.handPosition(reinSide, new Vector3()));
+    ht[actSide] = busy ? null : group.worldToLocal(human.handPosition(actSide, new Vector3()));
   }
   const api = { group, human, horse, pose, ball, hat, skirt, setLook, lastReach: new Vector3(), detail: true };
-  api.setDetail = (on) => { api.detail = !!on; horse.setDetail(on); };
+  api.setDetail = (on) => { api.detail = !!on; if (!hq) horse.setQuality(on ? 'medium' : 'low'); };
   return api;
 }

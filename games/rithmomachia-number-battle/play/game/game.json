@@ -4,7 +4,7 @@
   "tagline": "The philosophers' battle of numbers. Take pieces by ratio and sum.",
   "genre": "Medieval number-battle board game",
   "orientation": "any",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "monetization": {
     "model": "premium",
     "priceUsd": 2.99,

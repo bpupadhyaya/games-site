@@ -12,6 +12,7 @@ import * as B from './rules/battle.js';
 import * as R from './rules/run.js';
 import { makeSky } from './ui/draw.js';
 import { drawSkyBand, drawSceneBand, drawOverlayBand } from './ui/render.js';
+import { v3, flatAlpha } from './v3.js';
 import { SKY_STOPS, setTextFloor } from './ui/draw.js';
 import { frameFor, drawBands, paintSkyBase, toDesign } from './ui/frame.js';
 import { readerLayout, drawReader, readerScale } from './ui/reader.js';
@@ -1310,8 +1311,14 @@ export function createGame(env) {
       const h = view.height;
       const extra = { sky, campOptions, demo: !!env.config.demo, demoLeft: Math.max(0, DEMO_BATTLES - s.demoBattles), manifest: env.manifest, press: s.ui.press ? { x: s.ui.press.x, y: s.ui.press.y } : null };
       const F = frameFor(w, h, sceneKind());
-      paintSkyBase(ctx, F, SKY_STOPS);
+      if (!v3.on) paintSkyBase(ctx, F, SKY_STOPS);
+      else if (flatAlpha() > 0) { ctx.save(); ctx.globalAlpha = flatAlpha(); paintSkyBase(ctx, F, SKY_STOPS); ctx.restore(); }
       drawBands(ctx, F, () => drawSkyBand(ctx, s, extra), { column: true });
+      if (v3.on) {   // the flat sky's vignette, over the 3D night
+        const vg = ctx.createRadialGradient(w / 2, h * 0.5, Math.min(w, h) * 0.45, w / 2, h * 0.5, Math.hypot(w, h) * 0.58);
+        vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,6,0.5)');
+        ctx.fillStyle = vg; ctx.fillRect(0, 0, w, h);
+      }
       drawBands(ctx, F, (pc) => {
         setTextFloor(floorFor(pc.f));
         drawSceneBand(ctx, s, extra);

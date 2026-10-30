@@ -1,7 +1,6 @@
 // A small immediate-mode UI kit for the canvas: every control is drawn AND registered as a hit rect in the same call, so what
 // you tap is exactly what was drawn. All text goes through ui.text so text zoom (up to 300%) and the minimum readable size
 // are applied in one place. Scrolling areas keep content reachable at any zoom.
-import { brandGradient } from './brand.js';
 
 export const FONT_D = '"Barlow Condensed", "Arial Narrow", "Helvetica Neue", system-ui, sans-serif';
 export const FONT_B = '"Barlow", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
@@ -81,7 +80,7 @@ export function createUI() {
       if (o.shadow !== false) { ctx.fillStyle = 'rgba(0,0,0,0.28)'; ctx.beginPath(); ctx.roundRect(r.x, r.y + 5, r.w, r.h, rad); ctx.fill(); }
       ctx.fillStyle = o.fill ?? COL.panel; ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, rad); ctx.fill();
       if (o.edge !== false) {
-        ctx.lineWidth = 1.5; ctx.strokeStyle = brandGradient(ctx, r.x, r.y, r.x + r.w, r.y + r.h, o.edgeAlpha ?? 0.5);
+        ctx.lineWidth = 2; ctx.strokeStyle = `rgba(214,170,80,${(o.edgeAlpha ?? 0.5) + 0.1})`;
         ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, rad); ctx.stroke();
       }
       ctx.restore();
@@ -92,12 +91,14 @@ export function createUI() {
       const dis = !!o.disabled;
       const rad = o.radius ?? Math.min(r.h / 2, 26), oy = pressed && !dis ? 3 : 0;
       ctx.save();
-      const fill = kind === 'primary' ? COL.orange : kind === 'danger' ? '#d9434a' : kind === 'on' ? '#1f6fe0' : kind === 'chip' ? 'rgba(255,255,255,0.1)' : kind === 'ghost' ? 'rgba(255,255,255,0.0)' : 'rgba(26,42,78,0.9)';
-      const under = kind === 'primary' ? '#b4540c' : kind === 'danger' ? '#8e2229' : kind === 'on' ? '#123f86' : kind === 'ghost' ? null : 'rgba(0,0,0,0.38)';
+      const fill = kind === 'primary' ? COL.orange : kind === 'danger' ? '#d9434a' : kind === 'on' ? '#1f6fe0' : kind === 'chip' ? 'rgba(12,24,50,0.88)' : kind === 'ghost' ? 'rgba(255,255,255,0.0)' : 'rgba(12,26,56,0.94)';
+      const under = kind === 'primary' ? '#8a5a10' : kind === 'danger' ? '#8e2229' : kind === 'on' ? '#123f86' : kind === 'ghost' ? null : 'rgba(0,0,0,0.38)';
       if (under && !pressed) { ctx.fillStyle = under; ctx.beginPath(); ctx.roundRect(r.x, r.y + 5, r.w, r.h, rad); ctx.fill(); }
       ctx.globalAlpha = dis ? 0.4 : 1;
-      ctx.fillStyle = fill; ctx.beginPath(); ctx.roundRect(r.x, r.y + oy, r.w, r.h, rad); ctx.fill();
-      if (kind === 'secondary' || kind === 'chip' || kind === 'ghost') { ctx.lineWidth = 1.5; ctx.strokeStyle = kind === 'ghost' ? 'rgba(180,205,250,0.38)' : 'rgba(160,190,240,0.32)'; ctx.beginPath(); ctx.roundRect(r.x, r.y + oy, r.w, r.h, rad); ctx.stroke(); }
+      if (kind === 'primary') { const gg = ctx.createLinearGradient(0, r.y + oy, 0, r.y + oy + r.h); gg.addColorStop(0, '#ffe08a'); gg.addColorStop(1, '#f2b035'); ctx.fillStyle = gg; } else ctx.fillStyle = fill;
+      ctx.beginPath(); ctx.roundRect(r.x, r.y + oy, r.w, r.h, rad); ctx.fill();
+      if (kind === 'secondary' || kind === 'chip' || kind === 'ghost') { ctx.lineWidth = 2; ctx.strokeStyle = kind === 'ghost' ? 'rgba(214,176,92,0.5)' : 'rgba(214,170,80,0.62)'; ctx.beginPath(); ctx.roundRect(r.x, r.y + oy, r.w, r.h, rad); ctx.stroke(); }
+      if (kind === 'primary') { ctx.lineWidth = 2; ctx.strokeStyle = '#fff2c4'; ctx.beginPath(); ctx.roundRect(r.x + 1, r.y + oy + 1, r.w - 2, r.h - 2, rad); ctx.stroke(); }
       const tc = kind === 'primary' ? '#1a1206' : COL.ink;
       const size = Math.min(o.size ?? Math.min(34, r.h * 0.46), Math.max(11.5 / ui.k, (r.h * 0.5) / Math.max(1, ui.zoom)));
       const hasSub = !!o.sub;

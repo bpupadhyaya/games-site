@@ -2,6 +2,7 @@
 // is baked once into an OffscreenCanvas when the host has one and drawn directly otherwise (headless tests).
 import { ORDER } from './engine.js';
 import { BOARD, W, H } from './layout.js';
+import { v3, flatAlpha, markBoard } from './v3.js';
 
 export const TAU = Math.PI * 2;
 const SEG = Math.PI / 10;
@@ -110,6 +111,13 @@ export function drawBoard(ctx, cx, cy, R, o = {}) {
 
 const sprites = new Map();
 export function drawBoardAt(ctx, cx, cy, R, o = {}) {
+  markBoard(ctx, cx, cy, R);
+  const fa = flatAlpha();
+  if (fa <= 0) return;                                  // the 3D board is on screen
+  if (fa < 1) { ctx.save(); ctx.globalAlpha *= fa; drawBoardFlat(ctx, cx, cy, R, o); ctx.restore(); return; }
+  drawBoardFlat(ctx, cx, cy, R, o);
+}
+function drawBoardFlat(ctx, cx, cy, R, o = {}) {
   setHost(ctx);
   const key = Math.round(R);
   if (sprites.size >= 8 && !sprites.has(key)) sprites.clear();
@@ -157,6 +165,12 @@ function drawWall(ctx) {
   for (let x = 0; x <= W; x += 180) { ctx.beginPath(); ctx.moveTo(x, y0 + 8); ctx.lineTo(x, H); ctx.stroke(); }
 }
 export function drawBackdrop(ctx) {
+  const fa = flatAlpha();
+  if (fa <= 0) return;                                  // the 3D pub wall is on screen
+  if (fa < 1) { ctx.save(); ctx.globalAlpha *= fa; drawBackdropFlat(ctx); ctx.restore(); return; }
+  drawBackdropFlat(ctx);
+}
+function drawBackdropFlat(ctx) {
   setHost(ctx);
   const wk = `${W}x${H}|${BOARD.cx},${BOARD.cy}`;
   if (wallKey !== wk) { wallSprite = null; wallKey = wk; }

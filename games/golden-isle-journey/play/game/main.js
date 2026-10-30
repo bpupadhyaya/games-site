@@ -25,10 +25,27 @@ const af = new Image(); af.onload = () => setLogo(af); af.src = './brand/arcforg
 const lk = new Image(); lk.onload = () => setLockup(lk); lk.src = './brand/arcforge-lockup.png';
 
 // Dev tools only (?dev=1 or the app's Developer toggle): expose the game for the layout / resize check scripts.
-const create = async (env) => { const game = await createGame(env); if (env.config.dev) window.__gij = game; return game; };
+// The lit 3D layer (0.3.0, view3d/presenter.js): the game boots on its painted backdrops; a few frames later the presenter
+// is imported, and the real sky / sea / golden island fade in behind the transparent canvas. No WebGL2, ?flat=1 or a lost
+// context: the painted backdrops simply stay (src/v3.js).
+let presenter = null, game3d = null;
+const create = async (env) => {
+  const game = await createGame(env); if (env.config.dev) window.__gij = game;
+  const render = game.render.bind(game);
+  game.render = (ctx, view) => { render(ctx, view); if (presenter) presenter.frame(); };
+  game3d = game;
+  return game;
+};
+const want3d = !/[?&]flat=1/.test(location.search);
+function load3d(n = 0) {
+  if (n < 3) return requestAnimationFrame(() => load3d(n + 1));   // first painted frames before any 3D work
+  import('./view3d/presenter.js').then((m) => m.createPresenter({ kitCanvas: canvas, getGame: () => game3d }))
+    .then((p) => { presenter = p; if (p && new URLSearchParams(location.search).has('dev')) window.__gij3d = p; })
+    .catch((e) => console.warn('3D layer skipped', e));
+}
 
 // Resize guard (0.2.6): see resizeguard.js. Re-checks every frame and on every viewport signal, and once the game has booted.
 const guard = installResizeGuard({ canvas, win: window });
 window.__gijCanvasStale = guard.stale;   // read-only probe for the layout check scripts
 
-boot({ createGame: create, meta, canvas, background: '#0a0410' }).then(() => guard.burst());
+boot({ createGame: create, meta, canvas, background: '#0a0410' }).then(() => { guard.burst(); if (want3d) load3d(); });

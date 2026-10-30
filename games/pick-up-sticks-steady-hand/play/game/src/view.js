@@ -6,6 +6,7 @@ import { drawBackdrop, drawMat, drawStick, drawStickIcon, strokeStick, SIDE, FON
 import { PROFILES } from './opponents.js';
 import { roundPath, panel, drawButton, wrapLines } from './ui.js';
 import { describePlan } from './ai.js';
+import { v3 } from './v3.js';
 
 const TAU = Math.PI * 2;
 export const layoutOf = (state) => playLayout(TEXT_SCALES[state.settings.textIdx], !!(state.m && state.m.cfg.mode === 'watch'));
@@ -30,12 +31,27 @@ function fitText(ctx, options, px, maxW, weight = 700) {
 // o: { cx, cy, scale, over(ctx), hintId, freeIds }
 export function drawTable(ctx, state, w, parts, o = {}) {
   const sc = o.scale ?? 1, cx = o.cx ?? W / 2, cy = o.cy ?? H / 2, t = state.t, p = w.pull;
-  drawBackdrop(ctx, W, H, cx, cy);
+  const use3d = !!(o.play && v3.on);   // the 3D table (view3d/presenter.js) draws the room, slab and sticks; this layer keeps the overlays
+  if (use3d) { ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height); ctx.restore(); }
+  else drawBackdrop(ctx, W, H, cx, cy);
   ctx.save(); ctx.translate(cx, cy); ctx.scale(sc, sc);
-  drawMat(ctx);
+  if (!use3d) drawMat(ctx);
   const list = w.sticks.slice().sort((a, b) => a.z - b.z || a.id - b.id);
   const pulledId = p && !p.tool ? p.id : -1;
   const flash = state.faultFlash || 0;
+  if (use3d) {
+    const out = [];
+    for (const s of list) {
+      if (s.id === pulledId) continue;
+      const ratio = p && p.moved ? p.moved[s.id] || 0 : 0;
+      let sx = s.x, sy = s.y;
+      if (ratio > 0.12) { sx += Math.sin(t * 70 + s.id) * ratio * 1.1; sy += Math.cos(t * 63 + s.id * 2) * ratio * 1.1; }
+      out.push({ id: s.id, kind: s.kind, x: sx, y: sy, a: s.a, z: s.z, lh: s.lh, lift: 0, warn: ratio > 0.12 ? ratio : 0, fault: flash > 0 && state.faultId === s.id ? Math.min(1, flash) : 0 });
+    }
+    if (pulledId >= 0) { const s = w.sticks.find((q) => q.id === pulledId); if (s) out.push({ id: s.id, kind: s.kind, x: s.x, y: s.y, a: s.a, z: s.z, lh: s.lh, lift: 1, warn: p.speed > V0 * 0.8 ? Math.min(1, (p.speed - V0 * 0.8) / (V0 * 0.6)) * 0.8 : 0, fault: 0 }); }
+    if (w.tool) out.push({ id: 'tool', kind: 'tool', x: w.tool.x, y: w.tool.y, a: w.tool.a, z: 99, lh: w.tool.lh, lift: 1.3, warn: 0, fault: 0 });
+    v3.frame = { cx, cy, s: sc, sticks: out, stamp: ++v3.n };
+  } else {
   for (const s of list) {
     if (s.id === pulledId) continue;
     const ratio = p && p.moved ? p.moved[s.id] || 0 : 0;
@@ -50,6 +66,7 @@ export function drawTable(ctx, state, w, parts, o = {}) {
     if (s) drawStick(ctx, s, { lift: 7, warn: p.speed > V0 * 0.8 ? Math.min(1, (p.speed - V0 * 0.8) / (V0 * 0.6)) * 0.8 : 0 });
   }
   if (w.tool) drawStick(ctx, w.tool, { lift: 9 });
+  }
   if (o.freeIds) for (const s of list) if (o.freeIds.has(s.id) && o.hintId !== s.id) strokeStick(ctx, s, 'rgba(255,255,255,0.5)', 2, [3, 8]);
   if (o.hintId) { const h = w.sticks.find((q) => q.id === o.hintId); if (h) strokeStick(ctx, h, `rgba(120,230,255,${0.65 + 0.3 * Math.sin(t * 6)})`, 3.5); }
   if (o.over) o.over(ctx);
@@ -310,7 +327,7 @@ export function renderPlay(ctx, state) {
   const m = state.m, w = state.w, L = layoutOf(state);
   const freeIds = state.settings.calm && state.humanTurn && m.phase === 'aim' && !w.pull ? state.freeIds : null;
   drawTable(ctx, state, w, state.parts, {
-    cx: L.board.cx + (state.sx || 0), cy: L.board.cy + (state.sy || 0), scale: L.board.s, hintId: state.hintShot && !w.pull ? state.hintShot.id : undefined, freeIds,
+    cx: L.board.cx + (state.sx || 0), cy: L.board.cy + (state.sy || 0), scale: L.board.s, hintId: state.hintShot && !w.pull ? state.hintShot.id : undefined, freeIds, play: true,
     over: (c) => { drawOverlay(c, state); },
   });
   drawHud(ctx, state);

@@ -4,7 +4,7 @@
   "tagline": "Slide the hidden panels in the right order and the drawer opens.",
   "genre": "sequence puzzle",
   "orientation": "any",
-  "version": "1.1.2",
+  "version": "1.2.0",
   "monetization": {
     "model": "premium",
     "priceUsd": 2.99,

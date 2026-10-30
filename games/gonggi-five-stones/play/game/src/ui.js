@@ -1,6 +1,7 @@
 // Shared drawing helpers for every screen: rounded panels, flat buttons, wrapped text, the palette.
 export const FONT = "'Avenir Next', 'Segoe UI', 'Trebuchet MS', system-ui, sans-serif";
 export const DISPLAY = "Georgia, 'Times New Roman', serif";
+import { v3 } from './v3.js';
 export const C = {
   ink: '#1c2552', cream: '#fff6e4', sand: '#f3dfb8', vermilion: '#e2503c', vermDark: '#a8301f', teal: '#1f9d8f', tealDark: '#146f65', indigo: '#26307a',
   gold: '#ffc94d', shadow: 'rgba(10,14,50,0.4)', paper: 'rgba(255,246,228,0.95)', mute: 'rgba(255,246,228,0.72)',
@@ -26,20 +27,33 @@ const BTN_FILL = {
   dark: ['rgba(30,38,96,0.82)', 'rgba(255,246,228,0.35)'],
   plain: ['#fff6e4', 'rgba(28,37,82,0.45)'],
 };
+const lacquer = (ctx, y, h) => { const g = ctx.createLinearGradient(0, y, 0, y + h); g.addColorStop(0, '#3b2620'); g.addColorStop(1, '#1d120e'); return g; };
+const WORLD_FILL = {
+  disabled: () => ['rgba(40,26,20,0.9)', 'rgba(232,190,104,0.22)'],
+  primary: () => ['#c8402e', '#e8be68'],
+  active: () => ['#3a8a76', '#e8be68'],
+  dark: (ctx, y, h) => [lacquer(ctx, y, h), '#c9a05a'],
+  plain: () => ['#f4e7c9', '#8a5a2c'],
+};
+export { lacquer };
 export function paintButton(ctx, r, o = {}) {
   const { primary = false, active = false, disabled = false, dark = false } = o;
   const k = disabled ? 'disabled' : primary ? 'primary' : active ? 'active' : dark ? 'dark' : 'plain';
   const pressed = !disabled && PRESS.on && PRESS.x >= r.x && PRESS.x <= r.x + r.w && PRESS.y >= r.y && PRESS.y <= r.y + r.h;
-  const [fill, edge] = BTN_FILL[k];
+  let [fill, edge] = BTN_FILL[k];
   const dy = pressed ? 3 : 0;
+  // over the 3D room: black lacquer with a brass hairline, hanji paper, dancheong vermilion, celadon (flat fills, no gloss shapes)
+  const world = v3.on;
+  if (world) [fill, edge] = WORLD_FILL[k](ctx, r.y, r.h);
   ctx.save();
   if (!disabled) { roundPath(ctx, r.x, r.y + (pressed ? 2 : 5), r.w, r.h, 18); ctx.fillStyle = pressed ? 'rgba(8,10,40,0.25)' : 'rgba(8,10,40,0.34)'; ctx.fill(); }
   roundPath(ctx, r.x, r.y + dy, r.w, r.h, 18);
   ctx.fillStyle = fill; ctx.fill();
   if (pressed) { ctx.fillStyle = 'rgba(8,10,40,0.16)'; ctx.fill(); }
-  ctx.lineWidth = 1.5; ctx.strokeStyle = edge; ctx.stroke();
+  ctx.lineWidth = world ? 2 : 1.5; ctx.strokeStyle = edge; ctx.stroke();
+  if (world && !disabled && (k === 'dark' || k === 'primary')) { roundPath(ctx, r.x + 4, r.y + dy + 4, r.w - 8, r.h - 8, 14); ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(232,190,104,0.45)'; ctx.stroke(); }
   ctx.restore();
-  return { dy, light: primary || active || dark };
+  return { dy, light: primary || active || dark || (world && disabled) };
 }
 
 // A flat pill. opts: primary (vermilion), active (teal), disabled, sub (small second line), size (font px)
@@ -73,12 +87,19 @@ export function fitPx(ctx, text, weight, px, maxW, min = 12) {
 }
 
 export function panel(ctx, x, y, w, h, opts = {}) {
-  const { r = 26, fill = C.paper, stroke = 'rgba(28,37,82,0.5)', shadow = true } = opts;
+  let { r = 26, fill = C.paper, stroke = 'rgba(28,37,82,0.5)', shadow = true } = opts;
+  let inner = false;
+  if (v3.on && typeof fill === 'string') {
+    // the HUD plaques belong to the room: indigo cards become black lacquer with a brass hairline, cream cards hanji paper
+    if (fill.startsWith('rgba(30,22,6')) { fill = lacquer(ctx, y, h); inner = true; if (!opts.stroke || /255,246,228/.test(stroke)) stroke = '#b48a4c'; }
+    else if (fill.startsWith('rgba(255,246,228')) { fill = '#f4e7c9'; if (/28,37,82/.test(stroke)) stroke = '#8a5a2c'; }
+  }
   ctx.save();
   if (shadow) { roundPath(ctx, x, y + 6, w, h, r); ctx.fillStyle = 'rgba(10,14,50,0.38)'; ctx.fill(); }
   roundPath(ctx, x, y, w, h, r);
   ctx.fillStyle = fill; ctx.fill();
   ctx.lineWidth = 2.5; ctx.strokeStyle = stroke; ctx.stroke();
+  if (inner && w > 24 && h > 24) { roundPath(ctx, x + 4, y + 4, w - 8, h - 8, Math.max(4, r - 4)); ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(232,190,104,0.4)'; ctx.stroke(); }
   ctx.restore();
 }
 
@@ -141,7 +162,7 @@ export function flowLayout(ctx, widgets, scale, o = {}) {
         ctx.font = `700 ${fs}px ${FONT}`;
         const lines = wrapLines(ctx, g.label, cw - 28);
         const sub = g.sub ? wrapLines(ctx, g.sub, cw - 28).length : 0;
-        const h = Math.max((g.h ?? 84) * hs, lines.length * fs * 1.15 + sub * fs * 0.72 + 34);
+        const h = Math.max((g.h ?? 84) * hs, lines.length * fs * 1.15 + sub * fs * 0.72 + 34 + (g.icon ? Math.min(40, fs * 1.35) + 6 : 0));
         hmax = Math.max(hmax, h);
         return { g, lines, h, subLines: sub };
       });
@@ -173,7 +194,7 @@ export function flowLayout(ctx, widgets, scale, o = {}) {
       ctx.font = `700 ${fs}px ${FONT}`;
       const lines = wrapLines(ctx, wd.label, w0 - 28);
       const sub = wd.sub ? wrapLines(ctx, wd.sub, w0 - 28).length : 0;
-      const h = Math.max((wd.h ?? 84) * hs, lines.length * fs * 1.15 + sub * fs * 0.72 + 34);
+      const h = Math.max((wd.h ?? 84) * hs, lines.length * fs * 1.15 + sub * fs * 0.72 + 34 + (wd.icon ? Math.min(40, fs * 1.35) + 6 : 0));
       out.push({ w: wd, x: x0, y, wd: w0, h, fs, lines }); y += h + GAP;
     }
   }
@@ -210,8 +231,10 @@ function drawButtonRect(ctx, r, it, wd) {
   ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
   ctx.font = `700 ${it.fs}px ${FONT}`;
   const subLines = wd.sub ? (() => { ctx.font = `400 ${Math.round(it.fs * 0.72)}px ${FONT}`; const l = wrapLines(ctx, wd.sub, r.w - 28); ctx.font = `700 ${it.fs}px ${FONT}`; return l; })() : [];
-  const total = it.lines.length * it.fs * 1.15 + subLines.length * it.fs * 0.72;
+  const iconH = wd.icon ? Math.min(40, it.fs * 1.35) : 0;
+  const total = it.lines.length * it.fs * 1.15 + subLines.length * it.fs * 0.72 + (iconH ? iconH + 6 : 0);
   let y = r.y + dy + (r.h - total) / 2 + it.fs * 0.88;
+  if (iconH) { drawIcon(ctx, wd.icon, r.x + r.w / 2, y - it.fs * 0.88 + iconH / 2, iconH, ctx.fillStyle); y += iconH + 6; }
   it.lines.forEach((l) => { ctx.fillText(l, r.x + r.w / 2, y); y += it.fs * 1.15; });
   if (subLines.length) {
     ctx.font = `400 ${Math.round(it.fs * 0.72)}px ${FONT}`; ctx.globalAlpha = 0.85;
@@ -223,6 +246,20 @@ function drawButtonRect(ctx, r, it, wd) {
     ctx.font = `400 ${Math.round(it.fs * 0.7)}px ${FONT}`; ctx.textAlign = 'right'; ctx.fillStyle = light ? '#ffe9a0' : '#a8301f';
     ctx.fillText('★'.repeat(wd.stars) + '☆'.repeat(5 - wd.stars), r.x + r.w - 16, r.y + dy + it.fs * 0.95);
   }
+  ctx.restore();
+}
+// Small line icons for the menu buttons (drawn, no image files).
+export function drawIcon(ctx, name, cx, cy, s, col) {
+  ctx.save(); ctx.translate(cx, cy); ctx.scale(s / 40, s / 40);
+  ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = 3.2; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  const P = (f) => { ctx.beginPath(); f(); ctx.stroke(); };
+  if (name === 'learn') { P(() => { ctx.moveTo(-16, 14); ctx.lineTo(-16, 6); ctx.lineTo(-6, 6); ctx.lineTo(-6, -3); ctx.lineTo(4, -3); ctx.lineTo(4, -12); ctx.lineTo(16, -12); ctx.lineTo(16, 14); ctx.closePath(); }); ctx.beginPath(); ctx.arc(10, -17, 3.4, 0, Math.PI * 2); ctx.fill(); }
+  else if (name === 'watch') { P(() => { ctx.moveTo(-18, 0); ctx.quadraticCurveTo(0, -18, 18, 0); ctx.quadraticCurveTo(0, 18, -18, 0); }); ctx.beginPath(); ctx.arc(0, 0, 6, 0, Math.PI * 2); ctx.fill(); }
+  else if (name === 'howto') { P(() => { ctx.moveTo(-15, 14); ctx.quadraticCurveTo(-4, -26, 12, 4); }); ctx.beginPath(); ctx.arc(12, 9, 5, 0, Math.PI * 2); ctx.fill(); ctx.setLineDash([1, 5]); P(() => { ctx.moveTo(-15, 16); ctx.lineTo(15, 16); }); ctx.setLineDash([]); }
+  else if (name === 'rules') { P(() => { roundPath(ctx, -13, -17, 26, 34, 4); }); for (const yy of [-8, 0, 8]) P(() => { ctx.moveTo(-7, yy); ctx.lineTo(7, yy); }); }
+  else if (name === 'about') { P(() => { ctx.arc(0, 0, 16, 0, Math.PI * 2); }); P(() => { ctx.moveTo(0, -1); ctx.lineTo(0, 9); }); ctx.beginPath(); ctx.arc(0, -8, 2.4, 0, Math.PI * 2); ctx.fill(); }
+  else if (name === 'settings') { for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4; P(() => { ctx.moveTo(Math.cos(a) * 11, Math.sin(a) * 11); ctx.lineTo(Math.cos(a) * 17, Math.sin(a) * 17); }); } P(() => { ctx.arc(0, 0, 11, 0, Math.PI * 2); }); P(() => { ctx.arc(0, 0, 4.5, 0, Math.PI * 2); }); }
+  else if (name === 'play') { ctx.beginPath(); ctx.moveTo(-9, -13); ctx.lineTo(13, 0); ctx.lineTo(-9, 13); ctx.closePath(); ctx.fill(); }
   ctx.restore();
 }
 export function flowHit(lay, top, scroll, x, y) {

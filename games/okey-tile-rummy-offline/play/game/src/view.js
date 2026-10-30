@@ -5,8 +5,9 @@ import {
   REF_BACK, REF_NEXT, TEXT_SCALES, REF_PANEL, LIMIT_BTN, setBtnRect, stepRect, inRect,
 } from './layout.js';
 import { drawLockup, drawMoreLine } from './brand.js';
+import { v3, covers } from './v3.js';
 import {
-  drawTile, drawBack, drawTable, drawTitleBg, button, pill, roundPath, fitFont, fitWrap, wrapLines, drawAvatar, tulip, NUM_FONT, DISPLAY, INK, drawPip, setTextFloor,
+  drawTile, drawBack, drawTable, drawTitleBg, recordRect, plaque, button, pill, roundPath, fitFont, fitWrap, wrapLines, drawAvatar, tulip, NUM_FONT, DISPLAY, INK, drawPip, setTextFloor,
 } from './art.js';
 import * as ART from './art.js';
 import { ABOUT, HOWTO, RULES } from './content.js';
@@ -35,11 +36,13 @@ const FLOATERS = Array.from({ length: 14 }, (_, i) => ({
 }));
 
 function renderTitle(ctx, S) {
-  drawTitleBg(ctx);
+  const c3 = v3.rec !== null;            // a 3D scene covers the title: the tiles/rack below are recorded for it, the flat bg/floaters fade out
+  if (!c3 || v3.flatA > 0.01) { ctx.save(); if (c3) ctx.globalAlpha = v3.flatA; drawTitleBg(ctx); ctx.restore(); }
   const T = LAY.title, k = T.k;
+  if (c3) recordRect(ctx, 'frame', T.bx - 14, T.ulY - 40 * k, T.bw + 28, T.stats2 + 26 * k - (T.ulY - 40 * k), { style: 'mat', r: 36 });
   // drifting tiles in the background
   const cyc = H + 220;
-  for (const f of FLOATERS) {
+  if (!c3) for (const f of FLOATERS) {
     const y = ((f.y0 * cyc - S.t * f.sp) % cyc + cyc) % cyc - 110;
     const w = 54 * f.sz, h = 76 * f.sz;
     ctx.save(); ctx.globalAlpha = 0.5;
@@ -53,6 +56,7 @@ function renderTitle(ctx, S) {
     const x = x0 + i * (tw + gap) * kk, y = T.letterY + bob - Math.max(0, 1 - clamp01((S.t - i * 0.12) / 0.6)) * 400;
     ctx.save();
     ctx.translate(x + tw * kk / 2, y + th * kk / 2); ctx.rotate(Math.sin(S.t * 0.8 + i) * 0.03 + (i % 2 ? 0.02 : -0.02)); ctx.scale(kk, kk); ctx.translate(-tw / 2, -th / 2);
+    if (c3) { recordRect(ctx, 'letter', 0, 0, tw, th - 10, { ch, i }); if (v3.flatA <= 0.01) { ctx.restore(); return; } ctx.globalAlpha = v3.flatA; }
     ctx.shadowColor = 'rgba(0,0,0,0.55)'; ctx.shadowBlur = 26; ctx.shadowOffsetY = 12;
     roundPath(ctx, 0, 0, tw, th, 20); ctx.fillStyle = '#f6eed6'; ctx.fill();
     ctx.shadowColor = 'transparent';
@@ -97,14 +101,17 @@ function renderTitle(ctx, S) {
   let x = -(showcase.reduce((a, e) => a + (e ? pitch : 20), 0) - 4) / 2;
   ctx.save(); ctx.translate(T.showX + T.showW / 2, T.showY); ctx.scale(ks, ks);
   const pw = T.showW / ks;
+  if (c3) { recordRect(ctx, 'frame', -pw / 2, 0, pw, 120, { style: 'showcase' }); ctx.globalAlpha = v3.flatA; }
+  if (!c3 || v3.flatA > 0.01) {
   roundPath(ctx, -pw / 2, 0, pw, 120, 26); ctx.fillStyle = 'rgba(74,43,23,0.85)'; ctx.fill();
   ctx.lineWidth = 2.5; ctx.strokeStyle = '#d6aa4f'; ctx.stroke();
   roundPath(ctx, -pw / 2 + 10, 86, pw - 20, 12, 6); ctx.fillStyle = '#8e5a33'; ctx.fill();
+  }
   showcase.forEach((e, i) => {
     if (!e) { x += 20; return; }
     const bob = Math.sin(S.t * 2 + i * 0.7) * 2.5;
-    if (e === 'okey') drawTile(ctx, 2 * 13 + 9, { key: 2 * 13 + 9 }, x, 12 + bob, stw, sth);
-    else drawTile(ctx, e[0] * 13 + e[1] - 1, null, x, 12 + bob, stw, sth);
+    if (e === 'okey') drawTile(ctx, 2 * 13 + 9, { key: 2 * 13 + 9 }, x, 12 + bob, stw, sth, { plane: 'show' });
+    else drawTile(ctx, e[0] * 13 + e[1] - 1, null, x, 12 + bob, stw, sth, { plane: 'show' });
     x += pitch;
   });
   ctx.restore();
@@ -289,6 +296,8 @@ function seatName(S, seat) { return (S.prefs.terms === 'tr' ? SEAT_NAMES_TR : SE
 function drawPlate(ctx, S, seat) {
   const r = PLATE[seat], d = S.d;
   const active = d && d.turn === seat && d.phase !== 'over' && !S.over;
+  if (v3.rec) plaque(ctx, r.x, r.y, r.w, r.h, 16, { kind: active ? 'teal' : 'wood', glow: active ? `rgba(255,226,138,${0.8 + 0.2 * Math.sin(S.t * 6)})` : null });
+  else {
   ctx.save();
   if (active) { ctx.shadowColor = '#ffe28a'; ctx.shadowBlur = 20 + Math.sin(S.t * 6) * 5; }
   roundPath(ctx, r.x, r.y, r.w, r.h, 18);
@@ -296,6 +305,7 @@ function drawPlate(ctx, S, seat) {
   ctx.fillStyle = g; ctx.fill(); ctx.shadowColor = 'transparent';
   ctx.lineWidth = active ? 3 : 1.5; ctx.strokeStyle = active ? '#ffe28a' : 'rgba(233,196,106,0.4)'; ctx.stroke();
   ctx.restore();
+  }
   drawAvatar(ctx, seat, r.x + 26, r.y + r.h / 2, 18);
   txt(ctx, seatName(S, seat).slice(0, 1), r.x + 26, r.y + r.h / 2 + 1, 20, '#3a2406', 'center', 800);
   const score = S.match.scores[seat];
@@ -305,7 +315,8 @@ function drawPlate(ctx, S, seat) {
 }
 
 function rackFrame(ctx, x, y, w, h) {
-  ctx.save();
+  if (v3.rec) { recordRect(ctx, 'frame', x, y, w, h, { style: 'opp' }); if (v3.flatA <= 0.01) return; }
+  ctx.save(); if (v3.rec) ctx.globalAlpha = v3.flatA;
   ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 12; ctx.shadowOffsetY = 4;
   roundPath(ctx, x, y, w, h, 12);
   const g = ctx.createLinearGradient(0, y, 0, y + h); g.addColorStop(0, '#6b4126'); g.addColorStop(1, '#3b2112');
@@ -317,20 +328,20 @@ function drawBacksRow(ctx, n, B) {
   const w = 34 * B.s, h = 48 * B.s, step = B.step;
   const total = Math.max(0, (n - 1) * step + w);
   rackFrame(ctx, B.x - B.fw / 2, B.y - 8, B.fw, h + 16);
-  for (let i = 0; i < n; i++) drawBack(ctx, B.x - total / 2 + i * step, B.y, w, h);
+  for (let i = 0; i < n; i++) drawBack(ctx, B.x - total / 2 + i * step, B.y, w, h, { lift: 1.6 });
 }
 function drawBacksCol(ctx, n, B) {
   // rotated tiles stacked top to bottom, standing in a small rack
   const w = 34 * B.s, h = 48 * B.s, step = B.step;
   rackFrame(ctx, B.x - 29 * B.s, B.y - 8, 58 * B.s, B.colH);
-  for (let i = 0; i < n; i++) drawBack(ctx, B.x - w / 2 + 3 * B.s, B.y + i * step, w, h, { rot: Math.PI / 2 });
+  for (let i = 0; i < n; i++) drawBack(ctx, B.x - w / 2 + 3 * B.s, B.y + i * step, w, h, { rot: Math.PI / 2, lift: 1.6 });
 }
 
 function drawStack(ctx, S, hot) {
   const d = S.d, n = d ? d.stack.length : 0;
   const c = STACK_C;
   const layers = Math.min(7, Math.ceil(n / 7));
-  for (let i = layers; i >= 0; i--) drawBack(ctx, c.x - TILE_S.w / 2 - i * 1.4, c.y - TILE_S.h / 2 - i * 1.6, TILE_S.w, TILE_S.h);
+  for (let i = layers; i >= 0; i--) drawBack(ctx, c.x - TILE_S.w / 2 - i * 1.4, c.y - TILE_S.h / 2 - i * 1.6, TILE_S.w, TILE_S.h, { lift: i * 0.28 });
   if (hot) {
     ctx.save();
     ctx.shadowColor = '#ffe28a'; ctx.shadowBlur = 22; ctx.lineWidth = 3; ctx.strokeStyle = `rgba(255,226,138,${0.6 + 0.4 * Math.sin(S.t * 7)})`;
@@ -351,7 +362,7 @@ function drawPiles(ctx, S, hotTake, hotDiscard) {
     for (let i = from; i < shown.length; i++) {
       const id = shown[i];
       const top = i === shown.length - 1;
-      drawTile(ctx, id, okey, c.x - TILE_S.w / 2 + jitter(id, 1) * 6, c.y - TILE_S.h / 2 + jitter(id, 2) * 6, TILE_S.w, TILE_S.h, { rot: jitter(id, 3) * 0.14, dim: top ? 0 : 0.18 });
+      drawTile(ctx, id, okey, c.x - TILE_S.w / 2 + jitter(id, 1) * 6, c.y - TILE_S.h / 2 + jitter(id, 2) * 6, TILE_S.w, TILE_S.h, { rot: jitter(id, 3) * 0.14, dim: top ? 0 : 0.18, lift: (i - from) * 0.9 });
     }
     if (shown.length > 1) { pill(ctx, c.x + 14, c.y + TILE_S.h / 2 - 4, 30, 22, 'rgba(0,0,0,0.55)', null); txt(ctx, String(pile.length), c.x + 29, c.y + TILE_S.h / 2 + 7, 15, '#f7efd8', 'center', 700); }
   }
@@ -390,9 +401,10 @@ function drawHud(ctx, S) {
   else txt(ctx, `${L(S, 'stack')} ${d.stack.length}`, dl.x, dl.y2, 17, 'rgba(247,239,216,0.7)', 'left', 600, NUM_FONT, dl.maxW);
   // the okey chip
   const r = HUD_OKEY;
-  roundPath(ctx, r.x, r.y, r.w, r.h, 18); ctx.fillStyle = 'rgba(0,0,0,0.38)'; ctx.fill();
-  ctx.lineWidth = 2; ctx.strokeStyle = '#e3b44c'; ctx.stroke();
-  drawTile(ctx, d.indicator === undefined ? 0 : (d.okey.c * 13 + d.okey.n - 1), d.okey, r.x + 10, r.y + 6, 34, 48);
+  if (v3.rec) plaque(ctx, r.x, r.y, r.w, r.h, 18, { kind: 'dark' });
+  else { roundPath(ctx, r.x, r.y, r.w, r.h, 18); ctx.fillStyle = 'rgba(0,0,0,0.38)'; ctx.fill();
+  ctx.lineWidth = 2; ctx.strokeStyle = '#e3b44c'; ctx.stroke(); }
+  drawTile(ctx, d.indicator === undefined ? 0 : (d.okey.c * 13 + d.okey.n - 1), d.okey, r.x + 10, r.y + 6, 34, 48, { hud: true });
   txt(ctx, L(S, 'okeyIs'), r.x + 54, r.y + 19, 16, '#e3b44c', 'left', 800);
   txt(ctx, tileLabel(S, d.okey.c * 13 + d.okey.n - 1), r.x + 54, r.y + 41, 22, '#fff2c8', 'left', 700, NUM_FONT, r.w - 64);
 }
@@ -441,11 +453,11 @@ function drawRack(ctx, S, V) {
     else if (fin && fin.has(id)) glow = '#7dffb0';
     else if (isNew) glow = `rgba(255,226,138,${0.55 + 0.35 * Math.sin(S.t * 6)})`;
     const lift = sel ? -16 : 0;
-    drawTile(ctx, id, okey, q.x, q.y + lift, RACK.tw, RACK.th, { glow });
+    drawTile(ctx, id, okey, q.x, q.y + lift, RACK.tw, RACK.th, { glow, plane: 'rack', lift: sel ? 0.9 : 0 });
     if (S.demoReveal && S.demoReveal.phase === 'discard' && S.demoReveal.discard !== id) { ctx.save(); ctx.globalAlpha = 0.5; ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 2; roundPath(ctx, q.x + 1, q.y + 1, RACK.tw - 2, RACK.th - 6, 10); ctx.stroke(); ctx.restore(); }
   }
   if (drag) {
-    drawTile(ctx, drag.id, okey, drag.x - RACK.tw / 2 * 1.08, drag.y - RACK.th / 2 * 1.08 - 10, RACK.tw * 1.08, RACK.th * 1.08, { glow: 'rgba(255,255,255,0.5)' });
+    drawTile(ctx, drag.id, okey, drag.x - RACK.tw / 2 * 1.08, drag.y - RACK.th / 2 * 1.08 - 10, RACK.tw * 1.08, RACK.th * 1.08, { glow: 'rgba(255,255,255,0.5)', plane: 'drag', lift: 2.2 });
   }
 }
 
@@ -456,15 +468,15 @@ function drawFlights(ctx, S) {
     const k = ease(clamp01(f.t / f.dur));
     const x = f.x0 + (f.x1 - f.x0) * k, y = f.y0 + (f.y1 - f.y0) * k - Math.sin(k * Math.PI) * 36;
     const w = f.w0 + (f.w1 - f.w0) * k, h = f.h0 + (f.h1 - f.h0) * k;
-    const rot = f.r0 + (f.r1 - f.r0) * k;
+    const rot = f.r0 + (f.r1 - f.r0) * k, fl = 1.2 + Math.sin(k * Math.PI) * 3;
     if (f.flip) {
       // a dealt tile turns face up in mid-air: squeeze the back away, then open the face
       const sq = Math.max(0.04, Math.abs(Math.cos(k * Math.PI)));
       const ww = w * sq;
-      if (k < 0.5) drawBack(ctx, x - ww / 2, y - h / 2, ww, h, { rot });
-      else drawTile(ctx, f.id, okey, x - ww / 2, y - h / 2, ww, h, { rot });
-    } else if (f.face) drawTile(ctx, f.id, okey, x - w / 2, y - h / 2, w, h, { rot });
-    else drawBack(ctx, x - w / 2, y - h / 2, w, h, { rot });
+      if (k < 0.5) drawBack(ctx, x - ww / 2, y - h / 2, ww, h, { rot, lift: fl });
+      else drawTile(ctx, f.id, okey, x - ww / 2, y - h / 2, ww, h, { rot, lift: fl });
+    } else if (f.face) drawTile(ctx, f.id, okey, x - w / 2, y - h / 2, w, h, { rot, lift: fl });
+    else drawBack(ctx, x - w / 2, y - h / 2, w, h, { rot, lift: fl });
   }
 }
 
@@ -490,8 +502,9 @@ function drawControls(ctx, S, V) {
     // meld counter
     const inSets = V.chunks.filter((c) => c.valid).reduce((a, c) => a + c.ids.length, 0);
     const r = MELDS_BAR;
-    roundPath(ctx, r.x, r.y, r.w, r.h, 18); ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fill();
-    ctx.lineWidth = 1.5; ctx.strokeStyle = inSets >= 14 ? '#7dffb0' : 'rgba(233,196,106,0.4)'; ctx.stroke();
+    if (v3.rec) plaque(ctx, r.x, r.y, r.w, r.h, 18, { kind: 'dark', glow: inSets >= 14 ? '#7dffb0' : null });
+    else { roundPath(ctx, r.x, r.y, r.w, r.h, 18); ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fill();
+    ctx.lineWidth = 1.5; ctx.strokeStyle = inSets >= 14 ? '#7dffb0' : 'rgba(233,196,106,0.4)'; ctx.stroke(); }
     txt(ctx, `${L(S, 'inSets')} ${Math.min(inSets, 14)}/14`, r.x + r.w / 2, r.y + r.h / 2, 24, inSets >= 14 ? '#9dffc2' : '#f7efd8', 'center', 700, NUM_FONT, r.w - 16);
     if (S.sel >= 0 && mine && d.phase === 'discard') button(ctx, DISCARD_BTN, `${L(S, 'discard')}  ${tileLabel(S, S.sel)}`, { primary: true, size: 24 });
   } else if (S.scene === 'demo') {
@@ -505,8 +518,9 @@ function drawControls(ctx, S, V) {
   }
   // the status line
   const r = STATUS;
-  roundPath(ctx, r.x, r.y, r.w, r.h, Math.min(20, r.h / 2)); ctx.fillStyle = 'rgba(0,0,0,0.38)'; ctx.fill();
-  ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(233,196,106,0.3)'; ctx.stroke();
+  if (v3.rec) plaque(ctx, r.x, r.y, r.w, r.h, Math.min(20, r.h / 2), { kind: 'dark' });
+  else { roundPath(ctx, r.x, r.y, r.w, r.h, Math.min(20, r.h / 2)); ctx.fillStyle = 'rgba(0,0,0,0.38)'; ctx.fill();
+  ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(233,196,106,0.3)'; ctx.stroke(); }
   const msg = S.status;
   const fw = fitWrap(ctx, msg.text, 600, 24, r.w - 28, r.h - 8, NUM_FONT, 12);
   ctx.font = `600 ${fw.fs}px ${NUM_FONT}`;
@@ -567,7 +581,7 @@ function drawPause(ctx, S) {
 // ---- result overlays --------------------------------------------------------------------------------------------------
 function miniTiles(ctx, ids, okey, cx, y, tw, th, gap) {
   const total = ids.length * (tw + 2) - 2;
-  ids.forEach((id, i) => drawTile(ctx, id, okey, cx - total / 2 + i * (tw + 2), y, tw, th));
+  ids.forEach((id, i) => drawTile(ctx, id, okey, cx - total / 2 + i * (tw + 2), y, tw, th, { hud: true }));
 }
 
 function drawResult(ctx, S) {
@@ -598,7 +612,7 @@ function drawResult(ctx, S) {
     for (const row of rows) {
       const tot = row.reduce((a, m) => a + m.length * 36 + 16, -16);
       let x = A.cx - tot / 2;
-      for (const m of row) { m.forEach((id, i) => drawTile(ctx, id, S.d.okey, x + i * 36, y, 34, 48)); x += m.length * 36 + 16; }
+      for (const m of row) { m.forEach((id, i) => drawTile(ctx, id, S.d.okey, x + i * 36, y, 34, 48, { hud: true })); x += m.length * 36 + 16; }
       y += 62;
     }
     y += 6;
@@ -615,7 +629,7 @@ function drawResult(ctx, S) {
       for (const row of rows) {
         const tot = row.reduce((a, m) => a + m.length * (tw + 1) + gp, -gp);
         let x = A.cx - tot / 2;
-        for (const m of row) { m.forEach((id, i) => drawTile(ctx, id, S.d.okey, x + i * (tw + 1), yy, tw, th)); x += m.length * (tw + 1) + gp; }
+        for (const m of row) { m.forEach((id, i) => drawTile(ctx, id, S.d.okey, x + i * (tw + 1), yy, tw, th, { hud: true })); x += m.length * (tw + 1) + gp; }
         yy += th + 6;
       }
       y = yy + 8;
@@ -653,7 +667,7 @@ function drawResult(ctx, S) {
       const tw = 28, th = 40, g = 10;
       const tot = groups.reduce((a, m) => a + m.length * (tw + 1) + g, -g);
       let x = B.cx - tot / 2;
-      for (const m of groups) { m.forEach((id, i) => drawTile(ctx, id, S.d.okey, x + i * (tw + 1), y + 32, tw, th)); x += m.length * (tw + 1) + g; }
+      for (const m of groups) { m.forEach((id, i) => drawTile(ctx, id, S.d.okey, x + i * (tw + 1), y + 32, tw, th, { hud: true })); x += m.length * (tw + 1) + g; }
       y += 84;
     }
     if (R.note) {
@@ -692,7 +706,14 @@ export function render(ctx, S, V) {
     case 'limit': renderLimit(ctx, S); break;
     case 'play': case 'demo': {
       const d = S.d;
-      drawTable(ctx);
+      if (v3.rec) {
+        const M = LAY.mat, f = RACK.frame;
+        recordRect(ctx, 'frame', M.x, M.y, M.w, M.h, { style: 'mat', r: 36 });
+        for (const c of PILE_C) recordRect(ctx, 'frame', c.x - (TILE_S.w + 14) / 2, c.y - (TILE_S.h + 16) / 2, TILE_S.w + 14, TILE_S.h + 16, { style: 'spot', r: 11 });
+        recordRect(ctx, 'frame', f.x, f.y, f.w, f.h, { style: 'rack' });
+        for (let r = 0; r < 2; r++) recordRect(ctx, 'frame', f.x + 14, RACK.rowY[r] + RACK.th + 1, f.w - 28, 10, { style: 'ledge' });
+        if (v3.flatA > 0.01) { ctx.save(); ctx.globalAlpha = v3.flatA; drawTable(ctx); ctx.restore(); }
+      } else drawTable(ctx);
       drawHud(ctx, S);
       drawSeats(ctx, S);
       const myDraw = S.scene === 'play' && d.turn === 0 && d.phase === 'draw' && !S.over && S.ui === 'ready';

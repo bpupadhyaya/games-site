@@ -28,10 +28,10 @@ scene.add(hemi, sun, sun.target, rim, fill);
 const cfg = findSingle(4, 4, seeded(5), 'turn') || new Array(16).fill(0);
 const look = LOOKS.sand;
 const run = async () => {
-  const pos = (q.get('pos') || '-0.32,0.5,0.72').split(',').map(Number), at = (q.get('at') || '0.02,0.03,0.0').split(',').map(Number);
+  const pos = (q.get('pos') || '-0.2,0.4,0.62').split(',').map(Number), at = (q.get('at') || '0.03,0.05,0.06').split(',').map(Number);
   camera.position.set(...pos); camera.lookAt(...at); camera.updateMatrixWorld();
-  const finger = await createFinger({ scene, renderer }); finger.approach = new THREE.Vector3(0.75, 0, 0.55);
-  const tip = { drawing: true, x: Number(q.get('tx') || 0.0), z: Number(q.get('tz') || 0.05) };
+  const finger = await createFinger({ scene, renderer, sand, voxel: 0.14 }); finger.approach = new THREE.Vector3(0.75, 0, 0.55);
+  const tip = { drawing: true, x: Number(q.get('tx') || 0.0), z: Number(q.get('tz') || 0.11) };
   for (let i = 0; i < 40; i++) { sand.sync({ W: 4, H: 4, cfg, locked: null, struts: false, hintCell: -1, focus: -1, win: true, lookObj: look, calm: true, snap: true }, 0.05, 1.0 + i * 0.05); finger.update(tip, 0.05, i * 0.05, camera); world.update(0.05, camera, false); }
   await world.ready.catch(() => {});
   for (let i = 0; i < 20; i++) { world.update(0.05, camera, false); finger.update(tip, 0.05, i, camera); sand.sync({ W: 4, H: 4, cfg, locked: null, struts: false, hintCell: -1, focus: -1, win: true, lookObj: look, calm: true, snap: true }, 0.05, 2 + i * 0.05); }

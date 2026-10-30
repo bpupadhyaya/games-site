@@ -7,6 +7,7 @@ import { W, H, TEXT_SCALES, playLayout, inRect, host } from './layout.js';
 import { FONT, SERIF, C, roundPath, drawButton, panel, wrapLines, textShadow } from './ui.js';
 import { drawBall, drawShadow, drawTable, bakedTable, drawCue, drawBridge, drawSpinFace, setHost, ballStyle, BALL } from './art.js';
 import { onLabel, pointsLeft } from './rules.js';
+import { v3, markCam, flatAlpha } from './v3.js';
 
 const TAU = Math.PI * 2;
 export const textScale = (state) => TEXT_SCALES[state.settings.textIdx];
@@ -53,6 +54,13 @@ function drawBalls(ctx, cam, state) {
   }
   list.sort((a, c) => c.y - a.y);
   // shadows first so no shadow falls on a neighbouring ball
+  if (v3.on) {      // the 3D layer draws the balls; only the highlight glow stays flat
+    for (const it of list) {
+      if (it.falling || !state.hl || !state.hl.has || !state.hl.has(it.b.id)) continue;
+      const [X, Y] = cam.px(it.x, it.y, R); drawBall(ctx, X, Y, cam.ballR(it.y, it.x), it.b.id, { alpha: 0.01, glow: 1 });
+    }
+    return;
+  }
   for (const it of list) {
     if (it.falling) continue;
     const pr = cam.px(it.x, it.y), r = cam.ballR(it.y, it.x);
@@ -154,6 +162,12 @@ function drawCueAndHand(ctx, cam, state) {
   const w = state.w, c = w && ballById(w, CUE);
   if (!c || !c.on || state.ctl === 'roll' || state.ctl === 'verdict') return;
   if (state.phaseKind === 'place' && state.humanTurn) return;
+  const a = state.aim, gap = cueGap(state);
+  if (v3.on) return;       // the 3D layer draws the cue
+  drawBridge(ctx, cam, c.x, c.y, a.angle, 0.22, 1);
+  drawCue(ctx, cam, c.x, c.y, a.angle, Math.max(0.0, gap), { alpha: 1 });
+}
+export function cueGap(state) {
   const a = state.aim;
   let pull = a.pulling ? a.pull : (state.stroke ? 0 : a.pull);
   let gap = 0.07 + pull * 0.34;
@@ -165,8 +179,7 @@ function drawCueAndHand(ctx, cam, state) {
     if (k < 0.55) gap = 0.07 + back * (k / 0.55);
     else { const kk = (k - 0.55) / 0.45; gap = 0.07 + back * (1 - kk * kk) - 0.07 * kk * kk; }
   }
-  drawBridge(ctx, cam, c.x, c.y, a.angle, 0.22 + gap * 0.0, alpha);
-  drawCue(ctx, cam, c.x, c.y, a.angle, Math.max(0.0, gap), { alpha });
+  return gap;
 }
 
 // ---- fx -----------------------------------------------------------------------------------------------------------------------------
@@ -463,8 +476,8 @@ function drawTarget(ctx, cam, state) {
 export function renderPlay(ctx, state) {
   const lay = layoutFor(state), cam = camFor(state);
   setHost(ctx);
-  const baked = bakedTable(ctx, cam, camKey);
-  if (baked) ctx.drawImage(baked, 0, 0); else drawTable(ctx, cam);
+  markCam(ctx, cam);
+  if (!v3.on) { const baked = bakedTable(ctx, cam, camKey); if (baked) ctx.drawImage(baked, 0, 0); else drawTable(ctx, cam); }
   if (state.f && state.f.inHand && state.humanTurn && state.ctl !== 'roll') drawD(ctx, cam, state);
   drawTarget(ctx, cam, state);
   drawGuide(ctx, cam, state);
@@ -531,6 +544,8 @@ export function drawAttract(ctx, state) {
   if (attractLay !== lay || !attractCam) { attractCam = makeCamera(lay.region, lay.orient); attractLay = lay; }
   const cam = attractCam;
   setHost(ctx);
+  markCam(ctx, cam);
+  if (v3.on) return;      // the 3D layer draws the table and the still-life balls
   ctx.fillStyle = '#07120d'; ctx.fillRect(0, 0, W, H);
   const baked = bakedTable(ctx, cam, `attract|${W}x${H}|${lay.mode}|${host.t},${host.b},${host.l},${host.r}`);
   if (baked) ctx.drawImage(baked, 0, 0); else drawTable(ctx, cam);
@@ -541,4 +556,4 @@ export function drawAttract(ctx, state) {
   }
   for (const b of balls) { const [X, Y] = cam.px(b.x, b.y, R); drawBall(ctx, X, Y, cam.ballR(b.y, b.x), b.id, { mark: [b.mx ?? 0, b.my ?? 0, b.mz ?? 1] }); }
 }
-void nameOf; void SPOT; void ballStyle; void BALL; void C; void drawButton; void inRect; void GEOM;
+void flatAlpha; void nameOf; void SPOT; void ballStyle; void BALL; void C; void drawButton; void inRect; void GEOM;

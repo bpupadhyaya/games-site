@@ -8,6 +8,7 @@ import {
   wrapLines, fitFont, textBlock, setPress, drawButton, drawPanel, drawIcon, lcg, setMinPx, minPx,
 } from './art.js';
 import { page as pageContent } from './content.js';
+import { v3 } from './v3.js';
 import { LESSONS } from './lessons.js';
 
 const AMBER = '#ffb83a', CYAN = '#4fd6ee', RED = '#ff5a44', GOLD = '#ffe08a';
@@ -45,6 +46,7 @@ function drawPlate(ctx, state, B) {
   ctx.save(); ctx.translate(-F0 + ph / 2, -F0 + pw / 2); ctx.rotate(Math.PI / 2); drawBoard(ctx, state.theme, -pw / 2, -ph / 2, o); ctx.restore();
 }
 function drawBoardScene(ctx, state, T, L) {
+  if (v3.on) { drawBoardScene3D(ctx, state, T, L); return; }
   const B = L.board, xy = xyOf(state, L), t = state.t, pulse = 0.5 + 0.5 * Math.sin(t * 5), S = S0;
   const g = state.g, an = state.anim;
   boardK = B.k;
@@ -153,6 +155,90 @@ function drawBoardScene(ctx, state, T, L) {
   }
   ctx.restore();
 }
+
+// ---- the same overlays when the 3D scene draws the board and the stones ----------------------------------------------
+// Rings and glows lying on the board are handed to the presenter (v3.marks, lit planes on the board); arrows, badges, the dotted route
+// and the floating numbers are drawn here on top, at the screen points of the tilted board (v3.cv).
+const RGB = { [AMBER]: '255,184,58', [CYAN]: '79,214,238', [RED]: '255,90,68', [GOLD]: '255,224,138', '#ffffff': '255,255,255' };
+const rgbOf = (c) => {
+  if (!c) return RGB[GOLD];
+  if (RGB[c]) return RGB[c];
+  const m = /rgba?\(\s*(\d+)[ ,]+(\d+)[ ,]+(\d+)/.exec(c); if (m) return `${m[1]},${m[2]},${m[3]}`;
+  const h = /^#([0-9a-f]{6})$/i.exec(c); if (h) { const n = parseInt(h[1], 16); return `${n >> 16},${(n >> 8) & 255},${n & 255}`; }
+  return RGB[GOLD];
+};
+function drawBoardScene3D(ctx, state, T, L) {
+  const g = state.g, an = state.anim, k = v3.k || 0.5, pulse = 0.5 + 0.5 * Math.sin(state.t * 5);
+  const cp = (p) => L.cpt(p, state.flip), sc = (p, lift = 1.2) => { const c = cp(p); return v3.cv(c.x, c.y, lift); };
+  boardK = k;
+  const mark = (p, r, col, a, dot = false) => { const c = cp(p); v3.marks.push({ x: c.x, y: c.y, r, rgb: rgbOf(col), a, dot }); };
+  const route = (pts, color, wd, dash) => {
+    ctx.save(); ctx.setLineDash(dash); ctx.lineCap = 'round'; ctx.lineWidth = wd * k * 1.6; ctx.strokeStyle = color; ctx.beginPath();
+    pts.forEach((p, i) => { const q = sc(p, 0.9); if (i === 0) ctx.moveTo(q.x, q.y); else ctx.lineTo(q.x, q.y); }); ctx.stroke(); ctx.restore();
+  };
+  const arrow = (a, b, color, wd, head, gap) => drawArrow(ctx, sc(a, 2), sc(b, 2), color, wd * k * 1.5, head * k * 1.5, gap * k * 1.5);
+  const bdg = (p, text, color) => { const q = sc(p, 3); badge(ctx, q.x + 26 * k, q.y - 26 * k, text, color); };
+  if (state.trail && state.trail.length) { route([state.trail[0].from, ...state.trail.map((s) => s.to)], 'rgba(255,224,150,0.6)', 4, [2, 10]); mark(state.trail[0].from, 20, GOLD, 0.45); }
+  if (g.chain && g.chain.visited.length > 1) route(g.chain.visited, 'rgba(255,200,90,0.7)', 6, [1, 11]);
+  if (state.danger && state.dangerSet) for (const p of state.dangerSet) mark(p, STONE_R + 9 + pulse * 3, RED, 0.55 + 0.35 * pulse);
+  if (state.canMove && state.sel < 0 && !g.chain) for (const p of state.canMove) mark(p, STONE_R + 8 + pulse * 3, AMBER, 0.5 + 0.4 * pulse);
+  if (state.targets && state.targets.length && !state.choice) {
+    const seen = new Set();
+    for (const s of state.targets) {
+      if (seen.has(s.to)) continue; seen.add(s.to);
+      const all = state.targets.filter((o) => o.to === s.to), n = Math.max(...all.map((o) => o.victims.length));
+      if (n > 0) { mark(s.to, 30 + pulse * 3, AMBER, 0.9, true); mark(s.to, 26 + pulse * 3, GOLD, 0.85); bdg(s.to, String(n), GOLD); }
+      else mark(s.to, 13 + pulse * 1.5, '#ffffff', 0.8, true);
+    }
+  }
+  if (state.sel >= 0) { mark(state.sel, STONE_R + 10, GOLD, 0.95); mark(state.sel, STONE_R + 18 + pulse * 4, GOLD, 0.5); }
+  if (state.hintPulse) for (const p of state.hintPulse) mark(p, STONE_R + 8, GOLD, 0.8);
+  if (state.choice) {
+    const q0 = state.choice.to;
+    for (const o of state.choice.options) {
+      const col = o.kind === 'approach' ? AMBER : CYAN;
+      for (const v of o.victims) mark(v, STONE_R + 6 + pulse * 3, col, 0.95);
+      arrow(o.kind === 'approach' ? q0 : o.from, o.victims[o.victims.length - 1], col, 7, 18, 30);
+    }
+    mark(state.choice.from, STONE_R + 8, GOLD, 0.8); mark(q0, 24, GOLD, 0.7, true);
+  }
+  if (state.hint) {
+    const hs = state.hint.steps;
+    for (const s of hs) for (const v of s.victims) mark(v, STONE_R + 5, GOLD, 0.9);
+    hs.forEach((s) => arrow(s.from, s.to, GOLD, 8, 20, 24));
+    hs.forEach((s, i) => bdg(s.to, String(i + 1), GOLD));
+    mark(hs[0].from, STONE_R + 8, GOLD, 0.95);
+  }
+  if (state.reveal) {
+    const rv = state.reveal;
+    for (const p of rv.starts) mark(p, STONE_R + 7, GOLD, 0.55);
+    if (rv.phase === 'chosen') {
+      for (const s of rv.steps) for (const v of s.victims) mark(v, STONE_R + 6 + pulse * 3, s.kind === 'approach' ? AMBER : CYAN, 0.95);
+      rv.steps.forEach((s) => arrow(s.from, s.to, GOLD, 8, 20, 24));
+      rv.steps.forEach((s, i) => bdg(s.to, String(i + 1), GOLD));
+      mark(rv.steps[0].from, STONE_R + 10, GOLD, 0.95);
+    }
+  }
+  if (an && an.t < an.slide) { const a = sc(an.from, 1), b = sc(an.to, 1), e = easeInOut(an.t / an.slide); ctx.save(); ctx.lineCap = 'round'; ctx.strokeStyle = 'rgba(255,224,150,0.35)'; ctx.lineWidth = 8 * k * 1.4; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(a.x + (b.x - a.x) * e, a.y + (b.y - a.y) * e); ctx.stroke(); ctx.restore(); }
+  if (state.kb && state.cursor >= 0) mark(state.cursor, STONE_R + 4, '#ffffff', 0.8);
+  for (const r of state.rings) { const f = r.t / 0.55; v3.marks.push({ x: r.x, y: r.y, r: 20 + f * 80, rgb: rgbOf(r.c), a: 1 - f }); }
+  for (const q of state.parts) { const f = q.t / q.max, c = v3.cv(q.x, q.y, 2); ctx.fillStyle = `rgba(${q.c},${1 - f})`; ctx.beginPath(); ctx.arc(c.x, c.y, Math.max(0.5, q.size * (1 - f * 0.5) * k * 1.2), 0, TAU); ctx.fill(); }
+  for (const fl of state.floats) {
+    const f = fl.t / 1.1, c = v3.cv(fl.x, fl.y, 4); ctx.save(); ctx.globalAlpha = 1 - f * f; ctx.font = `700 ${Math.max(26, (46 + (1 - f) * 8) * k * 1.2)}px ${FONT}`; ctx.textAlign = 'center'; ctx.lineWidth = 8; ctx.strokeStyle = 'rgba(40,12,0,0.8)';
+    ctx.strokeText(fl.text, c.x, c.y - f * 70 * k); ctx.fillStyle = fl.c || GOLD; ctx.fillText(fl.text, c.x, c.y - f * 70 * k); ctx.restore();
+  }
+}
+
+// 3D scenes only: in landscape the control column sits on a dusk plaque (a dark carved panel) so its text never competes with the woven mat.
+function hudPlaque(ctx, T, L) {
+  if (!L.land) return;
+  const x0 = Math.min(L.HDR.menu.x, L.BTN.undo.x) - 14, x1 = Math.max(L.BTN.hint.x + L.BTN.hint.w, L.HDR.tallyL.x + L.HDR.tallyL.w) + 14, y0 = L.U.y0 + 4, y1 = L.U.y1 - 4;
+  ctx.save(); rr(ctx, x0, y0, x1 - x0, y1 - y0, 30);
+  const g = ctx.createLinearGradient(0, y0, 0, y1); g.addColorStop(0, 'rgba(34,12,10,0.78)'); g.addColorStop(1, 'rgba(16,5,6,0.86)'); ctx.fillStyle = g; ctx.fill();
+  ctx.lineWidth = 2.5; ctx.strokeStyle = 'rgba(255,214,140,0.38)'; ctx.stroke();
+  rr(ctx, x0 + 6, y0 + 6, x1 - x0 - 12, y1 - y0 - 12, 25); ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(255,214,140,0.16)'; ctx.stroke();
+  ctx.restore();
+}
 // ---- header, tallies, message and buttons ------------------------------------------------------------------------
 function tally(ctx, r, side, label, count, active, T, thinking, t, sub) {
   ctx.save();
@@ -245,7 +331,7 @@ function banner(ctx, state, T, L) {
 }
 
 function renderPlay(ctx, state, T, L) {
-  drawBackdrop(ctx, state.theme, L.w, L.h);
+  if (!v3.on) drawBackdrop(ctx, state.theme, L.w, L.h); else hudPlaque(ctx, T, L);
   const g = state.g, ai = state.mode === 'ai', myTurn = state.canAct, BTN = L.BTN;
   header(ctx, state, T, L);
   tallies(ctx, state, T, L);
@@ -309,13 +395,15 @@ const OPEN_MOVES = [[12, 22], [13, 22], [14, 22], [21, 22], [21, 22]];
 // The hero scene is designed on a 720 x 640 stage; it is scaled to fit `r` and anchored to the bottom, with the sky, hills and
 // stars extended sideways / upwards so there is never an empty strip. `card` rounds it off (landscape: art left, buttons right).
 function renderHero(ctx, state, T, r, card) {
-  const t = state.t, W = 720;
+  const t = state.t, W = 720, D3 = v3.on;
   ctx.save();
-  if (card) { ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 24; ctx.shadowOffsetY = 8; rr(ctx, r.x, r.y, r.w, r.h, 30); ctx.fillStyle = '#000'; ctx.fill(); ctx.shadowColor = 'transparent'; rr(ctx, r.x, r.y, r.w, r.h, 30); ctx.clip(); }
+  if (D3) ctx.beginPath(), ctx.rect(r.x, r.y, r.w, r.h), ctx.clip();
+  else if (card) { ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 24; ctx.shadowOffsetY = 8; rr(ctx, r.x, r.y, r.w, r.h, 30); ctx.fillStyle = '#000'; ctx.fill(); ctx.shadowColor = 'transparent'; rr(ctx, r.x, r.y, r.w, r.h, 30); ctx.clip(); }
   else { ctx.beginPath(); ctx.rect(r.x, r.y, r.w, r.h); ctx.clip(); }
   const s = Math.min(r.w / W, r.h / 640), ext = Math.max(0, (r.w / s - W) / 2), ey = Math.max(0, (r.h - 640 * s) / s);
   ctx.translate(r.x + (r.w - W * s) / 2, r.y + r.h - 640 * s); ctx.scale(s, s);
   const X0 = -ext - 2, XW = W + ext * 2 + 4, Y0 = -ey - 2;
+  if (!D3) {
   // sunset sky
   const sky = ctx.createLinearGradient(0, Y0, 0, 640);
   sky.addColorStop(0, '#2b0f30'); sky.addColorStop(0.35, '#7a2431'); sky.addColorStop(0.62, '#d9632f'); sky.addColorStop(0.82, '#ffb454'); sky.addColorStop(1, '#ffdf94');
@@ -332,8 +420,10 @@ function renderHero(ctx, state, T, r, card) {
   drawBaobab(ctx, 92, 600, 360, 'rgba(34,8,14,0.92)', 6); drawBaobab(ctx, 628, 610, 300, 'rgba(34,8,14,0.92)', -8); drawBaobab(ctx, 245, 592, 150, 'rgba(60,14,22,0.85)', 3); drawBaobab(ctx, 500, 596, 130, 'rgba(60,14,22,0.85)', -3);
   if (ext > 40) { drawBaobab(ctx, -ext * 0.55, 604, 210, 'rgba(60,14,22,0.85)', 4); drawBaobab(ctx, W + ext * 0.55, 604, 230, 'rgba(60,14,22,0.85)', -4); }
   const gr = ctx.createLinearGradient(0, 590, 0, 640); gr.addColorStop(0, '#2a0b10'); gr.addColorStop(1, T.bg[1]); ctx.fillStyle = gr; ctx.fillRect(X0, 590, XW, 50);
+  }
   // the title
-  ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+  ctx.save(); if (D3) { ctx.translate(0, -34); const vg = ctx.createRadialGradient(W / 2, 168, 20, W / 2, 168, 300); vg.addColorStop(0, 'rgba(26,6,12,0.42)'); vg.addColorStop(1, 'rgba(26,6,12,0)'); ctx.fillStyle = vg; ctx.fillRect(X0, Y0 + 34, XW, 640 - Y0); }
+  ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
   ctx.shadowColor = 'rgba(30,6,0,0.75)'; ctx.shadowBlur = 22; ctx.shadowOffsetY = 6;
   const tg = ctx.createLinearGradient(0, 80, 0, 190); tg.addColorStop(0, '#fff3c4'); tg.addColorStop(0.55, '#ffd36a'); tg.addColorStop(1, '#e08a2c');
   ctx.fillStyle = tg; ctx.font = `700 ${fitFont(ctx, 'Fanorona', 700, 150, 620, 60)}px ${FONT}`; ctx.fillText('Fanorona', W / 2, 168);
@@ -345,6 +435,7 @@ function renderHero(ctx, state, T, r, card) {
   // a living board: the five opening captures, one after another
   const Sm = 50, F = 30, ox = (W - ((COLS - 1) * Sm + F * 2)) / 2, oy = 290;
   const bw = (COLS - 1) * Sm + F * 2, bh = (ROWS - 1) * Sm + F * 2;
+  if (!D3) {
   ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.55)'; ctx.shadowBlur = 24; ctx.shadowOffsetY = 10; rr(ctx, ox, oy, bw, bh, 20); ctx.fillStyle = '#000'; ctx.fill(); ctx.restore();
   const opt = { S: Sm, F, inlay: true, round: 18 };
   // horizontal board: rotate the vertical painting a quarter turn
@@ -352,6 +443,7 @@ function renderHero(ctx, state, T, r, card) {
   const vw = boardBox(opt).w, vh = boardBox(opt).h;
   baked(ctx, `hero:${state.theme}`, -vw / 2, -vh / 2, vw, vh, (c) => paintBoard(c, T, opt), 2);
   ctx.restore();
+  }
   const pt = (p) => { const r = rowOf(p), c = colOf(p); return { x: ox + F + c * Sm, y: oy + F + r * Sm }; };
   const cyc = 5.2, n = Math.floor(t / cyc) % OPEN_MOVES.length, k = (t % cyc) / cyc;
   const [from, to] = OPEN_MOVES[n], b0 = state.startBoard;
@@ -361,7 +453,8 @@ function renderHero(ctx, state, T, r, card) {
     if (kind === 'withdraw') { r = rowOf(from) - dir[0]; c = colOf(from) - dir[1]; }
     while (r >= 0 && r < ROWS && c >= 0 && c < COLS && b0[idx(r, c)] === DARK) { victims.push(idx(r, c)); r += dir[0] * (kind === 'approach' ? 1 : -1); c += dir[1] * (kind === 'approach' ? 1 : -1); } void sgn; }
   const mv = clamp((k - 0.2) / 0.18, 0, 1), pop = clamp((k - 0.38) / 0.16, 0, 1), back = clamp((k - 0.86) / 0.14, 0, 1);
-  for (let p = 0; p < ROWS * COLS; p++) {
+  if (D3) { v3.heroDemo = { board: b0, from, to, mv, pop, back, victims }; }
+  else for (let p = 0; p < ROWS * COLS; p++) {
     const side = b0[p]; if (!side) continue;
     let q = pt(p), o = {};
     if (p === from) { const a = pt(from), b = pt(to), e = easeInOut(mv) * (1 - easeInOut(back)); q = { x: a.x + (b.x - a.x) * e, y: a.y + (b.y - a.y) * e }; o = { lift: Math.sin(Math.PI * clamp(mv, 0, 1)) * (1 - back) * 0.8 }; }
@@ -369,12 +462,19 @@ function renderHero(ctx, state, T, r, card) {
     drawStone(ctx, q.x, q.y, 19, side, T, o);
   }
   ctx.restore();
-  if (card) { ctx.save(); rr(ctx, r.x, r.y, r.w, r.h, 30); ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(255,225,180,0.28)'; ctx.stroke(); ctx.restore(); }
+  if (card && !D3) { ctx.save(); rr(ctx, r.x, r.y, r.w, r.h, 30); ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(255,225,180,0.28)'; ctx.stroke(); ctx.restore(); }
 }
 function renderTitle(ctx, state, T, L) {
-  drawBackdrop(ctx, state.theme, L.w, L.h);
+  if (!v3.on) drawBackdrop(ctx, state.theme, L.w, L.h);
   const tall = state.textIdx >= 3, R = L.title.rows(!!state.saved, tall), sc = tall ? TEXT_SCALES[state.textIdx] : Math.min(TEXT_SCALES[state.textIdx], 1.4);
+  if (v3.on) v3.hero = R.hero;
   renderHero(ctx, state, T, R.hero, L.title.card);
+  if (v3.on) {                                  // a dusk veil behind the buttons so the 3D scene stays calm under them
+    ctx.save();
+    if (L.land) { const x0 = L.title.colX - 70, g = ctx.createLinearGradient(x0, 0, x0 + 90, 0); g.addColorStop(0, 'rgba(14,4,8,0)'); g.addColorStop(1, 'rgba(14,4,8,0.86)'); ctx.fillStyle = g; ctx.fillRect(x0, 0, L.w - x0, L.h); }
+    else { const y0 = R.play.y - 70, g = ctx.createLinearGradient(0, y0, 0, y0 + 90); g.addColorStop(0, 'rgba(14,4,8,0)'); g.addColorStop(1, 'rgba(14,4,8,0.88)'); ctx.fillStyle = g; ctx.fillRect(0, y0, L.w, L.h - y0); }
+    ctx.restore();
+  }
   const fs = Math.min(1, R.f * 1.05), cap = (base, max) => Math.round(Math.min(base * sc, tall ? max : 1e9) * fs);
   if (R.resume) drawButton(ctx, R.resume, 'Continue game', T, { px: cap(32, 44), active: true });
   drawButton(ctx, R.play, 'Play', T, { primary: true, px: cap(46, 60), sub: `vs the computer · ${LEVELS[state.level - 1].name}`, subPx: cap(24, 32) });
@@ -517,7 +617,7 @@ function renderSettings(ctx, state, T, L) {
 
 // ---- Watch & Learn ---------------------------------------------------------------------------------------------------------
 function renderAuto(ctx, state, T, L) {
-  drawBackdrop(ctx, state.theme, L.w, L.h);
+  if (!v3.on) drawBackdrop(ctx, state.theme, L.w, L.h); else hudPlaque(ctx, T, L);
   header(ctx, state, T, L, 'Watch & Learn');
   tallies(ctx, state, T, L);
   drawBoardScene(ctx, state, T, L);
@@ -545,7 +645,7 @@ function renderAuto(ctx, state, T, L) {
 
 // ---- Learn ---------------------------------------------------------------------------------------------------------------------
 function renderLearn(ctx, state, T, L) {
-  drawBackdrop(ctx, state.theme, L.w, L.h);
+  if (!v3.on) drawBackdrop(ctx, state.theme, L.w, L.h); else hudPlaque(ctx, T, L);
   const LS = LESSONS[state.lesson.i], LB = L.LEARN;
   header(ctx, state, T, L, 'Learn');
   // lesson title strip in place of the tallies

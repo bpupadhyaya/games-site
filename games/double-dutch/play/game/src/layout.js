@@ -137,7 +137,7 @@ function build(w, h) {
   {
     const Rr = {};
     const bh = Math.max(80, mb);
-    const pw = Math.min(S.w - 32, mode === 'wide' ? 980 : 640), ph = Math.min(S.h - 40, mode === 'wide' ? 620 : 1100);
+    const pw = Math.min(S.w - 32, mode === 'wide' ? 980 : 640), ph = Math.min(S.h - 40, mode === 'wide' ? 620 : S.w / S.h > 0.6 ? 800 : 1100);   // tablet portrait: tighter panel, no empty band
     Rr.panel = R(S.x + (S.w - pw) / 2, S.y + (S.h - ph) / 2, pw, ph);
     const p = Rr.panel;
     if (mode === 'wide') {

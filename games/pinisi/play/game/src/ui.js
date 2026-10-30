@@ -103,11 +103,18 @@ export function panel(ctx, r, o = {}) {
   ctx.save();
   const rad = o.rad ?? 24;
   if (!o.noShadow) { ctx.fillStyle = 'rgba(0,0,0,0.28)'; rrect(ctx, { x: r.x, y: r.y + 5, w: r.w, h: r.h }, rad); ctx.fill(); }
-  ctx.fillStyle = o.fill ?? PAL.panel; rrect(ctx, r, rad); ctx.fill();
+  const wood = o.wood ?? (o.fill === undefined);                       // stained teak by default, in the ship's own material
+  if (wood) {
+    const wg = ctx.createLinearGradient(0, r.y, 0, r.y + r.h); wg.addColorStop(0, '#4a3019'); wg.addColorStop(0.45, '#33200f'); wg.addColorStop(1, '#241509');
+    ctx.fillStyle = wg; rrect(ctx, r, rad); ctx.fill();
+    const tile = grainTile();
+    if (tile) { ctx.save(); rrect(ctx, r, rad); ctx.clip(); ctx.globalAlpha = 0.75; ctx.fillStyle = ctx.createPattern(tile, 'repeat'); ctx.translate(r.x, r.y); ctx.fillRect(0, 0, r.w, r.h); ctx.restore(); }
+    ctx.save(); rrect(ctx, r, rad); ctx.clip(); ctx.fillStyle = 'rgba(4,14,20,0.34)'; ctx.fillRect(r.x, r.y, r.w, r.h); ctx.restore();
+  } else { ctx.fillStyle = o.fill; rrect(ctx, r, rad); ctx.fill(); }
   ctx.save(); rrect(ctx, r, rad); ctx.clip();
   const g = ctx.createLinearGradient(0, r.y, 0, r.y + r.h); g.addColorStop(0, 'rgba(255,230,180,0.09)'); g.addColorStop(0.2, 'rgba(255,230,180,0.02)'); g.addColorStop(1, 'rgba(0,0,0,0.18)');
   ctx.fillStyle = g; ctx.fillRect(r.x, r.y, r.w, r.h); ctx.restore();
-  ctx.lineWidth = 2.2; ctx.strokeStyle = o.stroke ?? brassStroke(ctx, r); ctx.globalAlpha = o.stroke ? 1 : 0.8; rrect(ctx, { x: r.x + 1, y: r.y + 1, w: r.w - 2, h: r.h - 2 }, rad); ctx.stroke(); ctx.globalAlpha = 1;
+  ctx.lineWidth = wood ? 3 : 2.2; ctx.strokeStyle = o.stroke ?? brassStroke(ctx, r); ctx.globalAlpha = o.stroke || wood ? 1 : 0.8; rrect(ctx, { x: r.x + 1, y: r.y + 1, w: r.w - 2, h: r.h - 2 }, rad); ctx.stroke(); ctx.globalAlpha = 1;
   if (!o.noRivets && r.w > 140 && r.h > 90) {
     const k = Math.min(rad * 0.45, 12);
     for (const [px, py] of [[r.x + k + 5, r.y + k + 5], [r.x + r.w - k - 5, r.y + k + 5], [r.x + k + 5, r.y + r.h - k - 5], [r.x + r.w - k - 5, r.y + r.h - k - 5]]) {
@@ -196,5 +203,15 @@ export function lettering(ctx, label, cx, cy, size, maxW) {
   g.addColorStop(0, '#fffbe0'); g.addColorStop(0.3, '#ffe08a'); g.addColorStop(0.56, '#e0a838'); g.addColorStop(0.84, '#b07a22'); g.addColorStop(1, '#ffd878');
   ctx.fillStyle = g; ctx.fillText(label, cx, cy);
   ctx.strokeStyle = 'rgba(255,255,230,0.6)'; ctx.lineWidth = Math.max(1, s * 0.012); ctx.strokeText(label, cx - 0.5, cy - 1);
+  ctx.restore();
+}
+
+// An inlaid card set into a wooden panel (option cards, wind card): darker teak with a brass hairline; `lit` tints it.
+export function inlay(ctx, r, rad = 16, o = {}) {
+  ctx.save();
+  const g = ctx.createLinearGradient(0, r.y, 0, r.y + r.h); g.addColorStop(0, o.lit ? rgba(o.lit, 0.34) : '#2a1a0d'); g.addColorStop(1, o.lit ? rgba(o.lit, 0.14) : '#1a0f06');
+  ctx.fillStyle = '#1a0f06'; rrect(ctx, r, rad); ctx.fill(); ctx.fillStyle = g; rrect(ctx, r, rad); ctx.fill();
+  const tile = grainTile(); if (tile) { ctx.save(); rrect(ctx, r, rad); ctx.clip(); ctx.globalAlpha = 0.5; ctx.fillStyle = ctx.createPattern(tile, 'repeat'); ctx.translate(r.x, r.y); ctx.fillRect(0, 0, r.w, r.h); ctx.restore(); }
+  ctx.lineWidth = o.w ?? 1.8; ctx.strokeStyle = o.stroke ?? 'rgba(217,173,78,0.55)'; rrect(ctx, r, rad); ctx.stroke();
   ctx.restore();
 }

@@ -523,7 +523,7 @@ export function createGame(env) {
 
   // the 3D camera closes in on the rider while riding (a phone shows the whole arena only about 10 px per metre) and opens out at the line
   // and behind the menus; it is eased every tick and only read by the pictures
-  const FOLLOW_ZOOM = 3.0;
+  const FOLLOW_ZOOM = 3.4;
   G.focus = { x: 0, y: 21, zoom: 1, elev: 58 };
   const focusTarget = () => {
     const s = G.scene === 'play' && G.run ? G.run.s : null;
@@ -531,7 +531,7 @@ export function createGame(env) {
     if (!s || s.phase !== 'ride' || s.finished) return { x: 0, y: 21, zoom: 1, elev: wide };
     const lead = Math.min(1, s.v / 12) * 6.5;
     // while riding the camera also drops a little so the horse and rider read as a side-on figure, not a top-down blob
-    return { x: s.x + Math.sin(s.th) * lead, y: s.y + Math.cos(s.th) * lead, zoom: G.devZoom || FOLLOW_ZOOM, elev: G.devElev || (live.land ? 26 : 28), free: !!G.devZoom };
+    return { x: s.x + Math.sin(s.th) * lead, y: s.y + Math.cos(s.th) * lead, zoom: G.devZoom || (live.land ? FOLLOW_ZOOM * 1.2 : FOLLOW_ZOOM), elev: G.devElev || (live.land ? 26 : 28), free: !!G.devZoom };
   };
   const stepFocus = (dt) => {
     const t = focusTarget(), k = 1 - Math.exp(-dt * 3.2), f = G.focus;

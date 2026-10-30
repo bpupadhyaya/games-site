@@ -2,6 +2,7 @@
 // trattoria table. ALL of it is original vector drawing done here in code (no copied artwork). Faces and the
 // table are painted once into cached layers; per frame we only blit.
 import { suitOf, rankOf } from './rules.js';
+import { v3 } from './v3.js';
 
 export const CW = 200, CH = 320, TAU = Math.PI * 2, CS = 1.5;
 const FONT = '"Cormorant Garamond", Georgia, "Times New Roman", serif';
@@ -328,12 +329,14 @@ export function drawCard(ctx, id, x, y, w, rot = 0, opt = {}) {
   else { ctx.fillStyle = '#f6e8c4'; ctx.beginPath(); ctx.roundRect(-w / 2, -h / 2, w, h, 16 * k); ctx.fill(); }
   ctx.restore();
 }
+// The baked face (or back, id < 0) canvas of a card, for the 3D presenter's textures.
+export function cardImage(id, french) { return id < 0 ? bake('back', paintBack) : bake((french ? 'f' : 'i') + id, (c) => paintFace(c, id, french)); }
 export function warm(n, french) { let i = 0; for (; i < 4; i++) { const id = n + i; if (id < 40) bake((french ? 'f' : 'i') + id, (c) => paintFace(c, id, french)); } bake('back', paintBack); return n + 4; }
 export function drawSuitIcon(ctx, suit, x, y, s, french) { ctx.save(); ctx.translate(x, y); if (french) frSuit(ctx, suit, s); else suitPic(ctx, suit, s); ctx.restore(); }
 
 // ---- the trattoria table -----------------------------------------------------------------------------------------
 const tableLayers = new Map();
-function paintTable(c, W, H, cl, SKY) {
+function paintTable(c, W, H, cl, SKY, skyOnly = false) {
   const T0 = SKY - 10;
   const rnd = lcg(11);
   // night sky and rooftops of a small piazza
@@ -349,12 +352,15 @@ function paintTable(c, W, H, cl, SKY) {
     c.restore();
   }
   // wooden table: planks
+  if (!skyOnly) {
   const wood = lin(c, 0, T0, 0, H, [[0, '#7a4524'], [0.5, '#5e3216'], [1, '#3e200c']]); c.fillStyle = wood; c.fillRect(0, T0, W, H - T0);
   for (let x = 0; x < W; x += 120) { c.fillStyle = 'rgba(0,0,0,0.32)'; c.fillRect(x, T0, 3, H - T0); c.fillStyle = 'rgba(255,200,140,0.1)'; c.fillRect(x + 3, T0, 2, H - T0); }
   for (let i = 0; i < 260; i++) { const x = rnd() * W, y = SKY + rnd() * (H - SKY), l = 60 + rnd() * 260; c.strokeStyle = `rgba(${rnd() < 0.5 ? '30,12,2' : '255,200,140'},${0.05 + rnd() * 0.07})`; c.lineWidth = 1 + rnd() * 1.6; c.beginPath(); c.moveTo(x, y); c.bezierCurveTo(x + 2, y + l * 0.3, x - 3, y + l * 0.6, x + 1, y + l); c.stroke(); }
+  }
   // the table's far edge
   c.fillStyle = lin(c, 0, SKY - 22, 0, SKY + 14, [[0, '#a56a38'], [0.25, '#7a4524'], [1, '#3a1e0c']]); c.fillRect(0, SKY - 22, W, 32);
   c.fillStyle = 'rgba(255,220,160,0.5)'; c.fillRect(0, SKY - 22, W, 3); c.fillStyle = 'rgba(0,0,0,0.4)'; c.fillRect(0, SKY + 10, W, 8);
+  if (skyOnly) return;   // 3D: the presenter builds the tabletop and the cloth
   // gingham cloth
   const CX = cl.x, CY = cl.y, CWd = cl.w, CHt = cl.h, sq = 38;
   c.save(); c.fillStyle = 'rgba(0,0,0,0.4)'; c.beginPath(); c.roundRect(CX + 4, CY + 10, CWd, CHt, 26); c.fill();
@@ -378,13 +384,13 @@ function paintTable(c, W, H, cl, SKY) {
   const v = rad(c, W / 2, H / 2, Math.min(W, H) * 0.7, Math.hypot(W, H) * 0.62, [[0, 'rgba(0,0,0,0)'], [1, 'rgba(6,0,10,0.55)']]); c.fillStyle = v; c.fillRect(0, 0, W, H);
 }
 export function drawTable(ctx, t = 0, calm = false, V = { w: 720, h: 1560, cloth: { x: 26, y: 356, w: 668, h: 674 }, sky: 200 }) {
-  const W = V.w, H = V.h, cl = V.cloth, key = `${W}|${H}|${Math.round(cl.x)},${Math.round(cl.y)},${Math.round(cl.w)},${Math.round(cl.h)}|${V.sky}`;
+  const sk3 = v3.on && v3.active, W = V.w, H = V.h, cl = V.cloth, key = `${sk3 ? 's' : ''}${W}|${H}|${Math.round(cl.x)},${Math.round(cl.y)},${Math.round(cl.w)},${Math.round(cl.h)}|${V.sky}`;
   let tableLayer = tableLayers.get(key);
   if (!tableLayer) {
     const cs = Math.min(CS, 3000 / Math.max(W, H)), L = mk(Math.round(W * cs), Math.round(H * cs));
-    if (L) { L.x.scale(cs, cs); paintTable(L.x, W, H, cl, V.sky); tableLayer = L.c; tableLayers.set(key, tableLayer); if (tableLayers.size > 4) tableLayers.delete(tableLayers.keys().next().value); }
+    if (L) { L.x.scale(cs, cs); paintTable(L.x, W, H, cl, V.sky, sk3); tableLayer = L.c; tableLayers.set(key, tableLayer); if (tableLayers.size > 4) tableLayers.delete(tableLayers.keys().next().value); }
   }
-  if (tableLayer) ctx.drawImage(tableLayer, 0, 0, W, H); else { ctx.fillStyle = '#4a2810'; ctx.fillRect(0, 0, W, H); }
+  if (tableLayer) ctx.drawImage(tableLayer, 0, 0, W, H); else if (sk3) { /* sky strip only */ } else { ctx.fillStyle = '#4a2810'; ctx.fillRect(0, 0, W, H); }
   // festoon lights: a swaying string of bulbs with a soft flicker
   for (let row = 0; row < (V.sky >= 150 ? 2 : 1); row++) {
     const y0 = 18 + row * 34;

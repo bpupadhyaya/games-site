@@ -125,5 +125,10 @@ export const ABOUT = [
   { title: 'Where it comes from', body: 'The game is named after Surakarta (Solo), a city in Central Java, Indonesia, and is played on a 6 x 6 board with eight looping tracks. Its exact origins are not documented; it became widely known outside Indonesia in the 1970s.' },
   { title: 'In this game', body: 'The standard rules with circuit captures, five opponent levels, two players on one phone, Think with a plain-English reason, a Learn course and Watch & Learn. Text that scales up to 300 percent, no timers, works offline. The game is in English.' },
 ];
+// Credits for the optional 3D layer (three.js and the shared view3d library), added at the end of About by main.js once loaded.
+export const addAboutCredits = (body) => {
+  if (ABOUT.some((d) => d.credits)) return;
+  ABOUT.push({ credits: true, title: '3D graphics credits', body });
+};
 export const RULE_COUNT = RULES.length;
 export const HOWTO_COUNT = HOWTO.length;

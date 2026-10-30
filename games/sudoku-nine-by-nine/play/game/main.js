@@ -2,6 +2,7 @@ import { boot } from './kit/index.js';
 import { createGame, meta, wheelInput } from './src/game.js';
 import { host } from './src/layout.js';
 import { setLogo, setLockup } from './src/brand.js';
+import { createPresenter } from './view3d/presenter.js';
 
 const canvas = document.getElementById('game');
 
@@ -23,4 +24,5 @@ const create = async (env) => { const game = await createGame(env); if (env.conf
 const lk = new Image(); lk.onload = () => setLockup(lk); lk.src = './brand/arcforge-lockup.png';
 const af = new Image(); af.onload = () => setLogo(af); af.src = './brand/arcforge-af.png';
 
-boot({ createGame: create, meta, canvas, background: '#0b1226' });
+const presenter = await createPresenter({ kitCanvas: canvas });
+boot({ createGame: async (env) => presenter.wrap(await create(env)), meta, canvas, background: presenter.ok ? 'rgba(0,0,0,0)' : '#0b1226' });

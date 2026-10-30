@@ -65,11 +65,11 @@ export function render(ctx, state, L) {
     else {
     ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.beginPath(); ctx.roundRect(r.x + 2, r.y + 5, r.w, r.h, rad); ctx.fill();
     const gr = ctx.createLinearGradient(0, r.y, 0, r.y + r.h);
-    if (o.primary) { gr.addColorStop(0, '#e8503f'); gr.addColorStop(1, '#a01e2c'); } else if (o.on) { gr.addColorStop(0, '#8a3a2c'); gr.addColorStop(1, '#4e1a18'); } else { gr.addColorStop(0, '#34479a'); gr.addColorStop(1, '#18235c'); }
+    if (o.primary) { gr.addColorStop(0, '#ffcc4a'); gr.addColorStop(1, '#d9961c'); } else if (o.on) { gr.addColorStop(0, '#8a3a2c'); gr.addColorStop(1, '#4e1a18'); } else { gr.addColorStop(0, '#34479a'); gr.addColorStop(1, '#18235c'); }
     ctx.fillStyle = gr; ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, rad); ctx.fill();
-    ctx.strokeStyle = o.primary ? 'rgba(255,200,170,0.85)' : 'rgba(255,207,106,0.5)'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.strokeStyle = o.primary ? 'rgba(255,236,170,0.9)' : 'rgba(255,207,106,0.5)'; ctx.lineWidth = 2; ctx.stroke();
     }
-    const size = o.size ?? 28, maxW = r.w - 20, col = o.primary ? '#fff6e0' : GOLD, cy = r.y + r.h / 2;
+    const size = o.size ?? 28, maxW = r.w - 20, col = o.primary ? '#2a1204' : GOLD, cy = r.y + r.h / 2;
     const w1 = (str, s) => { ctx.font = `700 ${s}px ${UI}`; return ctx.measureText(str).width; };
     let s1 = size; while (s1 > minU && w1(label, s1) > maxW) s1 -= 1;
     let best = { s: s1, ls: [label] };
@@ -81,7 +81,7 @@ export function render(ctx, state, L) {
         if (s2 > best.s) best = { s: s2, ls };
       }
     }
-    if (o.sub && best.ls.length === 1) { text(label, r.x + r.w / 2, cy + best.s * 0.1 - 6, best.s, col, UI, 700); fitText(o.sub, r.x + r.w / 2, cy + best.s * 0.1 + Math.max(minU, size * 0.62) + 2, Math.round(size * 0.62), maxW, DIM, UI, 500, 'center', minU); }
+    if (o.sub && best.ls.length === 1) { text(label, r.x + r.w / 2, cy + best.s * 0.1 - 6, best.s, col, UI, 700); fitText(o.sub, r.x + r.w / 2, cy + best.s * 0.1 + Math.max(minU, size * 0.62) + 2, Math.round(size * 0.62), maxW, o.primary ? '#4a2a08' : DIM, UI, 500, 'center', minU); }
     else if (best.ls.length === 1) text(label, r.x + r.w / 2, cy + best.s * 0.35, best.s, col, UI, 700);
     else best.ls.forEach((ln, i) => text(ln, r.x + r.w / 2, cy + best.s * 0.35 + (i - 0.5) * best.s * 1.15, best.s, col, UI, 700));
     ctx.restore();

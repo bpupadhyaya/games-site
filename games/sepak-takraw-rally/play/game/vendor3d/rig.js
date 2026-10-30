@@ -209,7 +209,10 @@ function rotateBoneWorld(bone, qDelta) {
  * The bend direction follows the pose the animation already had (natural knee/elbow), or `pole` if given.
  * Returns the reach fraction (1 = reached). weight blends towards the solved pose.
  */
-export function solveTwoBone(upper, mid, end, target, { weight = 1, pole = null, softness = 0.995 } = {}) {
+// bend: optional WORLD direction the middle joint should point toward (legs: body forward; arms: backward/outward). It is used only
+// when no pole is given and the limb is (nearly) straight, where the bend plane is otherwise undefined and used to fall back to world +Z
+// (a knee or elbow flipping the wrong way as soon as the avatar faced -Z or sideways).
+export function solveTwoBone(upper, mid, end, target, { weight = 1, pole = null, softness = 0.995, bend = null } = {}) {
   if (weight <= 0) return 0;
   upper.getWorldPosition(_a); mid.getWorldPosition(_b); end.getWorldPosition(_c);
   const l1 = _a.distanceTo(_b), l2 = _b.distanceTo(_c);
@@ -221,7 +224,9 @@ export function solveTwoBone(upper, mid, end, target, { weight = 1, pole = null,
   // bend plane hint
   _perp.copy(pole ? _tmp.subVectors(pole, _a) : _ab.subVectors(_b, _a));
   _perp.addScaledVector(_dir, -_perp.dot(_dir));
-  if (_perp.lengthSq() < 1e-8) _perp.set(0, 0, 1).addScaledVector(_dir, -_dir.z);
+  // straight limb: the elbow/knee offset from the shoulder-target line is ~0 and its direction is noise; use the anatomical hint
+  if (bend && !pole && _perp.length() < 0.06 * l1) { _perp.copy(bend); _perp.addScaledVector(_dir, -_perp.dot(_dir)); }
+  if (_perp.lengthSq() < 1e-8) { if (bend) { _perp.copy(bend); _perp.addScaledVector(_dir, -_perp.dot(_dir)); } if (_perp.lengthSq() < 1e-8) _perp.set(0, 0, 1).addScaledVector(_dir, -_dir.z); }
   _perp.normalize();
   const cosA = Math.min(1, Math.max(-1, (l1 * l1 + d * d - l2 * l2) / (2 * l1 * d)));
   const sinA = Math.sqrt(1 - cosA * cosA);

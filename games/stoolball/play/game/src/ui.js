@@ -56,7 +56,7 @@ export function setPress(ptr) {
   if (!ptr.down) PRESS.on = false;
 }
 const LACQ = {
-  primary: ['#e5603f', '#b5321c', '#7a1c0e'],
+  primary: ['#ffe38e', '#e8b43c', '#a8770f'],
   active: ['#52b06a', '#2f7a44', '#1a4a28'],
 };
 export function paintButton(ctx, r, o = {}) {
@@ -92,7 +92,7 @@ export function paintButton(ctx, r, o = {}) {
   roundPath(ctx, r.x + 4.5, r.y + dy + 4.5, r.w - 9, r.h - 9, Math.max(2, rad - 4));
   ctx.lineWidth = 1; ctx.strokeStyle = k === 'plain' ? 'rgba(90,50,10,0.3)' : 'rgba(0,0,0,0.28)'; ctx.stroke();
   ctx.restore();
-  return { dy, light: primary || active || dark };
+  return { dy, light: active || dark };
 }
 
 // A wooden plaque. opts: primary (lacquer), active, disabled, sub (small second line), size (font px)

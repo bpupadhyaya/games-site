@@ -11,6 +11,7 @@ import { SIDE_NAME, kingSquare, inCheckBoard, canPass, startBoard, LAYOUTS, LAYO
 import { drawCredit, drawMoreLine, drawLockup } from './brand.js';
 import { sqName } from './tutor.js';
 import { glyph } from './pieces.js';
+import { v3, flatAlpha } from './v3.js';
 
 const TITLE = '"Cormorant Garamond", Georgia, "Times New Roman", serif', UI = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 const TAU = Math.PI * 2, GOLD = '#f2d27a', CREAM = '#f8f0d8', CHO_C = '#4fd08d', HAN_C = '#ff7d63';
@@ -33,7 +34,12 @@ export function render(ctx, state, L) {
   const scene = state.scene, big = state.big, calm = state.calm;
   const theme = state.set, lang = state.lang === 'en' ? 'en' : 'ko', flip = state.human === HAN && !state.two && (scene === 'play');
   const T = state.t, SW = L.w, SH = L.h;
-  drawTable(ctx, SW, SH);
+  // 3D on: the room and the board are drawn by the presenter behind this canvas; this layer keeps the HUD (the flat table and
+  // board fade out once during the crossfade). Off: the flat art, exactly as before.
+  const V = v3.on && !!v3.proj, fa = flatAlpha();
+  const pub = (o) => { if (V) v3.frame = { theme: state.board, set: state.set, lang, calm, t: T, ...o }; };
+  if (fa > 0) { ctx.save(); ctx.globalAlpha = fa; drawTable(ctx, SW, SH); ctx.restore(); }
+  if (V) { v3.hero = null; const m = Math.max(SW, SH), vg = ctx.createRadialGradient(SW / 2, SH * 0.48, Math.min(SW, SH) * 0.42, SW / 2, SH * 0.5, m * 0.72); vg.addColorStop(0, 'rgba(20,8,2,0)'); vg.addColorStop(1, 'rgba(20,8,2,0.62)'); ctx.fillStyle = vg; ctx.fillRect(0, 0, SW, SH); }
   const piece = (p, x, y, o = {}) => drawPiece(ctx, p, x, y, { theme, lang, ...o });
 
   const text = (str, x, y, size, color = CREAM, font = UI, weight = 700, align = 'center') => { ctx.textAlign = align; ctx.textBaseline = 'alphabetic'; ctx.font = `${weight} ${size}px ${font}`; ctx.fillStyle = color; ctx.fillText(str, x, y); };
@@ -53,23 +59,61 @@ export function render(ctx, state, L) {
     const lh = sz * lhK, x = align === 'center' ? r.x + r.w / 2 : r.x;
     ls.forEach((ln, i) => text(ln, x, r.y + sz + i * lh, sz, color, UI, weight, align)); return sz;
   };
-  const panel = (r, alpha = 0.55, glow = 0) => {
-    ctx.save(); ctx.fillStyle = `rgba(6,20,17,${alpha})`; ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, 20); ctx.fill();
-    ctx.strokeStyle = glow ? `rgba(255,214,120,${0.55 + glow * 0.45})` : 'rgba(226,182,97,0.38)'; ctx.lineWidth = glow ? 3 : 1.6; ctx.stroke(); ctx.restore();
+  // Panels and buttons belong to the room: lacquered wood (otchil) plaques with a white-brass (baektong) edge and corner fittings,
+  // like the board's own corners. Flat fills, no inner gloss shapes.
+  const LAQ = { lacquer: ['#3b2015', '#1f0f09'], red: ['#a52a1c', '#5e1209'], jade: ['#2c7a5a', '#123f2c'], gold: ['#f6d989', '#c48d2c'] };
+  const corners = (r, inset, len, col, lw) => {
+    ctx.strokeStyle = col; ctx.lineWidth = lw; ctx.lineCap = 'square';
+    for (const [cx, cy, sx, sy] of [[r.x + inset, r.y + inset, 1, 1], [r.x + r.w - inset, r.y + inset, -1, 1], [r.x + inset, r.y + r.h - inset, 1, -1], [r.x + r.w - inset, r.y + r.h - inset, -1, -1]]) {
+      ctx.beginPath(); ctx.moveTo(cx + sx * len, cy); ctx.lineTo(cx, cy); ctx.lineTo(cx, cy + sy * len); ctx.stroke();
+    }
   };
-  const button = (r, label, o = {}) => {
-    ctx.save(); if (o.dim) ctx.globalAlpha = 0.45;
-    const press = o.press ? 3 : 0, rad = Math.min(18, r.h * 0.3);
-    ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.beginPath(); ctx.roundRect(r.x + 2, r.y + 6, r.w, r.h, rad); ctx.fill();
-    const gr = ctx.createLinearGradient(0, r.y, 0, r.y + r.h);
-    if (o.primary) { gr.addColorStop(0, '#ffdc88'); gr.addColorStop(1, '#cf9430'); } else if (o.on) { gr.addColorStop(0, '#2f8a62'); gr.addColorStop(1, '#14543a'); } else if (o.warn) { gr.addColorStop(0, '#b3382a'); gr.addColorStop(1, '#6f1610'); } else { gr.addColorStop(0, '#24453c'); gr.addColorStop(1, '#0f2420'); }
-    ctx.fillStyle = gr; ctx.beginPath(); ctx.roundRect(r.x, r.y + press, r.w, r.h, rad); ctx.fill();
-    ctx.strokeStyle = o.primary ? 'rgba(255,245,200,0.8)' : 'rgba(255,214,140,0.5)'; ctx.lineWidth = 2; ctx.stroke();
-    let sz = Math.min(o.size ?? (r.h > 70 ? 32 : 28), Math.round(r.h * 0.46));
-    sz = fit(label, r.w - 22, sz, o.font ?? UI, 700, 18);
-    text(label, r.x + r.w / 2, r.y + press + r.h / 2 + sz * 0.35, sz, o.primary ? '#2a1c06' : CREAM, o.font ?? UI, 700);
+  const plaque = (r, kind = 'lacquer', alpha = 0.92, glow = 0) => {
+    const c = LAQ[kind] ?? LAQ.lacquer, rad = Math.min(16, r.h * 0.22);
+    ctx.save();
+    ctx.fillStyle = `rgba(0,0,0,${0.32 * alpha})`; ctx.beginPath(); ctx.roundRect(r.x + 2, r.y + 5, r.w, r.h, rad); ctx.fill();
+    const gr = ctx.createLinearGradient(0, r.y, 0, r.y + r.h); gr.addColorStop(0, c[0]); gr.addColorStop(1, c[1]);
+    ctx.globalAlpha = alpha; ctx.fillStyle = gr; ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, rad); ctx.fill(); ctx.globalAlpha = 1;
+    ctx.strokeStyle = glow ? `rgba(255,214,120,${0.6 + glow * 0.4})` : 'rgba(232,214,160,0.55)'; ctx.lineWidth = glow ? 3 : 1.6; ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,236,200,0.14)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.roundRect(r.x + 5, r.y + 5, r.w - 10, r.h - 10, Math.max(4, rad - 4)); ctx.stroke();
+    if (r.w > 120 && r.h > 50) corners(r, 7, Math.min(18, r.h * 0.22), 'rgba(236,222,178,0.75)', 2.4);
     ctx.restore();
   };
+  const panel = (r, alpha = 0.55, glow = 0) => plaque(r, 'lacquer', V ? 0.95 : Math.min(0.94, 0.42 + alpha * 0.6), glow);
+  const button = (r, label, o = {}) => {
+    ctx.save(); if (o.dim) ctx.globalAlpha = 0.45;
+    const press = o.press ? 3 : 0, rad = Math.min(16, r.h * 0.28);
+    ctx.fillStyle = 'rgba(0,0,0,0.42)'; ctx.beginPath(); ctx.roundRect(r.x + 2, r.y + 6, r.w, r.h, rad); ctx.fill();
+    const c = LAQ[o.primary ? 'gold' : o.on ? 'jade' : o.warn ? 'red' : 'lacquer'];
+    const gr = ctx.createLinearGradient(0, r.y, 0, r.y + r.h); gr.addColorStop(0, c[0]); gr.addColorStop(1, c[1]);
+    ctx.fillStyle = gr; ctx.beginPath(); ctx.roundRect(r.x, r.y + press, r.w, r.h, rad); ctx.fill();
+    ctx.strokeStyle = o.primary ? 'rgba(255,248,214,0.9)' : 'rgba(232,214,160,0.6)'; ctx.lineWidth = 2; ctx.stroke();
+    if (r.w > 100 && r.h >= 50) corners({ x: r.x, y: r.y + press, w: r.w, h: r.h }, 6, Math.min(12, r.h * 0.2), o.primary ? 'rgba(90,52,8,0.55)' : 'rgba(236,222,178,0.6)', 2);
+    let sz = Math.min(o.size ?? (r.h > 70 ? 32 : 28), Math.round(r.h * 0.46));
+    const ic = o.icon && r.w - 22 > 120 ? Math.min(r.h * 0.42, 30) : 0;
+    sz = fit(label, r.w - 22 - (ic ? ic + 10 : 0), sz, o.font ?? UI, 700, 18);
+    let lx = r.x + r.w / 2;
+    if (ic) { ctx.font = `700 ${sz}px ${o.font ?? UI}`; const tw = ctx.measureText(label).width, x0 = r.x + (r.w - tw - ic - 10) / 2; icon(o.icon, x0 + ic / 2, r.y + press + r.h / 2, ic, o.primary ? '#3a2406' : '#ecd6a0'); lx = x0 + ic + 10 + tw / 2; }
+    text(label, lx, r.y + press + r.h / 2 + sz * 0.35, sz, o.primary ? '#2a1c06' : CREAM, o.font ?? UI, 700);
+    if (o.sub) text(o.sub, r.x + r.w / 2, r.y + press + r.h - Math.max(10, r.h * 0.13), Math.min(22, r.h * 0.2), o.primary ? 'rgba(52,32,6,0.85)' : 'rgba(248,240,216,0.75)', UI, 600);
+    ctx.restore();
+  };
+  // small line icons for the menu (stroked in the button's text colour)
+  function icon(kind, x, y, s, col) {
+    ctx.save(); ctx.translate(x, y); ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = Math.max(2, s * 0.09); ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    const h = s / 2, oct = (r) => { ctx.beginPath(); for (let i = 0; i < 8; i++) { const an = (i * 45 + 22.5) * Math.PI / 180, R = r / Math.cos(Math.PI / 8); i ? ctx.lineTo(Math.cos(an) * R, Math.sin(an) * R) : ctx.moveTo(Math.cos(an) * R, Math.sin(an) * R); } ctx.closePath(); };
+    if (kind === 'play') { ctx.beginPath(); ctx.moveTo(-h * 0.55, -h * 0.75); ctx.lineTo(h * 0.8, 0); ctx.lineTo(-h * 0.55, h * 0.75); ctx.closePath(); ctx.fill(); }
+    else if (kind === 'book') { ctx.beginPath(); ctx.moveTo(0, -h * 0.55); ctx.quadraticCurveTo(-h * 0.5, -h * 0.85, -h, -h * 0.6); ctx.lineTo(-h, h * 0.7); ctx.quadraticCurveTo(-h * 0.5, h * 0.45, 0, h * 0.75); ctx.quadraticCurveTo(h * 0.5, h * 0.45, h, h * 0.7); ctx.lineTo(h, -h * 0.6); ctx.quadraticCurveTo(h * 0.5, -h * 0.85, 0, -h * 0.55); ctx.lineTo(0, h * 0.75); ctx.stroke(); }
+    else if (kind === 'eye') { ctx.beginPath(); ctx.moveTo(-h, 0); ctx.quadraticCurveTo(0, -h * 1.1, h, 0); ctx.quadraticCurveTo(0, h * 1.1, -h, 0); ctx.stroke(); ctx.beginPath(); ctx.arc(0, 0, h * 0.32, 0, TAU); ctx.fill(); }
+    else if (kind === 'two') { ctx.translate(-h * 0.35, -h * 0.2); oct(h * 0.55); ctx.stroke(); ctx.translate(h * 0.7, h * 0.4); oct(h * 0.55); ctx.stroke(); }
+    else if (kind === 'han') { ctx.strokeStyle = HAN_C; oct(h * 0.8); ctx.stroke(); ctx.fillStyle = HAN_C; ctx.font = `700 ${(h * 1.05).toFixed(1)}px ${CJK}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('漢', 0, h * 0.05); }
+    else if (kind === 'info') { ctx.beginPath(); ctx.arc(0, 0, h * 0.85, 0, TAU); ctx.stroke(); ctx.fillRect(-s * 0.045, -h * 0.1, s * 0.09, h * 0.6); ctx.beginPath(); ctx.arc(0, -h * 0.4, s * 0.06, 0, TAU); ctx.fill(); }
+    else if (kind === 'how') { ctx.beginPath(); ctx.arc(0, 0, h * 0.85, 0, TAU); ctx.stroke(); ctx.font = `800 ${(h * 1.2).toFixed(1)}px ${UI}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('?', 0, h * 0.06); }
+    else if (kind === 'rules') { ctx.strokeRect(-h * 0.65, -h * 0.85, h * 1.3, h * 1.7); for (const yy of [-0.4, 0, 0.4]) { ctx.beginPath(); ctx.moveTo(-h * 0.35, yy * h); ctx.lineTo(h * 0.35, yy * h); ctx.stroke(); } }
+    else if (kind === 'gear') { ctx.beginPath(); ctx.arc(0, 0, h * 0.5, 0, TAU); ctx.stroke(); for (let i = 0; i < 8; i++) { const an = i * Math.PI / 4; ctx.beginPath(); ctx.moveTo(Math.cos(an) * h * 0.62, Math.sin(an) * h * 0.62); ctx.lineTo(Math.cos(an) * h * 0.92, Math.sin(an) * h * 0.92); ctx.stroke(); } }
+    else if (kind === 'resume') { ctx.beginPath(); ctx.arc(0, 0, h * 0.8, -Math.PI * 0.35, Math.PI * 1.45); ctx.stroke(); ctx.beginPath(); ctx.moveTo(-h * 0.25, -h * 0.4); ctx.lineTo(h * 0.45, 0); ctx.lineTo(-h * 0.25, h * 0.4); ctx.closePath(); ctx.fill(); }
+    ctx.restore();
+  }
   const stepper = (st, dec, inc, label) => {
     button(st.dec, '−', { dim: dec, size: 30 }); button(st.inc, '+', { dim: inc, size: 30 });
     text(label, st.label.x, st.label.y, st.label.size, 'rgba(248,240,216,0.9)', UI, 700);
@@ -78,28 +122,54 @@ export function render(ctx, state, L) {
   // ================================ title ==========================================================================
   if (scene === 'title') {
     const TL = L.title(!!state.saved), hr = TL.hero;
+    if (V) {
+      // the 3D board (set up for a game) fills the hero; the lettering sits below it on a soft shade
+      v3.hero = { x: hr.x + 20 * hr.s, y: hr.y + 200 * hr.s, w: 680 * hr.s, h: 330 * hr.s };
+      // the hero board is alive: every few seconds a soldier steps forward and is put down with a tak, then steps back
+      const bd = startBoard('inner', 'inner'); let an = null;
+      if (!calm) {
+        const P = 5, c = Math.floor(T / P), ph = T - c * P, from = [54, 56, 58, 60, 62][c % 5], to = from - 9, dur = 0.42;
+        const fwd = ph >= 1 && ph < 3.4, mv = (ph >= 1 && ph < 1 + dur) ? { f: from, t: to, u: ph - 1 } : (ph >= 3.4 && ph < 3.4 + dur) ? { f: to, t: from, u: ph - 3.4 } : null;
+        if (fwd || mv) { bd[to] = bd[from]; bd[from] = 0; }
+        if (mv && !fwd) { bd[from] = bd[to]; bd[to] = 0; }
+        if (mv) { const pc = bd[mv.t] || 7; bd[mv.t] = pc; bd[mv.f] = 0; an = { type: 'move', from: mv.f, to: mv.t, p: pc, t: mv.u, dur }; }
+      }
+      pub({ board: bd, flip: false, caps: false, anim: an });
+    }
     ctx.save(); ctx.translate(hr.x, hr.y); ctx.scale(hr.s, hr.s);
-    const bob = calm ? 0 : Math.sin(T * 1.4) * 5;
-    blob(ctx, 360, 380, 340, 200, '120,230,170', 0.2); blob(ctx, 360, 380, 260, 150, '255,200,110', 0.16);
-    piece(1, 226, 360 + bob, { R: 32, scale: 2.5 });
-    piece(-1, 494, 360 - bob, { R: 32, scale: 2.5 });
-    ctx.save(); ctx.strokeStyle = 'rgba(242,210,122,0.5)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(316, 372); ctx.lineTo(404, 372); ctx.stroke();
-    if (lang === 'en') { ctx.font = `700 24px ${TITLE}`; ctx.fillStyle = 'rgba(242,210,122,0.9)'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('Cho vs Han', 360, 340); }
-    else { ctx.font = `700 34px ${CJK}`; ctx.fillStyle = 'rgba(242,210,122,0.9)'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('楚  漢', 360, 338); }
+    if (!V) {
+      const bob = calm ? 0 : Math.sin(T * 1.4) * 5;
+      blob(ctx, 360, 380, 340, 200, '120,230,170', 0.2); blob(ctx, 360, 380, 260, 150, '255,200,110', 0.16);
+      piece(1, 226, 360 + bob, { R: 32, scale: 2.5 });
+      piece(-1, 494, 360 - bob, { R: 32, scale: 2.5 });
+      ctx.save(); ctx.strokeStyle = 'rgba(242,210,122,0.5)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(316, 372); ctx.lineTo(404, 372); ctx.stroke();
+      if (lang === 'en') { ctx.font = `700 24px ${TITLE}`; ctx.fillStyle = 'rgba(242,210,122,0.9)'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('Cho vs Han', 360, 340); }
+      else { ctx.font = `700 34px ${CJK}`; ctx.fillStyle = 'rgba(242,210,122,0.9)'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('楚  漢', 360, 338); }
+      ctx.restore();
+    } else {
+      const sh = ctx.createRadialGradient(360, 630, 30, 360, 630, 330); sh.addColorStop(0, 'rgba(18,8,3,0.78)'); sh.addColorStop(0.6, 'rgba(18,8,3,0.45)'); sh.addColorStop(1, 'rgba(18,8,3,0)');
+      ctx.fillStyle = sh; ctx.fillRect(-300, 280, 1320, 720);
+    }
+    // embossed gold lettering: dark cast, lit gold face, thin bright edge
+    ctx.save(); ctx.font = `700 108px ${TITLE}`; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+    ctx.shadowColor = V ? 'rgba(0,0,0,0.7)' : 'rgba(120,255,190,0.45)'; ctx.shadowBlur = V ? 16 : 24; ctx.shadowOffsetY = V ? 6 : 0;
+    const tg = ctx.createLinearGradient(0, 500, 0, 590); tg.addColorStop(0, '#fff2c0'); tg.addColorStop(0.45, '#f2c75a'); tg.addColorStop(0.55, '#c98d26'); tg.addColorStop(1, '#f7d98a');
+    ctx.fillStyle = V ? tg : GOLD; ctx.fillText('Janggi', 360, 586);
+    if (V) { ctx.shadowColor = 'transparent'; ctx.lineWidth = 1.4; ctx.strokeStyle = 'rgba(255,248,220,0.7)'; ctx.strokeText('Janggi', 360, 586); }
     ctx.restore();
-    ctx.save(); ctx.shadowColor = 'rgba(120,255,190,0.45)'; ctx.shadowBlur = 24; text('Janggi', 360, 586, 108, GOLD, TITLE, 700); ctx.restore();
-    ctx.save(); ctx.font = `700 40px ${CJK}`; ctx.fillStyle = 'rgba(248,240,216,0.92)'; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; ctx.fillText('장기', 360, 642); ctx.restore();
-    text('Korean chess, with a tutor', 360, 684, 26, 'rgba(248,240,216,0.88)', UI, 600);
+    ctx.save(); ctx.font = `700 40px ${CJK}`; ctx.fillStyle = 'rgba(248,240,216,0.92)'; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; if (V) { ctx.shadowColor = 'rgba(0,0,0,0.7)'; ctx.shadowBlur = 8; } ctx.fillText('장기', 360, V ? 650 : 642); ctx.restore();
+    ctx.save(); if (V) { ctx.shadowColor = 'rgba(0,0,0,0.8)'; ctx.shadowBlur = 8; } text('Korean chess, with a tutor', 360, V ? 692 : 684, 26, 'rgba(248,240,216,0.92)', UI, 600); ctx.restore();
     ctx.restore();
     const nr = TL.narrow;
-    if (state.saved) button(TL.resume, 'Resume game', { primary: true });
-    button(TL.learn, state.learnedAll ? 'Lessons' : 'Learn to play', { primary: !state.saved });
-    button(TL.cho, nr ? 'Play Cho' : 'Play Cho (green, moves first)', { size: 27 }); button(TL.han, nr ? 'Play Han' : 'Play Han (red)', {}); button(TL.two, 'Two players', {});
-    button(TL.autoplay, nr ? 'Auto Play' : 'Auto Play (Watch & Learn)', { size: 24 });
-    button(TL.langKo, 'Play (장기)', { on: lang !== 'en', size: 27, font: CJK });
-    button(TL.langEn, 'Play (English)', { on: lang === 'en', size: 24 });
-    button(TL.level, `Computer: ${LEVELS[state.level].name}`, { size: 24 }); button(TL.tutor, `Tutor: ${state.tutor ? 'on' : 'off'}`, { size: 24, on: state.tutor });
-    button(TL.how, 'How to play', { size: 22 }); button(TL.about, TL.how.w < 190 ? 'About' : 'About Janggi', { size: 22 }); button(TL.rules, 'Rules', { size: 24 }); button(TL.look, 'Board, pieces and settings', { size: 24 });
+    if (state.saved) { button(TL.resume, 'Resume game', { primary: true, size: 36, icon: 'resume' }); button(TL.cho, nr ? 'New game' : 'New game as Cho', { icon: 'play', size: 26 }); }
+    else button(TL.cho, 'Play', { primary: true, size: 40, icon: 'play', sub: TL.cho.h >= 84 ? 'as Cho · green · moves first' : null });
+    button(TL.han, nr ? 'Play Han' : 'Play as Han (red)', { icon: 'han', size: 24 }); button(TL.two, 'Two players', { icon: 'two', size: 24 });
+    button(TL.learn, state.learnedAll ? 'Lessons' : 'Learn to play', { icon: 'book', size: 24, on: !state.learnedAll && !state.progress.played });
+    button(TL.autoplay, 'Auto Play', { icon: 'eye', size: 24 });
+    button(TL.langKo, 'Play (장기)', { on: lang !== 'en', size: 25, font: CJK });
+    button(TL.langEn, 'Play (English)', { on: lang === 'en', size: 23 });
+    button(TL.level, TL.level.w < 260 ? `CPU: ${LEVELS[state.level].name}` : `Computer: ${LEVELS[state.level].name}`, { size: 23 }); button(TL.tutor, `Tutor: ${state.tutor ? 'on' : 'off'}`, { size: 23, on: state.tutor });
+    button(TL.how, 'How to play', { size: 22, icon: TL.how.w >= 210 ? 'how' : null }); button(TL.about, TL.how.w < 190 ? 'About' : 'About Janggi', { size: 22, icon: TL.how.w >= 230 ? 'info' : null }); button(TL.rules, 'Rules', { size: 24, icon: 'rules' }); button(TL.look, 'Board, pieces and settings', { size: 24, icon: 'gear' });
     if (state.progress.played) text(`Games ${state.progress.played}   Wins ${state.progress.wins}`, TL.stats.x, TL.stats.y, 22, 'rgba(248,240,216,0.6)', UI, 600);
     { const c = TL.credit, lh = c.w * 0.2725, pad = lh * 0.12; ctx.save(); ctx.globalAlpha = state.lockPress > 0 ? 0.7 : 1; ctx.fillStyle = 'rgba(10,8,24,0.55)'; ctx.beginPath(); ctx.roundRect(c.x - c.w / 2 - pad, c.top - pad, c.w + 2 * pad, lh + 2 * pad, (lh + 2 * pad) * 0.3); ctx.fill(); ctx.restore(); }
     if (!drawLockup(ctx, TL.credit.x, TL.credit.top + TL.credit.w * 0.2725, TL.credit.w, state.lockPress > 0 ? 0.7 : 1)) drawCredit(ctx, TL.credit.x, TL.credit.y, 20);
@@ -117,26 +187,32 @@ export function render(ctx, state, L) {
   // ================================ set-up: choose the horse / elephant layout =======================================
   if (scene === 'setup') {
     const SU = L.setup(), S = state.setup;
+    if (V) { const sh = Math.min(SH * 0.3, 260), tg = ctx.createLinearGradient(0, 0, 0, sh); tg.addColorStop(0, 'rgba(22,10,4,0.85)'); tg.addColorStop(1, 'rgba(22,10,4,0)'); ctx.fillStyle = tg; ctx.fillRect(0, 0, SW, sh); }
     const chooser = S.mode === 'two' ? (S.step === 0 ? CHO : HAN) : S.human;
     text('Choose your set-up', SU.head.x, SU.head.y, fit('Choose your set-up', SU.head.align === 'center' ? SW - 60 : SU.cards[1].x + SU.cards[1].w - SU.head.x, SU.head.size, TITLE, 700), GOLD, TITLE, 700, SU.head.align);
     const who = S.mode === 'two' ? `${SIDE_NAME[chooser]} chooses` : chooser === CHO ? 'You are Cho and set up first' : 'You are Han and set up second';
     text(who, SU.head.sub.x, SU.head.sub.y, 24, chooser === CHO ? CHO_C : HAN_C, UI, 700, SU.head.align);
-    if (SU.board) {
+    if (SU.board && V) {
+      const bd = startBoard(S.cho, S.han), fl = S.mode === 'vs' && S.human === HAN, ghost = new Set();
+      for (let s = 0; s < 90; s++) { const p = bd[s]; if (p && (p > 0 ? !S.choKnown : !S.hanKnown) && Math.abs(p) >= 3 && Math.abs(p) <= 4) ghost.add(s); }
+      pub({ board: bd, flip: fl, ghost, caps: false });
+    } else if (V) pub({ board: startBoard(S.cho, S.han), flip: false, caps: false });
+    if (SU.board && fa > 0) {
       const B = SU.board;
+      ctx.save(); ctx.globalAlpha = fa;
       ctx.save(); ctx.beginPath(); ctx.rect(B.rect.x - 2, B.rect.y - 2, B.rect.w + 4, B.rect.h + 4); ctx.clip();
       ctx.translate(B.ox, B.oy); ctx.scale(B.s, B.s);
       drawBoard(ctx, state.board, lang);
       const bd = startBoard(S.cho, S.han), fl = S.mode === 'vs' && S.human === HAN;
       for (let s = 0; s < 90; s++) { const p = bd[s]; if (!p) continue; const q = pointXY(s, fl); const unknown = (p > 0 ? !S.choKnown : !S.hanKnown) && Math.abs(p) >= 3 && Math.abs(p) <= 4; piece(p, q.x, q.y, { alpha: unknown ? 0.35 : 1 }); }
       ctx.restore();
+      ctx.restore();
     }
     const side = chooser;
     SU.cards.forEach((r, i) => {
       const lay2 = LAYOUTS[i], cur = (side === CHO ? S.cho : S.han) === lay2, known = side === CHO ? S.choKnown : S.hanKnown;
       const sel = cur && known;
-      ctx.save();
-      ctx.fillStyle = sel ? 'rgba(30,96,70,0.72)' : 'rgba(6,20,17,0.62)'; ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, 18); ctx.fill();
-      ctx.strokeStyle = sel ? 'rgba(255,214,120,0.95)' : 'rgba(226,182,97,0.35)'; ctx.lineWidth = sel ? 3.5 : 1.6; ctx.stroke(); ctx.restore();
+      plaque(r, sel ? 'jade' : 'lacquer', 0.95, sel ? 1 : 0);
       const nm = LAYOUT_NAME[lay2], ko = LAYOUT_KO[lay2];
       const compact = r.h < 150;
       ctx.save(); ctx.font = `700 ${compact ? 22 : 26}px ${CJK}`; const koW = ctx.measureText(ko).width; ctx.restore();
@@ -163,6 +239,9 @@ export function render(ctx, state, L) {
     return;
   }
 
+  if (V && scene !== 'setup') pub({ board: startBoard('inner', 'inner'), flip: false, caps: false });
+  // reading / settings screens over the room: a soft shade at the top keeps the title and the A- / A+ buttons clear of the lit doors
+  if (V && (scene === 'look' || scene === 'howto' || scene === 'about' || scene === 'rules')) { const tg = ctx.createLinearGradient(0, 0, 0, Math.min(SH * 0.35, 320)); tg.addColorStop(0, 'rgba(22,10,4,0.82)'); tg.addColorStop(1, 'rgba(22,10,4,0)'); ctx.fillStyle = tg; ctx.fillRect(0, 0, SW, Math.min(SH * 0.35, 320)); }
   if (scene === 'look') {
     const LK = L.look();
     text('Settings', LK.head.x, LK.head.y, LK.head.size, GOLD, TITLE, 700, LK.head.align);
@@ -190,7 +269,7 @@ export function render(ctx, state, L) {
     ctx.save();
     ctx.beginPath(); ctx.roundRect(rp.x, rp.y, rp.w, rp.h, 26);
     const rg = ctx.createLinearGradient(0, rp.y, 0, rp.y + rp.h);
-    rg.addColorStop(0, 'rgba(14,40,34,0.66)'); rg.addColorStop(1, 'rgba(5,16,14,0.78)');
+    if (V) { rg.addColorStop(0, 'rgba(52,28,18,0.93)'); rg.addColorStop(1, 'rgba(28,14,8,0.95)'); } else { rg.addColorStop(0, 'rgba(14,40,34,0.66)'); rg.addColorStop(1, 'rgba(5,16,14,0.78)'); }
     ctx.fillStyle = rg; ctx.fill();
     ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(242,210,122,0.32)'; ctx.stroke();
     ctx.beginPath(); ctx.roundRect(rp.x + 6, rp.y + 6, rp.w - 12, rp.h - 12, 20);
@@ -293,8 +372,45 @@ export function render(ctx, state, L) {
     plate(BL.bot, botSide, nm(botSide), sd(botSide), !g.result && g.turn === botSide);
   }
 
-  // ---- the board and everything on it, in canonical board space
-  ctx.save(); ctx.translate(BL.ox, BL.oy); ctx.scale(BL.s, BL.s);
+  // ---- the board and everything on it: the 3D board (marks + projected labels and effects) or the flat art in canonical board space
+  const pulse = calm ? 0.6 : 0.5 + 0.5 * Math.sin(T * 4.2);
+  if (V) {
+    pub({ board: g.board, flip, anim: a, land: state.land, drag: state.drag, sel: state.sel, caps: true });
+    const M = (sq, kind, rgb, s, al, add = false) => v3.marks.push({ sq, kind, rgb, s, a: al, add });
+    if (state.last) for (const s of [state.last.f, state.last.t]) M(s, 'glow', '255,170,60', 1.25, inLesson ? 0.45 : 0.6);
+    const inChk3 = !g.result && inCheckBoard(g.board, g.turn);
+    if (inChk3 || (g.result && g.result.why === 'checkmate')) { const k = kingSquare(g.board, g.turn); if (k >= 0) M(k, 'glow', '235,30,15', 1.8 + pulse * 0.25, 0.75 + pulse * 0.2); }
+    if (g.bik && !g.result) for (const side of [CHO, HAN]) { const k = kingSquare(g.board, side); if (k >= 0) M(k, 'glow', '255,190,30', 1.7 + pulse * 0.2, 0.7 + pulse * 0.2); }
+    if (state.sel >= 0) { M(state.sel, 'glow', '255,190,70', 1.9, 0.7, true); M(state.sel, 'ring', '255,186,40', 1.42, 1); }
+    if (state.hint && !state.hint.pass) for (const s of [state.hint.from, state.hint.to]) M(s, 'glow', '20,190,100', 1.5 + pulse * 0.15, 0.6 + pulse * 0.3);
+    for (const s of state.targets) {
+      if (g.board[s] !== 0) M(s, 'ring', '225,35,25', 1.5, 0.75 + pulse * 0.25);
+      else { M(s, 'glow', '40,210,120', 1.0 + pulse * 0.12, 0.5 + pulse * 0.25); M(s, 'dot', '18,140,76', 0.5, 0.95); }
+      if (state.risks && state.risks.has(s)) M(s, 'dash', '255,140,10', 1.3, 0.85 + pulse * 0.15);
+    }
+    if (inLesson && !state.lesson.done && state.lesson.showSol) { const st = LESSONS[state.lesson.i].steps[state.lesson.s]; if (Array.isArray(st.sol)) for (const pt of st.sol) M(pt[1] * 9 + pt[0], 'glow', '20,190,100', 1.5, 0.6 + pulse * 0.3); }
+    if (inAuto && state.autoPhase === 'reveal' && state.hint) M(state.hint.to, 'ring', '255,200,40', 1.4 + pulse * 0.15, 0.8 + pulse * 0.2);
+    if (state.kb && !a) M(state.cursor, 'square', '40,220,140', 1.05, 0.95);
+    // file letters and rank numbers on the board's border, as Cho sees them (turned round when you play Han)
+    ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = state.board === 'night' ? 'rgba(236,214,160,0.6)' : 'rgba(52,30,12,0.62)';
+    const lab = (str, cx, cy) => { const p = v3.proj(cx, cy); ctx.font = `700 ${Math.max(11, 17 * p.k).toFixed(1)}px ${UI}`; ctx.fillText(str, p.x, p.y); };
+    for (let i = 0; i < 9; i++) lab(FILES[flip ? 8 - i : i], GX + i * D, GY + 9 * D + 56);
+    for (let j = 0; j < 10; j++) lab(String(flip ? j + 1 : 10 - j), GX - 58, GY + j * D);
+    ctx.restore();
+    // tap rings and capture sparks, laid onto the tilted board
+    for (const r of state.rings) { const f = r.t / 0.5; if (f < 1) { const c = v3.proj(r.x, r.y), e = v3.proj(r.x + 20 + f * 60, r.y), n = v3.proj(r.x, r.y + 20 + f * 60); ctx.save(); ctx.strokeStyle = `rgba(255,220,130,${1 - f})`; ctx.lineWidth = (6 * (1 - f) + 1) * c.k; ctx.beginPath(); ctx.ellipse(c.x, c.y, Math.hypot(e.x - c.x, e.y - c.y), Math.hypot(n.x - c.x, n.y - c.y), 0, 0, TAU); ctx.stroke(); ctx.restore(); } }
+    for (const q of state.parts) { const f = q.t / q.max; if (f < 1) { const c = v3.proj(q.x, q.y, 0.6 + f * 1.5); ctx.fillStyle = `rgba(${q.c},${1 - f})`; ctx.beginPath(); ctx.arc(c.x, c.y, q.size * (1 - f * 0.6) * c.k, 0, TAU); ctx.fill(); } }
+    if (inAuto && state.paused) { const R = BL.boardRect; ctx.fillStyle = 'rgba(4,14,12,0.3)'; ctx.beginPath(); ctx.roundRect(R.x, R.y, R.w, R.h, 18); ctx.fill(); }
+    if (state.banner && state.banner.t < 1.4) {
+      const c = v3.proj(360, GY_MID), f = state.banner.t / 1.4, sc = (1 + Math.max(0, 0.4 - f * 2)) * BL.s, al = f < 0.75 ? 1 : 1 - (f - 0.75) * 4;
+      ctx.save(); ctx.globalAlpha = Math.max(0, al); ctx.translate(c.x, c.y); ctx.scale(sc, sc);
+      const bk = state.banner.text === 'Pass' || state.banner.text.startsWith('Bikjang');
+      plaque({ x: -210, y: -56, w: 420, h: 112 }, bk ? 'jade' : 'red');
+      text(state.banner.text, 0, 24, fit(state.banner.text, 380, state.banner.text.length > 8 ? 54 : 72, TITLE, 700, 30), '#fff2cf', TITLE, 700); ctx.restore();
+    }
+  }
+  if (fa > 0) {
+  ctx.save(); ctx.globalAlpha = fa; ctx.translate(BL.ox, BL.oy); ctx.scale(BL.s, BL.s);
   drawBoard(ctx, state.board, lang);
   // coordinates along the frame (files a..i, ranks 1..10 as Cho sees them; turned round when you play Han)
   ctx.save(); ctx.font = `700 17px ${UI}`; ctx.fillStyle = state.board === 'night' ? 'rgba(217,192,122,0.55)' : 'rgba(45,27,14,0.5)'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -302,7 +418,6 @@ export function render(ctx, state, L) {
   for (let j = 0; j < 10; j++) ctx.fillText(String(flip ? j + 1 : 10 - j), 30, GY + j * D);
   ctx.restore();
   const pos = (s) => pointXY(s, flip);
-  const pulse = calm ? 0.6 : 0.5 + 0.5 * Math.sin(T * 4.2);
   if (state.last) for (const s of [state.last.f, state.last.t]) { const p = pos(s); blob(ctx, p.x, p.y, 54, 54, '255,205,90', inLesson ? 0.4 : 0.5); }
   const inChk = !g.result && inCheckBoard(g.board, g.turn);
   if (inChk || (g.result && g.result.why === 'checkmate')) { const k = kingSquare(g.board, g.turn); if (k >= 0) { const p = pos(k); blob(ctx, p.x, p.y, 78 + pulse * 10, 78 + pulse * 10, '255,50,30', 0.6 + pulse * 0.3); } }
@@ -360,6 +475,7 @@ export function render(ctx, state, L) {
     text(state.banner.text, 0, 24, fit(state.banner.text, 380, state.banner.text.length > 8 ? 54 : 72, TITLE, 700, 30), '#fff2cf', TITLE, 700); ctx.restore();
   }
   ctx.restore();
+  }
 
   // ---- message panel
   const mr = BL.msg;

@@ -1,5 +1,6 @@
 // Drawing kit: looks (palettes), text helpers, flat buttons, tiles with soft depth, icons.
 import { host } from './layout.js';
+import { flatAlpha } from './v3.js';
 
 export const UI = 'Fredoka, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -76,9 +77,21 @@ export const paraHeight = (ctx, s, w, size, weight = 500, lh = 1.32) => wrap(ctx
 
 // ---- shapes --------------------------------------------------------------------------------------------------------------
 export const rr = (ctx, x, y, w, h, r) => { ctx.beginPath(); ctx.roundRect(x, y, w, h, Math.max(0, Math.min(r, w / 2, h / 2))); };
+// Over the 3D workroom the panels are deeper (cloth-backed cards with a lip shadow) so text never fights the lit table.
+const deep = () => flatAlpha() < 1;
+const deepFill = () => (T.dark ? 'rgba(26,15,8,0.74)' : 'rgba(252,247,236,0.82)');
+function lip(ctx, r, radius) { rr(ctx, r.x + 1, r.y + 4, r.w, r.h, radius); ctx.fillStyle = 'rgba(0,0,0,0.28)'; ctx.fill(); }
+function stitch(ctx, r, radius, col, inset = 6) {
+  if (r.w < 40 || r.h < 34) return;
+  ctx.save(); rr(ctx, r.x + inset, r.y + inset, r.w - 2 * inset, r.h - 2 * inset, Math.max(4, radius - inset));
+  ctx.setLineDash([7, 5]); ctx.lineWidth = 1.6; ctx.strokeStyle = col; ctx.stroke(); ctx.restore();
+}
 export function panel(ctx, r, { radius = 22, fill = T.panel, line = T.line } = {}) {
+  const d = deep();
+  if (d) { lip(ctx, r, radius); rr(ctx, r.x, r.y, r.w, r.h, radius); ctx.fillStyle = deepFill(); ctx.fill(); }
   rr(ctx, r.x, r.y, r.w, r.h, radius); ctx.fillStyle = fill; ctx.fill();
   if (line) { ctx.lineWidth = 1.5; ctx.strokeStyle = line; ctx.stroke(); }
+  if (d) stitch(ctx, r, radius, T.dark ? 'rgba(255,226,180,0.16)' : 'rgba(90,60,25,0.18)');
 }
 export function background(ctx, w, h, t = 0) {
   const g = ctx.createLinearGradient(0, 0, 0, h);
@@ -94,10 +107,14 @@ export function background(ctx, w, h, t = 0) {
 export function button(ctx, r, label, { kind = 'solid', active = false, disabled = false, size = 30, weight = 600, sub = '', icon = '', flash = 0, radius = 18, align = 'center' } = {}) {
   const accent = kind === 'accent';
   ctx.save();
+  const d = deep() && kind !== 'ghost';
+  if (d && !disabled) lip(ctx, r, radius);
+  if (d && !accent && !active) { rr(ctx, r.x, r.y, r.w, r.h, radius); ctx.fillStyle = deepFill(); ctx.fill(); }
   if (disabled) ctx.globalAlpha = 0.4;
   rr(ctx, r.x, r.y, r.w, r.h, radius);
   ctx.fillStyle = accent ? T.accent : active ? rgba(T.accent.length === 7 ? T.accent : '#ff9459', 0.22) : kind === 'ghost' ? 'rgba(0,0,0,0)' : T.btn;
   ctx.fill();
+  if (accent) stitch(ctx, r, radius, rgba(T.onAccent.length === 7 ? T.onAccent : '#2a1406', 0.35), Math.min(7, r.h * 0.1));
   if (flash > 0) { ctx.fillStyle = `rgba(255,255,255,${0.28 * flash})`; ctx.fill(); }
   ctx.lineWidth = active ? 2.5 : 1.5; ctx.strokeStyle = active ? T.accent : accent ? 'rgba(0,0,0,0)' : T.line; ctx.stroke();
   const col = accent ? T.onAccent : T.text, fs = F(size);

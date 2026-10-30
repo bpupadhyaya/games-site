@@ -167,14 +167,19 @@ export function getRules() {
 }
 
 // ----------------------------------------------------------------------------------------------------------- About
+// Credits for the optional 3D layer (three.js and the shared view3d library), added at the end of About by main.js once loaded.
+let creditsBody = '';
+export const addAboutCredits = (body) => { creditsBody = body; };
 export function getAbout() {
-  return [
+  const list = [
     { title: 'Mehen: The Coiled Snake Race', body: 'Carved lions race along a coiled snake of stone, from its tail on the outside to its head in the middle. Throw four sticks, decide which lion to move, spend a marble to nudge a throw, rest on the carved stones and knock rivals back to the start.' },
     { title: 'An old game', body: 'Boards in the shape of a coiled snake, with sets of lion figures and small marbles, have been found in Egypt and are shown in wall paintings from the Old Kingdom, roughly 3000 to 2300 BC. Similar spiral boards turn up later in Cyprus and the Levant. It is one of the oldest board games known.' },
     { title: 'A reconstruction', body: 'Nobody knows how Mehen was really played: no rules survive. This game is a reconstruction in the spirit of the evidence, and it says so plainly. The Rules page explains each choice made here, so you can see where this version fills a gap.' },
     { title: 'This version', body: 'Up to six seats, any mix of people and computer, in three race lengths. A carved board lit like a lamp-lit stone, glass marbles that roll, four computer levels, Think with plain-English reasons, and Watch & Learn. Plays in portrait and landscape, with text that scales to 300%. No timers, works offline.' },
     { title: 'Credits', body: 'Designed and built by Arcforge: every picture, the carved relief and all of the sounds are drawn and synthesized in the game itself.' },
   ];
+  if (creditsBody) list.push({ title: '3D graphics credits', body: creditsBody });
+  return list;
 }
 export const RULE_COUNT = () => getRules().length;
 export { lengthOf };

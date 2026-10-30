@@ -133,10 +133,10 @@ function paintLamp(c) {
 }
 export function drawLamp(ctx, t, calm) {
   if (layers.lamp === undefined) { const cv = mk(1050, 1050); if (cv) paintLamp(cv.getContext('2d')); layers.lamp = cv || false; }
-  const k = calm ? 1 : 0.94 + Math.sin(t * 1.3) * 0.05 + Math.sin(t * 2.9 + 1) * 0.025;
-  ctx.globalAlpha = Math.min(1, k);
+  const k = calm ? 1 : 0.94 + Math.sin(t * 1.3) * 0.05 + Math.sin(t * 2.9 + 1) * 0.025, ga = ctx.globalAlpha;
+  ctx.globalAlpha = ga * Math.min(1, k);
   if (layers.lamp) ctx.drawImage(layers.lamp, 0, 0); else paintLamp(ctx);
-  ctx.globalAlpha = 1;
+  ctx.globalAlpha = ga;
 }
 
 // Called once per tick while the title is showing: builds one cached layer at a time so the first game frame is cheap.

@@ -7,11 +7,13 @@ import { LEVELS } from './engine.js';
 import { LESSONS } from './lessons.js';
 import { ABOUT } from './about.js';
 import { RULES } from './rulesText.js';
+import { v3, flatAlpha } from './v3.js';
 
 const FONT = '"Cormorant Garamond", Georgia, "Times New Roman", serif', UI = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 const TAU = Math.PI * 2;
 const CREAM = '#f8e9c4', GOLD = '#f2c56b', MADDER = '#b4432c', TEAL = '#23918c';
 const OWNER = [MADDER, TEAL];
+const IDLE = { pits: new Array(18).fill(9), kazan: [0, 0], tuz: [-1, -1] };
 // Reader layout cache (wrapped lines + total height); readerStats.layouts counts re-wraps (tests read it).
 const readerCache = { list: null, key: '', items: [], endY: 0 };
 export const readerStats = { layouts: 0 };
@@ -71,6 +73,7 @@ export function render(ctx, state, L) {
     if (o.primary) { gr.addColorStop(0, '#fbdc8c'); gr.addColorStop(0.55, '#dea23a'); gr.addColorStop(1, '#a86a1c'); } else { gr.addColorStop(0, '#6a4127'); gr.addColorStop(0.5, '#47281a'); gr.addColorStop(1, '#2d180d'); }
     ctx.fillStyle = gr; ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, rad); ctx.fill();
     ctx.strokeStyle = o.primary ? 'rgba(255,240,190,0.9)' : 'rgba(242,197,107,0.6)'; ctx.lineWidth = 2.5; ctx.stroke();
+    if (o.lit) { const p = state.calm ? 0.8 : 0.6 + 0.4 * Math.sin(state.t * 3); ctx.strokeStyle = `rgba(255,214,120,${0.55 + 0.4 * p})`; ctx.lineWidth = 4; ctx.beginPath(); ctx.roundRect(r.x - 2, r.y - 2, r.w + 4, r.h + 4, rad + 2); ctx.stroke(); }
     let sz = fz(o.size ?? 30); const maxW = r.w - 18, floor = fz(15);
     ctx.font = `700 ${sz}px ${UI}`;
     while (ctx.measureText(label).width > maxW && sz > floor) { sz -= 1; ctx.font = `700 ${sz}px ${UI}`; }
@@ -192,8 +195,42 @@ export function render(ctx, state, L) {
     }
   };
 
+  // ---- 3D overlay: with the 3D board on (v3.on), pits, pebbles, kazans and tuz flags are real geometry (view3d/presenter.js); this
+  // layer only asks for the glows on the pit rims (v3.marks) and draws the counts and labels at the projected board points.
+  const overlay3d = (sh, opts = {}) => {
+    const pulse = state.calm ? 0.6 : 0.5 + 0.5 * Math.sin(state.t * 5), M = v3.marks;
+    for (const i of opts.legal || []) M.push({ pit: i, rgb: '255,214,110', a: 0.42 + pulse * 0.38 });
+    if (state.hint && !A) M.push({ pit: state.hint.pit, rgb: '120,255,160', a: 0.6 + pulse * 0.4, s: 1.06 });
+    if (A && A.phase === 'capwait') M.push({ pit: A.r.tuzMade >= 0 ? A.r.tuzMade : A.r.last, rgb: '255,190,80', a: 0.5 + Math.abs(Math.sin(A.timer * 14)) * 0.5 });
+    if (A && A.phase === 'cap' && !state.calm) { const f = Math.min(1, A.timer / 0.34); M.push({ pit: A.r.capture > 0 ? A.r.last : A.r.tuzMade, rgb: '255,214,120', a: 1 - f, s: 1 + 0.7 * f }); }
+    if (state.ref && !A) M.push({ pit: state.ref.pit, rgb: '255,110,80', a: 0.95 * (1 - state.ref.t / 0.6) });
+    if (opts.kb != null) M.push({ pit: opts.kb, rgb: '125,255,154', a: 1, s: 1.1 });
+    for (const m of opts.extra || []) M.push(m);
+    if (opts.counts === false) return;
+    for (let i = 0; i < 18; i++) {
+      const p = pitPos(i), n = sh.pits[i], top = i >= 9; if (n <= 0) continue;
+      const sz0 = big ? 32 : 26, y = top ? p.y - RY - (big ? 12 : 10) : p.y + RY + Math.max(big ? 32 : 28, fz(sz0) * 0.95), q = v3.pt(p.x, y, 0.5), sz = fz(sz0 * q.s);
+      ctx.textAlign = 'center'; ctx.font = `800 ${sz}px ${UI}`; ctx.lineWidth = Math.max(3, sz * 0.2); ctx.lineJoin = 'round'; ctx.strokeStyle = 'rgba(30,12,2,0.9)'; ctx.strokeText(String(n), q.x, q.y); ctx.fillStyle = '#ffedc4'; ctx.fillText(String(n), q.x, q.y);
+    }
+    for (const pl of [0, 1]) {
+      const T = pl === 0 ? TRAY.bottom : TRAY.top, n = sh.kazan[pl], label = opts.labels ? opts.labels[pl] : pl === 0 ? 'You' : 'Computer';
+      const a = v3.pt(T.x + 30, T.y + 38, -1.2), b = v3.pt(T.x + 30, T.y + 96, -1.2), c = v3.pt(T.x + 200, T.y + 38, -1.2), tz = sh.tuz[pl];
+      text(label, a.x, a.y, (big ? 27 : 23) * a.s, CREAM, UI, 700, 'left');
+      text(String(n), b.x, b.y, (big ? 58 : 52) * b.s, GOLD, FONT, 700, 'left');
+      text(tz >= 0 ? `Tuz: pit ${numberOf(tz)}` : 'No tuz yet', c.x, c.y, 20 * c.s, tz >= 0 ? '#ffe9b0' : 'rgba(248,233,196,0.7)', UI, 600, 'left');
+    }
+  };
+  // a soft dark pool behind text that sits straight on the 3D scene
+  const pool = (r, a = 0.55) => {
+    const cx = r.x + r.w / 2, cy = r.y + r.h / 2, g = ctx.createRadialGradient(0, 0, 0, 0, 0, 1);
+    g.addColorStop(0, `rgba(10,8,20,${a})`); g.addColorStop(0.6, `rgba(10,8,20,${a * 0.75})`); g.addColorStop(1, 'rgba(10,8,20,0)');
+    ctx.save(); ctx.translate(cx, cy); ctx.scale(r.w * 0.62, r.h * 0.7); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, 1, 0, TAU); ctx.fill(); ctx.restore();
+  };
+
   // ---- table -----------------------------------------------------------------------------------------------------
-  drawTable(ctx, L.w, L.h, L.bandTop, L.bandBot);
+  const fa = flatAlpha();
+  if (fa > 0) { ctx.save(); ctx.globalAlpha = fa; drawTable(ctx, L.w, L.h, L.bandTop, L.bandBot); ctx.restore(); }
+  if (scene !== 'title' && scene !== 'demo-limit') v3.hero = null;
 
   if (boardScene) {
     const SC = scene === 'play' ? (state.autoMode ? 'auto' : 'play') : scene === 'over' ? 'play' : scene, P = L.play[SC];
@@ -201,7 +238,8 @@ export function render(ctx, state, L) {
     if (!A && g.winner === null && (scene === 'play' ? (state.two || g.turn === 0) : scene === 'lesson' ? !state.lesson.done && !state.lesson.wait : scene === 'puzzle' ? (state.pz.status !== 'solved' && state.pz.wrong <= 0) : false)) {
       legal = scene === 'lesson' ? LESSONS[state.lesson.i].want.concat(LESSONS[state.lesson.i].trap ? [LESSONS[state.lesson.i].trap.pit] : []).filter((p) => legalMoves(g).includes(p)) : legalMoves(g);
     }
-    inBoard(() => {
+    if (fa > 0) { ctx.save(); ctx.globalAlpha = fa; }
+    if (fa > 0) inBoard(() => {
       drawBoard(ctx, state.wood);
       // a moving chevron along the carved arrows: the direction of sowing
       if (!state.calm) { const f = (state.t * 0.5) % 1; for (const [y, d] of [[MID_Y - 40, -1], [MID_Y + 40, 1]]) { const x = d > 0 ? 190 + 340 * f : 530 - 340 * f; ctx.strokeStyle = `rgba(255,214,120,${0.9 * Math.sin(Math.PI * f)})`; ctx.lineWidth = 4.5; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath(); ctx.moveTo(x - d * 9, y - 9); ctx.lineTo(x + d * 9, y); ctx.lineTo(x - d * 9, y + 9); ctx.stroke(); } }
@@ -231,6 +269,26 @@ export function render(ctx, state, L) {
         if (A.phase === 'sow' && A.tuzFlash) { const p = pitPos(A.tuzFlash.pit), f = Math.min(1, A.tuzFlash.t / 0.5); text('+1', p.x, p.y - 30 - f * 28, 30, `rgba(255,224,130,${1 - f})`, FONT, 700); }
       }
     });
+    if (fa > 0) ctx.restore();
+    if (v3.on && v3.pt) {
+      const kb = state.kb && scene !== 'over' ? (g.turn === 0 ? state.cursor : 17 - state.cursor) : 0;
+      overlay3d(state.shown, { legal, kb: state.kb && scene !== 'over' ? kb : null, labels: scene === 'lesson' || scene === 'puzzle' ? ['You', 'Opponent'] : state.two || state.autoMode ? ['Player one', 'Player two'] : ['You', 'Computer'] });
+      // the sowing direction: a light running along the carved arrows
+      if (!state.calm && scene !== 'over') {
+        const f = (state.t * 0.5) % 1;
+        for (const [y, d] of [[MID_Y - 40, -1], [MID_Y + 40, 1]]) {
+          const x = d > 0 ? 190 + 340 * f : 530 - 340 * f, a = v3.pt(x - d * 9, y - 9, 0.05), b = v3.pt(x + d * 9, y, 0.05), c = v3.pt(x - d * 9, y + 9, 0.05);
+          ctx.strokeStyle = `rgba(255,214,120,${0.9 * Math.sin(Math.PI * f)})`; ctx.lineWidth = 4.5 * b.s; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.lineTo(c.x, c.y); ctx.stroke();
+        }
+      }
+      if (A) {
+        const r = A.r, h = v3.handAt;
+        if (h && A.n > 0) { const q = v3.pt(h.x, h.y, h.lift), s = q.s; ctx.fillStyle = 'rgba(20,14,30,0.92)'; ctx.beginPath(); ctx.arc(q.x + 26 * s, q.y - 22 * s, 15 * s, 0, TAU); ctx.fill(); ctx.strokeStyle = GOLD; ctx.lineWidth = 2; ctx.stroke(); text(String(A.n), q.x + 26 * s, q.y - 15 * s, 20 * s, '#ffe9b0', UI, 800, 'center', false); }
+        if (A.phase === 'cap') { const c = r.capture > 0 ? r.last : r.tuzMade, p = pitPos(c), f = Math.min(1, A.timer / Math.max(0.01, state.calm ? 0.17 : 0.34)), q = v3.pt(p.x, p.y, 3 + f * 3); text(`+${r.capture > 0 ? r.capture : 3}`, q.x, q.y - 20 * q.s, 34 * q.s, `rgba(255,224,130,${1 - f * 0.6})`, FONT, 700); }
+        if (A.phase === 'sow' && A.tuzFlash) { const p = pitPos(A.tuzFlash.pit), f = Math.min(1, A.tuzFlash.t / 0.5), q = v3.pt(p.x, p.y, 2 + f * 3); text('+1', q.x, q.y, 30 * q.s, `rgba(255,224,130,${1 - f})`, FONT, 700); }
+      }
+      if (scene !== 'over') pool({ x: L.header.x - 30, y: L.header.y - 16, w: L.header.w + 60, h: L.header.h + 32 }, 0.8);
+    }
     const GOAL = { text: 'First to collect 82 of the 162 pebbles wins', size: 22, color: GOLD, weight: 600 };
     // While a move is animating, `g.turn` has already flipped to the NEXT mover (rules.js applyMove flips it at once), so read whose
     // move is on screen from the animation itself (A.r.player): the header never announces the next mover a full animation early.
@@ -271,15 +329,25 @@ export function render(ctx, state, L) {
   if (scene === 'title' || scene === 'demo-limit') {
     const T = L.title(!!state.saved);
     // the crown of a yurt turns slowly behind the name; a real board sits below with a light running along the sowing path
+    const as = T.art.s;
+    v3.hero = { x: T.art.ox + 30 * as, y: T.art.oy + 330 * as, w: 660 * as, h: 520 * as };
+    if (v3.on && v3.pt) {
+      if (!state.calm) { const f = (state.t * 3.2) % 18, ex = []; for (let d = 0; d < 4; d++) ex.push({ pit: Math.floor(f + 18 - d) % 18, rgb: '255,214,120', a: Math.max(0.05, 0.75 - d * 0.18) }); overlay3d(IDLE, { counts: false, extra: ex }); }
+      pool({ x: T.art.ox + 10 * as, y: T.art.oy + 100 * as, w: 700 * as, h: 240 * as }, 0.6);
+      if (scene === 'title') { const st = T.stats; pool({ x: st.x - st.wMax / 2, y: st.y - 30, w: st.wMax, h: 74 }, 0.7); }
+    }
     withT(T.art.ox, T.art.oy, T.art.s, () => {
-      drawShanyrak(ctx, 360, 205, 190, state.calm ? 0 : state.t * 0.05, 0.3);
+      ctx.save(); ctx.globalAlpha = fa;
+      if (fa > 0) drawShanyrak(ctx, 360, 205, 190, state.calm ? 0 : state.t * 0.05, 0.3);
       ctx.save(); ctx.translate(360, 82); ctx.scale(0.68, 0.68); ctx.translate(-360, 0);
       zs *= 0.68;
-      drawBoard(ctx, state.wood);
-      const idle = { pits: new Array(18).fill(9), kazan: [0, 0], tuz: [-1, -1] };
-      contents(idle, { counts: false });
-      if (!state.calm) { const f = (state.t * 3.2) % 18; for (let d = 0; d < 4; d++) { const i = Math.floor(f + 18 - d) % 18, a = 0.7 - d * 0.18; ellipseGlow(i, '255,214,120', Math.max(0.05, a)); } }
+      if (fa > 0) drawBoard(ctx, state.wood);
+      if (fa > 0) {
+        contents(IDLE, { counts: false });
+        if (!state.calm) { const f = (state.t * 3.2) % 18; for (let d = 0; d < 4; d++) { const i = Math.floor(f + 18 - d) % 18, a = 0.7 - d * 0.18; ellipseGlow(i, '255,214,120', Math.max(0.05, a)); } }
+      }
       zs /= 0.68;
+      ctx.restore();
       ctx.restore();
       text('Toguz Kumalak', 360, 205, 104, CREAM, FONT);
       horn(ctx, 360, 250, 14, GOLD, 2.4);
@@ -289,8 +357,8 @@ export function render(ctx, state, L) {
   if (scene === 'title') {
     const T = L.title(!!state.saved), R = T.rows, solved = state.daily.solvedDay === state.daily.day;
     if (R.resume) button(R.resume, 'Continue your game', { primary: true, size: 32 });
-    button(R.learn, 'Learn to play', { primary: !state.learned && !R.resume, size: 32 });
-    button(R.play, 'Play the computer', { primary: state.learned && !R.resume, size: 32 });
+    button(R.learn, 'Learn to play', { lit: !state.learned, size: 32 });          // lit until the lessons are done; Play is the main action
+    button(R.play, 'Play the computer', { primary: !R.resume, size: 32 });
     button(R.two, 'Two players, one phone', { size: 30 });
     button(R.daily, solved ? `Daily puzzle: solved · streak ${state.daily.streak}` : state.daily.streak ? `Daily puzzle · streak ${state.daily.streak}` : 'Daily puzzle', { size: 30 });
     button(R.about, 'About', { size: 26 }); button(R.rules, 'Rules', { size: 26 }); button(R.settings, 'Settings', { size: 26 });
@@ -384,7 +452,7 @@ export function render(ctx, state, L) {
     button(RF.text.dec, 'A−', { size: 34, dim: state.textScaleIdx === 0 });
     button(RF.text.inc, 'A+', { size: 34, dim: state.textScaleIdx === TEXT_SCALES.length - 1 });
   } else if (scene === 'over') {
-    ctx.fillStyle = 'rgba(8,10,30,0.86)'; ctx.fillRect(0, L.bandTop, L.w, L.h - L.bandTop - L.bandBot);
+    ctx.fillStyle = v3.on ? 'rgba(8,10,30,0.74)' : 'rgba(8,10,30,0.86)'; ctx.fillRect(0, v3.on ? 0 : L.bandTop, L.w, v3.on ? L.h : L.h - L.bandTop - L.bandBot);
     const O = L.over;
     withT(O.ox, O.oy, O.k, () => {
       const won = g.winner === 'draw' ? 'A draw' : state.two || state.autoMode ? (g.winner === 0 ? 'Player one wins' : 'Player two wins') : g.winner === 0 ? 'You win!' : 'The computer wins';
@@ -402,6 +470,6 @@ export function render(ctx, state, L) {
     button(O.again, 'Play again', { primary: true, size: 36 }); button(O.back, 'Menu', { size: 32 });
   }
   // lamplight breathing: a faint warm flicker over everything but the buttons' text
-  if (!state.calm && scene !== 'over') { const fl = 0.035 + 0.02 * Math.sin(state.t * 2.3) + 0.012 * Math.sin(state.t * 7.1); ctx.fillStyle = `rgba(255,190,100,${fl})`; ctx.fillRect(0, L.bandTop, L.w, L.h - L.bandTop - L.bandBot); }
+  if (!state.calm && scene !== 'over' && !v3.on) { const fl = 0.035 + 0.02 * Math.sin(state.t * 2.3) + 0.012 * Math.sin(state.t * 7.1); ctx.fillStyle = `rgba(255,190,100,${fl})`; ctx.fillRect(0, L.bandTop, L.w, L.h - L.bandTop - L.bandBot); }
   function w2() { return L.settings.panel.x + L.settings.panel.w / 2; }
 }

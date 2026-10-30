@@ -8,7 +8,7 @@ import { setLogo, setLockup } from './src/brand.js';
 // Without WebGL the game keeps playing with its flat top-down chalk course.
 const canvas = document.getElementById('game');
 let presenter = null;
-try { if (!new URLSearchParams(location.search).has('nogl')) { presenter = await createPresenter({ kitCanvas: canvas }); await presenter.ready_p; } } catch (e) { console.warn('3D presenter unavailable', e); presenter = null; }
+try { if (!new URLSearchParams(location.search).has('nogl')) { presenter = await createPresenter({ kitCanvas: canvas }); } } catch (e) { console.warn('3D presenter unavailable', e); presenter = null; }
 
 // Sound shell: a drum (kick + hat), a chalk tap and a stone clack, synthesized with Web Audio. Display and sound code only.
 function makeFx() {

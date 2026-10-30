@@ -212,6 +212,6 @@ export function flightPos(f, alpha = 1) {
   const k = clamp01(tt / f.dur);
   const e = f.kind === 'drop' ? k : ease(k) * 0.2 + k * 0.8;
   const arc = f.kind === "drop" ? Math.sin(k * Math.PI) * 9 : Math.sin(k * Math.PI) * FLY_ARC * 1.6;
-  return [f.from[0] + (f.to[0] - f.from[0]) * e, f.from[1] + (f.to[1] - f.from[1]) * e - arc, k];
+  return [f.from[0] + (f.to[0] - f.from[0]) * e, f.from[1] + (f.to[1] - f.from[1]) * e - arc, k, arc, e];
 }
 export { other };

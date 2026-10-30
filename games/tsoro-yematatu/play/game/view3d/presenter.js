@@ -119,28 +119,28 @@ export async function createPresenter({ kitCanvas, quality = 'high' }) {
   const M = {};
   const mats = () => {
     M.wood = B.material('darkWood', { color: '#4a2c16', color2: '#7a4a26', repeat: [3, 3], seed: 11 });
-    M.brass = B.material('brass', { color: '#b88a2e', color2: '#f0cf78' });
-    M.slate = B.material('stone', { color: '#1b4a44', color2: '#2c6e64', repeat: [2, 1], seed: 4, roughness: 0.62 });
-    M.slateOn = B.material('stone', { color: '#2a6a60', color2: '#3f8f80', repeat: [2, 1], seed: 4, roughness: 0.55 }); M.slateOn.emissive = new THREE.Color('#0c3a33'); M.slateOn.emissiveIntensity = 0.6;
-    M.deep = new THREE.MeshStandardMaterial({ color: '#12302d', roughness: 0.88, emissive: '#06201c', emissiveIntensity: 0.5 });
+    M.brass = B.material('brass', { color: '#c8962e', color2: '#ffe08a' });
+    M.slate = B.material('stone', { color: '#10302b', color2: '#1f4f47', repeat: [2, 1], seed: 4, roughness: 0.6 });
+    M.slateOn = B.material('stone', { color: '#245a50', color2: '#3f8f80', repeat: [2, 1], seed: 4, roughness: 0.5 }); M.slateOn.emissive = new THREE.Color('#0c3a33'); M.slateOn.emissiveIntensity = 0.6;
+    M.deep = new THREE.MeshStandardMaterial({ color: '#10221f', roughness: 0.88, emissive: '#06201c', emissiveIntensity: 0.5 });
     M.tray = B.material('felt', { color: '#16403a', color2: '#0c2824', repeat: [2, 1] });
-    M.card = new THREE.MeshStandardMaterial({ color: '#17403b', roughness: 0.85, emissive: '#082420', emissiveIntensity: 0.5 });
-    M.btn = B.material('lacquer', { color: '#1c6f68' }); M.btnOn = B.material('lacquer', { color: '#8e7424' }); M.btnPrimary = B.material('lacquer', { color: '#e0952a' });
+    M.card = new THREE.MeshStandardMaterial({ color: '#14302c', roughness: 0.85, emissive: '#082420', emissiveIntensity: 0.5 });
+    M.btn = B.material('lacquer', { color: '#1c6f68' }); M.btnOn = B.material('lacquer', { color: '#8e7424' }); M.btnPrimary = B.material('lacquer', { color: '#ffc23a' }); M.btnPrimary.emissive = new THREE.Color('#8a5a08'); M.btnPrimary.emissiveIntensity = 0.7;
   };
   mats();
   const scrim = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ color: 0x030c0c, transparent: true, opacity: 0, depthWrite: false })); hud.add(scrim);
   const panelAt = (i) => {
     let p = hudPanels[i];
-    if (!p) { const g = new THREE.Group(), outer = new THREE.Mesh(flatQuad, M.wood), trim = new THREE.Mesh(flatQuad, M.brass), inner = new THREE.Mesh(flatQuad, M.slate); g.add(outer, trim, inner); hud.add(g); p = { g, outer, trim, inner }; hudPanels.push(p); }
+    if (!p) { const g = new THREE.Group(), outer = new THREE.Mesh(flatQuad, M.brass), trim = new THREE.Mesh(flatQuad, M.wood), inner = new THREE.Mesh(flatQuad, M.slate); g.add(outer, trim, inner); hud.add(g); p = { g, outer, trim, inner }; hudPanels.push(p); }
     return p;
   };
   const ROT = Math.PI / 2;
   function placePanel(i, r, rad, kind) {
     const p = panelAt(i); p.g.visible = true;
-    const cx = r.x + r.w / 2, cy = -(r.y + r.h / 2), z = -700, dep = kind === 'toast' ? 8 : 14, ins = kind === 'tray' ? 9 : 6;
+    const cx = r.x + r.w / 2, cy = -(r.y + r.h / 2), z = -700, dep = kind === 'toast' ? 8 : 14, ins = kind === 'tray' ? 12 : 10;
     p.outer.geometry = slabG(r.w, r.h, dep, rad, 5); p.outer.rotation.x = ROT; p.outer.position.set(cx, cy, z);
-    p.trim.geometry = slabG(r.w - ins * 1.1, r.h - ins * 1.1, dep + 1.5, Math.max(4, rad - ins * 0.5), 1.6); p.trim.rotation.x = ROT; p.trim.position.set(cx, cy, z);
-    p.inner.geometry = slabG(r.w - ins * 2.3, r.h - ins * 2.3, dep + 2.5, Math.max(3, rad - ins), 2.2); p.inner.rotation.x = ROT; p.inner.position.set(cx, cy, z);
+    p.trim.geometry = slabG(r.w - ins * 1.8, r.h - ins * 1.8, dep + 1.5, Math.max(4, rad - ins * 0.9), 1.6); p.trim.rotation.x = ROT; p.trim.position.set(cx, cy, z);
+    p.inner.geometry = slabG(r.w - ins * 2.6, r.h - ins * 2.6, dep + 2.5, Math.max(3, rad - ins * 1.2), 2.2); p.inner.rotation.x = ROT; p.inner.position.set(cx, cy, z);
     p.inner.material = kind === 'plateOn' ? M.slateOn : kind === 'tray' ? M.tray : kind === 'doc' ? M.deep : kind === 'card' ? M.card : M.slate;
   }
   const buttonAt = (i) => {
@@ -164,8 +164,8 @@ export async function createPresenter({ kitCanvas, quality = 'high' }) {
     if (w !== W || h !== H || dpr !== dprNow) { W = w; H = h; dprNow = dpr; renderer.setPixelRatio(dpr); renderer.setSize(w, h, false); camera.aspect = w / h; }
   }
   const tmpV = new THREE.Vector3(), tmpW = new THREE.Vector3();
-  function fitCamera(rect, L, pitchDeg, fov, yawDeg = 0) {
-    const k = W / L.w, targetW = rect.w * k, p = (pitchDeg * Math.PI) / 180, yaw = (yawDeg * Math.PI) / 180, lookY = 0.3;
+  function fitCamera(rect, L, pitchDeg, fov, yawDeg = 0, zoom = 1) {
+    const k = W / L.w, targetW = rect.w * k * zoom, p = (pitchDeg * Math.PI) / 180, yaw = (yawDeg * Math.PI) / 180, lookY = 0.3;
     pitchNow = pitchDeg;
     camera.fov = fov; camera.clearViewOffset(); camera.aspect = W / H; camera.updateProjectionMatrix();
     let d = 22;
@@ -347,7 +347,7 @@ export async function createPresenter({ kitCanvas, quality = 'high' }) {
     } else if (sc === 'doc') {
       fitCamera({ x: L.w * 0.06, y: L.h * 0.3, w: L.w * 0.88, h: L.w * 0.88 }, L, 32, 34, state.calm ? 0 : Math.sin(clock * 0.15) * 7); heroState(state);
     } else {
-      fitCamera({ x: L.board.x, y: L.board.y, w: L.board.S, h: L.board.S }, L, L.land ? 50 : 46, 30, 0); boardState(state);
+      fitCamera({ x: L.board.x, y: L.board.y, w: L.board.S, h: L.board.S }, L, L.land ? 60 : 64, 30, 0, L.playZoom || 1); boardState(state);   // zoomed so the triangle (not the slab) fills the width; the slab rim runs off the screen edges
     }
   }
   function present(state, L, dt) {

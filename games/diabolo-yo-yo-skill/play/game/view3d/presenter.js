@@ -39,12 +39,19 @@ export async function createPresenter({ kitCanvas, quality = 'high' }) {
     t.anisotropy = 4; return t;
   };
   const wallTex = tex(512, 512, (g, w, h) => {
-    const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#04141a'); gr.addColorStop(0.5, '#0c3640'); gr.addColorStop(1, '#165560');
+    // plaster wall with a tall window (daylight from the right), wainscot panelling and skirting; no floating discs
+    const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#1a3c44'); gr.addColorStop(0.55, '#2c5b62'); gr.addColorStop(1, '#3d6e6c');
     g.fillStyle = gr; g.fillRect(0, 0, w, h);
-    const sp = g.createRadialGradient(w * 0.5, h * 0.62, 10, w * 0.5, h * 0.62, w * 0.55); sp.addColorStop(0, 'rgba(255,214,150,0.55)'); sp.addColorStop(0.5, 'rgba(255,190,120,0.16)'); sp.addColorStop(1, 'rgba(255,190,120,0)');
+    for (let i = 0; i < 1800; i++) { g.fillStyle = `rgba(${i % 2 ? '255,255,255' : '0,0,0'},${0.012 + (i % 5) * 0.004})`; g.fillRect((i * 73) % w, (i * 131) % h, 2 + i % 3, 2); }
+    const wx = w * 0.42, wy = h * 0.4, ww = w * 0.24, wh = h * 0.195;
+    const sky = g.createLinearGradient(0, wy, 0, wy + wh); sky.addColorStop(0, '#c9b98f'); sky.addColorStop(1, '#e6b878');
+    g.fillStyle = '#25140a'; g.fillRect(wx - 10, wy - 10, ww + 20, wh + 20); g.fillStyle = sky; g.fillRect(wx, wy, ww, wh);
+    g.fillStyle = '#25140a'; g.fillRect(wx + ww / 2 - 3, wy, 6, wh); g.fillRect(wx, wy + wh * 0.42, ww, 6);
+    const sp = g.createRadialGradient(wx + ww / 2, wy + wh / 2, 10, wx + ww / 2, wy + wh / 2, w * 0.5); sp.addColorStop(0, 'rgba(255,214,150,0.35)'); sp.addColorStop(1, 'rgba(255,190,120,0)');
     g.fillStyle = sp; g.fillRect(0, 0, w, h);
-    g.fillStyle = 'rgba(0,0,0,0.18)'; for (let i = 0; i < 9; i++) g.fillRect(i * w / 9, 0, 3, h);
-    for (let i = 0; i < 34; i++) { const x = (i * 97) % w, y = ((i * 53) % h) * 0.75, r = 3 + (i * 7) % 11; g.fillStyle = `rgba(255,${200 + (i % 4) * 12},${150 + (i % 3) * 30},${0.10 + (i % 3) * 0.05})`; g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill(); }
+    const wy2 = h * 0.64; g.fillStyle = '#2a1a10'; g.fillRect(0, wy2, w, h - wy2);
+    for (let i = 0; i < 9; i++) { g.fillStyle = 'rgba(255,214,150,0.10)'; g.fillRect(i * w / 9 + 8, wy2 + 14, w / 9 - 16, h - wy2 - 30); g.strokeStyle = 'rgba(0,0,0,0.5)'; g.strokeRect(i * w / 9 + 8, wy2 + 14, w / 9 - 16, h - wy2 - 30); }
+    g.fillStyle = '#6a4224'; g.fillRect(0, wy2 - 6, w, 6); g.fillStyle = 'rgba(0,0,0,0.35)'; g.fillRect(0, h - 10, w, 10);
   });
   const floorTex = tex(512, 512, (g, w, h) => {
     const n = 8; for (let i = 0; i < n; i++) {
@@ -98,13 +105,15 @@ export async function createPresenter({ kitCanvas, quality = 'high' }) {
     rubber: mat({ map: dbStripes, color: 0xffffff, metalness: 0.15, roughness: 0.3, side: THREE.DoubleSide }),
     wood: mat({ color: 0x5a2c16, metalness: 0.1, roughness: 0.35 }),
     grip: mat({ color: 0x1c1c22, metalness: 0, roughness: 0.8 }),
-    skin: mat({ color: 0xd9a77e, metalness: 0, roughness: 0.62 }),
+    skin: mat({ color: 0xcf9870, metalness: 0, roughness: 0.55, envMapIntensity: 0.6 }),
+    nail: mat({ color: 0xe8c3a6, metalness: 0, roughness: 0.3 }),
+    cuff: mat({ color: 0xe9dcc0, metalness: 0, roughness: 0.6 }),
     sleeve: mat({ color: 0x1f6f78, metalness: 0, roughness: 0.7 }),
     string: mat({ color: 0xf4ead2, metalness: 0, roughness: 0.7, emissive: 0x3a3426 }),
   };
 
   // ---------- backdrop ----------
-  const wall = new THREE.Mesh(new THREE.PlaneGeometry(10, 10), new THREE.MeshBasicMaterial({ map: wallTex, fog: false, toneMapped: false }));
+  const wall = new THREE.Mesh(new THREE.PlaneGeometry(8, 8), new THREE.MeshBasicMaterial({ map: wallTex, fog: false, toneMapped: false }));
   wall.position.set(0, 1.4, -3.2); scene.add(wall);
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(24, 14), new THREE.MeshStandardMaterial({ map: floorTex, color: 0x6e5c4e, roughness: 0.45, metalness: 0, envMapIntensity: 0.35 }));
   floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
@@ -149,15 +158,31 @@ export async function createPresenter({ kitCanvas, quality = 'high' }) {
   }
 
   // ---------- hands ----------
+  // a closed fist around a vertical grip (the rod axis is the local y axis): palm behind, four fingers wrapping across the front, thumb over them, wrist and sleeve below
+  const seg = (parent, p0, p1, r, m) => {
+    const d = new THREE.Vector3().subVectors(p1, p0), len = d.length();
+    const c = new THREE.Mesh(new THREE.CapsuleGeometry(r, Math.max(0.001, len - 2 * r), 4, 8), m);
+    c.position.copy(p0).add(p1).multiplyScalar(0.5); c.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize()); c.castShadow = true; parent.add(c); return c;
+  };
+  const fadeTex = tex(4, 64, (g, w, h) => { const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#fff'); gr.addColorStop(0.45, '#fff'); gr.addColorStop(1, '#000'); g.fillStyle = gr; g.fillRect(0, 0, w, h); });
+  M.sleeveFade = mat({ color: 0x1f6f78, metalness: 0, roughness: 0.7, transparent: true, alphaMap: fadeTex, depthWrite: false });
   function makeHand(left) {
-    const g = new THREE.Group();
-    const fist = new THREE.Mesh(new THREE.SphereGeometry(0.056, 20, 14), M.skin); fist.scale.set(1, 0.92, 1.05); fist.castShadow = true; g.add(fist);
-    const thumb = new THREE.Mesh(new THREE.CapsuleGeometry(0.016, 0.04, 4, 8), M.skin); thumb.position.set(left ? 0.04 : -0.04, 0.04, 0.04); thumb.rotation.z = left ? -0.8 : 0.8; g.add(thumb);
-    const wrist = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.045, 0.12, 14), M.skin); wrist.position.set(0, -0.09, 0); g.add(wrist);
-    const arm = new THREE.Mesh(new THREE.CapsuleGeometry(0.052, 0.3, 6, 14), M.sleeve); arm.castShadow = true;
-    const cuff = new THREE.Mesh(new THREE.TorusGeometry(0.05, 0.012, 8, 18), M.gold); cuff.rotation.x = Math.PI / 2; cuff.position.set(0, -0.15, 0);
-    const armG = new THREE.Group(); armG.add(arm, cuff); arm.position.set(0, -0.36, 0); g.add(armG);
-    g.armG = armG;
+    const g = new THREE.Group(), mx = left ? -1 : 1;
+    const palm = new THREE.Mesh(new THREE.SphereGeometry(0.05, 20, 14), M.skin); palm.scale.set(0.8, 1.05, 0.72); palm.position.set(0, 0, -0.03); palm.castShadow = true; g.add(palm);
+    const ys = [0.036, 0.012, -0.012, -0.036], rr = [0.0098, 0.0102, 0.0098, 0.0088];
+    ys.forEach((y, i) => {
+      const k = 1 - i * 0.04, P = [V(mx * 0.032, y, -0.034), V(mx * 0.036, y, 0.016 * k), V(mx * -0.004, y - 0.002, 0.036 * k), V(mx * -0.03, y - 0.004, 0.004)];
+      for (let j = 0; j < 3; j++) seg(g, P[j], P[j + 1], rr[i], M.skin);
+      const joint = new THREE.Mesh(new THREE.SphereGeometry(rr[i] * 1.02, 10, 8), M.skin); joint.position.copy(P[1]); g.add(joint);
+      const nail = new THREE.Mesh(new THREE.SphereGeometry(rr[i] * 0.7, 8, 6), M.nail); nail.scale.set(0.5, 0.5, 0.25); nail.position.copy(P[3]).add(V(mx * -0.002, 0.0, 0.006)); g.add(nail);
+    });
+    const T = [V(mx * -0.036, 0.034, -0.026), V(mx * -0.04, 0.04, 0.012), V(mx * -0.012, 0.042, 0.046)];
+    seg(g, T[0], T[1], 0.0125, M.skin); seg(g, T[1], T[2], 0.0115, M.skin);
+    const wrist = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.034, 0.12, 16), M.skin); wrist.position.set(0, -0.1, -0.03); g.add(wrist);
+    const arm = new THREE.Mesh(new THREE.CapsuleGeometry(0.047, 0.7, 6, 16), M.sleeveFade);
+    const cuff = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.048, 0.04, 18), M.cuff); cuff.position.set(0, -0.135, 0);
+    const armG = new THREE.Group(); armG.add(arm, cuff); arm.position.set(0, -0.52, 0); armG.position.set(0, 0, -0.03); g.add(armG);
+    g.armG = armG; g.scale.setScalar(1.4);
     return g;
   }
   const handR = makeHand(false), handL = makeHand(true);
@@ -192,7 +217,7 @@ export async function createPresenter({ kitCanvas, quality = 'high' }) {
   }
   const yoyo = makeYoyo(), diabolo = makeDiabolo();
   scene.add(yoyo, diabolo);
-  const stickMesh = () => { const s = new THREE.Group(); const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.014, 0.62, 12), M.wood); rod.castShadow = true; const tip = new THREE.Mesh(new THREE.SphereGeometry(0.016, 10, 8), M.gold); tip.position.y = 0.31; const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.019, 0.019, 0.17, 12), M.grip); grip.position.y = -0.2; s.add(rod, tip, grip); return s; };
+  const stickMesh = () => { const s = new THREE.Group(); const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.013, 0.017, 0.62, 12), M.wood); rod.castShadow = true; const tip = new THREE.Mesh(new THREE.SphereGeometry(0.016, 10, 8), M.gold); tip.position.y = 0.31; const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.2, 12), M.grip); grip.position.y = -0.2; s.add(rod, tip, grip); return s; };
   const stickL = stickMesh(), stickR = stickMesh();
   scene.add(stickL, stickR);
   const strY = makeTube(0.007), strD = makeTube(0.007);
@@ -225,7 +250,7 @@ export async function createPresenter({ kitCanvas, quality = 'high' }) {
   // ---------- per-frame ----------
   let lastEv = 0, lastClock = null, lastToy = null, pulse = 0, shake = 0;
   const tmpA = V(0, 0, 0), tmpB = V(0, 0, 0), tmpC = V(0, 0, 0);
-  const placeHand = (h, x, y, z, side) => { h.position.set(x, y, z); h.armG.rotation.set(0.3, 0, side * 0.35); };
+  const placeHand = (h, x, y, z, side, rz = 0) => { h.position.set(x, y, z); h.rotation.set(0, 0, rz); h.armG.rotation.set(0.38, 0, rz ? -rz * 0.8 : side * 0.3); };
   function applyCamera(vw) {
     const cw = canvas.clientWidth || window.innerWidth, ch = canvas.clientHeight || window.innerHeight;
     const c = cw / vw.W;                                    // css px per layout unit
@@ -291,12 +316,12 @@ export async function createPresenter({ kitCanvas, quality = 'high' }) {
       dbStripes.offset.x = (vw.clock * vis) / TAU;
       const tl = d.tilt || 0;
       diabolo.rotation.set(tl * 0.45, tl, 0);
-      const sl = (st, tip, sgn) => { st.position.set(tip.x - sgn * 0.1, tip.y - 0.3, 0.1); st.rotation.set(0, 0, sgn * 0.3); };
-      sl(stickL, f1, -1); sl(stickR, f2, 1);
+      const SA = 0.3, sl = (st, tip, sgn) => { const a = sgn * SA; st.position.set(tip.x + 0.31 * Math.sin(a), tip.y - 0.31 * Math.cos(a), 0.0); st.rotation.set(0, 0, a); return a; };
+      const aL = sl(stickL, f1, -1), aR = sl(stickR, f2, 1);
       tmpC.set(d.x, d.y - 0.026, 0);
       if (d.air) { fillPath(f1, f2, 0.34, null); } else fillPath(f1, f2, 0, tmpC);
       strD.setPath(pathBuf);
-      placeHand(handL, f1.x - 0.1, f1.y - 0.34, 0.12, -1); placeHand(handR, f2.x + 0.1, f2.y - 0.34, 0.12, 1);
+      placeHand(handL, f1.x + 0.51 * Math.sin(aL), f1.y - 0.51 * Math.cos(aL), 0, -1, aL); placeHand(handR, f2.x + 0.51 * Math.sin(aR), f2.y - 0.51 * Math.cos(aR), 0, 1, aR);
       handR.visible = true; handL.visible = true; ringMesh.visible = false;
       glow.position.set(d.x, d.y, 0.06);
       const gs = 0.55 + spinK * 0.9; glow.scale.set(gs, gs, 1); glow.material.opacity = (0.08 + spinK * 0.5) * (1 + pulse * 0.5);

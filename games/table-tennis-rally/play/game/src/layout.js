@@ -39,8 +39,8 @@ function build(w, h, ins, zoom) {
     L.camMode = 'wide';
     L.panelW = pw;
   } else {
-    const topH = Math.round(150 * hz) + (ins.back ? 0 : 0);
-    const botH = Math.round((mode === 'port' ? 150 : 104) + ins.b * 0.4);
+    const topH = Math.round(100 * hz);
+    const botH = Math.round((mode === 'port' ? 128 : 104) + ins.b * 0.4);
     L.top = R(U.x, U.y, U.w, topH);
     L.bottom = R(U.x, h - ins.b - botH, U.w, botH);
     L.region = R(U.x + 6, U.y + topH + 4, U.w - 12, Math.max(200, h - ins.b - botH - (U.y + topH) - 8));

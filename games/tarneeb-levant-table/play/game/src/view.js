@@ -1,7 +1,8 @@
 // Everything that is drawn each frame. Reads `state` (see game.js) and the live layout (layout.js) and changes nothing
 // (except S.scrollMax, the reader's scroll limit, which only the renderer can measure).
 import { TEXT_SCALES, THINK_STEPS, LIFT, handLayout } from './layout.js';
-import { drawTable, drawLanterns, drawCard, suit, star8 } from './art.js';
+import { drawTable, drawLanterns, drawCard, suit, star8, drawRail } from './art.js';
+import { covers, flatAlpha } from './v3.js';
 import { SUIT_NAMES, SEAT_NAMES, legalPlays, teamOf, suitOf, rankOf, RANK_CH } from './rules.js';
 import { LEVELS } from './ai.js';
 import { LESSONS } from './lessons.js';
@@ -18,6 +19,8 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 // Reader layout cache (wrapped lines + total height); readerStats.layouts counts re-wraps (tests read it).
 const readerCache = { list: null, key: '', items: [], endY: 0, total: 0 };
 export const readerStats = { layouts: 0 };
+// The 3D credits (vendor3d/LICENSES.md) are appended to the About list once fetched: forget the cached layout.
+export function aboutChanged() { readerCache.list = null; }
 
 export const seatPoint = (Lo, T, p) => (p === 0 ? { x: Lo.hand.cx, y: Lo.handY + Lo.hand.ch / 2 } : T.seat[p]);
 
@@ -29,8 +32,12 @@ export function render(ctx, S, Lo) {
   const isTitle = scene === 'title' || scene === 'demo-limit', TG = Lo.title[S.saved ? 1 : 0];
   const readerLike = scene === 'about' || scene === 'rules' || scene === 'lessons';
   const star = isTitle ? { x: TG.art.cx, y: TG.art.h * 0.45, r: Math.min(250, TG.art.w / 2 - 20, TG.art.h * 0.3) } : readerLike ? { x: ucx, y: H * 0.5, r: Math.min(W, H) * 0.4 } : { x: T.ccx, y: T.ccy, r: 300 * T.k };
-  drawTable(ctx, Lo, star, !Lo.wide && !isTitle && scene !== 'lessons' ? Lo.barY - 16 : 0);
-  drawLanterns(ctx, t, S.calm, W);
+  // With the 3D cafe table alive behind this canvas (view3d/presenter.js) the painted table fades out and only the HUD is drawn here.
+  const fa = flatAlpha(scene), railY = !Lo.wide && !isTitle && scene !== 'lessons' ? Lo.barY - 16 : 0;
+  const faded = (fn) => { if (fa <= 0) return; if (fa >= 1) { fn(); return; } ctx.save(); ctx.globalAlpha = fa; fn(); ctx.restore(); };
+  if (covers(scene)) ctx.clearRect(0, 0, W, H);
+  faded(() => { drawTable(ctx, Lo, star, railY); drawLanterns(ctx, t, S.calm, W); });
+  if (fa < 1 && railY) drawRail(ctx, W, H, Lo.frameB, railY);
 
   const fontOf = (size, font, weight) => `${weight} ${Math.max(size, font === FONT ? 14 : minF)}px ${font}`;
   const text = (str, x, y, size, color = GOLD, font = FONT, weight = 700, align = 'center') => { ctx.textAlign = align; ctx.textBaseline = 'alphabetic'; ctx.font = fontOf(size, font, weight); ctx.fillStyle = color; ctx.fillText(str, x, y); };
@@ -87,14 +94,28 @@ export function render(ctx, S, Lo) {
     const lockY = Math.max(Lo.ins.t + 6, Lo.frameB + 8);
     const top = wideT ? Math.max(Lo.top0, 24) : lockY + 12, availH = titleY - tsz * 0.8 - top;
     const r = clamp(availH / 2, 60, Math.min(250 * sa, A.w / 2 - 10)), fs = r / 250, cy = top + availH / 2 + 6;
-    ctx.save(); ctx.translate(cx, cy); ctx.rotate(S.calm ? 0 : t * 0.05); ctx.lineWidth = 2; ctx.globalAlpha = 0.6; star8(ctx, 0, 0, r, 'rgba(240,205,130,0.6)'); star8(ctx, 0, 0, r * 0.72, 'rgba(240,205,130,0.45)'); ctx.restore();
-    const cards = [12, 24, 26 + 12, 39 + 11, 13 + 12];
-    cards.forEach((c, i) => {
-      const a = (i - 2) * 0.24 + (S.calm ? 0 : Math.sin(t * 0.9 + i) * 0.02), bob = S.calm ? 0 : Math.sin(t * 1.3 + i * 1.1) * 6 * fs;
-      ctx.save(); ctx.translate(cx, cy + 210 * fs); ctx.rotate(a); drawCard(ctx, c, -84 * fs, (-330) * fs + bob, 168 * fs, 246 * fs); ctx.restore();
+    faded(() => {
+      ctx.save(); ctx.translate(cx, cy); ctx.rotate(S.calm ? 0 : t * 0.05); ctx.lineWidth = 2; ctx.globalAlpha *= 0.6; star8(ctx, 0, 0, r, 'rgba(240,205,130,0.6)'); star8(ctx, 0, 0, r * 0.72, 'rgba(240,205,130,0.45)'); ctx.restore();
+      const cards = [12, 24, 26 + 12, 39 + 11, 13 + 12];
+      cards.forEach((c, i) => {
+        const a = (i - 2) * 0.24 + (S.calm ? 0 : Math.sin(t * 0.9 + i) * 0.02), bob = S.calm ? 0 : Math.sin(t * 1.3 + i * 1.1) * 6 * fs;
+        ctx.save(); ctx.translate(cx, cy + 210 * fs); ctx.rotate(a); drawCard(ctx, c, -84 * fs, (-330) * fs + bob, 168 * fs, 246 * fs); ctx.restore();
+      });
     });
-    ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.6)'; ctx.shadowBlur = 14; ctx.shadowOffsetY = 5; text('Tarneeb', cx, titleY, tsz, '#f6dca0'); ctx.restore();
-    text('The partnership card game of the Levant', cx, tagY, tagSz, 'rgba(246,223,174,0.9)', UI, 600);
+    if (fa < 1) {   // over the 3D scene: a soft dark pool behind the lettering keeps it readable on any part of the table
+      const gw = Math.min(A.w * 0.62, tsz * 3.6), g = ctx.createRadialGradient(cx, titleY - tsz * 0.25, 0, cx, titleY - tsz * 0.25, gw);
+      g.addColorStop(0, 'rgba(8,5,2,0.62)'); g.addColorStop(0.55, 'rgba(8,5,2,0.38)'); g.addColorStop(1, 'rgba(8,5,2,0)');
+      ctx.save(); ctx.globalAlpha = 1 - fa; ctx.fillStyle = g; ctx.fillRect(cx - gw, titleY - tsz * 0.25 - gw * 0.6, gw * 2, gw * 1.2); ctx.restore();
+    }
+    { // embossed gold lettering: dark bevel underneath, warm gold ramp, a thin light edge on top
+      ctx.save(); ctx.font = fontOf(tsz, FONT, 700); ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+      ctx.shadowColor = 'rgba(0,0,0,0.7)'; ctx.shadowBlur = 16; ctx.shadowOffsetY = 6; ctx.fillStyle = '#3a2108'; ctx.fillText('Tarneeb', cx, titleY + 3); ctx.shadowColor = 'transparent';
+      const gg = ctx.createLinearGradient(0, titleY - tsz * 0.75, 0, titleY + tsz * 0.1);
+      gg.addColorStop(0, '#fff3c8'); gg.addColorStop(0.42, '#f2cf78'); gg.addColorStop(0.55, '#c8902e'); gg.addColorStop(1, '#f6d98e');
+      ctx.fillStyle = gg; ctx.fillText('Tarneeb', cx, titleY);
+      ctx.lineWidth = Math.max(1, tsz / 70); ctx.strokeStyle = 'rgba(255,248,220,0.55)'; ctx.strokeText('Tarneeb', cx, titleY - 1); ctx.restore();
+    }
+    ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.8)'; ctx.shadowBlur = 6; text('The partnership card game of the Levant', cx, tagY, tagSz, 'rgba(246,223,174,0.95)', UI, 600); ctx.restore();
     // discreet Arcforge credit: the themed lockup, small and quiet
     { const q = TG.lock, dn = S.lkDown;      // bottom centre, under the last menu row; a tap opens the Arcforge home
       ctx.save(); ctx.fillStyle = 'rgba(8,30,20,0.62)'; ctx.beginPath(); ctx.roundRect(q.x - 10, q.y - 5, q.w + 20, q.h + 10, (q.h + 10) / 2); ctx.fill(); ctx.restore();
@@ -238,7 +259,7 @@ export function render(ctx, S, Lo) {
         text(`Us ${tb.scores[0]}   Them ${tb.scores[1]}   ·   First to ${tb.target}`, cx, y0 + (tight ? 98 : 108), 20, 'rgba(246,223,174,0.8)', UI, 600);
       }
     }
-    if (showTrump) { const y = T.infoY + 26; trumpLine(W / 2, y, 330, 20); text(`Tricks   Us ${Hh.tricks[0]}   Them ${Hh.tricks[1]}`, W / 2, y + 46, 20, 'rgba(246,223,174,0.85)', UI, 600); }
+    if (showTrump) { const y = T.infoY + 26; trumpLine(W / 2, y, 330, 20); if (fa < 1) pill(W / 2, y + 40, 300, 30, `rgba(0,0,0,${0.5 * (1 - fa)})`); text(`Tricks   Us ${Hh.tricks[0]}   Them ${Hh.tricks[1]}`, W / 2, y + 46, 20, 'rgba(246,223,174,0.85)', UI, 600); }
   } else {
     const LP = Lo.LP; panel(LP, 0.8);
     clipTo(LP, () => {
@@ -284,14 +305,14 @@ export function render(ctx, S, Lo) {
         const cw = Math.max(62, 66 * Math.max(T.k, 0.85)), chH = 30, step = cards.length > 1 ? Math.min(34, (colH - chH) / (cards.length - 1)) : 0, y0 = (T.colTop + T.colBot) / 2 - (step * (cards.length - 1) + chH) / 2;
         cards.forEach((c, i) => { const o = optsFor(c); chip(ctx, c, T.colX[p] - cw / 2 + (o.isChosen ? (p === 1 ? -10 : 10) : 0), y0 + i * step, cw, i === cards.length - 1 ? chH : step + 8, chH, o, text); });
       }
-    } else {
+    } else faded(() => {
       const bw = T.back.w, bh = T.back.h;
       for (let i = 0; i < sh; i++) {
         const off = (i - (sh - 1) / 2) * (sh > 8 ? 22 : 30) * T.k;
         if (p === 2) drawCard(ctx, -1, seatXY.x + off - bw / 2, seatXY.y - bh / 2, bw, bh, { back: S.back });
         else drawCard(ctx, -1, seatXY.x - bw / 2, seatXY.y + off - bh / 2, bw, bh, { back: S.back, rot: p === 1 ? -Math.PI / 2 : Math.PI / 2 });
       }
-    }
+    });
     const status = Hh.phase === 'bid' ? (Hh.bid.log[p] === null ? '' : Hh.bid.log[p] === 0 ? 'Pass' : `Bid ${Hh.bid.log[p]}`) : (Hh.dealer === p ? 'Dealer' : '');
     const pw = T.plateW, ph = (status ? 64 : 44) * kk;
     if (active) { ctx.save(); ctx.shadowColor = '#ffd87a'; ctx.shadowBlur = 18 + (S.calm ? 0 : Math.sin(t * 6) * 5); }
@@ -304,8 +325,9 @@ export function render(ctx, S, Lo) {
   // ---- trick area (cards on the table) -------------------------------------------------------------------------------------------
   const drawSlot = (p, c, alpha = 1, k = 1, dx = 0, dy = 0) => {
     const s = T.slot[p], w = T.trick.w * k, h = T.trick.h * k;
-    ctx.save(); ctx.globalAlpha = alpha; drawCard(ctx, c, s.x - w / 2 + dx, s.y - h / 2 + dy, w, h, { rot: (((c * 7) % 9) - 4) * 0.013, big }); ctx.restore();
+    ctx.save(); ctx.globalAlpha = alpha * fa; drawCard(ctx, c, s.x - w / 2 + dx, s.y - h / 2 + dy, w, h, { rot: (((c * 7) % 9) - 4) * 0.013, big }); ctx.restore();
   };
+  ctx.save(); ctx.globalAlpha = fa;
   if (tb.collect) {
     const col = tb.collect, sw = clamp01((col.t - 0.7) / 0.4), to = seatPoint(Lo, T, col.winner);
     if (col.t > 0.15) { const wp = T.slot[col.winner], rw = T.trick.w * 1.12, rh = T.trick.h * 1.1; ctx.save(); ctx.strokeStyle = `rgba(255,216,122,${0.85 * (1 - sw)})`; ctx.lineWidth = 5; ctx.beginPath(); ctx.roundRect(wp.x - rw / 2, wp.y - rh / 2, rw, rh, 12); ctx.stroke(); ctx.restore(); }
@@ -315,6 +337,7 @@ export function render(ctx, S, Lo) {
       drawSlot(cd.p, cd.c, 1 - sw * 0.9, 1 - e * 0.45, (to.x - s.x) * e, (to.y - s.y) * e);
     }
   } else for (const cd of Hh.trick) if (!flying(cd.c)) drawSlot(cd.p, cd.c);
+  ctx.restore();
 
   // ---- bidding panel / trump picker ---------------------------------------------------------------------------------------------------
   const humanBid = Hh.phase === 'bid' && Hh.bid.turn === 0 && !tb.blocked && !tb.auto;
@@ -381,6 +404,7 @@ export function render(ctx, S, Lo) {
   if (turnNow && !tb.msg && tb.sel < 0 && tb.mode !== 'lesson') { pill(ucx, Lo.pillY, 270, 36, 'rgba(0,0,0,0.5)'); text(Hh.trick.length ? 'Your turn: follow suit' : 'Your turn: lead a card', ucx, Lo.pillY + 7, 20, '#ffe9b0', UI, 700); }
 
   // ---- flights (cards moving) and the deal -----------------------------------------------------------------------------------------------
+  ctx.save(); ctx.globalAlpha = fa;
   for (const f of tb.flights) {
     const e = ease(clamp01(f.t / f.dur)), k = f.k0 + (f.k1 - f.k0) * e, w = T.trick.w * k, h = T.trick.h * k, to = T.slot[f.p];
     let from;
@@ -397,6 +421,7 @@ export function render(ctx, S, Lo) {
     }
     const left = 52 - Math.floor(dealing.t / 0.028); if (left > 0) for (let i = 0; i < 4; i++) drawCard(ctx, -1, T.deck.x - dw / 2 + i * 1.5, T.deck.y - dh / 2 - i * 1.5, dw, dh, { back: S.back });
   }
+  ctx.restore();
 
   // ---- button rail ---------------------------------------------------------------------------------------------------------------------------
   const B = Lo.BTN;

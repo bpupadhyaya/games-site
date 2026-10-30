@@ -97,24 +97,29 @@ function mapper(orient, s, ox, oy) {
 const mapRect = (map, r) => { const a = map.pt(r.x, r.y), b = map.pt(r.x + r.w, r.y + r.h); return Rc(Math.min(a.x, b.x), Math.min(a.y, b.y), Math.abs(b.x - a.x), Math.abs(b.y - a.y)); };
 
 // ---- screen-space helpers used by view.js and game.js ---------------------------------------------------------------
-export const toScreen = (x, y) => L.map.pt(x, y);
-export const toCanon = (x, y) => L.map.inv(x, y);
-export const stackPos = (idx, k, n) => { const p = cStack(idx, k, n); return L.map.pt(p.x, p.y); };
-export const barPos = (side, k, n) => { const p = cBar(side, k, n); return L.map.pt(p.x, p.y); };
-export const offPos = (side, k) => { const p = cOff(side, k); return L.map.pt(p.x, p.y); };
-export const landing = (idx, n, side) => { const p = cLanding(idx, n, side); return L.map.pt(p.x, p.y); };
-export const barCenter = () => L.map.pt(CH.cx, MID);
-export const trayRect = (side) => mapRect(L.map, side === 0 ? TRAYC.me : TRAYC.opp);
+// `proj` is set by the optional 3D presenter while it draws the board: canonical <-> screen then go through its camera (a ray onto
+// the board), so labels, taps and drags follow the lit board. Unset (flat art, tests): the layout's own mapping.
+export const proj = { pt: null, inv: null };
+const P = (x, y) => (proj.pt ? proj.pt(x, y) : L.map.pt(x, y));
+const PI = (x, y) => (proj.inv ? proj.inv(x, y) : L.map.inv(x, y));
+export const toScreen = (x, y) => P(x, y);
+export const toCanon = (x, y) => PI(x, y);
+export const stackPos = (idx, k, n) => { const p = cStack(idx, k, n); return P(p.x, p.y); };
+export const barPos = (side, k, n) => { const p = cBar(side, k, n); return P(p.x, p.y); };
+export const offPos = (side, k) => { const p = cOff(side, k); return P(p.x, p.y); };
+export const landing = (idx, n, side) => { const p = cLanding(idx, n, side); return P(p.x, p.y); };
+export const barCenter = () => P(CH.cx, MID);
+export const trayRect = (side) => { const r = side === 0 ? TRAYC.me : TRAYC.opp; if (!proj.pt) return mapRect(L.map, r); const q = [P(r.x, r.y), P(r.x + r.w, r.y), P(r.x, r.y + r.h), P(r.x + r.w, r.y + r.h)], xs = q.map((a) => a.x), ys = q.map((a) => a.y); return Rc(Math.min(...xs), Math.min(...ys), Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)); };
 // the four corners of point idx's triangle, in screen space
 export function pointPoly(idx) {
-  const g = pointGeom(idx), y0 = g.y - SLOT / 2 + 3, y1 = g.y + SLOT / 2 - 3, tx = g.edge + g.dir * PLEN, m = L.map;
-  return [m.pt(g.edge, y0), m.pt(tx, g.y - 1.5), m.pt(tx, g.y + 1.5), m.pt(g.edge, y1)];
+  const g = pointGeom(idx), y0 = g.y - SLOT / 2 + 3, y1 = g.y + SLOT / 2 - 3, tx = g.edge + g.dir * PLEN;
+  return [P(g.edge, y0), P(tx, g.y - 1.5), P(tx, g.y + 1.5), P(g.edge, y1)];
 }
 // where the small engraved number of point idx goes (screen space)
-export function pointNumPos(idx) { const g = pointGeom(idx); return L.map.pt(g.edge + g.dir * (PLEN + 15), g.y); }
+export function pointNumPos(idx) { const g = pointGeom(idx); return P(g.edge + g.dir * (PLEN + 15), g.y); }
 // which target a screen tap means: a point 0..23, BAR, OFF, or -1
 export function targetAt(sx, sy) {
-  const c = L.map.inv(sx, sy), x = c.x, y = c.y;
+  const c = PI(sx, sy), x = c.x, y = c.y;
   if (inRect({ x: TRAYC.me.x, y: TRAYC.me.y - 6, w: TRAYC.me.w, h: TRAYC.me.h + 14 }, x, y)) return OFF;
   if (y < IN.y0 - 8 || y > IN.y1 + 8) return -1;
   if (x > CH.x0 - 4 && x < CH.x1 + 4) return BAR;
@@ -124,9 +129,9 @@ export function targetAt(sx, sy) {
 }
 // a good place to tap for a target (tests and dev tools): screen position
 export function targetPos(t) {
-  if (t === BAR) return L.map.pt(CH.cx, MID + 50);
-  if (t === OFF) return L.map.pt(360, TRAYC.me.y + 22);
-  const g = pointGeom(t); return L.map.pt(g.edge + g.dir * 110, g.y);
+  if (t === BAR) return P(CH.cx, MID + 50);
+  if (t === OFF) return P(360, TRAYC.me.y + 22);
+  const g = pointGeom(t); return P(g.edge + g.dir * 110, g.y);
 }
 
 // ---- building a layout --------------------------------------------------------------------------------------------------

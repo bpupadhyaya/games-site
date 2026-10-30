@@ -27,18 +27,18 @@ export function wrap(ctx, text, maxW) {
 }
 export function rrect(ctx, r, rad) { ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, rad); }
 
-// kind: primary (terracotta), ghost (outline), quiet (soft fill), on (teal), danger, gold, disabled. Flat: no inner gloss.
+// kind: primary (brass gold), ghost (outline), quiet (soft fill), on (teal), danger, gold, disabled. Flat: no inner gloss.
 export function button(ctx, r, label, o = {}) {
   const kind = o.kind ?? 'ghost', rad = o.rad ?? Math.min(22, r.h * 0.3), size = o.size ?? Math.min(34, r.h * 0.4);
   ctx.save();
   if (!o.noShadow) { ctx.fillStyle = 'rgba(0,0,0,0.3)'; rrect(ctx, { x: r.x, y: r.y + 4, w: r.w, h: r.h }, rad); ctx.fill(); }
-  const fills = { primary: '#e2753d', ghost: 'rgba(255,240,220,0.07)', quiet: 'rgba(255,240,220,0.13)', on: '#49b5a4', danger: '#b9404a', gold: '#f3c984', disabled: 'rgba(255,255,255,0.05)' };
+  const fills = { primary: '#e3ae4a', ghost: 'rgba(255,240,220,0.07)', quiet: 'rgba(255,240,220,0.13)', on: '#49b5a4', danger: '#b9404a', gold: '#f3c984', disabled: 'rgba(255,255,255,0.05)' };
   ctx.fillStyle = fills[kind] ?? fills.ghost; rrect(ctx, r, rad); ctx.fill();
   if (kind === 'ghost' || kind === 'quiet' || kind === 'disabled') { ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(255,230,200,0.3)'; rrect(ctx, r, rad); ctx.stroke(); }
   if (o.press) { ctx.fillStyle = 'rgba(255,255,255,0.18)'; rrect(ctx, r, rad); ctx.fill(); }
   if (o.pulse) { ctx.lineWidth = 4; ctx.strokeStyle = `rgba(255,214,160,${0.4 + 0.4 * o.pulse})`; rrect(ctx, { x: r.x - 3, y: r.y - 3, w: r.w + 6, h: r.h + 6 }, rad + 3); ctx.stroke(); }
   const dark = kind === 'primary' || kind === 'on' || kind === 'gold';
-  const col = kind === 'disabled' ? 'rgba(255,240,220,0.4)' : dark ? (kind === 'primary' ? '#fff' : '#1d1410') : PAL.text;
+  const col = kind === 'disabled' ? 'rgba(255,240,220,0.4)' : dark ? '#1d1410' : PAL.text;
   const hasSub = !!o.sub, pad = o.icon ? r.h * 0.9 : 14;
   if (o.icon) icon(ctx, o.icon, r.x + r.h * 0.5, r.y + r.h / 2, r.h * 0.4, col);
   const cx = r.x + (o.icon ? r.h * 0.9 + (r.w - r.h * 0.9) / 2 : r.w / 2);
@@ -50,9 +50,9 @@ export function iconButton(ctx, r, name, o = {}) {
   const kind = o.kind ?? 'quiet';
   ctx.save();
   ctx.fillStyle = 'rgba(0,0,0,0.3)'; rrect(ctx, { x: r.x, y: r.y + 3, w: r.w, h: r.h }, r.h * 0.3); ctx.fill();
-  ctx.fillStyle = kind === 'primary' ? '#e2753d' : 'rgba(40,26,20,0.82)'; rrect(ctx, r, r.h * 0.3); ctx.fill();
+  ctx.fillStyle = kind === 'primary' ? '#e3ae4a' : 'rgba(40,26,20,0.82)'; rrect(ctx, r, r.h * 0.3); ctx.fill();
   ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(255,230,200,0.3)'; rrect(ctx, r, r.h * 0.3); ctx.stroke();
-  icon(ctx, name, r.x + r.w / 2, r.y + r.h / 2, Math.min(r.w, r.h) * 0.3, o.color ?? PAL.text);
+  icon(ctx, name, r.x + r.w / 2, r.y + r.h / 2, Math.min(r.w, r.h) * 0.3, o.color ?? (kind === 'primary' ? '#1d1410' : PAL.text));
   ctx.restore();
 }
 export function panel(ctx, r, o = {}) {

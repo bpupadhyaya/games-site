@@ -64,6 +64,10 @@ function scoreboard(ctx, G, s, lay) {
         else { const xl = cx + sw / 2 + 22; text(ctx, names[t], xl, base - 4, px, '#fff6e4', 'left', 700); ctx.fillStyle = KIT[1].top; roundPath(ctx, xl + nw + 8, base - 24, sw2, sw2, 6); ctx.fill(); }
       }
     }
+    if (tall) {   // compact brass-edged score plaque (portrait; landscape keeps the names beside the score)
+      const pw = sw + Math.round(56 * m), ph = (clockY - base) + fs + Math.round(8 * m), px0 = cx - pw / 2, py0 = base - fs * 0.88;
+      roundPath(ctx, px0, py0, pw, ph, 14); ctx.fillStyle = 'rgba(10,20,36,0.82)'; ctx.fill(); ctx.lineWidth = 2.5; ctx.strokeStyle = 'rgba(214,170,82,0.95)'; ctx.stroke();
+    }
     text(ctx, sc, cx, base, fs, '#ffffff', 'center', 800);
     text(ctx, `${s.half === 1 ? '1st' : '2nd'} half  ${clock(s.clock)}`, cx, clockY, clockFs, '#ffe9a0', 'center', 700);
   }
@@ -82,7 +86,7 @@ function markers(ctx, G, s, lay) {
   if (G.settings.tags !== false) for (const p of P) {
     if (p.team !== 0 && G.mode !== 'watch') continue;
     if (p.id === s.human) continue;
-    const q = proj(G, p.x, 2.35, p.z); if (!q) continue;
+    const q = proj(G, p.x, 3.6, p.z); if (!q) continue;
     ctx.save(); ctx.globalAlpha = 0.85;
     const t = ROLE_SHORT[p.role]; const sz = Math.round(15 * Math.min(1.5, lay.m));
     ctx.font = `700 ${sz}px ${FONT}`; const w = ctx.measureText(t).width + 12;
@@ -94,7 +98,7 @@ function markers(ctx, G, s, lay) {
   const hp = s.human >= 0 ? P[s.human] : null;
   if (hp && G.mode !== 'watch') {
     if (ring(ctx, G, hp.x, hp.z, 0.95)) { ctx.lineWidth = 4; ctx.strokeStyle = '#ffd54a'; ctx.stroke(); ctx.fillStyle = 'rgba(255,213,74,0.18)'; ctx.fill(); }
-    const q = proj(G, hp.x, 2.5, hp.z);
+    const q = proj(G, hp.x, 3.5, hp.z);
     if (q) { ctx.fillStyle = '#ffd54a'; ctx.beginPath(); ctx.moveTo(q.x, q.y + 4); ctx.lineTo(q.x - 14, q.y - 20); ctx.lineTo(q.x + 14, q.y - 20); ctx.closePath(); ctx.fill(); ctx.strokeStyle = 'rgba(6,14,26,0.7)'; ctx.lineWidth = 2; ctx.stroke(); }
     const hud = s.hud;
     if (hud && hud.passTarget >= 0 && (hud.ctx === 'ball' || hud.ctx === 'setpiece' || hud.ctx === 'gkball')) {
@@ -143,7 +147,7 @@ function coach(ctx, G, lay) {
   ctx.font = `600 ${fs}px ${FONT}`;
   const bx = lay.coach.x, bw = Math.min(lay.coach.w, 900), bx2 = lay.score.tall ? bx : Math.round(W / 2 - bw / 2);
   const lines = wrapLines(ctx, c.text, bw - 40);
-  const h = lines.length * fs * 1.25 + 26, y = lay.promptTop;
+  const h = lines.length * fs * 1.25 + 26, y = lay.score.tall ? lay.think.y - h - 8 : lay.promptTop;   // portrait: the tip sits on the grass below the pitch, never over the play area
   ctx.fillStyle = 'rgba(14,34,52,0.88)'; roundPath(ctx, bx2, y, bw, h, 18); ctx.fill();
   ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(255,233,160,0.6)'; ctx.stroke();
   ctx.fillStyle = '#fff6e4'; ctx.textAlign = 'left';
@@ -157,13 +161,13 @@ function circleBtn(ctx, b, label, o = {}) {
   ctx.fillStyle = 'rgba(6,14,26,0.35)'; ctx.beginPath(); ctx.arc(b.x, b.y + 4, b.r + 2, 0, TAU); ctx.fill();
   const down = o.down;
   ctx.beginPath(); ctx.arc(b.x, b.y + (down ? 2 : 0), b.r, 0, TAU);
-  ctx.fillStyle = !active ? 'rgba(120,130,150,0.38)' : primary ? '#e2503c' : '#1f9d8f'; ctx.fill();
+  ctx.fillStyle = !active ? 'rgba(120,130,150,0.38)' : primary ? '#f4b52c' : '#1f9d8f'; ctx.fill();
   if (down && active) { ctx.fillStyle = 'rgba(255,255,255,0.25)'; ctx.fill(); }
-  ctx.lineWidth = 3; ctx.strokeStyle = !active ? 'rgba(255,255,255,0.3)' : 'rgba(255,250,240,0.85)'; ctx.stroke();
+  ctx.lineWidth = 3; ctx.strokeStyle = !active ? 'rgba(255,255,255,0.3)' : primary ? '#8a5a0c' : 'rgba(255,250,240,0.85)'; ctx.stroke();
   if (charge > 0.02) { ctx.beginPath(); ctx.arc(b.x, b.y, b.r + 9, -Math.PI / 2, -Math.PI / 2 + TAU * charge); ctx.lineWidth = 8; ctx.strokeStyle = '#ffd54a'; ctx.stroke(); }
   if (label) {
     const px = fitPx(ctx, label, 800, Math.round(b.r * 0.5), b.r * 1.85, UI.minf);
-    text(ctx, label, b.x, b.y + px * 0.34 + (down ? 2 : 0), px, active ? '#fffaf0' : 'rgba(235,238,255,0.55)', 'center', 800, false);
+    text(ctx, label, b.x, b.y + px * 0.34 + (down ? 2 : 0), px, active ? (primary ? '#13283a' : '#fffaf0') : 'rgba(235,238,255,0.55)', 'center', 800, false);
   }
   ctx.restore();
 }

@@ -14,7 +14,8 @@ export const CAMS = {
   end: { x: 0, y: 54, z: -86, lx: 0, ly: 0, lz: -2 },
   side: { x: -86, y: 54, z: 0, lx: 0, ly: 0, lz: 0 },
 };
-export const initialCam = () => ({ ...CAMS.end });
+const CAM_END0 = Object.freeze({ ...CAMS.end });
+export const initialCam = () => ({ ...CAM_END0 });   // fixed start value (CAMS.end itself is re-chosen per screen shape by fitCamera)
 export const modeFor = (w, h) => (w >= h ? 'side' : 'end');
 
 // A screen vector (sx right, sy down) as a world direction (x, z) for the camera mode: stick, swipes.
@@ -44,7 +45,26 @@ function normalized(mode, x, y, z, aspect) {      // x / y in "per thx" units: s
 
 // The live camera: the HUD and the presenter both read it. thx = tan(half horizontal fov); ox / oy = principal-point shift in NDC.
 export const CAMV = { mode: 'end', w: 720, h: 1280, thx: 0.27, ox: 0, oy: 0, key: '' };
+// Portrait ('end') picks, per screen shape, the broadcast elevation that makes the pitch cover the most screen: a tall phone is width-limited, so a
+// steeper (higher, nearer) camera stretches the pitch up the screen; a squarer tablet is height-limited, so the flatter original wins.
+const END_PRESETS = [CAMS.end, { x: 0, y: 63, z: -77, lx: 0, ly: 0, lz: -2 }, { x: 0, y: 72, z: -68, lx: 0, ly: 0, lz: -2 }].map((c) => ({ ...c }));
+function pitchArea(c) {
+  const P = [[-HW, -HL], [HW, -HL], [HW, HL], [-HW, HL]].map(([x, z]) => projectL(x, 0, z, c)); let a = 0;
+  for (let i = 0; i < 4; i++) { const p = P[i], q = P[(i + 1) % 4]; if (!p || !q) return 0; a += p.x * q.y - q.x * p.y; }
+  return Math.abs(a) / 2;
+}
 export function fitCamera(mode, w, h, r) {
+  if (mode !== 'end') return fitCameraRaw(mode, w, h, r);
+  let best = null;
+  for (const pr of END_PRESETS) {
+    Object.assign(CAMS.end, pr); BASIS.end = basis(CAMS.end);
+    const c = fitCameraRaw(mode, w, h, r), a = pitchArea(c);
+    if (!best || a > best.a * 1.02) best = { a, c, pr };
+  }
+  Object.assign(CAMS.end, best.pr); BASIS.end = basis(CAMS.end);
+  return best.c;
+}
+function fitCameraRaw(mode, w, h, r) {
   const aspect = w / h;
   let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
   for (const p of FIT_PTS) { const q = normalized(mode, p[0], p[1], p[2], aspect); x0 = Math.min(x0, q.nx); x1 = Math.max(x1, q.nx); y0 = Math.min(y0, q.ny); y1 = Math.max(y1, q.ny); }

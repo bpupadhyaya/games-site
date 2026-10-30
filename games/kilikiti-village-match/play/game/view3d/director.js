@@ -5,7 +5,7 @@ import { CAMS, VIEW, project } from '../src/camera.js';
 import { viewOf, T_RUN, runU, HOLD_VIEW, GATHER_T } from '../src/sim.js';
 import { deliveryPos, trackPos, throwPos, REL_Z, REL_Y, SWING_LEAD, resolveSwing } from '../src/ball.js';
 import { World, fitCamera, makeBackdrop, V3 } from './world.js';
-import { makeActor, dress, equipBat, setSkinOf } from './cast.js';
+import { makeActor, dress, equipBat, setSkinOf, isNear, upgradeActor } from './cast.js';
 import { buildBall } from './props.js';
 import { batterPose, familyOf, PIVOT, BAT } from './batter.js';
 import { bowlerPose, bowlerArms, VARIANTS } from './bowler.js';
@@ -23,14 +23,18 @@ export async function createDirector(P) {
   const { stage, V } = P;
   const THREE = V.THREE;
   const world = new World(stage);
-  const batters = [await makeActor(stage, 0, 0), await makeActor(stage, 1, 0), await makeActor(stage, 11, 0)];
+  // all twelve players load in parallel (the title waits for them)
+  const mk = [0, 1, 11].map((k) => makeActor(stage, k, 0)).concat([...Array(9).keys()].map((i) => makeActor(stage, i + 2, 1)));
+  const made = await Promise.all(mk);
+  const batters = made.slice(0, 3);
   for (const b of batters) equipBat(b);
-  const field = [];
-  for (let i = 0; i < 9; i++) field.push(await makeActor(stage, i + 2, 1));
+  const field = made.slice(3);
   const ball = buildBall(1.0);
   stage.scene.add(ball); ball.visible = false;
   world.group.visible = false;
   const all = [...batters, ...field];
+  // after the title is up: swap the players that fill the frame for real athletes, one every 120 ms (a failure keeps the mannequin)
+  (async () => { await new Promise((r) => setTimeout(r, 300)); for (const a of all) if (isNear(a.k)) { try { await upgradeActor(stage, a); } catch (e) { console.warn('athlete upgrade skipped', e); } await new Promise((r) => setTimeout(r, 120)); } P.athletesDone = true; })();
   const skyCol = new THREE.Color(0xa8d4f0);
   const fog = new THREE.Fog(0xcfe6d6, 60, 420);
   const fogField = new THREE.Fog(0xb7dcc0, 140, 520);

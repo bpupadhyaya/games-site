@@ -8,6 +8,8 @@
 //   wide     landscape / squarish: the board is a square (left, or centred between two cards); cards hold status and buttons.
 // The square board always takes the largest size that fits; controls never overlap it.
 
+import { v3 } from './v3.js';
+
 export const TEXT_SCALES = [1, 1.5, 2, 2.5, 3];
 // Auto Play ("Watch & Learn"): index-based THINK steps (never a raw float), hard-capped at 10 s; REVEAL is fixed.
 export const AUTO_THINK_STEPS = [2, 5, 8, 10];
@@ -46,7 +48,9 @@ export function layoutFor(w, h) {
 }
 
 // Flat cell index (row*size+col) under (x, y), or -1.
+// With the 3D board on, the tap goes through the presenter's ray pick (the board is seen at an angle).
 export function hitTestCell(L, x, y, size) {
+  if (v3.on && v3.pick) return v3.pick(x, y, size);
   const b = L.play.board, cs = b.px / size;
   const col = Math.floor((x - b.x) / cs), row = Math.floor((y - b.y) / cs);
   if (row < 0 || row >= size || col < 0 || col >= size) return -1;

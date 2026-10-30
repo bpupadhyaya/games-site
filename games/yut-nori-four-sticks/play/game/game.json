@@ -4,7 +4,7 @@
   "tagline": "Korea's four-stick race",
   "genre": "Korean stick-dice race board game",
   "orientation": "any",
-  "version": "0.2.5",
+  "version": "0.3.0",
   "monetization": {
     "model": "premium",
     "priceUsd": 2.99,

@@ -7,6 +7,7 @@ import { GRADES, lightFrom } from './maze.js';
 import { DOCS } from './content.js';
 import { drawFigure } from './figures.js';
 import { makeView, drawMaze, fitCam } from './scene.js';
+import { v3 } from './v3.js';
 
 export const metrics = { max: 0, view: 0, rect: null };   // scroll body of the current screen, filled in each frame
 export const SETTINGS = [
@@ -125,8 +126,12 @@ function drawPlay(ctx, s, w, h) {
   const cells = auto ? [['Forks', s.auto.n], ['Steps', P.steps], ['Shortest', P.maze.opt]] : [['Time', s.prefs.timer ? fmtTime(P.t) : '–'], ['Steps', P.walked], ['Hints', P.hints]];
   cells.forEach(([lb, v], i) => chip(ctx, R(sr.x + i * (cw + 8), sr.y, cw, sr.h), lb, v, small));
   // board
-  const V = boardView(s, P);
-  drawMaze(ctx, L.board.rect, V);
+  const V = boardView(s, P), rc = L.board.rect;
+  if (v3.alive) {   // real 3D maze underneath: publish what the 3D presenter needs; once it has drawn, cut a hole in the flat backdrop and draw only the overlays here
+    if (v3.on) { V.use3d = true; ctx.save(); ctx.globalCompositeOperation = 'destination-out'; rr(ctx, rc.x, rc.y, rc.w, rc.h, Math.min(26, rc.w * 0.035)); ctx.fill(); ctx.restore(); }
+    v3.frame = { w, h, rect: { x: rc.x, y: rc.y, w: rc.w, h: rc.h }, cam: { cx: s.cam.cx, cy: s.cam.cy, v: s.cam.v }, maze: P.maze, look: s.prefs.look, lamp: { x: P.x, y: P.y }, t: s.t, glow: P.done ? 2.5 : 1, fog: fogged(P) ? torchOf(P) : 0, map: !!(fogged(P) && s.map), stamp: ++v3.n };
+  }
+  drawMaze(ctx, rc, V);
   drawSparks(ctx, s, L.board.rect, s.cam);
   if (fogged(P) && s.map) { txt(ctx, 'Map', L.board.x + 20, L.board.y + 28, { size: F(24), weight: 700, color: '#f6ead8', maxW: 160 }); }
   drawMsg(ctx, s, L);

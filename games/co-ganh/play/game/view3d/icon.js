@@ -42,15 +42,14 @@ const put = (side, x, z, o = {}) => {
 };
 const S = 1.0;
 // hero: one big red lacquer piece with the gold flower, a jade piece caught mid turn-over beside it, two more small pieces behind
-put(1, 0.1, 0.45, { yaw: 0.35, s: 1.9 });
-put(2, -1.75, -0.35, { rx: Math.PI * 1.28, lift: 0.7, yaw: 0.3, s: 1.2 });
-put(1, 1.9, -0.9, { yaw: -0.3, s: 1.0 }); put(2, -0.2, -1.6, { yaw: 0.2, s: 1.0 });
+put(1, 0.0, 0.2, { yaw: 0.35, s: 2.6, rx: -0.12 });
+
 const sg = new THREE.SphereGeometry(0.035, 8, 6), sm = new THREE.MeshBasicMaterial({ color: 0xffe9a8 });
 for (let i = 0; i < 22; i++) { const a = i * 2.4, r = 1.35 + (i % 5) * 0.2, m = new THREE.Mesh(sg, sm); m.position.set(Math.cos(a) * r, PANEL_TOP + 0.12 + (i % 7) * 0.1, Math.sin(a) * r); m.scale.setScalar(0.6 + (i % 4) * 0.35); scene.add(m); }
 const ringC = document.createElement('canvas'); ringC.width = ringC.height = 256; { const x = ringC.getContext('2d'), g = x.createRadialGradient(128, 128, 20, 128, 128, 128); g.addColorStop(0, 'rgba(255,200,90,0)'); g.addColorStop(0.62, 'rgba(255,205,100,0.9)'); g.addColorStop(0.8, 'rgba(255,170,60,0.25)'); g.addColorStop(1, 'rgba(255,170,60,0)'); x.fillStyle = g; x.fillRect(0, 0, 256, 256); }
 const rt = new THREE.CanvasTexture(ringC); rt.colorSpace = THREE.SRGBColorSpace;
 const ring = new THREE.Mesh(new THREE.PlaneGeometry(2.1, 2.1), new THREE.MeshBasicMaterial({ map: rt, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0.45 }));
-ring.rotation.x = -Math.PI / 2; ring.position.set(-1.75, PANEL_TOP + 0.02, -0.35); scene.add(ring); live.push(ring);
+ring.rotation.x = -Math.PI / 2; ring.position.set(0, PANEL_TOP + 0.02, 0.2); ring.scale.setScalar(2.4); scene.add(ring); live.push(ring);
 scene.traverse((o) => { if (o.isMesh && !o.material.isMeshBasicMaterial) { o.castShadow = true; o.receiveShadow = true; } });
 
 const cam = new THREE.PerspectiveCamera(Number(q.get('fov') || 26), 1, 0.5, 100);
@@ -75,14 +74,14 @@ ctx.drawImage(bgOnly, 0, 0); ctx.drawImage(blur, 0, 0); ctx.drawImage(piecesOnly
 // bloom: bright parts again, blurred and added
 ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.filter = `blur(${SIZE * 0.016}px) brightness(1.1)`; ctx.globalAlpha = 0.26; ctx.drawImage(sharp, 0, 0); ctx.restore();
 // darken the far wall so the subject pops
-const dk = ctx.createLinearGradient(0, 0, 0, SIZE); dk.addColorStop(0, 'rgba(3,10,12,0.78)'); dk.addColorStop(0.45, 'rgba(3,10,12,0.35)'); dk.addColorStop(0.62, 'rgba(3,10,12,0)'); ctx.fillStyle = dk; ctx.fillRect(0, 0, SIZE, SIZE);
+const dk = ctx.createLinearGradient(0, 0, 0, SIZE); dk.addColorStop(0, 'rgba(3,10,12,0.9)'); dk.addColorStop(0.5, 'rgba(3,10,12,0.45)'); dk.addColorStop(1, 'rgba(3,10,12,0.4)'); ctx.fillStyle = dk; ctx.fillRect(0, 0, SIZE, SIZE);
 // vignette
 const v = ctx.createRadialGradient(SIZE / 2, SIZE / 2, SIZE * 0.36, SIZE / 2, SIZE / 2, SIZE * 0.78);
-v.addColorStop(0, 'rgba(2,8,10,0)'); v.addColorStop(1, 'rgba(2,8,10,0.6)'); ctx.fillStyle = v; ctx.fillRect(0, 0, SIZE, SIZE);
+v.addColorStop(0, 'rgba(2,8,10,0)'); v.addColorStop(1, 'rgba(2,8,10,0.85)'); ctx.fillStyle = v; ctx.fillRect(0, 0, SIZE, SIZE);
 // four-point sparkles
 const star = (x, y, r, a) => { ctx.save(); ctx.translate(x * SIZE, y * SIZE); ctx.globalAlpha = a; ctx.fillStyle = '#fff6dc'; ctx.beginPath();
   for (let k = 0; k < 8; k++) { const ang = (k / 8) * Math.PI * 2 - Math.PI / 2, rr = k % 2 ? r * 0.16 : r; ctx.lineTo(Math.cos(ang) * rr, Math.sin(ang) * rr); } ctx.closePath(); ctx.fill(); ctx.restore(); };
-star(0.55, 0.34, SIZE * 0.035, 0.95); star(0.7, 0.5, SIZE * 0.016, 0.8); star(0.3, 0.45, SIZE * 0.014, 0.7);
+star(0.62, 0.3, SIZE * 0.04, 0.95);
 window.__icon = () => out.toDataURL('image/png');
 window.__iconJpeg = () => { const c = document.createElement('canvas'); c.width = c.height = 1024; const x = c.getContext('2d'); x.imageSmoothingQuality = 'high'; x.drawImage(out, 0, 0, 1024, 1024); return c.toDataURL('image/jpeg', 0.93); };
 document.title = 'ready';

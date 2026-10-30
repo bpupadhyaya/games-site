@@ -7,6 +7,14 @@ import { renderDoc, docMetrics } from './docview.js';
 import { renderPlay, renderFree, toast, GRADE_COL, GRADE_TEXT } from './playview.js';
 import { ABOUT, HOWTO, RULES, settingsBlocks } from './content.js';
 import { drawCredit, drawMoreLine, edgeStroke } from './brand.js';
+import { v3, flatAlpha } from './v3.js';
+
+// The room behind a screen: the flat painted room, or (3D on) the lit majlis behind a dark veil of `dim`.
+function backdrop(ctx, L, t, lit, pulse, dim = 0.5, lamps = null) {
+  const a = flatAlpha();
+  if (a > 0) { ctx.save(); ctx.globalAlpha = a; drawBackdrop(ctx, L.w, L.h, t, lit, pulse); if (lamps) drawLamps(ctx, L.w, lamps.y, t, lamps.lit, 0, lamps.size); ctx.restore(); }
+  if (v3.on && dim > 0) { ctx.fillStyle = `rgba(3,9,11,${dim * (1 - a)})`; ctx.fillRect(0, 0, L.w, L.h); }
+}
 
 const CAL_BEAT = 0.75, CAL_TAPS = 8;
 function stars(ctx, cx, cy, n, size) {
@@ -20,14 +28,19 @@ function stars(ctx, cx, cy, n, size) {
 
 function title(ctx, st, L, t) {
   const T = L.title, S = L.S;
-  drawBackdrop(ctx, L.w, L.h, t, 0.8, 0.2 * Math.max(0, Math.sin(t * 2)));
-  drawLamps(ctx, L.w, S.y + 6, t, 0.9, 0, Math.min(1, L.w / 760));
+  backdrop(ctx, L, t, 0.8, 0.2 * Math.max(0, Math.sin(t * 2)), 0, { y: S.y + 6, lit: 0.9, size: Math.min(1, L.w / 760) });
+  if (v3.on) {                                    // a soft shade behind the title lettering so it reads over the lit room
+    const g = ctx.createLinearGradient(0, S.y, 0, T.titleY + T.size * 2.2); g.addColorStop(0, 'rgba(3,9,11,0.75)'); g.addColorStop(1, 'rgba(3,9,11,0)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, L.w, T.titleY + T.size * 2.2);
+    if (!L.wide) { const y0 = T.play.y - 60, g2 = ctx.createLinearGradient(0, y0, 0, T.play.y + 40); g2.addColorStop(0, 'rgba(3,9,11,0)'); g2.addColorStop(1, 'rgba(3,9,11,0.72)'); ctx.fillStyle = g2; ctx.fillRect(0, y0, L.w, L.h - y0); }
+    else { const x0 = T.play.x - 80, g2 = ctx.createLinearGradient(x0, 0, T.play.x + 20, 0); g2.addColorStop(0, 'rgba(3,9,11,0)'); g2.addColorStop(1, 'rgba(3,9,11,0.7)'); ctx.fillStyle = g2; ctx.fillRect(x0, 0, L.w - x0, L.h); }
+  }
   const cx = L.wide ? S.x + (T.play.x - S.x) / 2 : S.x + S.w / 2;
   txt(ctx, 'OUD', cx, T.titleY + T.size * 0.7, T.size * 1.35, PAL.gold, { align: 'center', font: DISPLAY, weight: 800, stroke: 10 });
   txt(ctx, 'MAQAM STRINGS', cx, T.titleY + T.size * 1.62, T.size * 0.5, PAL.cream, { align: 'center', font: DISPLAY, weight: 600, stroke: 6, maxW: (L.wide ? T.play.x - S.x : S.w) - 50 });
   const H = T.hero, sz = Math.min(H.w * 0.95, H.h * 1.15);
-  drawRug(ctx, { x: H.x + H.w / 2 - sz * 0.5, y: H.y + H.h / 2 - sz * 0.38, w: sz, h: sz * 0.76 });
-  drawOudIcon(ctx, H.x + H.w / 2, H.y + H.h / 2, sz * 0.8, -0.55);
+  const fa = flatAlpha();
+  if (fa > 0) { ctx.save(); ctx.globalAlpha = fa; drawRug(ctx, { x: H.x + H.w / 2 - sz * 0.5, y: H.y + H.h / 2 - sz * 0.38, w: sz, h: sz * 0.76 }); drawOudIcon(ctx, H.x + H.w / 2, H.y + H.h / 2, sz * 0.8, -0.55); ctx.restore(); }
   button(ctx, T.play, 'Play', { kind: 'primary', size: 44, icon: 'play' });
   button(ctx, T.free, 'Free play and taqsim', { kind: 'quiet', size: 32 });
   button(ctx, T.auto, 'Watch and Learn', { kind: 'quiet', size: 32, icon: 'ear' });
@@ -38,12 +51,12 @@ function title(ctx, st, L, t) {
 
 function songs(ctx, st, L, t) {
   const G = L.songs, S = L.S;
-  drawBackdrop(ctx, L.w, L.h, t, 0.5, 0); drawLamps(ctx, L.w, S.y - 10, t, 0.6, 0, 0.7);
+  backdrop(ctx, L, t, 0.5, 0, 0.55, { y: S.y - 10, lit: 0.6, size: 0.7 });
   button(ctx, G.back, 'Back', { icon: 'back', kind: 'ghost', size: 28 });
   txt(ctx, 'Choose a piece', S.x + S.w / 2, G.titleY, 44, PAL.gold, { align: 'center', font: DISPLAY, weight: 700, stroke: 7 });
   G.cards.forEach((r, i) => {
     const p = PIECES[i], b = st.best[p.id] ?? {}, M = MAQAMAT[p.maqam];
-    panel(ctx, r, { rad: 22, fill: 'rgba(10,28,34,0.82)' });
+    panel(ctx, r, { rad: 22, fill: 'rgba(22,13,8,0.84)' });
     edgeStroke(ctx, r, 22, 0.22);
     const pad = 20, big = Math.min(36, r.h * 0.18);
     txt(ctx, p.title, r.x + pad, r.y + r.h * 0.2, big, PAL.cream, { weight: 800, font: DISPLAY, maxW: r.w - pad * 2 - 130 });
@@ -58,7 +71,7 @@ function songs(ctx, st, L, t) {
 
 function piece(ctx, st, L, t) {
   const D = L.piece, S = L.S, p = PIECES[st.sel], M = MAQAMAT[p.maqam], b = st.best[p.id] ?? {};
-  drawBackdrop(ctx, L.w, L.h, t, 0.6, 0); drawLamps(ctx, L.w, S.y - 10, t, 0.7, 0, 0.7);
+  backdrop(ctx, L, t, 0.6, 0, 0.5, { y: S.y - 10, lit: 0.7, size: 0.7 });
   button(ctx, D.back, 'Back', { icon: 'back', kind: 'ghost', size: 28 });
   txt(ctx, p.title, S.x + S.w / 2 + D.back.w / 2 + 6, S.y + 12 + Math.max(60, L.mb) / 2, 40, PAL.gold, { align: 'center', font: DISPLAY, weight: 700, stroke: 7, maxW: S.w - D.back.w * 2 - 60 });
   panel(ctx, D.info, { rad: 24 });
@@ -87,8 +100,8 @@ function piece(ctx, st, L, t) {
 
 function result(ctx, st, L, t) {
   const Rr = L.result, r = st.result, p = PIECES[r.piece], P = Rr.panel;
-  drawBackdrop(ctx, L.w, L.h, t, 0.4 + 0.2 * r.stars, 0); drawLamps(ctx, L.w, L.S.y - 10, t, 0.4 + 0.2 * r.stars, 0, 0.8);
-  panel(ctx, P, { rad: 28, fill: 'rgba(8,22,28,0.9)' }); edgeStroke(ctx, P, 28, 0.35);
+  backdrop(ctx, L, t, 0.4 + 0.2 * r.stars, 0, 0.35, { y: L.S.y - 10, lit: 0.4 + 0.2 * r.stars, size: 0.8 });
+  panel(ctx, P, { rad: 28, fill: 'rgba(22,13,8,0.9)' }); edgeStroke(ctx, P, 28, 0.35);
   const cx = P.x + P.w / 2; let y = P.y + 54;
   txt(ctx, p.title, cx, y, 40, PAL.gold, { align: 'center', font: DISPLAY, weight: 700, maxW: P.w - 40 }); y += 76;
   stars(ctx, cx, y, r.stars, 54); y += 74;
@@ -108,10 +121,10 @@ function result(ctx, st, L, t) {
 
 function calib(ctx, st, L, t) {
   const C = L.calib, c = st.cal, S = L.S;
-  drawBackdrop(ctx, L.w, L.h, t, 0.4, 0); drawLamps(ctx, L.w, S.y - 10, t, 0.5, 0, 0.7);
+  backdrop(ctx, L, t, 0.4, 0, 0.6, { y: S.y - 10, lit: 0.5, size: 0.7 });
   button(ctx, C.back, 'Back', { icon: 'back', kind: 'ghost', size: 28 });
   txt(ctx, 'Calibrate latency', S.x + S.w / 2, C.back.y + C.back.h / 2 + 2, 36, PAL.gold, { align: 'center', font: DISPLAY, weight: 700, maxW: S.w - C.back.w * 2 - 60 });
-  const P = C.pad; panel(ctx, P, { rad: 26, fill: 'rgba(8,22,28,0.85)' }); edgeStroke(ctx, P, 26, 0.3);
+  const P = C.pad; panel(ctx, P, { rad: 26, fill: 'rgba(22,13,8,0.85)' }); edgeStroke(ctx, P, 26, 0.3);
   const cx = P.x + P.w / 2, cy = P.y + P.h * 0.5, r = Math.min(P.w, P.h) * 0.2;
   const ph = c.t > 0.8 ? ((c.t - 0.8) % CAL_BEAT) / CAL_BEAT : 0, beat = Math.max(0, 1 - ph * 5);
   ctx.save(); ctx.fillStyle = `rgba(53,199,184,${0.18 + 0.4 * beat + 0.4 * c.flash})`; ctx.beginPath(); ctx.arc(cx, cy, r * (1 + 0.18 * beat), 0, 6.3); ctx.fill();
@@ -125,9 +138,9 @@ function calib(ctx, st, L, t) {
 }
 
 function demoLimit(ctx, st, L, t) {
-  drawBackdrop(ctx, L.w, L.h, t, 0.4, 0);
+  backdrop(ctx, L, t, 0.4, 0, 0.6);
   const M = menuRects(L, 0, 300);
-  panel(ctx, M.panel, { rad: 26, fill: 'rgba(10,26,32,0.96)' });
+  panel(ctx, M.panel, { rad: 26, fill: 'rgba(22,13,8,0.96)' });
   const cx = M.panel.x + M.panel.w / 2;
   txt(ctx, 'That is the free demo', cx, M.panel.y + 66, 38, PAL.gold, { align: 'center', font: DISPLAY, weight: 700, maxW: M.panel.w - 30 });
   ctx.font = `500 27px ${UI}`;
@@ -154,7 +167,7 @@ export function render(ctx, st, L, view, meta, pauseItems) {
   else if (sc === 'demo-limit') demoLimit(ctx, st, L, t);
   else if (sc === 'calib') calib(ctx, st, L, t);
   else if (sc === 'rules' || sc === 'about' || sc === 'howto' || sc === 'settings') {
-    drawBackdrop(ctx, L.w, L.h, t, 0.3, 0);
+    backdrop(ctx, L, t, 0.3, 0, 0.55);
     const d = docFor(st);
     if (d.live) d.key = `settings|${st.prefs.windowIdx}${st.prefs.assistIdx}${st.prefs.timingIdx}${st.prefs.cal}${st.prefs.thinkSec}${+st.prefs.sound}${+st.prefs.backing}${+st.prefs.haptics}${+st.prefs.marks}${+st.prefs.labels}${+st.prefs.calm}`;
     renderDoc(ctx, st, L, d);

@@ -101,7 +101,7 @@ export const ABOUT = [
     P('A puzzle for patience and planning. There is no clock and nothing to lose.'),
   ] },
   { title: 'Credits', items: [
-    P('Designed and built by Arcforge, World Heritage Games. The titles use the Cinzel typeface by Natanael Gama, under the SIL Open Font License 1.1. The rings are 3D shapes shaded in the game itself; there is no ad and no network use.'),
+    P('Designed and built by Arcforge, World Heritage Games. The titles use the Cinzel typeface by Natanael Gama, under the SIL Open Font License 1.1. The desk and the puzzle are drawn in real-time 3D with three.js and the Arcforge 3D layer (credits below); where 3D graphics are not available the game draws its own shaded rings.'),
   ] },
 ];
 

@@ -1,7 +1,6 @@
 // A small immediate-mode UI kit for the canvas: every control is drawn AND registered as a hit rect in the same call, so what
 // you tap is exactly what was drawn. All text goes through ui.text so text zoom (up to 300%) and the minimum readable size
 // are applied in one place. Scrolling areas keep content reachable at any zoom.
-import { brandGradient } from './brand.js';
 
 export const FONT_D = '"Barlow Condensed", "Arial Narrow", "Helvetica Neue", system-ui, sans-serif';
 export const FONT_B = '"Barlow", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
@@ -10,6 +9,31 @@ export const COL = {
   orange: '#e8442c', orange2: '#ffc65a', cyan: '#2fd4e6', blue: '#3b82f6', violet: '#8b5cf6', red: '#ff5a5f', green: '#35d07f', gold: '#ffd25a',
   panel: 'rgba(8,15,30,0.78)', panel2: 'rgba(14,26,50,0.82)', navy: '#0a1428',
 };
+
+
+// lit wood + brass plaque (shared by menus, HUD and buttons)
+export function plaque(ctx, r, o = {}) {
+  const rad = Math.min(o.radius ?? 18, r.h / 2, r.w / 2), a = o.alpha ?? 0.92;
+  ctx.save();
+  if (o.shadow !== false) { ctx.fillStyle = 'rgba(0,0,0,0.34)'; ctx.beginPath(); ctx.roundRect(r.x, r.y + 5, r.w, r.h, rad); ctx.fill(); }
+  const g = ctx.createLinearGradient(0, r.y, 0, r.y + r.h);
+  const [c0, c1, c2] = o.hot ? ['#7a2a14', '#561c0d', '#3d1209'] : ['#4a2f1b', '#34200f', '#26160a'];
+  g.addColorStop(0, c0); g.addColorStop(0.55, c1); g.addColorStop(1, c2);
+  ctx.globalAlpha = a; ctx.fillStyle = g; ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, rad); ctx.fill();
+  // wood grain: a few long, faint strokes
+  ctx.save(); ctx.clip(); ctx.globalAlpha = a * 0.16; ctx.strokeStyle = '#150a03'; ctx.lineWidth = 1;
+  const n = Math.min(9, Math.max(2, Math.round(r.h / 9)));
+  for (let i = 1; i < n; i++) { const yy = r.y + (r.h * i) / n + Math.sin(i * 7.3) * 1.5; ctx.beginPath(); ctx.moveTo(r.x, yy); ctx.bezierCurveTo(r.x + r.w * 0.3, yy - 2, r.x + r.w * 0.65, yy + 2, r.x + r.w, yy - 1); ctx.stroke(); }
+  ctx.restore();
+  ctx.globalAlpha = 1;
+  if (o.edge !== false) {
+    const bg = ctx.createLinearGradient(r.x, r.y, r.x, r.y + r.h);
+    bg.addColorStop(0, '#fbe3a0'); bg.addColorStop(0.5, '#c98f3a'); bg.addColorStop(1, '#8a5a1e');
+    ctx.lineWidth = o.thick ?? 2.5; ctx.strokeStyle = bg; ctx.beginPath(); ctx.roundRect(r.x + 1, r.y + 1, r.w - 2, r.h - 2, rad); ctx.stroke();
+    ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(255,236,190,0.22)'; ctx.beginPath(); ctx.roundRect(r.x + 4.5, r.y + 4.5, r.w - 9, r.h - 9, Math.max(2, rad - 3.5)); ctx.stroke();
+  }
+  ctx.restore();
+}
 
 export const inRect = (r, x, y) => !!r && x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
 export const R = (x, y, w, h) => ({ x, y, w, h });
@@ -76,15 +100,9 @@ export function createUI() {
       return ui.lines(ctx, str, maxW, size, o).length * s * (o.lh ?? 1.32);
     },
     panel(ctx, r, o = {}) {
-      const rad = o.radius ?? 22;
-      ctx.save();
-      if (o.shadow !== false) { ctx.fillStyle = 'rgba(0,0,0,0.28)'; ctx.beginPath(); ctx.roundRect(r.x, r.y + 5, r.w, r.h, rad); ctx.fill(); }
-      ctx.fillStyle = o.fill ?? COL.panel; ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, rad); ctx.fill();
-      if (o.edge !== false) {
-        ctx.lineWidth = 1.5; ctx.strokeStyle = brandGradient(ctx, r.x, r.y, r.x + r.w, r.y + r.h, o.edgeAlpha ?? 0.5);
-        ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, rad); ctx.stroke();
-      }
-      ctx.restore();
+      const m = /rgba?\([^)]*?,\s*([\d.]+)\)\s*$/.exec(o.fill ?? '');
+      const hot = /^rgba\((1[2-9]\d|2\d\d),/.test(o.fill ?? '');
+      plaque(ctx, r, { radius: o.radius ?? 22, shadow: o.shadow, edge: o.edge, hot, alpha: Math.max(0.82, Math.min(0.96, (m ? +m[1] : 0.9) + 0.08)) });
     },
     // kind: 'primary' | 'secondary' | 'ghost' | 'danger' | 'chip' | 'on'
     button(ctx, id, r, label, o = {}) {
@@ -92,13 +110,20 @@ export function createUI() {
       const dis = !!o.disabled;
       const rad = o.radius ?? Math.min(r.h / 2, 26), oy = pressed && !dis ? 3 : 0;
       ctx.save();
-      const fill = kind === 'primary' ? COL.orange : kind === 'danger' ? '#d9434a' : kind === 'on' ? '#1f6fe0' : kind === 'chip' ? 'rgba(255,255,255,0.1)' : kind === 'ghost' ? 'rgba(255,255,255,0.0)' : 'rgba(26,42,78,0.9)';
-      const under = kind === 'primary' ? '#8e2418' : kind === 'danger' ? '#8e2229' : kind === 'on' ? '#123f86' : kind === 'ghost' ? null : 'rgba(0,0,0,0.38)';
+      const wood = kind === 'secondary' || kind === 'chip' || kind === 'ghost';
+      const under = kind === 'primary' ? '#8a5410' : kind === 'danger' ? '#8e2229' : kind === 'on' ? '#123f86' : null;
       if (under && !pressed) { ctx.fillStyle = under; ctx.beginPath(); ctx.roundRect(r.x, r.y + 5, r.w, r.h, rad); ctx.fill(); }
       ctx.globalAlpha = dis ? 0.4 : 1;
-      ctx.fillStyle = fill; ctx.beginPath(); ctx.roundRect(r.x, r.y + oy, r.w, r.h, rad); ctx.fill();
-      if (kind === 'secondary' || kind === 'chip' || kind === 'ghost') { ctx.lineWidth = 1.5; ctx.strokeStyle = kind === 'ghost' ? 'rgba(180,205,250,0.38)' : 'rgba(160,190,240,0.32)'; ctx.beginPath(); ctx.roundRect(r.x, r.y + oy, r.w, r.h, rad); ctx.stroke(); }
-      const tc = COL.ink;
+      if (wood) plaque(ctx, R(r.x, r.y + oy, r.w, r.h), { radius: rad, shadow: !pressed && kind !== 'ghost', alpha: kind === 'ghost' ? 0.5 : 0.94, thick: 2 });
+      else {
+        const gg = ctx.createLinearGradient(0, r.y + oy, 0, r.y + oy + r.h);
+        if (kind === 'primary') { gg.addColorStop(0, '#ffe79a'); gg.addColorStop(0.5, '#f7b83a'); gg.addColorStop(1, '#d98a17'); }
+        else if (kind === 'danger') { gg.addColorStop(0, '#e8575c'); gg.addColorStop(1, '#b92e35'); }
+        else { gg.addColorStop(0, '#3f8cf0'); gg.addColorStop(1, '#1b58b8'); }
+        ctx.fillStyle = gg; ctx.beginPath(); ctx.roundRect(r.x, r.y + oy, r.w, r.h, rad); ctx.fill();
+        if (kind === 'primary') { ctx.lineWidth = 2.5; ctx.strokeStyle = 'rgba(255,248,214,0.85)'; ctx.beginPath(); ctx.roundRect(r.x + 1.2, r.y + oy + 1.2, r.w - 2.4, r.h - 2.4, rad); ctx.stroke(); }
+      }
+      const tc = kind === 'primary' ? '#3a1c06' : COL.ink;
       const size = Math.min(o.size ?? Math.min(34, r.h * 0.46), Math.max(11.5 / ui.k, (r.h * 0.5) / Math.max(1, ui.zoom)));
       const hasSub = !!o.sub;
       let label2 = label;
@@ -112,7 +137,7 @@ export function createUI() {
       const startX = r.x + r.w / 2 - (tw + iconW) / 2;
       if (o.icon) icon(ctx, o.icon, startX + size * 0.55, cy - (hasSub ? r.h * 0.08 : 0), size * 0.95, tc);
       ui.text(ctx, label2, startX + iconW + (o.align === 'left' ? 0 : 0), cy + (hasSub ? -r.h * 0.04 : sz * 0.33), sz, { disp: true, weight: 800, color: tc, fixed });
-      if (hasSub) ui.text(ctx, o.sub, r.x + r.w / 2, cy + r.h * 0.3, Math.max(Math.min(20, r.h * 0.2), 11.5 / ui.k), { align: 'center', color: kind === 'primary' ? 'rgba(255,240,220,0.85)' : COL.dim, weight: 600, fixed: true, fit: r.w - 24 });
+      if (hasSub) ui.text(ctx, o.sub, r.x + r.w / 2, cy + r.h * 0.3, Math.max(Math.min(20, r.h * 0.2), 11.5 / ui.k), { align: 'center', color: kind === 'primary' ? 'rgba(58,28,6,0.82)' : COL.dim, weight: 600, fixed: true, fit: r.w - 24 });
       ctx.restore();
       if (!dis) ui.hit(id, r, o.data);
     },

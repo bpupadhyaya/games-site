@@ -165,6 +165,14 @@ function paintBack(c, tint) {
   for (let y = 0; y < 4; y++) for (let x = 0; x < 3; x++) star8(c, 18 + x * 36 + (y % 2) * 0, 26 + y * 36, 17, 'rgba(240,205,130,0.6)');
   star8(c, CW / 2, CH / 2, 30, 'rgba(255,225,150,0.95)', 'rgba(20,20,30,0.35)'); c.restore();
 }
+// Paint a whole card (face, or back when card < 0) into a context already scaled to CW x CH units (the 3D layer's textures).
+export function paintCard(c, card, big, kind = 'garnet') { if (card < 0) paintBack(c, BACKS[kind] || BACKS.garnet); else paintFace(c, card, big); }
+// The walnut button rail (portrait) on its own, for when the 3D table replaces the painted one.
+export function drawRail(ctx, W, H, B, rail) {
+  const r = ctx.createLinearGradient(0, rail, 0, H); r.addColorStop(0, 'rgba(62,38,18,0.94)'); r.addColorStop(1, 'rgba(30,17,7,0.98)');
+  ctx.fillStyle = r; ctx.fillRect(0, rail, W, H - rail); ctx.fillStyle = '#e8c377'; ctx.fillRect(0, rail - 2, W, 3);
+  ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fillRect(0, rail + 1, W, 4);
+}
 const BACKS = { garnet: ['#7a1f2b', '#4a1019'], teal: ['#1c6b6b', '#0e3d43'], indigo: ['#2a3f86', '#161f4d'] };
 export function cardSprite(card, big) { return layer(`c${card}${big ? 'b' : ''}`, CW, CH, 2, (c) => paintFace(c, card, big)); }
 export function backSprite(kind = 'garnet') { return layer(`back${kind}`, CW, CH, 1.5, (c) => paintBack(c, BACKS[kind] || BACKS.garnet)); }

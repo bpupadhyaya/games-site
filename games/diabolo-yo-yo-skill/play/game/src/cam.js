@@ -4,7 +4,7 @@
 export const WIN_W = 1.8;
 export const FOV = 34 * Math.PI / 180;
 export const YAW = 0.42, PITCH = 0.04;
-export const WIN = { yoyo: { bot: -1.45, top: 1.5 }, diabolo: { bot: -1.5, top: 1.7 } };
+export const WIN = { yoyo: { bot: -1.4, top: 0.9 }, diabolo: { bot: -1.42, top: 1.0 } };
 export const WIN_TIGHT = { yoyo: { bot: -1.3, top: 0.5 }, diabolo: { bot: -1.35, top: 0.75 } };
 
 // W, H = virtual size of the whole screen (units); rect = stage rectangle in the same units

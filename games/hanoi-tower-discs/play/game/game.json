@@ -3,7 +3,7 @@
   "title": "Tower of Hanoi",
   "genre": "disc-stacking recursion puzzle",
   "orientation": "any",
-  "version": "1.1.2",
+  "version": "1.2.0",
   "monetization": {
     "model": "premium",
     "priceUsd": 2.99,

@@ -16,15 +16,15 @@ const R = (x, y, w, h) => ({ x, y, w, h });
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 const cache = new Map();
-export function layoutFor(w, h) {
+export function layoutFor(w, h, watch = false) {
   w = Math.round(w); h = Math.round(h);
-  const key = `${w}x${h}|${Math.round(host.t)},${Math.round(host.r)},${Math.round(host.b)},${Math.round(host.l)},${Math.round(host.back)}`;
+  const key = `${watch ? 'W' : 'P'}${w}x${h}|${Math.round(host.t)},${Math.round(host.r)},${Math.round(host.b)},${Math.round(host.l)},${Math.round(host.back)}`;
   let L = cache.get(key);
-  if (!L) { L = build(w, h, { ...host }); L.key = key; cache.set(key, L); if (cache.size > 30) cache.delete(cache.keys().next().value); }
+  if (!L) { L = build(w, h, { ...host }, watch); L.key = key; cache.set(key, L); if (cache.size > 30) cache.delete(cache.keys().next().value); }
   return L;
 }
 
-function build(w, h, ins) {
+function build(w, h, ins, watch = false) {
   const wide = w >= h * 1.25;
   const L = { w, h, wide, mode: wide ? 'wide' : 'portrait', ins };
   const backSz = ins.back ? Math.max(ins.back, 56) : 0;
@@ -37,7 +37,8 @@ function build(w, h, ins) {
     const lx = ins.back ? Math.max(14 + ins.l, L.backBox.x + L.backBox.w + 4) : 14 + ins.l, rx = 14 + ins.r;
     const inner = w - pad - ins.l - pad - ins.r;
     const rowH = Math.max(minH, 78), padH = clamp(Math.round(sb * 0.115), Math.max(minH, 120), 170), mapH = clamp(Math.round(w * 0.235), 150, 200);
-    const barH = rowH + padH + 3 * g;
+    // Watch & Learn has no ROLL pad: the lane view takes that space (only the slim button row stays under the map)
+    const barH = watch ? rowH + 2 * g : rowH + padH + 3 * g;
     const bar = sb - barH, hy = ins.t + 8, ch = 84;
     const infoW = 150, cw = Math.floor((w - lx - rx - infoW - 2 * g) / 2);
     P.cards = [R(lx, hy, cw, ch), R(w - rx - cw, hy, cw, ch)];
@@ -48,7 +49,7 @@ function build(w, h, ins) {
     const y1 = bar + g, uw = (inner - 3 * g) / 10, x0 = pad + ins.l;
     P.leanDec = R(x0, y1, uw * 2.5, rowH); P.leanShow = R(x0 + uw * 2.5 + g, y1, uw * 3.5, rowH);
     P.leanInc = R(x0 + uw * 6 + 2 * g, y1, uw * 2.5, rowH); P.hint = R(x0 + uw * 8.5 + 3 * g, y1, uw * 1.5, rowH);
-    const y2 = y1 + rowH + g, mw = Math.round(inner * 0.2);
+    const y2 = y1 + rowH + g, mw = Math.round(inner * 0.2);   // (Watch: y2 is below the screen edge and unused)
     P.menu = R(pad + ins.l, y2, mw, padH); P.pad = R(pad + ins.l + mw + g, y2, inner - mw - g, padH);
     P.demo = { dec: P.leanDec, pause: P.leanShow, inc: P.leanInc, exit: P.hint, wide: R(pad + ins.l, y2, inner, padH) };
     P.toast = { x: w / 2, y: P.scope.y + P.scope.h * 0.2, maxW: Math.min(640, w - 40) };

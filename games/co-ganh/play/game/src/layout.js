@@ -60,7 +60,7 @@ function build(w, h, ins, flip) {
     const top0 = Math.max(ins.t + 6, backRes ? ins.t + backRes : 0);
     const free = barY - G - top0 - bh - msgH - rows * minPlate - (rows + 1) * G;
     // spare height first makes the plates roomier (bigger type and tray), what is left becomes even breathing room around the board
-    const plateH = minPlate + (rows === 2 && free > 0 ? Math.min(free * 0.5, 120) : 0);
+    const plateH = minPlate + (rows === 2 && free > 0 ? Math.min(free * 0.5, 44) : 0);
     const air = Math.max(0, free - (rows === 2 ? 2 * (plateH - minPlate) : 0));
     const gA = air / 5;
     let y = top0 + gA;
@@ -150,27 +150,27 @@ function buildTitle(L, hasSave) {
   const memo = titleCache.get(L) || {}; titleCache.set(L, memo);
   if (memo[hasSave]) return memo[hasSave];
   const { w, h, U, ins } = L, T = { rows: {}, hero: null, card: null, lockup: null };
-  const names = [hasSave ? ['resume'] : null, ['play'], ['two', 'learn'], ['auto'], ['rules', 'how'], ['about', 'settings']].filter(Boolean);
-  const n = names.length;
-  const place = (x0, aw, y0, pitch, bh) => names.forEach((row, i) => {
-    const y = y0 + i * pitch;
-    if (row.length === 1) T.rows[row[0]] = R(x0, y, aw, bh);
-    else { const cw = (aw - 12) / 2; T.rows[row[0]] = R(x0, y, cw, bh); T.rows[row[1]] = R(x0 + cw + 12, y, cw, bh); }
-  });
+  // rows: [names], weight. Play is the one dominant button; the four info pages share one compact icon row.
+  const rowsDef = [hasSave ? [['resume'], 1] : null, [['play'], 1.5], [['two', 'learn'], 1], [['auto'], 1], [['rules', 'how', 'about', 'settings'], 1.05]].filter(Boolean);
+  const wsum = rowsDef.reduce((a, r) => a + r[1], 0), n = wsum;
+  const place = (x0, aw, y0, unit) => { let y = y0; for (const [row, wt] of rowsDef) {
+    const ph = unit * wt, bh = ph - 12, g = 12, cw = (aw - g * (row.length - 1)) / row.length;
+    row.forEach((k, i) => { T.rows[k] = R(x0 + i * (cw + g), y, cw, bh); });
+    y += ph; } };
   if (!L.land) {
     const lock = 64, bottom = h - Math.max(14, ins.b + 6), bw = Math.min(U.w - 56, 560);
     const minP = clamp(Math.round(46 / (ins.px || 0.6)) + 12, 58, 98);
-    let pitch = clamp((bottom - lock - (U.y0 + 470)) / n, minP, 98), bh = pitch - 12;
-    const y0 = bottom - lock - n * pitch + 12;
-    place(U.x0 + (U.w - bw) / 2, bw, y0, pitch, bh);
+    const unit = clamp((bottom - lock - (U.y0 + 520)) / n, minP, 98);
+    const y0 = bottom - lock - n * unit + 12;
+    place(U.x0 + (U.w - bw) / 2, bw, y0, unit);
     T.lockup = { x: w / 2, y: bottom - 14 };
     const zoneTop = Math.max(ins.t + 8, ins.back ? ins.t + 60 : 0), zone = y0 - 12 - zoneTop;
     T.hero = R(U.x0 + 10, zoneTop, U.w - 20, zone);
   } else {
     const aw = clamp(w * 0.38, 380, 560), ax = U.x1 - aw - 16, lock = 56;
-    const pitch = Math.min(92, (U.h - 40 - lock) / n), bh = pitch - 12, y0 = U.y0 + (U.h - n * pitch - lock) / 2 + 6;
-    place(ax + 24, aw - 48, y0, pitch, bh);
-    T.card = R(ax, y0 - 24, aw, n * pitch + lock + 28);
+    const unit = Math.min(92, (U.h - 40 - lock) / n), y0 = U.y0 + (U.h - n * unit - lock) / 2 + 6;
+    place(ax + 24, aw - 48, y0, unit);
+    T.card = R(ax, y0 - 24, aw, n * unit + lock + 28);
     T.lockup = { x: ax + aw / 2, y: T.card.y + T.card.h - 14 };
     T.hero = R(U.x0 + 10, U.y0 + 10, ax - U.x0 - 30, U.h - 20);
   }

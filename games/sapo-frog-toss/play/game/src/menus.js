@@ -3,6 +3,7 @@
 import { W, H, TEXT_SCALES, TEXT_DEC, TEXT_INC, REF_BACK, REF_NEXT, THINK_STEPS, SETUP_PINS, PANEL, host, screen, stageIsShort } from './layout.js';
 import { drawLockup, drawMoreLine } from './brand.js';
 import { FONT, NUM, C, roundPath, drawButton, panel, wrapLines, textShadow, flowLayout, drawFlow, flowHit } from './ui.js';
+import { r3 } from './r3.js';
 import { drawRoom, drawTable, drawHoles, drawActors, drawParts, DISC_COL, TAU } from './scene.js';
 import { PROFILES, ASSIST, pname } from './ai.js';
 import { LENGTHS, DISCS } from './engine.js';
@@ -54,14 +55,14 @@ export function drawBackdrop(ctx, state, bottomRoom = 0) {
   ctx.save(); ctx.translate(-S.ox, -S.oy);
   if (S.land) {
     const s = (S.h - bottomRoom) / 860, cx = S.sceneCx, x0 = cx - 360 * s;
-    ctx.fillStyle = DARK; ctx.fillRect(0, 0, S.w, S.h);
-    ctx.save(); ctx.beginPath(); ctx.rect(x0, 0, 720 * s, S.h - bottomRoom); ctx.clip();
+    if (!r3.on) { ctx.fillStyle = DARK; ctx.fillRect(0, 0, S.w, S.h); }
+    ctx.save(); ctx.beginPath(); ctx.rect(x0, 0, 720 * s, S.h - bottomRoom); ctx.clip(); r3.clip(ctx, x0, 0, 720 * s, S.h - bottomRoom);
     ctx.translate(x0, -180 * s); ctx.scale(s, s); drawAttract(ctx, state); ctx.restore();
-    for (const [a, b, c] of [[x0, x0 + 46, 1], [x0 + 720 * s, x0 + 720 * s - 46, 1]]) { const g = ctx.createLinearGradient(a, 0, b, 0); g.addColorStop(0, 'rgba(11,7,5,1)'); g.addColorStop(1, 'rgba(11,7,5,0)'); ctx.fillStyle = g; ctx.fillRect(Math.min(a, b), 0, 46, S.h - bottomRoom); }
+    if (!r3.on) for (const [a, b, c] of [[x0, x0 + 46, 1], [x0 + 720 * s, x0 + 720 * s - 46, 1]]) { const g = ctx.createLinearGradient(a, 0, b, 0); g.addColorStop(0, 'rgba(11,7,5,1)'); g.addColorStop(1, 'rgba(11,7,5,0)'); ctx.fillStyle = g; ctx.fillRect(Math.min(a, b), 0, 46, S.h - bottomRoom); }
   } else {
     const dy = (S.h - 1280) / 2;
-    ctx.fillStyle = WALL_TOP; ctx.fillRect(0, 0, S.w, S.h);
-    if (dy > 0) { ctx.fillStyle = FLOOR_END; ctx.fillRect(0, S.h / 2, S.w, S.h / 2); }
+    if (!r3.on) { ctx.fillStyle = WALL_TOP; ctx.fillRect(0, 0, S.w, S.h); if (dy > 0) { ctx.fillStyle = FLOOR_END; ctx.fillRect(0, S.h / 2, S.w, S.h / 2); } }
+    r3.clip(ctx, 0, 0, S.w, S.h);
     ctx.save(); ctx.translate(0, dy); drawAttract(ctx, state); ctx.restore();
   }
   ctx.restore();

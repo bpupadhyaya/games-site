@@ -30,7 +30,7 @@ export function makeCam(stage, camX = 6) {
   const tall = asp < 1.05;                                          // portrait stage: use the height, the camera follows the action
   const Z = FX.gl && FX.gl.active ? (tall ? 1.3 : 1.12) : 1;          // the 3D scene frames the athletes a little tighter
   const want = clampv((tall ? 5.7 : 6.6) + (asp - 0.9) * 9, tall ? 5.7 : 6.6, 13.4) / Z;          // metres of court shown: a narrow phone zooms in, a tablet shows it all
-  const gyF = tall ? 0.86 : 0.8;
+  const gyF = tall ? (FX.gl && FX.gl.active ? 0.7 : 0.86) : 0.8;
   const s = clampv(Math.min(stage.w / want, stage.h * gyF / ((tall ? 4.9 : 5.4) / (Z > 1 ? 1.1 : 1))), 30, 190);
   const visW = stage.w / s;
   const fixed = visW >= 13.0;

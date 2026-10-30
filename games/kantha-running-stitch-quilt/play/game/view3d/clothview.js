@@ -219,6 +219,8 @@ export function createClothView({ tier = 2, size = 10, withNeedle = true } = {})
     // back vector: the eye end points back against the travel direction; a hop keeps a steady yaw
     const bx = -tx, bz = -tz, ce = Math.cos(el), se = Math.sin(el);
     tmpA.set(x, gy, z); tmpB.set(bx * ce, se, bz * ce).normalize();
+    // travelling to a far point (a new row): the needle is lifted off the cloth in an arc instead of sliding over it
+    if (nstate.init) { const far = Math.hypot(x - nstate.tip.x, z - nstate.tip.z); tmpA.y += Math.min(0.035, Math.max(0, far - 0.004) * 0.6); }
     if (!nstate.init) { nstate.tip.copy(tmpA); nstate.dir.copy(tmpB); nstate.init = true; }
     const k = 1 - Math.exp(-dt * (nd.mode === 'sew' ? 60 : 24));
     // critically-damped follower with a speed cap: a jump to another row becomes a smooth glide, normal sewing (~0.4 m/s) tracks closely

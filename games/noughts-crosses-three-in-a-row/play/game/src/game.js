@@ -10,7 +10,7 @@ import { lineKind, markName } from './analysis.js';
 import { LESSONS, lessonStart, judge } from './lessons.js';
 import { createMatch, playMove, undoMatch, tapCell, stepMatch, spawn, canUndo, humanTurn, settled } from './match.js';
 import { RULE_COUNT, HOWTO_COUNT, tr } from './content.js';
-import { boardGeo, themeById, THEMES } from './art.js';
+import { geoFor, themeById, THEMES } from './art.js';
 import { render } from './view.js';
 
 // `meta.width/height` are updated live by the kit on every resize (fluid viewport, short side = 720); every position comes from layoutFor(meta.width, meta.height).
@@ -93,9 +93,10 @@ export async function createGame(env) {
   // ------------------------------------------------------------------------------ geometry helpers
   const curL = () => layoutFor(meta.width, meta.height);
   const ui$ = () => buildUi(S, curL());
-  const geoNow = (M) => { const lay = playLayout(curL(), TEXT_SCALES[S.textIdx]); return boardGeo(M.mode, lay.board.x, lay.board.y, lay.board.side); };
+  const geoNow = (M) => { const lay = playLayout(curL(), TEXT_SCALES[S.textIdx]); return geoFor(M.mode, lay.board.x, lay.board.y, lay.board.side); };
   const cellAt = (M, x, y) => {
     const g = geoNow(M), r = g.cell / 2 + 4;
+    if (g.hit) return g.hit(x, y);
     for (let i = 0; i < SPECS[M.mode].n; i++) { const [cx, cy] = g.centers[i]; if (Math.abs(x - cx) <= r && Math.abs(y - cy) <= r) return i; }
     return -1;
   };

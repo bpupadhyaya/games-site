@@ -6,9 +6,52 @@ import { playLayout, TEXT_SCALES, toScreen, screen, safeArea, backClear, isWide 
 import { FONT, DISPLAY, C, roundPath, drawButton, panel, wrapLines, fitPx } from './ui.js';
 import { tx, stageName } from './content.js';
 import { THINK_STEPS } from './layout.js';
+import { v3, flatAlpha, rec, recBegin, recEnd } from './v3.js';
 
 const TAU = Math.PI * 2;
 const ease = (u) => 1 - Math.pow(1 - clamp(u, 0, 1), 3);
+
+// Floating "+n" / fault labels. 3D: recorded and drawn upright in screen space over the projected point.
+function floatPill(ctx, text, col, x, y, a, k = 1) {
+  ctx.save(); ctx.globalAlpha = a; ctx.font = `700 ${Math.round(34 * k)}px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  const w = ctx.measureText(text).width + 36 * k;
+  roundPath(ctx, x - w / 2, y - 24 * k, w, 48 * k, 24 * k); ctx.fillStyle = 'rgba(24,14,12,0.86)'; ctx.fill();
+  ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(214,170,90,0.7)'; ctx.stroke();
+  ctx.fillStyle = col; ctx.fillText(text, x, y + 2 * k); ctx.restore();
+}
+function drawFloats(ctx, floats) {
+  for (const f of floats) {
+    const k = f.t / f.max, y = f.y - 38 * ease(k * 1.3), a = k < 0.7 ? 1 : 1 - (k - 0.7) / 0.3;
+    if (rec.on) { rec.marks.push({ kind: 'float', x: f.x, y: f.y, lift: 38 * ease(k * 1.3), text: f.text, col: f.col, a }); continue; }
+    floatPill(ctx, f.text, f.col, f.x, y, a);
+  }
+}
+
+// ---- 3D hand-off: draw the world's marks into the overlay (world units), record pebbles + palm, tell the presenter what to show.
+function to3D(state, kind, rect, draw) {
+  const ov = v3.ov, c = ov.ctx;
+  c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, ov.canvas.width, ov.canvas.height);
+  c.setTransform(ov.k, 0, 0, ov.k, ov.pad * ov.k, ov.pad * ov.k);
+  recBegin(); draw(c); const r = recEnd();
+  v3.want = { kind, rect, stones: r.stones, hands: r.hands, t: state.t, calm: !!state.settings.calm };
+  return r;
+}
+// Badges and floating labels over the 3D scene: projected, upright, sized like the flat art.
+function drawMarks3D(ctx, marks, s) {
+  if (!v3.proj) return;
+  for (const m of marks) {
+    if (m.kind === 'badge') {
+      const p = v3.proj(m.x, m.y, 26); if (!p) continue;
+      const r = Math.max(15, m.r * s * 1.05);
+      ctx.save(); ctx.fillStyle = m.fill; ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, TAU); ctx.fill();
+      ctx.lineWidth = 2.5; ctx.strokeStyle = '#f3dca6'; ctx.stroke();
+      ctx.fillStyle = '#fffaf0'; ctx.font = `700 ${Math.round(r * 1.15)}px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(m.label, p.x, p.y + 1); ctx.restore();
+    } else if (m.kind === 'float') {
+      const p = v3.proj(m.x, m.y, 60 + m.lift * 1.6); if (!p) continue;
+      floatPill(ctx, m.text, m.col, p.x, p.y, m.a, Math.max(0.6, Math.min(1.1, s)));
+    }
+  }
+}
 
 // ---- the world ----------------------------------------------------------------------------------------
 function tossPos(ev, t, h) {
@@ -141,13 +184,7 @@ export function drawWorld(ctx, state, rd, hp = {}) {
   void tray;
 
   drawParticles(ctx, rd.parts);
-  for (const f of rd.floats) {
-    const k = f.t / f.max, y = f.y - 38 * ease(k * 1.3), a = k < 0.7 ? 1 : 1 - (k - 0.7) / 0.3;
-    ctx.save(); ctx.globalAlpha = a; ctx.font = `700 34px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    const w = ctx.measureText(f.text).width + 36;
-    roundPath(ctx, f.x - w / 2, y - 24, w, 48, 24); ctx.fillStyle = 'rgba(28,20,50,0.82)'; ctx.fill();
-    ctx.fillStyle = f.col; ctx.fillText(f.text, f.x, y + 2); ctx.restore();
-  }
+  drawFloats(ctx, rd.floats);
 }
 
 // The tossed stone, the hand, the picked-up stones and the catch ring.
@@ -247,26 +284,33 @@ function drawKk(ctx, state, rd, hp) {
     }
   }
   drawParticles(ctx, rd.parts);
-  for (const f of rd.floats) {
-    const k = f.t / f.max, y = f.y - 38 * ease(k * 1.3), a = k < 0.7 ? 1 : 1 - (k - 0.7) / 0.3;
-    ctx.save(); ctx.globalAlpha = a; ctx.font = `700 34px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    const w = ctx.measureText(f.text).width + 36;
-    roundPath(ctx, f.x - w / 2, y - 24, w, 48, 24); ctx.fillStyle = 'rgba(28,20,50,0.82)'; ctx.fill();
-    ctx.fillStyle = f.col; ctx.fillText(f.text, f.x, y + 2); ctx.restore();
-  }
+  drawFloats(ctx, rd.floats);
   void t; void hp;
 }
 
 // ---- the attract mat behind the title ---------------------------------------------------------------------
 export function drawAttract(ctx, state, spot = null) {
+  const fa = flatAlpha();
+  if (fa > 0) { ctx.save(); ctx.globalAlpha = fa; drawAttractFlat(ctx, state, spot); ctx.restore(); }
+  if (v3.on && v3.ov) {
+    const U = safeArea();
+    const rect = isWide() && spot === 'left' ? { x: U.x0, y: U.y0, w: U.w / 2, h: U.h } : { x: U.x0, y: U.y0, w: U.w, h: U.h };
+    to3D(state, 'hero', rect, (c) => attractWorld(c, state));
+  }
+}
+function drawAttractFlat(ctx, state, spot) {
   drawFloor(ctx, screen.w, screen.h);
   // the demo mat: portrait = centred a little above the middle; landscape = fitted to the height, centred (or in the left half for the title)
   const U = safeArea();
   let s = 1, ox, oy;
   if (isWide()) { s = Math.min(1, (U.h - 30) / 800); const cx = spot === 'left' ? U.x0 + U.w / 4 : U.x0 + U.w / 2; ox = cx - 330 * s; oy = U.y0 + (U.h - 800 * s) / 2; }
   else { s = Math.min(1, (U.w - 20) / 660); ox = U.x0 + (U.w - 660 * s) / 2; oy = U.y0 + Math.max(10, (U.h - 800 * s) * 0.15); }
-  const a = state.att;
   ctx.save(); ctx.translate(ox, oy); ctx.scale(s, s);
+  attractWorld(ctx, state);
+  ctx.restore();
+}
+function attractWorld(ctx, state) {
+  const a = state.att;
   drawMat(ctx, state.t);
   drawHomeMark(ctx, HOME.x, HOME.y, 0);
   if (a) {
@@ -285,7 +329,6 @@ export function drawAttract(ctx, state, spot = null) {
     }
     drawParticles(ctx, a.parts);
   }
-  ctx.restore();
 }
 
 // ---- the HUD -------------------------------------------------------------------------------------------------
@@ -532,11 +575,19 @@ function drawBanner(ctx, state, rd, L) {
 
 export function renderPlay(ctx, state, hp) {
   const rd = state.rd, L = playLayout(state.settings.textIdx);
-  drawFloor(ctx, screen.w, screen.h);
-  ctx.save();
-  ctx.translate(L.view.ox, L.view.oy); ctx.scale(L.view.s, L.view.s);
-  drawWorld(ctx, state, rd, hp);
-  ctx.restore();
+  const fa = flatAlpha();
+  if (fa > 0) {
+    ctx.save(); ctx.globalAlpha = fa;
+    drawFloor(ctx, screen.w, screen.h);
+    ctx.translate(L.view.ox, L.view.oy); ctx.scale(L.view.s, L.view.s);
+    drawWorld(ctx, state, rd, hp);
+    ctx.restore();
+  }
+  if (v3.on && v3.ov) {
+    const r = to3D(state, 'play', L.world, (c) => drawWorld(c, state, rd, hp));
+    v3.want.mode = L.mode; v3.want.flash = rd.flash || 0;
+    drawMarks3D(ctx, r.marks, L.view.s);
+  }
   if (rd.flash > 0 && !state.settings.calm) { ctx.fillStyle = `rgba(255,90,70,${0.18 * rd.flash})`; ctx.fillRect(0, 0, screen.w, screen.h); }
   drawHud(ctx, state, hp, L);
   drawBar(ctx, state, hp, L);

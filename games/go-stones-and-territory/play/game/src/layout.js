@@ -8,6 +8,7 @@
 //            on the title.
 // A board layout L = { n, x, y, size, d, m } (top-left of the board face, its side, the spacing of the crossings, and the margin from
 // the face edge to the first line).
+import { v3 } from './v3.js';
 export let W = 720, H = 1560;
 
 // Safe areas and the host's floating back button, in virtual units. main.js keeps this current (browsers: all zero).
@@ -27,6 +28,7 @@ export const stoneR = (L) => L.d * 0.485;
 
 // nearest crossing to a screen point; -1 when the point is clearly off the board
 export function pointNear(L, x, y) {
+  if (v3.on && v3.hit && v3.n === L.n) return v3.hit(L.n, x, y);     // the 3D board: through the live camera
   const gx = Math.round((x - L.x - L.m) / L.d), gy = Math.round((y - L.y - L.m) / L.d);
   if (x < L.x - 8 || y < L.y - 8 || x > L.x + L.size + 8 || y > L.y + L.size + 8) return -1;
   const cx = Math.max(0, Math.min(L.n - 1, gx)), cy = Math.max(0, Math.min(L.n - 1, gy));
@@ -71,7 +73,7 @@ export function setSize(w, h) {
   publish(R, { place: p.place, next: p.next, done: p.done, msg: p.msg, pass: p.slots[0], undo: p.slots[1], hint: p.slots[2], menu: p.slots[3], back: p.slots[0], reset: p.slots[1], skip: p.slots[3] });
   publish(PAGE_NAV, cur.reader.nav);
   publish(TEXT_BTN, { dec: cur.reader.dec, inc: cur.reader.inc });
-  publish(AUTOPLAY, { dec: p.apDec, inc: p.apInc, exit: p.slots[0], pause: p.slots[1], skip: p.slots[2] });
+  publish(AUTOPLAY, { dec: p.apDec, inc: p.apInc, exit: p.apBtn[0], pause: p.apBtn[1], skip: p.apBtn[2] });
   publish(PLAYBOARD, { ...p.board });
   return cur;
 }
@@ -89,102 +91,83 @@ const slotsRow = (r, n, g) => { const sw = (r.w - g * (n - 1)) / n; return Array
 // ---- play / lesson / puzzle / auto play ---------------------------------------------------------------------------------------
 // Room under the top inset for the kit's top-centre "Preview m:ss" pill (6 css px under the inset, about 20 css px tall).
 const badgeRoom = () => { const k = Math.max(0.3, host.px || 0.6); return Math.ceil(6 / k + 1.7 * Math.max(16, 11.5 / k)) + 4; };
-function playLayout(w, h, F, mode) {
-  const P = { mode }, br = badgeRoom();
-  if (mode === 'tall') {
-    const dy = Math.max(0, (h - 1560) / 2) + Math.max(0, F.t + br - 118), x0 = F.back ? Math.max(24, F.l + F.back + 22) : 24, x1 = w - 24 - F.r, pw = (x1 - x0 - 24) / 2;
-    P.players = [rc(x0, 118 + dy, pw, 112), rc(x0 + pw + 24, 118 + dy, pw, 112)];
-    P.status = { x: w / 2, y: 278 + dy, size: 27, sub: 306 + dy };
-    P.board = { x: (w - 648) / 2, y: 312 + dy, size: 648 };
-    P.msg = rc(36, 972 + dy, 648, 122); P.msgMin = 17;
-    P.rowA = rc(36, 1118 + dy, 648, 104); P.place = rc(250, 1118 + dy, 220, 104); P.next = P.done = rc(190, 1118 + dy, 340, 104);
-    P.slots = [0, 1, 2, 3].map((i) => rc(36 + i * 166, 1290 + dy, 150, 84));
-    P.halves = [rc(36, 1290 + dy, 300, 84), rc(384, 1290 + dy, 300, 84)];
-    P.apDec = rc(36, 1118 + dy, 190, 104); P.apInc = rc(494, 1118 + dy, 190, 104); P.apText = { x: w / 2, y: 1174 + dy, size: 25 };
-    P.bowls = { a: { x: 128, y: 1178 + dy, s: 0.62, pr: { x: 62, y: 1254 + dy, dx: 13 } }, b: { x: 592, y: 1178 + dy, s: 0.62, pr: { x: 658, y: 1254 + dy, dx: -13 } } };
-    P.caption = { x: w / 2, y: 1440 + dy, size: 24, maxW: 660 };
-    P.think = rc(210, 1478 + dy, 300, 12);
-    P.cards = [];
-    P.head = { cx: w / 2, cap: 152 + dy, title: 226 + dy, step: 282 + dy, titleSize: 64, capSize: 26, puz: 200 + dy, puzSize: 68, streak: 262 + dy, maxW: w - 2 * Math.max(40, F.bk + 16) };
-    P.confetti = { x: 60, w: 600, y: 360 + dy };
-    return P;
-  }
-  const g = 14;
+// Play area first (owner 2026-10-28, eye health): the 3D board + its two small bowls (the "stage") takes the full width of a portrait
+// screen and the full height of a landscape one; players, status, message and buttons are slim strips around it. Every portrait
+// screen (phone or tablet) uses one flowing layout; wide screens put one slim panel beside the stage.
+const tapH = () => clamp(Math.ceil(46 / Math.max(0.3, host.px || 0.6)), 48, 92);   // a >= 44 css px touch target, in virtual units
+const STAGE_K = 1.12;                                                                // stage height / width needed by the 3D board + bowls
+function playLayout(w, h, F, mode0) {
+  const mode = mode0 === 'tall' ? 'compact' : mode0;
+  const P = { mode }, br = badgeRoom(), bt = tapH();
+  const g = 8;
   if (mode === 'compact') {
-    const m = 24, cw = w - 2 * m;
+    const m = 10, cw = w - 2 * m;
     let y = F.t + (F.back ? 6 : 12);
     const topH = F.back ? F.back : 34;
-    const sy = Math.max(y + topH / 2 + 9, F.t + br + 22);   // the status line sits below the preview pill
+    const sy = Math.max(y + topH / 2 + 9, F.t + br + 22);   // the status line shares the back button's row, below the preview pill
     P.status = { x: w / 2, y: sy, size: 26, sub: 0 };
-    y = Math.max(y + topH + 8, sy + 14);
-    const ph = 76, msgH = 88, rowH = 66, below = g + msgH + g + rowH + 10 + rowH;
-    const bottom = h - F.b - 10;
-    const bsMax = Math.min(648, cw);
-    const bs = clamp(bottom - (y + ph + 10) - below, 240, bsMax);
-    const spare = Math.max(0, bottom - (y + ph + 10 + bs + below));
-    const extra = Math.min(spare / 4, 14), lead = Math.max(0, (spare - 4 * extra) / 2);
+    y = Math.max(y + topH + 6, sy + 14);
+    const ph = 76, msgH = bt > 70 ? 84 : 70, rowH = bt, below = g + msgH + g + rowH + g + rowH;
+    const bottom = h - F.b - 8;
+    const avail = bottom - (y + ph + g) - below;
+    const sH = clamp(Math.min(avail, (w - 12) * STAGE_K), 240, 4000);
+    const spare = Math.max(0, bottom - (y + ph + g + sH + below));
+    const extra = Math.min(spare / 4, 34), lead = Math.max(0, (spare - 4 * extra) / 3);
     y += lead;
-    const pw = (cw - 14) / 2;
-    P.players = [rc(m, y, pw, ph), rc(m + pw + 14, y, pw, ph)];
+    const pw = (cw - 10) / 2;
+    P.players = [rc(m, y, pw, ph), rc(m + pw + 10, y, pw, ph)];
     P.head = { cx: w / 2, cap: y + 26, title: y + 66, step: 0, titleSize: 40, capSize: 22, puz: y + 48, puzSize: 42, streak: y + 72, maxW: cw - 20, compact: true, y, h: ph };
-    y += ph + 10 + extra;
-    P.board = { x: (w - bs) / 2, y, size: bs }; y += bs + g + extra;
+    y += ph + g + extra;
+    P.stage = rc(6, y, w - 12, sH);
+    const bs = Math.min(w - 12, sH - 86);                  // the flat 2D board (fallback) leaves a strip under it for two small bowls
+    P.board = { x: (w - bs) / 2, y, size: bs };
+    P.bowls = sH - bs >= 80 ? { a: { x: 116, y: y + bs + (sH - bs) / 2, s: 0.4, pr: { x: 196, y: y + bs + (sH - bs) / 2, dx: 12 } }, b: { x: w - 116, y: y + bs + (sH - bs) / 2, s: 0.4, pr: { x: w - 196, y: y + bs + (sH - bs) / 2, dx: -12 } } } : null;
+    y += sH + g + extra;
     P.msg = rc(m, y, cw, msgH); P.msgMin = 19; y += msgH + g + extra;
-    P.rowA = rc(m, y, cw, rowH); y += rowH + 10 + extra;
-    P.slots = slotsRow(rc(m, y, cw, rowH), 4, 12);
-    P.halves = slotsRow(rc(m, y, cw, rowH), 2, 14);
-    P.think = rc(w / 2 - 150, P.rowA.y - 9, 300, 6);
-    P.caption = null; P.bowls = null; P.cards = [];
+    P.rowA = rc(m, y, cw, rowH); y += rowH + g + extra;
+    P.slots = slotsRow(rc(m, y, cw, rowH), 4, 10);
+    P.halves = slotsRow(rc(m, y, cw, rowH), 2, 12);
+    P.think = rc(w / 2 - 150, P.rowA.y - 7, 300, 5);
+    P.caption = null; P.cards = [];
     P.confetti = { x: P.board.x, w: bs, y: P.board.y + 40 };
   } else {
-    // wide
-    const m = 18, gap = 16;
+    // wide: the stage as tall as the screen allows, one slim panel on the right
+    const m = 12, gap = 12;
     const ax0 = F.l + m, ax1 = w - F.r - m, ay0 = F.t + Math.max(m, br), ay1 = h - F.b - m;
-    const avail = ax1 - ax0, bsMax = Math.min(ay1 - ay0 - 26, 700);
-    const cardMin = 270, cardMax = 440;
-    const two = avail - bsMax - 2 * gap >= 2 * cardMin;
-    let cw, bs, left, right, groupX;
-    if (two) {
-      cw = Math.min(cardMax, (avail - bsMax - 2 * gap) / 2); bs = bsMax;
-      const total = cw * 2 + gap * 2 + bs; groupX = ax0 + (avail - total) / 2;
-      left = rc(groupX, ay0, cw, ay1 - ay0); right = rc(groupX + cw + gap + bs + gap, ay0, cw, ay1 - ay0);
-      P.board = { x: groupX + cw + gap, y: ay0 + (ay1 - ay0 - 26 - bs) / 2, size: bs };
-    } else {
-      const gutter = F.bk ? Math.max(0, F.bk - m + 6) : 0;
-      cw = clamp(avail - bsMax - gap - gutter, cardMin, cardMax); bs = Math.min(bsMax, avail - cw - gap - gutter);
-      const total = gutter + bs + gap + cw; groupX = ax0 + Math.max(0, (avail - total) / 2);
-      right = rc(groupX + gutter + bs + gap, ay0, cw, ay1 - ay0); left = null;
-      P.board = { x: groupX + gutter, y: ay0 + (ay1 - ay0 - 26 - bs) / 2, size: bs };
-    }
-    const bkY = F.back ? F.t + F.back + 20 : ay0 + 6;     // below the back button's box
-    const pad = 14, ph = 92;
-    // left card (two-card shape) or the top of the single card holds players + status
-    const hostCard = left || right, hy0 = left ? bkY : ay0 + pad;
-    P.players = [rc(hostCard.x + pad, hy0, hostCard.w - 2 * pad, ph), rc(hostCard.x + pad, hy0 + ph + 10, hostCard.w - 2 * pad, ph)];
-    const statusY = hy0 + 2 * ph + 10 + 36;
+    const avail = ax1 - ax0, sHt = ay1 - ay0, cardMin = 280, cardMax = 440;
+    const gutter = F.bk ? Math.max(0, F.bk - m + 6) : 0;
+    let sw = Math.min(sHt / STAGE_K * 1.05, avail - cardMin - gap - gutter);
+    const cw = clamp(avail - sw - gap - gutter, cardMin, cardMax);
+    const right = rc(ax1 - cw, ay0, cw, sHt), left = null;
+    const zoneX0 = ax0 + gutter, zoneX1 = right.x - gap;
+    P.sideBowls = zoneX1 - zoneX0 >= sHt * 1.4;      // room beside the board: the bowls go there and the board takes the full height
+    sw = P.sideBowls ? Math.min(zoneX1 - zoneX0, sHt * 1.45) : Math.min(sw, zoneX1 - zoneX0);
+    P.stage = rc(zoneX0 + (zoneX1 - zoneX0 - sw) / 2, ay0, sw, sHt);
+    const bs = P.sideBowls ? Math.min(sHt, sw * 0.7) : Math.min(sw, sHt);
+    P.board = { x: P.stage.x + (sw - bs) / 2, y: ay0 + (sHt - bs) / 2, size: bs };
+    P.bowls = null;
+    const pad = 12, ph = 76, rowH = bt;
+    const hostCard = right, hy0 = ay0 + pad;
+    P.players = [rc(hostCard.x + pad, hy0, hostCard.w - 2 * pad, ph), rc(hostCard.x + pad, hy0 + ph + 8, hostCard.w - 2 * pad, ph)];
+    const statusY = hy0 + 2 * ph + 8 + 34;
     P.status = { x: hostCard.x + hostCard.w / 2, y: statusY, size: 24, sub: statusY + 28, card: true };
-    P.head = { cx: hostCard.x + hostCard.w / 2, cap: hy0 + 24, title: hy0 + 76, step: hy0 + 112, titleSize: 44, capSize: 24, puz: hy0 + 64, puzSize: 46, streak: hy0 + 108, maxW: hostCard.w - 2 * pad, wide: true };
-    // buttons and message: bottom of the right card, message above
-    const rowH = 66, cwid = right.w - 2 * pad;
-    const rowB = rc(right.x + pad, right.y + right.h - pad - (rowH * 2 + 10), cwid, rowH * 2 + 10);
-    P.slots = [0, 1, 2, 3].map((i) => rc(rowB.x + (i % 2) * (cwid / 2 + 5), rowB.y + Math.floor(i / 2) * (rowH + 10), cwid / 2 - 5, rowH));
-    P.halves = [rc(rowB.x, rowB.y, cwid / 2 - 5, rowB.h), rc(rowB.x + cwid / 2 + 5, rowB.y, cwid / 2 - 5, rowB.h)];
-    P.rowA = rc(rowB.x, rowB.y - 10 - 72, cwid, 72);
-    const msgTop = left ? right.y + pad : hy0 + 2 * ph + 10 + 74;
-    const msgBot = P.rowA.y - 16;
-    P.msg = rc(rowB.x, msgTop, cwid, Math.max(80, msgBot - msgTop)); P.msgMin = 19;
-    P.think = rc(P.rowA.x + cwid / 2 - 100, P.rowA.y - 11, 200, 6);
-    P.caption = left ? { x: left.x + left.w / 2, y: statusY + 56, size: 21, maxW: left.w - 2 * pad } : null;
-    // bowls (two-card shape, room under the status)
-    const bowlY = left ? left.y + left.h - 130 : 0;
-    P.bowls = left && bowlY > statusY + 110 ? { a: { x: left.x + left.w * 0.27, y: bowlY, s: 0.55, pr: { x: left.x + 26, y: bowlY + 78, dx: 11 } }, b: { x: left.x + left.w * 0.73, y: bowlY, s: 0.55, pr: { x: left.x + left.w - 26, y: bowlY + 78, dx: -11 } } } : null;
-    P.cards = left ? [left, right] : [right];
+    P.head = { cx: hostCard.x + hostCard.w / 2, cap: hy0 + 24, title: hy0 + 70, step: hy0 + 104, titleSize: 42, capSize: 22, puz: hy0 + 60, puzSize: 44, streak: hy0 + 102, maxW: hostCard.w - 2 * pad, wide: true };
+    const cwid = right.w - 2 * pad;
+    const rowB = rc(right.x + pad, right.y + right.h - pad - (rowH * 2 + 8), cwid, rowH * 2 + 8);
+    P.slots = [0, 1, 2, 3].map((i) => rc(rowB.x + (i % 2) * (cwid / 2 + 4), rowB.y + Math.floor(i / 2) * (rowH + 8), cwid / 2 - 4, rowH));
+    P.halves = [rc(rowB.x, rowB.y, cwid / 2 - 4, rowB.h), rc(rowB.x + cwid / 2 + 4, rowB.y, cwid / 2 - 4, rowB.h)];
+    P.rowA = rc(rowB.x, rowB.y - 8 - rowH, cwid, rowH);
+    const msgTop = hy0 + 2 * ph + 8 + 66, msgBot = P.rowA.y - 12;
+    P.msg = rc(rowB.x, msgTop, cwid, Math.max(70, msgBot - msgTop)); P.msgMin = 18;
+    P.think = rc(P.rowA.x + cwid / 2 - 100, P.rowA.y - 9, 200, 5);
+    P.caption = null; P.cards = [right];
     P.confetti = { x: P.board.x, w: bs, y: P.board.y + 40 };
   }
   P.place = P.next = P.done = P.rowA;
   const ra = P.rowA, bw = Math.round(ra.w * 0.29);
   P.apDec = rc(ra.x, ra.y, bw, ra.h); P.apInc = rc(ra.x + ra.w - bw, ra.y, bw, ra.h);
   P.apText = { x: ra.x + ra.w / 2, y: ra.y + ra.h / 2 + 8, size: 22 };
+  P.apBtn = mode === 'compact' ? slotsRow(rc(P.slots[0].x, P.slots[0].y, P.slots[3].x + P.slots[3].w - P.slots[0].x, P.slots[0].h), 3, 10) : P.slots.slice(0, 3);
   return P;
 }
 

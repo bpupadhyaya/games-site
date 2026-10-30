@@ -40,7 +40,7 @@ export function drawTable(ctx, w, h, focus) {
 // ---- board outline ------------------------------------------------------------------------------------------------------------
 // Square-lattice boards are round (the classic turned-wood look); the triangle board is a rounded triangle.
 export function boardShape(b, P) {
-  if (!b.tri) { let m = 0; for (const p of b.pos) m = Math.max(m, Math.hypot(p.x, p.y)); return { round: true, R: (m + 1.0) * P }; }
+  if (!b.tri) { let m = 0; for (const p of b.pos) m = Math.max(m, Math.hypot(p.x, p.y)); return { round: true, R: (m + 0.85) * P }; }
   const xs = b.pos.map((p) => p.x), ys = b.pos.map((p) => p.y);
   const top = Math.min(...ys), bot = Math.max(...ys), left = Math.min(...xs), right = Math.max(...xs), pad = 1.0;
   const cx = (left + right) / 2, k = pad * 2.0;                       // push the corners out so the edges stay `pad` from the outer holes

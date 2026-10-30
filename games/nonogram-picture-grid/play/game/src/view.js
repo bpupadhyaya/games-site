@@ -9,6 +9,7 @@ import { drawMoreLine, drawLockup } from './brand.js';
 import { THINK_STEPS } from './screens.js';
 import { drawNonogram, drawPicture } from './boardview.js';
 import { drawArt } from './arts.js';
+import { v3 } from './v3.js';
 import { FILLED } from './solver.js';
 import { lineName, clueText } from './explain.js';
 
@@ -353,7 +354,7 @@ function drawPlay(ctx, S) {
   const M = S.match;
   const z = TEXT_SCALES[S.textIdx];
   const lay = playLayout(z);
-  background(ctx, th, S.t, 800);
+  if (v3.on && !M.reveal) ctx.clearRect(0, 0, SZ.w, SZ.h); else background(ctx, th, S.t, 800);   // the 3D desk shows through while playing
   hudBar(ctx, S, M, false);
   if (M.reveal) {
     drawRevealScene(ctx, S, M, lay);
@@ -363,7 +364,7 @@ function drawPlay(ctx, S) {
   drawFocusBar(ctx, S, M, lay);
   const g = playGeo(S, M, lay.area);
   M.canZoom = g.canZoom;
-  drawNonogram(ctx, th, M.puz, M.b.cells, g, { t: S.t, doneR: M.b.doneR, doneC: M.b.doneC, focus: M.focus, hint: M.hint && M.hint.step ? { axis: M.hint.step.axis, k: M.hint.step.k, cells: M.hint.step.cells } : M.hint && M.hint.bad ? { axis: M.hint.bad.axis, k: M.hint.bad.k, cells: [] } : null, pops: M.pops, flashes: M.flashes });
+  drawNonogram(ctx, th, M.puz, M.b.cells, g, { t: S.t, doneR: M.b.doneR, doneC: M.b.doneC, focus: M.focus, hint: M.hint && M.hint.step ? { axis: M.hint.step.axis, k: M.hint.step.k, cells: M.hint.step.cells } : M.hint && M.hint.bad ? { axis: M.hint.bad.axis, k: M.hint.bad.k, cells: [] } : null, pops: M.pops, flashes: M.flashes, d3: true });
   if (M.thinking) { ctx.fillStyle = 'rgba(0,0,0,0.0)'; }
   let head = '', body = '', o = {};
   if (M.hint) { head = M.hint.head; const why = hintWhy(z); body = why && (M.hint.step || M.hint.bad) ? '' : M.hint.why; const has = (why || M.hint.step) && (M.hint.step || M.hint.bad); o = { hint: true }; if (has) { if (lay.applyBelow) o.reserve = lay.applyBtn.h + 14; else o.rightReserve = 200 * Math.min(1, z / 1.5); } }
@@ -387,7 +388,7 @@ function drawAuto(ctx, S) {
   const M = S.match, a = S.auto;
   const z = TEXT_SCALES[S.textIdx];
   const lay = autoLayout(z);
-  background(ctx, th, S.t, 800);
+  if (v3.on && !M.reveal) ctx.clearRect(0, 0, SZ.w, SZ.h); else background(ctx, th, S.t, 800);
   hudBar(ctx, S, M, true);
   M.hideName = false;
   const g = boardGeo(M.puz, lay.area, z, 'fit', 0, 0);
@@ -399,7 +400,7 @@ function drawAuto(ctx, S) {
     const showHint = a.phase === 'reveal' || a.phase === 'act';
     const hint = showHint && a.step ? { axis: a.step.axis, k: a.step.k, cells: a.step.cells } : null;
     const scanHint = a.phase === 'think' && a.scan ? { axis: a.scan.axis, k: a.scan.k, cells: [] } : null;
-    drawNonogram(ctx, th, M.puz, M.b.cells, g, { t: S.t, doneR: M.b.doneR, doneC: M.b.doneC, hint: hint ?? scanHint, pops: M.pops });
+    drawNonogram(ctx, th, M.puz, M.b.cells, g, { t: S.t, doneR: M.b.doneR, doneC: M.b.doneC, hint: hint ?? scanHint, pops: M.pops, d3: true });
     // focus readout for the line being considered
     const fr = lay.focus;
     ctx.fillStyle = 'rgba(0,0,0,0.28)'; rr(ctx, fr.x, fr.y, fr.w, fr.h, 18); ctx.fill();

@@ -20,7 +20,7 @@ export const MANNEQUIN_DETAIL = {
 
 // ----------------------------------------------------------------- builder
 class Builder {
-  constructor(boneIndex) { this.bi = boneIndex; this.pos = []; this.col = []; this.mask = []; this.hair = []; this.trim = []; this.si = []; this.sw = []; this.idx = []; }
+  constructor(boneIndex) { this.bi = boneIndex; this.pos = []; this.col = []; this.mask = []; this.hair = []; this.trim = []; this.stripe = []; this.si = []; this.sw = []; this.idx = []; }
   // st: { p, a, b, w:[[bone, weight]], color:[r,g,b], mask:[t,b,s,k], hair }
   sweep(stations, hintA, sides, { capStart = false, capEnd = false, shade = null } = {}) {
     const n = stations.length, rings = [];
@@ -35,7 +35,7 @@ class Builder {
       for (let k = 0; k < sides; k++) {
         const th = (k / sides) * Math.PI * 2, c = Math.cos(th), sn = Math.sin(th);
         const p = s.p.clone().addScaledVector(A, s.a * c).addScaledVector(B, s.b * sn);
-        const sh = shade ? shade(th, s, p) : 1; const shk = typeof sh === 'object' ? sh.k : sh; const vi = this.vertex(p, s, shk); if (typeof sh === 'object' && sh.trim !== undefined) this.trim[vi] = sh.trim; ring.push(vi);
+        const sh = shade ? shade(th, s, p) : 1; const shk = typeof sh === 'object' ? sh.k : sh; const vi = this.vertex(p, s, shk); if (typeof sh === 'object' && sh.trim !== undefined) this.trim[vi] = sh.trim; if (typeof sh === 'object' && sh.stripe) this.stripe[vi] = sh.stripe; ring.push(vi);
       }
       rings.push({ ring, t, s });
     }
@@ -55,7 +55,7 @@ class Builder {
     const id = this.pos.length / 3;
     this.pos.push(p.x, p.y, p.z);
     this.col.push(s.color[0] * shade, s.color[1] * shade, s.color[2] * shade);
-    this.mask.push(...s.mask); this.hair.push(s.hair || 0); this.trim[id] = s.trim || 0;
+    this.mask.push(...s.mask); this.hair.push(s.hair || 0); this.trim[id] = s.trim || 0; this.stripe[id] = 0;
     // two or three strongest bones, normalised
     const w = s.w.slice().sort((a, b) => b[1] - a[1]).slice(0, 4); const tot = w.reduce((a, e) => a + e[1], 0) || 1;
     for (let k = 0; k < 4; k++) { const e = w[k]; this.si.push(e ? this.bi[e[0]] : 0); this.sw.push(e ? e[1] / tot : 0); }
@@ -68,6 +68,7 @@ class Builder {
     g.setAttribute('aMask', new THREE.Float32BufferAttribute(this.mask, 4));
     g.setAttribute('aHair', new THREE.Float32BufferAttribute(this.hair, 1));
     g.setAttribute('aTrim', new THREE.Float32BufferAttribute(this.trim, 1));
+    g.setAttribute('aStripe', new THREE.Float32BufferAttribute(this.pos.length / 3 === this.stripe.length ? this.stripe : Array.from({ length: this.pos.length / 3 }, (_, i) => this.stripe[i] || 0), 1));
     g.setAttribute('skinIndex', new THREE.BufferAttribute(new Uint16Array(this.si), 4));
     g.setAttribute('skinWeight', new THREE.Float32BufferAttribute(this.sw, 4));
     g.setIndex(new THREE.BufferAttribute(this.pos.length / 3 > 65535 ? new Uint32Array(this.idx) : new Uint16Array(this.idx), 1));
@@ -134,7 +135,7 @@ export function buildMannequinGeometry(rest, boneIndex, spec, detail) {
     const wid = f ? [0.188, 0.130, 0.148, 0.170, 0.100] : [0.176, 0.142, 0.178, 0.214, 0.108];   // half widths at Pelvis, Spine, Spine1, Spine2, Neck
     const dep = f ? [0.108, 0.092, 0.104, 0.112, 0.072] : [0.112, 0.100, 0.114, 0.120, 0.078];
     const joints = [{ n: 'Pelvis', a: wid[0], b: dep[0] }, { n: 'Spine', a: wid[1], b: dep[1] }, { n: 'Spine1', a: wid[2], b: dep[2] }, { n: 'Spine2', a: wid[3], b: dep[3], bulge: 0.2 }, { n: 'Neck', a: wid[4], b: dep[4] }];
-    limb(joints, (k, fr) => (k === 0 && fr <= 0.72 ? botA : (k === 3 && fr >= 0.9001 ? topT : topA)), X, { sides: D.torso, fracs: [[0.72, 0.7201, 1], D.torsoFr, D.torsoFr, [0.6, 0.9, 0.9001, 1]], extendStart: 0.075, startTaper: 1.06, capStart: false, capEnd: false });
+    limb(joints, (k, fr) => (k === 0 && fr <= 0.72 ? botA : (k === 3 && fr >= 0.9001 ? topT : topA)), X, { shade: (th) => (Math.abs(Math.cos(th)) > 0.94 ? { k: 1, stripe: 1 } : 1), sides: D.torso, fracs: [[0.72, 0.7201, 1], D.torsoFr, D.torsoFr, [0.6, 0.9, 0.9001, 1]], extendStart: 0.075, startTaper: 1.06, capStart: false, capEnd: false });
     // sharp waistband edge: handled by the appear function switching at f = 0.72 of the first segment (rings are close to it for the full level)
     // neck
     { // neck: two stations, straight up into the head

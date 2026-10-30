@@ -119,7 +119,7 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
 
   function director(focusX, focusY, aspect) {
     const ds = smooth(1.9, 0.5, aspect);                              // 0 = wide landscape, 1 = tall portrait
-    const back = lerp(3.8, 3.5, ds), out = lerp(6.0, 6.9, ds), up = lerp(1.4, 2.2, ds);
+    const back = lerp(3.0, 1.4, ds), out = lerp(6.4, 6.0, ds), up = lerp(1.4, 2.2, ds);
     return { pos: V(focusX - back, focusY + up, out), look: V(focusX + lerp(1.4, 1.2, ds), focusY + lerp(1.1, 0.9, ds), 0), fov: lerp(32, 54, ds) };
   }
 
@@ -197,7 +197,7 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
     // lens shift: the porter sits in the left third, in the band the HUD leaves free
     c.clearViewOffset(); c.updateMatrixWorld(true);
     if (!P.camOverride) {
-      const wantX = land ? -0.42 : -0.3, wantY = land ? -0.52 : -0.4;
+      const wantX = land ? -0.42 : -0.3, wantY = land ? (run ? -0.36 : -0.3) : (run ? -0.4 : (w > 600 ? 0.12 : -0.02));
       const p = V(x, y + 1.0, 0).project(c);
       c.setViewOffset(w, hh, -(wantX - p.x) * w / 2, (wantY - p.y) * hh / 2, w, hh);
     }

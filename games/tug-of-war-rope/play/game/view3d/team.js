@@ -21,9 +21,9 @@ export async function loadPerson(V3, spec) {
     const upExt = box ? Math.max(box.max.dot(up), box.min.dot(up)) : 0.2;
     const topPt = c.clone().addScaledVector(up, upExt - c.dot(up));
     const g = new THREE.Group(); g.quaternion.copy(q);
-    const R = 0.108;
-    g.position.copy(topPt).addScaledVector(up, -R * 0.78);
-    const band = new THREE.Mesh(new THREE.TorusGeometry(R, 0.017, 8, 36), mat(accent, 0.7)); band.rotation.x = Math.PI / 2; band.scale.set(1, 1.15, 1); band.castShadow = true; g.add(band);
+    const R = 0.087;
+    g.position.copy(topPt).addScaledVector(up, -0.088).addScaledVector(fwd, 0.006);
+    const band = new THREE.Mesh(new THREE.TorusGeometry(R, 0.012, 8, 40), mat(accent, 0.7)); band.rotation.x = Math.PI / 2; band.scale.set(1, 1.2, 1); band.castShadow = true; g.add(band);
     head.add(g); P.gear.band = g;
   } catch (e) { console.warn('headband', e); }
 

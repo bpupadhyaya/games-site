@@ -10,6 +10,7 @@ import { buildWorld, buildCrowd, POLE_R, POLE_Z } from './scene.js';
 import { paintMuscles, clothBump } from './muscle.js';
 import { Cloth } from './cloth.js';
 import { createDrummer } from './drummer.js';
+import { subdivide, sculptShoulders, smoothWeights, relax, weldedNormals, clavicleLift } from './anatomy.js';
 
 const { Vector3, Quaternion, Euler } = THREE;
 const D2R = Math.PI / 180;
@@ -69,8 +70,7 @@ function bareBody(human) {
       }
     };
     paint(325, 30, 702, 880, null, 1.12);                                                                // the tank top, its seams and borders
-    paint(0, 780, 420, 1024, null, 0.92);                                                                // trainers and ankle -> bare feet
-    paint(600, 780, 1024, 1024, null, 0.92);
+    // (the trainers' texels need no repaint: their triangles are removed above, and the forearms and hands share those rows)
     // the shorts stay cloth all the way to the hem (hem band included), tinted by the trunks colour
     for (const [x0, x1] of [[0, 318], [712, 1024]]) for (let y = 100; y < 214; y++) for (let x = x0; x < x1; x++) { const i = (y * N + x) * 4; if (a[i + 3] > 0) { mk[i + 1] = 255; mk[i] = 0; mk[i + 2] = 0; sk[i] = 0; } }
     paint(0, 420, 330, 520, (i) => mk[i + 2] > 100 || (a[i] > 170 && a[i + 1] > 170 && a[i + 2] > 170) || a[i + 2] > a[i] + 8);                   // sock tops
@@ -85,6 +85,39 @@ function bareBody(human) {
     }
     paint(0, 214, 330, 520, (i) => mk[i + 1] > 60);                                                      // any trunks-tint left below the hem is skin
     paint(700, 214, 1024, 520, (i) => mk[i + 1] > 60);
+    // any texel still tinted as the top (the vest's straps and armhole binding on the arm islands) is skin
+    paint(0, 0, 1024, 1024, (i) => mk[i] > 40 && a[i + 3] > 0);
+    // the top of each arm island (the shoulder cap) carries the vest's armhole binding and smeared padding: fresh skin there
+    {
+      const keep = new Uint8ClampedArray(a);                       // feathered: full repaint at the cap, fading out down the arm
+      paint(0, 452, 318, 580, (i) => sk[i] >= 128, 1.0);
+      paint(706, 452, 1024, 580, (i) => sk[i] >= 128, 1.0);
+      for (let y = 500; y < 580; y++) {
+        const u = (y - 500) / 80, f = u * u * (3 - 2 * u);
+        for (const [x0, x1] of [[0, 318], [706, 1024]]) for (let x = x0; x < x1; x++) { const i = (y * N + x) * 4; for (let c = 0; c < 3; c++) a[i + c] = a[i + c] * (1 - f) + keep[i + c] * f; }
+      }
+    }
+    // gutters: copy the nearest skin texel sideways into the padding round the islands, so mip levels do not bleed a dark seam line
+    for (let y = 30; y < 880; y++) {
+      const row = y * N;
+      for (const dir of [1, -1]) {
+        let last = -1;
+        for (let k = 0; k < N; k++) {
+          const x = dir > 0 ? k : N - 1 - k, i = (row + x) * 4;
+          if (sk[i] >= 128) { last = x; continue; }
+          if (last >= 0 && Math.abs(x - last) <= 10 && (y < 90 || y > 225)) { const j = (row + last) * 4; a[i] = a[j]; a[i + 1] = a[j + 1]; a[i + 2] = a[j + 2]; a[i + 3] = 255; sk[i] = sk[j]; mk[i] = mk[i + 1] = mk[i + 2] = 0; }
+        }
+      }
+    }
+    // one skin: the repainted vest panels are brought to the arms' own brightness, so no tank-top outline survives round the armhole
+    {
+      const lum = (x0, y0, x1, y1) => { let t = 0, k = 0; for (let y = y0; y < y1; y += 2) for (let x = x0; x < x1; x += 2) { const i = (y * N + x) * 4; if (sk[i] < 128) continue; t += 0.299 * a[i] + 0.587 * a[i + 1] + 0.114 * a[i + 2]; k++; } return k ? t / k : 1; };
+      const fix = clamp(lum(40, 540, 270, 760) / lum(380, 560, 640, 860), 0.7, 1.2);
+      // hands: same brightness as the forearm they continue
+      const hfix = clamp(lum(790, 706, 980, 843) / lum(796, 878, 1012, 1011), 0.75, 1.35);
+      for (let y = 874; y < 1024; y++) for (const [x0, x1] of [[0, 240], [786, 1024]]) for (let x = x0; x < x1; x++) { const i = (y * N + x) * 4; if (sk[i] < 128) continue; a[i] *= hfix; a[i + 1] *= hfix; a[i + 2] *= hfix; }
+      for (let y = 30; y < 880; y++) for (let x = 325; x < 702; x++) { const i = (y * N + x) * 4; if (sk[i] < 128) continue; a[i] *= fix; a[i + 1] *= fix; a[i + 2] *= fix; }
+    }
     A.g.putImageData(A.d, 0, 0); M.g.putImageData(M.d, 0, 0); K.g.putImageData(K.d, 0, 0);
     // trained-athlete definition: shading painted into the albedo + a bump map so it reacts to the light as he turns
     const B = cv(); const bg = B.getContext('2d'); bg.fillStyle = '#808080'; bg.fillRect(0, 0, N, N);
@@ -146,8 +179,8 @@ function shapeBody(human) {
   const prof = (pts, t) => { for (let i = 1; i < pts.length; i++) if (t <= pts[i][0]) { const a = pts[i - 1], b = pts[i], u = (t - a[0]) / (b[0] - a[0] || 1); return a[1] + (b[1] - a[1]) * u * u * (3 - 2 * u); } return pts[pts.length - 1][1]; };
   const SEG = {};
   for (const s of ['L', 'R']) {
-    SEG[`${s}_UpperArm`] = [`${s}_Forearm`, [[0, 1.16], [0.12, 1.36], [0.3, 1.32], [0.55, 1.2], [0.8, 1.06], [1, 0.96]]];
-    SEG[`${s}_Forearm`] = [`${s}_Hand`, [[0, 1.16], [0.25, 1.32], [0.6, 1.1], [1, 0.9]]];
+    SEG[`${s}_UpperArm`] = [`${s}_Forearm`, [[0, 1.08], [0.15, 1.2], [0.35, 1.2], [0.6, 1.12], [0.82, 1.0], [1, 0.94]]];
+    SEG[`${s}_Forearm`] = [`${s}_Hand`, [[0, 1.08], [0.25, 1.2], [0.6, 1.04], [1, 0.88]]];
     SEG[`${s}_Thigh`] = [`${s}_Calf`, [[0, 1], [0.35, 1.0], [0.6, 1.12], [0.85, 1.06], [1, 0.95]], [[0, 0.105], [0.45, 0.098], [1, 0.09]]];
     SEG[`${s}_Calf`] = [`${s}_Foot`, [[0, 0.95], [0.3, 1.2], [0.65, 1.0], [1, 0.8]]];
   }
@@ -263,6 +296,29 @@ function addShoulders(human) {
     ell(s, 'Spine2', S.clone().add(new Vector3(Math.sign(neck.x - S.x) * 0.035, -0.09, -0.015)), new Vector3(0, 1, 0), [0.052, 0.1, 0.06], s);
   }
   return out;
+}
+
+// The anatomy pass (see anatomy.js): a private, subdivided copy of the body geometry with a sculpted shoulder girdle, diffused girdle
+// weights and a non-shrinking smoothing. The shared geometry (the drummer uses it too) is left as it was.
+function rebuildGirdle(human) {
+  human._applyRest(); human.root.updateMatrixWorld(true);
+  const J = {};
+  for (const n of ['Neck', 'Spine2', 'L_Clavicle', 'R_Clavicle', 'L_UpperArm', 'R_UpperArm', 'L_Forearm', 'R_Forearm']) J[n] = human.bones[`Bip01_${n}`].getWorldPosition(new Vector3());
+  human.root.traverse((o) => {
+    if (!o.isSkinnedMesh || o.material.userData.kind !== 'body' || o.userData.girdle) return;
+    const geo = o.geometry.clone(); o.geometry = geo; o.userData.girdle = true;
+    const M = o.matrixWorld.clone(), inv = M.clone().invert();
+    const toWorld = (v) => v.applyMatrix4(M), toLocal = (v) => v.applyMatrix4(inv);
+    const names = o.skeleton.bones.map((b) => b.name);
+    subdivide(geo);
+    sculptShoulders(geo, toWorld, toLocal, J);
+    smoothWeights(geo, names, toWorld, J);
+    const hand = new Set(names.map((n, i) => (/(Hand|Finger)/.test(n) ? i : -1)).filter((i) => i >= 0));
+    const SI = geo.attributes.skinIndex, SW = geo.attributes.skinWeight;
+    relax(geo, (i) => { let w = 0; for (let k = 0; k < 4; k++) if (hand.has(SI.getComponent(i, k))) w += SW.getComponent(i, k); return w > 0.25; }, 3);
+    weldedNormals(geo);
+    geo.computeBoundingSphere();
+  });
 }
 
 // Bare feet from simple shapes (heel and arch, ball, five toes) in the person's skin colour, parented to the foot bones.
@@ -436,6 +492,7 @@ export async function createPerformer({ quality = 'medium', base } = {}) {
   bareBody(human);
   slimTorso(human);
   shapeBody(human);
+  rebuildGirdle(human);
   const shoulders = [];
   const footMats = addFeet(human, '#c48658');
   const costume = addCostume(human, '#f1ead9', '#b3262a');
@@ -586,7 +643,14 @@ function makeApi(api) {
     const bph = api._bph;
     const brt = Math.sin(bph) * (0.8 + effort * 1.1);
     offs.Spine1 = { flex: -brt * 0.9 }; offs.Spine2 = { flex: -brt * 0.7 };
-    offs.L_Clavicle = { rot: [0, 0, brt * 0.9] }; offs.R_Clavicle = { rot: [0, 0, brt * 0.9] };
+    // scapulohumeral rhythm: the shoulder girdle lifts and turns with a raised upper arm (elbow above the shoulder line) (a hinge at a fixed shoulder reads as a puppet)
+    const elev = (hand, sh) => {
+      const dx = hand[0] - sh[0], dy = hand[1] - sh[1], l = Math.hypot(dx, dy) || 1;
+      return Math.acos(clamp((dx * -Math.sin(J.tr) + dy * Math.cos(J.tr)) / l, -1, 1)) / D2R;
+    };
+    const [liftR, liftL] = damp('clav', [clavicleLift(elev(J.elL, J.sl)), clavicleLift(elev(J.elR, J.sr))], 0.1, sd);   // the 2D "left" limbs are the person's right
+    api.clavLift = [liftL, liftR];
+    offs.L_Clavicle = { rot: [0, -liftL, brt * 0.9 - liftL * 0.25] }; offs.R_Clavicle = { rot: [0, liftR, brt * 0.9 - liftR * 0.25] };
     // muscle tension: a fine 8-10 Hz tremor in the neck and trunk that grows with effort
     const tm = api.clock, tr2 = effort * effort;
     offs.Neck.side += Math.sin(tm * 53) * 0.5 * tr2 + Math.sin(tm * 37) * 0.35 * tr2;

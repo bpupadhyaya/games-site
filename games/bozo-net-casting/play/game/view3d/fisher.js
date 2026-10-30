@@ -2,7 +2,7 @@
 // broad woven hat. The garments are cloth tubes driven by the posed bones, with a spring-lagged hem so the robe swings and billows.
 const LIB = '../vendor3d/index.js';
 export async function createFisher(V3, anchor, quality) {
-  const { loadHuman, buildClip, THREE } = V3;
+  const { loadHuman, buildClip, THREE, limbCapsuleGeometry } = V3;
   const SKIN = '#6a432c';
   let human;
   human = await loadHuman({ character: 'athlete_m', skin: 'brown', hair: 'black', castShadow: true, lod: quality === 'high' ? 0 : 1,
@@ -37,9 +37,11 @@ export async function createFisher(V3, anchor, quality) {
   const trim = new THREE.MeshStandardMaterial({ color: '#e9e3cf', roughness: 0.8 });
   const unit = new THREE.Vector3(0, 1, 0);
   const tubes = [];
-  const tube = (rTop, rBot, mat, seg = 14, open = true) => {
-    const m = new THREE.Mesh(new THREE.CylinderGeometry(rTop, rBot, 1, seg, 1, open), mat); m.castShadow = true; m.receiveShadow = true; m.frustumCulled = false;
-    anchor.parent && 0; tubes.push(m); return m;
+  // closed tapered capsules (view3d 1.13 limbCapsuleGeometry, unit length, scaled along the limb): no open ends, no slits
+  const tube = (rTop, rBot, mat, seg = 16) => {
+    const geo = limbCapsuleGeometry(rBot, rTop, 1, seg); geo.translate(0, -0.5, 0);
+    const m = new THREE.Mesh(geo, mat); m.castShadow = true; m.receiveShadow = true; m.frustumCulled = false;
+    tubes.push(m); return m;
   };
   const place = (m, a, b) => {
     m.position.copy(a).add(b).multiplyScalar(0.5);
@@ -52,11 +54,14 @@ export async function createFisher(V3, anchor, quality) {
   gownGeo.translate(0, -0.5, 0);
   const chest = new THREE.Mesh(gownGeo, robe); chest.castShadow = true; chest.receiveShadow = true; chest.frustumCulled = false;
   const skirt = new THREE.Object3D(), hemTrim = new THREE.Mesh(new THREE.TorusGeometry(1, 0.012, 5, 28), trim);
-  const sh = [0, 1].map(() => new THREE.Mesh(new THREE.SphereGeometry(0.095, 12, 8), robe));
+  const sh = [0, 1].map(() => new THREE.Mesh(new THREE.SphereGeometry(0.105, 16, 12), robe));
+  const elb = [0, 1].map(() => new THREE.Mesh(new THREE.SphereGeometry(0.108, 14, 10), robe));
+  const cuff = [0, 1].map(() => new THREE.Mesh(new THREE.SphereGeometry(0.088, 14, 10), robe));
+  const knee = [0, 1].map(() => new THREE.Mesh(new THREE.SphereGeometry(0.07, 12, 8), cotton));
   const slU = [tube(0.105, 0.125, robe, 12), tube(0.105, 0.125, robe, 12)], slF = [tube(0.125, 0.085, robe, 12), tube(0.125, 0.085, robe, 12)];
   const thA = [tube(0.105, 0.085, cotton, 10), tube(0.105, 0.085, cotton, 10)], thB = [tube(0.085, 0.062, cotton, 10), tube(0.085, 0.062, cotton, 10)];
   const collar = new THREE.Mesh(new THREE.TorusGeometry(0.085, 0.02, 6, 16), trim); collar.rotation.x = Math.PI / 2;
-  g.add(chest, hemTrim, ...sh, ...slU, ...slF, ...thA, ...thB, collar);
+  g.add(chest, hemTrim, ...sh, ...elb, ...cuff, ...knee, ...slU, ...slF, ...thA, ...thB, collar);
   // The cloth lives in the anchor space so it rocks with the boat.
   anchor.add(g);
 
@@ -115,6 +120,9 @@ export async function createFisher(V3, anchor, quality) {
     place(chest, hem, top);
     hemTrim.position.copy(hem); hemTrim.quaternion.copy(chest.quaternion).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2)); hemTrim.scale.set(0.285, 0.285, 0.285);
     sh[0].position.copy(L.L_UpperArm); sh[1].position.copy(L.R_UpperArm);
+    elb[0].position.copy(L.L_Forearm); elb[1].position.copy(L.R_Forearm);
+    const cl = L.L_Hand.clone().lerp(L.L_Forearm, 0.12), cr = L.R_Hand.clone().lerp(L.R_Forearm, 0.12); cuff[0].position.copy(cl); cuff[1].position.copy(cr);
+    knee[0].position.copy(L.L_Calf); knee[1].position.copy(L.R_Calf);
     place(slU[0], L.L_UpperArm, L.L_Forearm); place(slU[1], L.R_UpperArm, L.R_Forearm);
     // the sleeve past the elbow flares a little and hangs below the forearm
     place(slF[0], L.L_Forearm, L.L_Hand.clone().lerp(L.L_Forearm, 0.12)); place(slF[1], L.R_Forearm, L.R_Hand.clone().lerp(L.R_Forearm, 0.12));

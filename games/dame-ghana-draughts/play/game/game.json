@@ -4,7 +4,7 @@
   "tagline": "Flying kings. Backward captures. Bottle caps on a carved board.",
   "genre": "draughts board game",
   "orientation": "any",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "monetization": {
     "model": "premium",
     "priceUsd": 2.99,

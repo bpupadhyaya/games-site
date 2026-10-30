@@ -17,6 +17,7 @@ export const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 export const host = { t: 0, r: 0, b: 0, l: 0, back: 0, px: 0.6, dpr: 2 };
 
 export const FRAME = 0.62, THICK = 0.2;
+import { v3 } from './v3.js';
 const cache = new Map();
 export function layoutFor(w, h, flip = false) {
   w = Math.round(w); h = Math.round(h);
@@ -129,7 +130,8 @@ function build(w, h, ins, flip) {
     L.board = board;
   }
   const board = L.board;
-  L.sq = board.sq; L.squareAt = board.squareAt; L.cell = board.cell;
+  // with the 3D board on, squares are where the tilted board projects them (taps ray-cast onto it); flat art otherwise
+  L.sq = (i, lift = 0) => (v3.on && v3.pt ? v3.pt(i, lift) : board.sq(i)); L.squareAt = (x, y) => (v3.on && v3.pick ? v3.pick(x, y) : board.squareAt(x, y)); L.cell = board.cell;
   // the angle a side's pieces point at: toward the other side's camp
   const base = board.tall ? 0 : Math.PI / 2;
   L.ang = (side) => ((side === 1) !== flip ? base : base + Math.PI);

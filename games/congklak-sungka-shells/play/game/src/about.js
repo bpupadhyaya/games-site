@@ -22,6 +22,9 @@ export const ABOUT = {
     ["These rules", "This game follows the common Indonesian and Malay rules with one small simplification:"],
     ["These rules (cont.)", "the player who finishes the opening first moves next."],
     ["These rules (cont.)", "Local rules vary from family to family, and that is part of the fun."],
+    ["3D board credits", "The 3D board is drawn with three.js, Copyright (c) 2010-2024 three.js authors, MIT License (https://threejs.org),"],
+    ["3D board credits (cont.)", "including the RoomEnvironment addon, and the meshoptimizer decoder, Copyright (c) 2016-2024 Arseny Kapoulkine, MIT License."],
+    ["3D board credits (cont.)", "The full credits ship with the game in vendor3d/LICENSES.md."],
   ],
 };
 

@@ -266,6 +266,17 @@ function paintScene(c, L, surf, k, front) {
     c.strokeStyle = 'rgba(30,22,16,0.7)'; c.lineWidth = 1.5; c.beginPath(); c.moveTo(a.x, a.y); c.quadraticCurveTo(mx, my, b.x, b.y); c.stroke();
     for (let i = 0; i <= 10; i++) { const t = i / 10, x = (1 - t) * (1 - t) * a.x + 2 * t * (1 - t) * mx + t * t * b.x, y = (1 - t) * (1 - t) * a.y + 2 * t * (1 - t) * my + t * t * b.y; bulb(c, x, y, Math.max(2.2, a.s * 0.03), 0.95); }
   }
+  // golden-hour grade: a low warm sun from the upper right lifts the highlights, the foreground settles into cool shade
+  if (!front) {
+    c.save(); c.globalCompositeOperation = 'soft-light';
+    g = c.createRadialGradient(w * 0.78, h * 0.12, 0, w * 0.78, h * 0.12, Math.max(w, h) * 0.95);
+    g.addColorStop(0, 'rgba(255,214,140,0.85)'); g.addColorStop(0.55, 'rgba(255,190,110,0.25)'); g.addColorStop(1, 'rgba(255,180,100,0)');
+    c.fillStyle = g; c.fillRect(0, 0, w, h);
+    g = c.createLinearGradient(0, h * 0.55, 0, h);
+    g.addColorStop(0, 'rgba(40,70,120,0)'); g.addColorStop(1, 'rgba(40,70,120,0.45)');
+    c.fillStyle = g; c.fillRect(0, h * 0.55, w, h * 0.45);
+    c.restore();
+  }
   // gentle vignette
   g = c.createRadialGradient(w / 2, h * 0.5, Math.min(w, h) * 0.35, w / 2, h * 0.5, Math.max(w, h) * 0.8);
   g.addColorStop(0, 'rgba(20,10,30,0)'); g.addColorStop(1, 'rgba(20,10,30,0.3)');

@@ -285,10 +285,10 @@ function renderTitle(ctx, st, L, w, h) {
   txt(ctx, 'The spiral race of geese, bridges and wells', cx, T.titleY + T.size * 0.66, Math.min(26, T.size * 0.34), PAL.text, { align: 'center', maxW: (L.land ? T.play.x - S.x - 60 : S.w - 50), stroke: 5 });
   button(ctx, T.play, 'Play', { kind: 'primary', size: 40, icon: 'play' });
   button(ctx, T.auto, 'Watch and Learn', { kind: 'quiet', size: 30, icon: 'eye' });
-  button(ctx, T.how, 'How to Play', { kind: 'ghost', size: 26 });
-  button(ctx, T.rules, 'Rules', { kind: 'ghost', size: 26 });
-  button(ctx, T.about, 'About', { kind: 'ghost', size: 26 });
-  button(ctx, T.settings, 'Settings', { kind: 'ghost', size: 26 });
+  button(ctx, T.how, 'How to Play', { kind: 'ghost', size: 18, icon: 'book', stack: true });
+  button(ctx, T.rules, 'Rules', { kind: 'ghost', size: 20, icon: 'rules', stack: true });
+  button(ctx, T.about, 'About', { kind: 'ghost', size: 20, icon: 'info', stack: true });
+  button(ctx, T.settings, 'Settings', { kind: 'ghost', size: 20, icon: 'gear', stack: true });
   const lw = L.land ? 190 : 250;
   if (!drawLockup(ctx, T.credit.x, T.credit.y - lw * 0.1, lw)) drawCredit(ctx, T.credit.x, T.credit.y, 15, { dim: 0.9 });
   if (st.demo) chip(ctx, S.x + S.w - 16, S.y + 28, `Demo: ${Math.max(0, DEMO_GAMES - st.demoRuns)} left`, 20, { align: 'right', fill: 'rgba(30,18,8,0.8)' });

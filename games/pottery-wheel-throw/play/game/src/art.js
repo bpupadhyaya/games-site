@@ -5,7 +5,7 @@ import { project } from './cam.js';
 import { TRADITIONS } from './content.js';
 
 export const PAL = {
-  ink: '#150f0d', night: '#241915', wall: '#3a2a22', glow: '#6b4a38', clay: '#c98355', terracotta: '#e2753d', terraHi: '#ffb27d', gold: '#f3c984',
+  ink: '#150f0d', night: '#241915', wall: '#3a2a22', glow: '#6b4a38', clay: '#c98355', terracotta: '#e3ae4a', terraHi: '#ffdc8f', gold: '#f3c984',
   cream: '#f7ecd9', text: '#f8eddc', dim: 'rgba(248,237,220,0.62)', teal: '#49b5a4', tealDeep: '#2b7f73', danger: '#cf4a4a', skin: '#e8b998', skinDark: '#c48b6a',
 };
 export const DISPLAY = '"Fredoka", "Trebuchet MS", system-ui, sans-serif';

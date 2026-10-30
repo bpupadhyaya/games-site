@@ -4,6 +4,7 @@
 import { host, pointAt, PIECE_R, UNIT, TEXT_SCALES, AUTO_THINK_STEPS } from './layout.js';
 import { drawRoom, drawBoard, drawCandleBody, CANDLE_TOP, WOOD_NAMES } from './art.js';
 import { drawMan, blob, SET_NAMES } from './pieces.js';
+import { v3, flatAlpha } from './v3.js';
 import { unlocked } from './unlocks.js';
 import { legalMoves, MILLS, MILL_IDX, NONE, NAMES, bit, pop, placing, flying, openTwos, takeable, mvFrom, mvTo } from './rules.js';
 import { LEVELS } from './engine.js';
@@ -85,12 +86,15 @@ export function render(ctx, state, L) {
     ctx.fillStyle = fg; ctx.beginPath(); ctx.moveTo(fx, fy - fh); ctx.bezierCurveTo(fx + 15 * k, fy - fh * 0.45, fx + 12 * k, fy, fx, fy + 2 * k); ctx.bezierCurveTo(fx - 12 * k, fy, fx - 15 * k, fy - fh * 0.45, fx, fy - fh); ctx.fill();
   };
   const room = (tt, cx, candles) => {
+    const fa = flatAlpha(); if (fa <= 0) return;
+    ctx.save(); ctx.globalAlpha = fa;
     drawRoom(ctx, w, h, tt, cx);
     for (const c of candles) candle(c);
     if (!calm) for (let i = 0; i < 16; i++) {        // dust drifting in the candle light
       const x = (60 + ((i * 97 + t * (6 + (i % 5))) % 600)) * (w / 720), y = (250 + ((i * 53 + Math.sin(t * 0.6 + i) * 30) % 760)) * (h / 1560);
       ctx.fillStyle = `rgba(255,220,160,${0.10 + 0.08 * Math.sin(t * 2 + i)})`; ctx.beginPath(); ctx.arc(x, y, 1.6 + (i % 3) * 0.7, 0, TAU); ctx.fill();
     }
+    ctx.restore();
   };
   const vignette = () => { const dg = Math.hypot(w, h), v = ctx.createRadialGradient(w / 2, h / 2, dg * 0.2, w / 2, h / 2, dg * 0.62); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(6,2,0,0.55)'); ctx.fillStyle = v; ctx.fillRect(0, 0, w, h); };
   const inStage = (fn) => { const { s, tx, ty } = L.stage; ctx.save(); ctx.translate(tx, ty); ctx.scale(s, s); fn(); ctx.restore(); };
@@ -110,7 +114,7 @@ export function render(ctx, state, L) {
   // Auto Play draws its own separate game object through the exact same drawPieces() as every other board scene, plus a REVEAL-phase
   // overlay showing every legal destination and the one about to be played. `two: true` forces the plain Light/Dark rack labels.
   const pieceState = auto ? { ...state, game: D.game, anim: D.anim, pend: null, sel: -1, hint: null, drag: null, show: null, kb: false, scene: 'auto', two: true, autoReveal: D.phase === 'reveal' ? { legal: D.moves, chosen: D.chosen } : null } : state;
-  inStage(() => { drawBoard(ctx, state.look.wood); drawPieces(ctx, pieceState, L, { hidden: a && a.mv && a.t < a.moveDur ? a.to : -1, minS }); });
+  inStage(() => { if (flatAlpha() > 0) { ctx.save(); ctx.globalAlpha = flatAlpha(); drawBoard(ctx, state.look.wood); ctx.restore(); } drawPieces(ctx, pieceState, L, { hidden: a && a.mv && a.t < a.moveDur ? a.to : -1, minS }); });
   vignette();
   if (L.hud.style === 'panel') plaqueR(L.panel);
   drawHud();
@@ -124,7 +128,7 @@ export function render(ctx, state, L) {
       if (T.board) {
         const b = T.board;
         ctx.save(); ctx.translate(b.cx, b.cy); ctx.scale(b.k, b.k); ctx.translate(-360, -1040);
-        drawBoard(ctx, state.look.wood);
+        if (flatAlpha() > 0) { ctx.save(); ctx.globalAlpha = flatAlpha(); drawBoard(ctx, state.look.wood); ctx.restore(); }
         drawPieces(ctx, { ...state, game: state.demo.g, pend: null, anim: null, sel: -1, hint: null, take: null, kb: false, scene: 'title', demo: state.demo }, L, { pop: state.demo, minS });
         ctx.restore();
       }
@@ -370,16 +374,19 @@ export function render(ctx, state, L) {
 function drawPieces(ctx, state, L, opts = {}) {
   const t = state.t, calm = state.calm, set = state.look.set, g = state.game, a = state.anim, scene = state.scene;
   const { p, hand } = shown(state), me = g.turn, human = state.two || me === state.human;
-  const R = PIECE_R;
+  const R = PIECE_R, D3 = v3.on;
+  if (D3) { v3.look.wood = state.look.wood; v3.look.set = set; }
   const pulse = calm ? 0.5 : 0.5 + 0.5 * Math.sin(t * 5);
   const onTitle = scene === 'title';
   const bottomSide = state.two ? 0 : state.human, topSide = 1 - bottomSide;
-  const glow = (i, rgb, alpha) => { const q = pointAt(i); blob(ctx, q.x, q.y, 62 * q.s * UNIT, 50 * q.s * UNIT, rgb, Math.min(1, alpha + 0.15)); };
-  const ring = (i, rgb, alpha, rad = 26, dash = false, lw = 3) => { const q = pointAt(i); ctx.save(); ctx.strokeStyle = `rgba(${rgb},${alpha})`; ctx.lineWidth = lw * q.s; if (dash) ctx.setLineDash?.([7, 6]); ctx.beginPath(); ctx.ellipse(q.x, q.y, rad * q.s * UNIT, rad * 0.86 * q.s * UNIT, 0, 0, TAU); ctx.stroke(); ctx.restore(); };
+  const glow = (i, rgb, alpha) => { if (D3) { v3.marks.push({ i, rgb, a: Math.min(1, alpha + 0.15), rad: 62, glow: true }); return; } const q = pointAt(i); blob(ctx, q.x, q.y, 62 * q.s * UNIT, 50 * q.s * UNIT, rgb, Math.min(1, alpha + 0.15)); };
+  const ring = (i, rgb, alpha, rad = 26, dash = false, lw = 3) => { if (D3) { v3.marks.push({ i, rgb, a: alpha, rad, dash, lw }); return; } const q = pointAt(i); ctx.save(); ctx.strokeStyle = `rgba(${rgb},${alpha})`; ctx.lineWidth = lw * q.s; if (dash) ctx.setLineDash?.([7, 6]); ctx.beginPath(); ctx.ellipse(q.x, q.y, rad * q.s * UNIT, rad * 0.86 * q.s * UNIT, 0, 0, TAU); ctx.stroke(); ctx.restore(); };
 
   // brass mill bars for the mills standing on the board
   for (let s = 0; s < 2; s++) for (let i = 0; i < 16; i++) if ((p[s] & MILLS[i]) === MILLS[i]) {
-    const [x, y, z] = MILL_IDX[i], A = pointAt(x), C = pointAt(z);
+    const [x, y, z] = MILL_IDX[i];
+    if (D3) { v3.bars.push({ a: x, c: z, pulse }); continue; }
+    const A = pointAt(x), C = pointAt(z);
     ctx.save(); ctx.lineCap = 'round';
     ctx.strokeStyle = `rgba(255,200,90,${0.16 + pulse * 0.12})`; ctx.lineWidth = 15 * A.s * UNIT; ctx.beginPath(); ctx.moveTo(A.x, A.y); ctx.lineTo(C.x, C.y); ctx.stroke();
     ctx.strokeStyle = 'rgba(255,225,140,0.72)'; ctx.lineWidth = 4.2 * A.s * UNIT; ctx.beginPath(); ctx.moveTo(A.x, A.y); ctx.lineTo(C.x, C.y); ctx.stroke(); ctx.restore();
@@ -411,12 +418,15 @@ function drawPieces(ctx, state, L, opts = {}) {
   // racks: carved trays with the men still to place (a row above / below the board, or a column beside it in landscape)
   if (!onTitle) {
     const vert = L.racks === 'v', lblSize = Math.max(21, (opts.minS ?? 20) / L.stage.s);
+    if (D3) v3.hand = { top: { side: topSide, n: hand[topSide] }, bottom: { side: bottomSide, n: hand[bottomSide] } };
     for (const [which, side] of [['top', topSide], ['bottom', bottomSide]]) {
+      if (!D3) {
       const b = L.rackBox(which), gr = vert ? ctx.createLinearGradient(b.x, 0, b.x + b.w, 0) : ctx.createLinearGradient(0, b.y, 0, b.y + b.h);
       gr.addColorStop(0, 'rgba(24,12,4,0.85)'); gr.addColorStop(1, 'rgba(70,40,18,0.85)');
       ctx.fillStyle = gr; ctx.beginPath(); ctx.roundRect(b.x, b.y, b.w, b.h, 34); ctx.fill(); ctx.strokeStyle = 'rgba(240,200,130,0.4)'; ctx.lineWidth = 2; ctx.stroke();
       for (let k = 0; k < 9; k++) { const q = L.rackPos(which, k); ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.beginPath(); ctx.ellipse(q.x, q.y + 8, 24, 19, 0, 0, TAU); ctx.fill(); }
       for (let k = 0; k < hand[side]; k++) { const q = L.rackPos(which, k); drawMan(ctx, q.x, q.y + 6, 27, side, set, {}); }
+      }
       const onBoard = pop(p[side]), lb = L.rackLabel(which);
       ctx.textAlign = 'center'; ctx.font = `600 ${lblSize}px ${UI}`; ctx.fillStyle = 'rgba(246,227,180,0.85)';
       const named = state.two || scene === 'lesson' || scene === 'puzzle', who = named ? NAMES[side] : side === state.human ? 'You' : 'Computer';
@@ -434,19 +444,25 @@ function drawPieces(ctx, state, L, opts = {}) {
     if (sel) { o.lift = 0.5 + (calm ? 0 : 0.06 * Math.sin(t * 6)); o.selected = true; }
     if (dm && dm.last === i) { const f = Math.min(1, dm.since / 0.3); o.scale = 0.6 + 0.4 * f * (2 - f); o.lift = (1 - f) * 0.9; }
     if (state.drag && state.drag.i === i && state.drag.moved) continue;
+    if (D3) { v3.pieces.push({ side, i, lift: o.lift ?? 0, sel, sc: o.scale ?? 1 }); continue; }
     drawMan(ctx, q.x, q.y, R * q.s, side, set, o);
   }
   if (interactive && state.pend) {
     const tk = takeable(g, me);
     for (let i = 0; i < 24; i++) if (tk & bit(i)) {
-      const q = pointAt(i); ctx.save(); ctx.globalCompositeOperation = 'lighter'; blob(ctx, q.x, q.y - 6, 62 * q.s, 52 * q.s, '255,50,30', 0.55 + pulse * 0.4); ctx.restore();
+      if (D3) glow(i, '255,50,30', 0.5 + pulse * 0.4); else { const q = pointAt(i); ctx.save(); ctx.globalCompositeOperation = 'lighter'; blob(ctx, q.x, q.y - 6, 62 * q.s, 52 * q.s, '255,50,30', 0.55 + pulse * 0.4); ctx.restore(); }
       ring(i, '255,120,100', 0.95, 40, false, 4);
     }
   }
   // the man being dragged follows the pointer
-  if (state.drag && state.drag.moved) { const s = g.turn; drawMan(ctx, state.drag.x, state.drag.y + 6, R * 1.05, s, set, { lift: 1, selected: true }); }
+  if (D3) v3.drag = state.drag && state.drag.moved ? { x: state.drag.x, y: state.drag.y, side: g.turn } : null;
+  if (!D3 && state.drag && state.drag.moved) { const s = g.turn; drawMan(ctx, state.drag.x, state.drag.y + 6, R * 1.05, s, set, { lift: 1, selected: true }); }
   // the man that is moving, and the man being taken
-  if (a) {
+  if (a && D3) {
+    const f = a.moveDur > 0 ? Math.min(1, a.t / a.moveDur) : 1;
+    if (a.mv && a.t < a.moveDur) v3.move = { from: a.from, to: a.to, side: a.side, rack: a.rack, f, fly: !!a.fly, dur: a.moveDur };
+    if (a.take >= 0) { const tf = Math.max(0, Math.min(1, (a.t - a.moveDur - 0.05) / 0.5)); if (tf < 1) v3.take = { i: a.take, side: a.takeSide, tf }; }
+  } else if (a) {
     const f = a.moveDur > 0 ? Math.min(1, a.t / a.moveDur) : 1, e = f * f * (3 - 2 * f), to = pointAt(a.to);
     if (a.mv && a.t < a.moveDur) {
       const from = a.from === NONE ? L.rackPos(a.rack, 0) : pointAt(a.from), fs = a.from === NONE ? from.s * 0.62 : from.s;
@@ -463,9 +479,9 @@ function drawPieces(ctx, state, L, opts = {}) {
     }
   }
   // a refused tap: a red ring that fades
-  if (state.bad) { const q = pointAt(state.bad.i), k = state.bad.t / 0.7; ctx.strokeStyle = `rgba(255,70,50,${1 - k})`; ctx.lineWidth = 5 * q.s; ctx.beginPath(); ctx.ellipse(q.x, q.y, (24 + 18 * k) * q.s * UNIT, (21 + 15 * k) * q.s * UNIT, 0, 0, TAU); ctx.stroke(); }
+  if (state.bad && D3) { const k = state.bad.t / 0.7; v3.marks.push({ i: state.bad.i, rgb: '255,70,50', a: 1 - k, rad: 24 + 18 * k, lw: 5 }); } else if (state.bad) { const q = pointAt(state.bad.i), k = state.bad.t / 0.7; ctx.strokeStyle = `rgba(255,70,50,${1 - k})`; ctx.lineWidth = 5 * q.s; ctx.beginPath(); ctx.ellipse(q.x, q.y, (24 + 18 * k) * q.s * UNIT, (21 + 15 * k) * q.s * UNIT, 0, 0, TAU); ctx.stroke(); }
   // keyboard cursor
   if (state.kb && !onTitle) { const q = pointAt(state.cursor); ctx.strokeStyle = '#7fe3ff'; ctx.lineWidth = 3; const r = 34 * q.s * UNIT; ctx.strokeRect(q.x - r, q.y - r * 0.86, r * 2, r * 1.72); }
   // mill flash: the line that was just made
-  if (state.flash) { const f = state.flash, k = Math.min(1, f.t / 0.9); for (const i of f.pts) { const q = pointAt(i); ctx.save(); ctx.globalCompositeOperation = 'lighter'; blob(ctx, q.x, q.y, (60 + 120 * k) * q.s, (50 + 100 * k) * q.s, '255,210,110', 0.8 * (1 - k)); ctx.restore(); } }
+  if (state.flash && D3) { const f = state.flash, k = Math.min(1, f.t / 0.9); for (const i of f.pts) v3.marks.push({ i, rgb: '255,210,110', a: 0.8 * (1 - k), rad: 40 + 70 * k, glow: true }); } else if (state.flash) { const f = state.flash, k = Math.min(1, f.t / 0.9); for (const i of f.pts) { const q = pointAt(i); ctx.save(); ctx.globalCompositeOperation = 'lighter'; blob(ctx, q.x, q.y, (60 + 120 * k) * q.s, (50 + 100 * k) * q.s, '255,210,110', 0.8 * (1 - k)); ctx.restore(); } }
 }

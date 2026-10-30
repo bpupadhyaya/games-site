@@ -94,7 +94,7 @@ function build(w, h) {
     if (land) {
       const colW = clamp(w * 0.3, 300, 460), colX = S.x + S.w - 32 - colW;
       const sh = Math.max(60, mb);
-      const total = bh + 16 + 12 + bh + 12 + (sh + 12) * 2;
+      const th = Math.max(sh, 78), total = bh + 16 + 12 + bh + 12 + th;
       const y0 = S.y + Math.max(20, (S.h - total - 30) / 2);
       T.size = Math.min(backPad ? 70 : 92, (colX - S.x - 60) / 7.4);
       T.titleY = S.y + Math.max(52, S.h * 0.13);
@@ -103,25 +103,23 @@ function build(w, h) {
       let y = y0;
       T.play = R(colX, y, colW, bh + 16); y += bh + 16 + 12;
       T.auto = R(colX, y, colW, bh); y += bh + 12;
-      const hw = (colW - 12) / 2;
-      T.how = R(colX, y, hw, sh); T.rules = R(colX + hw + 12, y, hw, sh); y += sh + 12;
-      T.about = R(colX, y, hw, sh); T.settings = R(colX + hw + 12, y, hw, sh);
+      const tw = (colW - 36) / 4;
+      [T.how, T.rules, T.about, T.settings] = [0, 1, 2, 3].map((i) => R(colX + i * (tw + 12), y, tw, th));
       T.credit = { x: S.x + S.w / 2, y: S.y + S.h - 14 };
       T.titleX = S.x + (colX - S.x) / 2;
     } else {
       const bw = Math.min(S.w - 64, 560), bx = S.x + (S.w - bw) / 2, sh = Math.max(S.h < 1200 ? 60 : 66, mb);
-      const total = bh + 16 + 12 + bh + 12 + (sh + 12) * 2;
+      const th = Math.max(sh * 1.25, 84), total = bh + 28 + 12 + bh + 12 + th;
       const bottom = S.y + S.h - 70;
       let y = bottom - total;
       T.size = Math.min(100, (S.w - 40) / 8.4);
       T.titleY = S.y + Math.max(70, (y - S.y) * 0.1);
       if (backPad) T.titleY = Math.max(T.titleY, S.y + backPad + T.size * 0.8 + 4);
       T.hero = R(S.x + 10, T.titleY + T.size * 1.35, S.w - 20, y - 10 - (T.titleY + T.size * 1.35));
-      T.play = R(bx, y, bw, bh + 16); y += bh + 16 + 12;
+      T.play = R(bx, y, bw, bh + 28); y += bh + 28 + 12;
       T.auto = R(bx, y, bw, bh); y += bh + 12;
-      const hw = (bw - 12) / 2;
-      T.how = R(bx, y, hw, sh); T.rules = R(bx + hw + 12, y, hw, sh); y += sh + 12;
-      T.about = R(bx, y, hw, sh); T.settings = R(bx + hw + 12, y, hw, sh);
+      const tw = (bw - 36) / 4;
+      [T.how, T.rules, T.about, T.settings] = [0, 1, 2, 3].map((i) => R(bx + i * (tw + 12), y, tw, th));
       T.credit = { x: S.x + S.w / 2, y: S.y + S.h - 12 };
       T.titleX = S.x + S.w / 2;
     }

@@ -1,4 +1,5 @@
 // Drawing for every screen. render() is the single entry point; playing screens live in playview.js, text screens in docview.js.
+import { v3 } from './v3.js';
 import { PAL, UI, DISPLAY, MINCHO, drawRoom, drawStars, drawMiniKoto } from './art.js';
 import { txt, button, panel, rrect, chip, wrap } from './ui.js';
 import { renderDoc } from './docview.js';
@@ -70,7 +71,7 @@ function settingsBlocks(st) {
 }
 
 // ---- the little koto of the title and piece screens -------------------------------------------------------------------------------------------------------
-function heroKoto(ctx, st, r, scale, focus, vert = false) {
+function heroKoto(ctx, st, r, scale, focus, vert = false, diag = false) {
   const ss = Array.from({ length: NSTR }, () => ({ vib: 0, ph: 0, glow: 0, press: 0 }));
   const tt = st.t * 2.2, idx = Math.floor(tt), frac = tt - idx, melody = [5, 6, 5, 3, 4, 3, 1, 0, 2, 4, 6, 4];
   const s0 = melody[idx % melody.length], s1 = melody[(idx + 11) % melody.length];
@@ -79,6 +80,7 @@ function heroKoto(ctx, st, r, scale, focus, vert = false) {
   const lg = ctx.createRadialGradient(r.x + r.w / 2, r.y + r.h / 2, Math.max(0, r.h * 0.2), r.x + r.w / 2, r.y + r.h / 2, Math.max(0, r.w * 0.72));
   lg.addColorStop(0, 'rgba(255,196,120,0.3)'); lg.addColorStop(1, 'rgba(255,196,120,0)');
   ctx.fillStyle = lg; ctx.fillRect(r.x - r.w * 0.3, r.y - r.h, r.w * 1.6, r.h * 3);
+  if (v3.on && st.scene === 'title') { v3.hero = { r, vert, diag }; return null; }      // the 3D koto behind this canvas is the hero
   return drawMiniKoto(ctx, r, bridgesOf(scaleById(scale)), { ss, focus, vert });
 }
 
@@ -108,7 +110,7 @@ function renderTitle(ctx, st, L) {
   txt(ctx, '琴', tcx + size * 1.85, T.titleY - size * 0.1, size * 0.46, 'rgba(240,214,150,0.5)', { align: 'center', font: MINCHO, weight: 700 });
   txt(ctx, 'THIRTEEN STRINGS', tcx, T.titleY + size * 0.62, Math.max(20, size * 0.16) * Math.min(T.k, 1.5), PAL.gold, { align: 'center', weight: 800, maxW: S.w - 40 });
   txt(ctx, 'Pluck, sweep and press silk strings.', tcx, T.titleY + size * 0.9, Math.max(22, size * 0.14) * Math.min(T.k, 1.5), PAL.text, { align: 'center', weight: 600, maxW: (wide ? T.hero.w : S.w) - 40 });
-  heroKoto(ctx, st, T.hero, 'hirajoshi', null, !!T.heroVert);
+  heroKoto(ctx, st, T.hero, 'hirajoshi', null, !!T.heroVert, !!T.heroDiag);
   button(ctx, T.play, 'Play', { kind: 'primary', size: 44 * T.k, icon: 'play' });
   button(ctx, T.free, 'Free Play', { kind: 'quiet', size: 32 * T.k, icon: 'koto' });
   button(ctx, T.auto, 'Watch and Learn', { kind: 'ghost', size: 30 * T.k, icon: 'ear' });

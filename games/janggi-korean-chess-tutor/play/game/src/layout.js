@@ -178,21 +178,23 @@ function build(w, h) {
   const LK_AR = 0.2725, lkW = (maxW) => Math.min(260, maxW);
   L.title = (hasSave) => memo('t' + hasSave, () => (wide ? titleCols(hasSave) : titleStack(hasSave)));
 
+  // ONE dominant action on top (Play, or Resume when a game is saved), then a tidy grid of secondary actions.
   function titleStack(hasSave) {
-    const names = (hasSave ? ['resume'] : []).concat(['learn', 'cho', 'han', 'two', 'autoplay']);
-    const n = names.length, rows = n + 4, g = 10, colW = Math.min(540, S.w), x = cx - colW / 2;
-    const lw = lkW(colW), reserve = lw * LK_AR + 46, heroMin = 330;
-    const hb = clamp((S.y1 - reserve - heroMin - (rows - 1) * g - 8) / rows, 50, 70);
-    const blockH = rows * hb + (rows - 1) * g + 8, top = S.y1 - reserve - blockH;
-    const out = { mode: 'stack', narrow: false };
-    const hs = Math.min(1, top / 672);
+    const BIG = 1.5, units = BIG + (hasSave ? 1 : 0) + 6, nGap = (hasSave ? 1 : 0) + 6, g = 10, colW = Math.min(540, S.w), x = cx - colW / 2;
+    const lw = lkW(colW), reserve = lw * LK_AR + 46, heroMin = 360;
+    const hb = clamp((S.y1 - reserve - heroMin - nGap * g - 8) / units, 50, 68);
+    const blockH = units * hb + nGap * g + 8, top = S.y1 - reserve - blockH;
+    const out = { mode: 'stack', narrow: false, big: hasSave ? 'resume' : 'cho' };
+    const hs = Math.min(1, top / 708);      // the hero art (720 x 708 incl. the tagline) above the buttons
     out.hero = { x: cx - 360 * hs, y: 0, s: hs };
-    let y = top; names.forEach((nm) => { out[nm] = R_(x, y, colW, hb); y += hb + g; });
-    y += 8 - g + g;     // small group break before the language row
-    const half = (colW - 16) / 2;
-    out.langKo = R_(x, y, half, hb); out.langEn = R_(x + half + 16, y, half, hb); y += hb + g;
-    out.level = R_(x, y, half, hb); out.tutor = R_(x + half + 16, y, half, hb); y += hb + g;
-    const third = (colW - 28) / 3;
+    const half = (colW - 14) / 2, third = (colW - 28) / 3;
+    let y = top;
+    if (hasSave) { out.resume = R_(x, y, colW, hb * BIG); y += hb * BIG + g; out.cho = R_(x, y, colW, hb); y += hb + g; }
+    else { out.cho = R_(x, y, colW, hb * BIG); y += hb * BIG + g; }
+    const pair = (a, b) => { out[a] = R_(x, y, half, hb); out[b] = R_(x + half + 14, y, half, hb); y += hb + g; };
+    pair('han', 'two'); pair('learn', 'autoplay');
+    y += 8 - g + g;     // small group break before the settings rows
+    pair('langKo', 'langEn'); pair('level', 'tutor');
     out.how = R_(x, y, third, hb); out.about = R_(x + third + 14, y, third, hb); out.rules = R_(x + 2 * (third + 14), y, third, hb); y += hb + g;
     out.look = R_(x, y, colW, hb); y += hb;
     out.credit = { x: cx, y: y + 8 + lw * LK_AR, w: lw, top: y + 8 }; out.stats = { x: cx, y: S.y1 - 10 };
@@ -200,18 +202,18 @@ function build(w, h) {
   }
 
   function titleCols(hasSave) {
-    const rw = Math.min(640, S.w * 0.52), x = S.x1 - rw, g = 10;
-    const rows = (hasSave ? 1 : 0) + 5 + 1;
-    const lw = lkW(rw), lh = lw * LK_AR, hb = clamp((S.h - 44 - lh - 14 - (rows - 1) * g) / rows, 44, 68);
-    const out = { mode: 'col', narrow: rw < 560 };
+    const rw = Math.min(640, S.w * 0.52), x = S.x1 - rw, g = 10, BIG = 1.4;
+    const units = BIG + (hasSave ? 1 : 0) + 6, nGap = (hasSave ? 1 : 0) + 6;
+    const lw = lkW(rw), lh = lw * LK_AR, hb = clamp((S.h - 44 - lh - 14 - nGap * g) / units, 44, 66);
+    const out = { mode: 'col', narrow: rw < 560, big: hasSave ? 'resume' : 'cho' };
     const leftW = x - 24 - S.x0, hs = Math.min(1.5, leftW / 720, (S.y1 - 56) / 672);
     out.hero = { x: S.x0 + (leftW - 720 * hs) / 2, y: 0, s: hs };
     const half = (rw - 14) / 2, third = (rw - 20) / 3;
-    let y = S.y0 + (S.h - 44 - lh - 14 - (rows * hb + (rows - 1) * g)) / 2;
-    if (hasSave) { out.resume = R_(x, y, rw, hb); y += hb + g; }
+    let y = S.y0 + (S.h - 44 - lh - 14 - (units * hb + nGap * g)) / 2;
+    if (hasSave) { out.resume = R_(x, y, rw, hb * BIG); y += hb * BIG + g; out.cho = R_(x, y, rw, hb); y += hb + g; }
+    else { out.cho = R_(x, y, rw, hb * BIG); y += hb * BIG + g; }
     const pair = (a, b) => { out[a] = R_(x, y, half, hb); out[b] = R_(x + half + 14, y, half, hb); y += hb + g; };
-    pair('learn', 'autoplay'); pair('cho', 'han'); pair('two', 'tutor'); pair('langKo', 'langEn');
-    out.level = R_(x, y, rw, hb); y += hb + g;
+    pair('han', 'two'); pair('learn', 'autoplay'); pair('langKo', 'langEn'); pair('level', 'tutor');
     out.how = R_(x, y, third, hb); out.about = R_(x + third + 10, y, third, hb); out.rules = R_(x + 2 * (third + 10), y, third, hb); y += hb + g;
     out.look = R_(x, y, rw, hb); y += hb;
     out.credit = { x: x + rw / 2, y: y + 8 + lh, w: lw, top: y + 8 }; out.stats = { x: x + rw / 2, y: Math.min(S.y1 - 10, y + 8 + lh + 30) };

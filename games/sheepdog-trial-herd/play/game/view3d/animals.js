@@ -77,9 +77,9 @@ export function createAnimals(V3, root, n) {
   const flockDispose = () => { for (const im of [bodies, heads.black, heads.white, legs.black, legs.white, marks]) { root.remove(im); im.dispose(); } root.remove(bell); };
 
   const HIP = [[0.14, 0.4, 0.3], [-0.14, 0.4, 0.3], [0.14, 0.4, -0.3], [-0.14, 0.4, -0.3]];    // FL FR BL BR (scene x+ = the ewe's left)
-  function updateFlock(sheep, dog, dt, t, hAt) {
+  function updateFlock(sheep, dog, dt, t, hAt, boost = 1) {
     for (let i = 0; i < sheep.length; i++) {
-      const a = sheep[i], s = st[i], sz = a.size || 1;
+      const a = sheep[i], s = st[i], sz = (a.size || 1) * boost;
       const X = -a.x, Z = a.z, v = a.sp || 0;
       const tyaw = -a.h;
       if (!s.init) { s.yaw = tyaw; s.init = true; }

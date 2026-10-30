@@ -28,11 +28,11 @@ const STANDARD_INK = { S: '#121212', H: '#c0181f', D: '#c0181f', C: '#121212' };
 const FOUR_COLOR_INK = { S: '#121212', H: '#c0181f', D: '#1558b0', C: '#14713a' };
 export const ink = (four, suit) => (four ? FOUR_COLOR_INK : STANDARD_INK)[suit];
 
-// Table colours (index 0 is the original felt green and stays the default).
+// Table colours. Index 2 (deep oxblood velvet) is the default; index 0 is the original felt green.
 export const TABLES = [
   { name: 'Green', stops: ['#2f8f68', '#1d5f45', '#234a38'] },
   { name: 'Blue', stops: ['#3f78c8', '#245093', '#183a68'] },
-  { name: 'Burgundy', stops: ['#a83a55', '#7a2340', '#4f1729'] },
+  { name: 'Burgundy', stops: ['#9a2c3e', '#6b1a2c', '#3a0d18'] },
   { name: 'Charcoal', stops: ['#4a5060', '#2c303c', '#1a1c24'] },
   { name: 'Purple', stops: ['#8b5cf6', '#5b21b6', '#2e1065'] },
   { name: 'Teal', stops: ['#2dd4bf', '#0f766e', '#134e4a'] },
@@ -328,6 +328,9 @@ function stamp(ctx, key, x, y, paint) {
   else paint(ctx, x, y, 1);
 }
 
+// Card art for the 3D presenter's textures: painted at the origin, no drop shadow (the 3D scene casts its own).
+export function paintCardTexture(ctx, card, four, theme) { if (card) paintFace(ctx, 0, 0, card, four, 0); else paintBack(ctx, 0, 0, theme, 0); }
+export const CARD_RADIUS = 15;
 export function drawFace(ctx, x, y, card, four) {
   stamp(ctx, `${card.suit}${card.rank}${four ? 'f' : 't'}`, x, y, (c, px, py, sh) => paintFace(c, px, py, card, four, sh));
 }
@@ -431,9 +434,9 @@ export function wrapText(ctx, str, cx, y, size, maxWidth, lineHeight, color = CR
 }
 
 const BUTTON_STYLES = {
-  primary: { top: ROSE[0], mid: ROSE[1], bottom: ROSE[2], lip: '#5e0f36', rim: 'rgba(255,214,232,0.75)', label: '#ffffff' },
-  quiet: { top: '#4a3540', mid: '#35232d', bottom: '#22141c', lip: '#0e070b', rim: 'rgba(251,238,221,0.5)', label: CREAM },
-  active: { top: '#ffe9a3', mid: '#ffd35c', bottom: '#d9a21e', lip: '#7a5505', rim: 'rgba(255,250,225,0.9)', label: '#2a1a00' },
+  primary: { mid: '#f0b93c', label: '#2b1a00', brass: '#fff0b8' },                 // the one dominant gold button
+  quiet: { mid: '#3b2616', label: CREAM, brass: '#c39a46' },                       // walnut plaque with a brass edge
+  active: { mid: '#fff3c4', label: '#3a2400', brass: '#e0a92c' },
 };
 
 // A flat button: one solid fill with a soft drop shadow (no lip, gradient, inner outline or sheen).
@@ -443,8 +446,9 @@ export function drawButton(ctx, r, label, { style = 'quiet', size = 32, radius =
   rr(ctx, r.x + 2, r.y + 6, r.w - 4, r.h, radius); ctx.fill();
   ctx.fillStyle = s.mid;
   rr(ctx, r.x, r.y, r.w, r.h, radius); ctx.fill();
+  ctx.strokeStyle = s.brass; ctx.lineWidth = style === 'quiet' ? 3 : 4; rr(ctx, r.x + 1.5, r.y + 1.5, r.w - 3, r.h - 3, radius - 1); ctx.stroke();
   const cy = r.y + r.h / 2 + size * 0.35 - (sub ? 14 : 0);
-  if (style !== 'active') text(ctx, label, r.x + r.w / 2, cy + 2, size, 'rgba(0,0,0,0.4)', UI, 800);
+  if (style === 'quiet') text(ctx, label, r.x + r.w / 2, cy + 2, size, 'rgba(0,0,0,0.4)', UI, 800);
   text(ctx, label, r.x + r.w / 2, cy, size, s.label, UI, 800);
   if (sub) text(ctx, sub, r.x + r.w / 2, cy + 34, 24, s.label, UI, 600);
 }
@@ -452,8 +456,8 @@ export function drawButton(ctx, r, label, { style = 'quiet', size = 32, radius =
 // A dark engraved plate for quiet information (stats, notes).
 export function drawPlate(ctx, cx, y, w, h) {
   rr(ctx, cx - w / 2, y, w, h, h / 2);
-  ctx.fillStyle = 'rgba(0,0,0,0.30)'; ctx.fill();
-  ctx.strokeStyle = 'rgba(255,255,255,0.16)'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.fillStyle = 'rgba(38,22,12,0.86)'; ctx.fill();
+  ctx.strokeStyle = 'rgba(214,172,82,0.75)'; ctx.lineWidth = 2.5; ctx.stroke();
 }
 
 export function drawSheet(ctx, x, y, w, h) {

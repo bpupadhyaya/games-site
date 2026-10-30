@@ -73,8 +73,9 @@ export async function createPresenter({ kitCanvas, quality = 'high' }) {
   handScene.add(hKey, hKey.target, hFill);
   // ---- the hand (loads in the background; the game plays fine without it)
   let hands = null;
-  if (!qs.has('nohand')) createHands(handScene).then((h) => { hands = h; }).catch((e) => console.warn('hand unavailable', e));
-  const pivotV = new THREE.Vector3();
+  // (the hand is modelled and meshed in the background after the first frames, so it never costs title time)
+  if (!qs.has('nohand')) new Promise((r) => setTimeout(r, 250)).then(() => createHands(handScene)).then((h) => { hands = h; scene.add(h.shadowRoot); }).catch((e) => console.warn('hand unavailable', e));
+  const pivotV = new THREE.Vector3(), wireV = new THREE.Vector3(), wireT = new THREE.Vector3(), wireN = new THREE.Vector3();
 
   // ---- pieces
   const slots = [];   // per scene piece: { group, key }
@@ -185,8 +186,21 @@ export async function createPresenter({ kitCanvas, quality = 'high' }) {
     // the hand follows the selected loose piece's grip point
     if (hands) {
       let sel = null; if (sc) sc.pieces.forEach((pc) => { if (pc.sel && pc._geo) sel = pc; });
-      if (sel) { const v = sel._geo.pivot; pivotV.set(v[0], v[1], -v[2]); }
-      hands.update(pivotV, camera.position, !!sel && !(sc.opts?.win > 0.01), dt, 0);
+      if (sel) {
+        const v = sel._geo.pivot; pivotV.set(v[0], v[1], -v[2]);
+        // the wire's direction at the grip bead (it turns with the piece during a quarter turn). At a corner two wire units meet
+        // there: keep the one closest to last frame's direction so the hand does not switch grips between frames.
+        let best = -1;
+        for (const u of sel._geo.units) {
+          if (Math.hypot(u[0] - v[0], u[1] - v[1], u[2] - v[2]) < 1e-3 || Math.hypot(u[3] - v[0], u[4] - v[1], u[5] - v[2]) < 1e-3) {
+            wireT.set(u[3] - u[0], u[4] - u[1], -(u[5] - u[2])).normalize();
+            const s = Math.abs(wireT.dot(wireV)) + (best < 0 ? 0.001 : 0);
+            if (s > best) { best = s; wireN.copy(wireT); }
+          }
+        }
+        if (best >= 0) wireV.copy(wireN); else wireV.set(0, 0, 0);
+      }
+      hands.update(pivotV, camera.position, !!sel && !(sc.opts?.win > 0.01), dt, 0, wireV, matY);
     }
 
     // zone cage

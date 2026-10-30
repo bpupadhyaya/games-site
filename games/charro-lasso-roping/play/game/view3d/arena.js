@@ -10,7 +10,7 @@ import { clamp, lerp, TAU } from './geo.js';
 
 const { Vector3, Group, Fog, Color } = THREE;
 const D = 22;                          // camera distance to the horse lane, metres
-const WORLD_W = 9.5;                   // metres of rail on a portrait phone
+const WORLD_W = 9.5;                   // metres of rail across the screen (tighter than before: horse and charro fill more of the picture)
 
 const MAXW = { low: 760, medium: 1100, high: 1500 };
 
@@ -85,7 +85,7 @@ export async function createArena({ quality = 'medium', base } = {}) {
 
   /** camera + world mapping for a layout; px = rect px (virtual units) */
   function layoutOf(g) {
-    const s = Math.min(g.railW / WORLD_W, g.sc.h / 6.8);
+    const s = g.s || Math.min(g.railW / 9.5, g.sc.h / 6.8);
     const worldW = g.railW / s;
     const target = 150 * g.k * 1.32 * (g.charroScale || 1);                    // apparent charro height in px, as the 2D art drew him
     const r = clamp(target / (1.8 * s), 1.18, 2.9);
@@ -114,7 +114,7 @@ export async function createArena({ quality = 'medium', base } = {}) {
     const t0 = performance.now();
     const bg = mk2d(W, H), g = bg.getContext('2d');
     const kk = W / sc.w, wallTop = (toScreenY(6.7, D + 15.7, lay) - 6) * kk;
-    paintSky(g, W, H, lay.hz * kk, wallTop);
+    paintSky(g, W, H, Math.max(2, lay.hz * kk), wallTop);
     if (crowd) crowd.group.visible = false;
     if (scen) {
       // the photographic sky + sierra is drawn with a wider lens (same horizon line) so the mountains read at a believable size
@@ -143,6 +143,7 @@ export async function createArena({ quality = 'medium', base } = {}) {
     const T2 = mk2d(w2, h2), c2 = T2.getContext('2d'); c2.imageSmoothingQuality = 'high'; c2.drawImage(T1, 0, 0, w2, h2);
     g.imageSmoothingQuality = 'high'; g.drawImage(T2, 0, 0, W, H);
     g.globalAlpha = 0.35; g.drawImage(A, 0, 0, W, H); g.globalAlpha = 1;
+    g.fillStyle = 'rgba(26,10,30,0.2)'; g.fillRect(0, 0, W, H);          // calm the far crowd so the horse and charro read first
     // pass B: sand + fence sharp; the stands act as depth-only occluders so the ground behind them is not painted
     near.visible = true; ground.visible = true; ghost(near, false); depthOnly(far, true);
     stage.render();

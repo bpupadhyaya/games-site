@@ -173,7 +173,7 @@ function drawCues(ctx, pl, pit, now, st) {
 
 function drawStrip(ctx, st, L, pl) {
   const S = L.play.strip, labels = pl.hintT > 0;
-  panel(ctx, S, { fill: 'rgba(6,16,20,0.62)', rad: 20 });
+  panel(ctx, S, { fill: 'rgba(40,24,14,0.82)', rad: 20 });
   txt(ctx, 'COMING UP', S.vertical ? S.x + S.w / 2 : S.x + 16, S.y + 20, 18, PAL.dim, { weight: 800, align: S.vertical ? 'center' : 'left' });
   const next = [];
   if (pl.mode === 'auto' && pl.auto.phase !== 'act') {
@@ -206,6 +206,11 @@ function drawStrip(ctx, st, L, pl) {
 
 function drawHud(ctx, st, L, pl) {
   const H = L.play;
+  {   // carved-wood plaque with a brass rim behind the score and combo
+    ctx.font = `800 ${L.wide ? 64 : 68}px ${DISPLAY}`; const sw = ctx.measureText(String(pl.score)).width;
+    const pw = Math.min(H.score.w + 24, Math.max(sw + 44, 250)), py = H.score.y - 40;
+    panel(ctx, { x: H.score.x - 14, y: py, w: pw, h: H.combo.y + 17 - py }, { rad: 18, fill: 'rgba(52,32,18,0.9)' });
+  }
   txt(ctx, String(pl.score), H.score.x, H.score.y, L.wide ? 64 : 68, PAL.text, { font: DISPLAY, weight: 800, stroke: 7, maxW: H.score.w });
   if (pl.mode !== 'auto') txt(ctx, `x${comboMult(pl.combo).toFixed(1)}  ·  combo ${pl.combo}`, H.combo.x + 2, H.combo.y, 22, PAL.saffron, { weight: 800, maxW: H.score.w });
   else txt(ctx, 'THE CIRCLE PLAYS', H.combo.x + 2, H.combo.y, 22, PAL.turq, { weight: 800, maxW: H.score.w });
@@ -336,7 +341,8 @@ function drawResult(ctx, st, L) {
     const on = R.stars > k, grow = clamp01((t - 0.25 - k * 0.3) / 0.25), s = (k === 1 ? 76 : 62) * (on ? 0.5 + 0.5 * grow : 1);
     star(ctx, cx + (k - 1) * 150, cy - (k === 1 ? 30 : 0), s, on, (k - 1) * 0.12);
   }
-  titleText(ctx, R.grade, cx, cy + 120, 130, R.stars >= 2 ? '#ffe07a' : PAL.cream);
+  const cmp = !L.wide && !L.tall, pitch = cmp ? 46 : 54;
+  titleText(ctx, R.grade, cx, cy + (cmp ? 84 : 120), cmp ? 100 : 130, R.stars >= 2 ? '#ffe07a' : PAL.cream);
   const lines = [
     ['Score', String(R.score)], ['Accuracy', `${Math.round(R.acc * 100)}%`], ['Longest combo', String(R.maxCombo)],
     ['Perfect / Great / Good', `${R.counts.perfect} / ${R.counts.great} / ${R.counts.good}`], ['Off / Missed', `${R.counts.off} / ${R.counts.miss}`],
@@ -345,8 +351,8 @@ function drawResult(ctx, st, L) {
   let y = Rr.stats.y + (L.wide ? 0 : 20);
   if (R.newBest) { txt(ctx, 'NEW BEST', sx + sw / 2, y - 10, 30, '#ffe07a', { align: 'center', font: DISPLAY, weight: 800 }); y += 42; }
   lines.forEach(([a, b], i) => {
-    const yy = y + i * 54;
-    ctx.fillStyle = i % 2 ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.09)'; rrect(ctx, { x: sx, y: yy - 24, w: sw, h: 48 }, 12); ctx.fill();
+    const yy = y + i * pitch;
+    ctx.fillStyle = i % 2 ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.09)'; rrect(ctx, { x: sx, y: yy - pitch / 2 + 3, w: sw, h: pitch - 6 }, 12); ctx.fill();
     txt(ctx, a, sx + 18, yy, 24, PAL.dim, { weight: 600, maxW: sw * 0.5 });
     txt(ctx, b, sx + sw - 18, yy, 28, PAL.text, { align: 'right', font: DISPLAY, weight: 800 });
   });

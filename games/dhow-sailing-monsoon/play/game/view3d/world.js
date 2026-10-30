@@ -135,12 +135,13 @@ export async function createWorld(V3, stage, quality) {
       let mode = RS.cam ?? 0;
       let tp, tl, fov = 52;
       const sb = Math.sin(hr), cb = -Math.cos(hr);
-      const pz = camera.aspect < 1 ? 1 + (1 - camera.aspect) * 0.9 : 1;     // pull back on tall screens so the whole sail stays in frame
+      const tab = camera.aspect > 0.62 && camera.aspect < 1;   // tablet portrait: the chart and compass cover the left, so the dhow sits in the open water to the right
+      const pz = camera.aspect < 1 ? 1 + (1 - camera.aspect) * 0.5 : 1;     // slight pull back on tall screens: the dhow fills the width (sail may overlap the side sliders)
       if (RS.sight) {
         // look up at the guiding star from the stern
         const m = sky.starTarget(RS.lat ?? 8); m.getWorldPosition(tmpV); tmpV.sub(sky.group.position).normalize();
         tp = [X - fx * 5.5 + rx * 1.0, h0 + 3.1, Z - fz * 5.5 + rz * 1.0]; tl = [tp[0] + tmpV.x * 60, tp[1] + tmpV.y * 60 - 2.5, tp[2] + tmpV.z * 60]; fov = 58;
-      } else if (mode === 0) { tp = [X - sb * 21 * pz + rx * 6, h0 * 0.6 + 7.4 + 2 * (pz - 1) * 5, Z - cb * 21 * pz + rz * 6]; tl = [X + sb * 9, 3.4, Z + cb * 9]; }
+      } else if (mode === 0) { tp = [X - sb * 21 * pz + rx * 6, h0 * 0.6 + 7.4 + 2 * (pz - 1) * 5, Z - cb * 21 * pz + rz * 6]; tl = [X + sb * 9 - (tab ? rx * 3.5 : 0), camera.aspect < 1 ? (tab ? 0.2 : 1.4) : 3.4, Z + cb * 9 - (tab ? rz * 3.5 : 0)]; }
       else if (mode === 1) { tp = [X + rx * 21 * pz, h0 * 0.6 + 5.0 + 3 * (pz - 1), Z + rz * 21 * pz - fz * 2]; tl = [X + sb * 1.0, 3.8, Z + cb * 1.0]; fov = 50; }
       else if (mode === 2) { tp = [X + sb * 15 * pz + rx * 4, h0 * 0.6 + 2.6, Z + cb * 15 * pz + rz * 4]; tl = [X - sb * 1, 4.6, Z - cb * 1]; fov = 58; }
       else { orbit += dt * 0.12; const a = orbit; tp = [X + Math.sin(a) * 28 * pz, h0 * 0.6 + 6.5, Z + Math.cos(a) * 28 * pz]; tl = [X, 3.8, Z]; }
@@ -154,7 +155,7 @@ export async function createWorld(V3, stage, quality) {
       camera.lookAt(camLook);
       // portrait phones get a wider view so the whole sail stays in frame
       const aspect = camera.aspect;
-      const fv = aspect < 1 ? Math.min(78, fov * (1 + (1 - aspect) * 0.75)) : fov;
+      const fv = aspect < 1 ? Math.min(66, fov * (1 + (1 - aspect) * 0.5)) : fov;
       if (Math.abs(camera.fov - fv) > 0.05) { camera.fov += (fv - camera.fov) * 0.1; camera.updateProjectionMatrix(); }
       camera.updateMatrixWorld();
       sky.group.position.copy(camera.position);

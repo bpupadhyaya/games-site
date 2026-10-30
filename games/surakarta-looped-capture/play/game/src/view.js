@@ -1,8 +1,9 @@
 // Everything drawn each frame. Reads state, changes nothing (apart from small caches).
 import {
   W, H, DISPLAY, THEMES, themeById, text, rr, panel, button, background, icon, drawParticles, drawPiece, boardGeo, pointXY, drawBoard,
-  routeGeom, pointAlong, strokeRoute, tracePath, arrow, alpha, clamp01, ease, easeIO, backOut,
+  routeGeom, pointAlong, pointAlongG, strokeRoute, tracePath, arrow, alpha, clamp01, ease, easeIO, backOut,
 } from './art.js';
+import { v3, flatAlpha } from './v3.js';
 import { TEXT_SCALES, wrap, tw } from './ui.js';
 import { parse, captureRoute, attackedBy, countOf, QUIET_LIMIT, other, sideName, colOf, rowOf } from './rules.js';
 import { LEVELS } from './ai.js';
@@ -14,6 +15,13 @@ import { THINK_STEPS } from './screens.js';
 import { targetsOf, humanTurn, movesOf } from './match.js';
 
 const theme = (S) => themeById(S.themeId);
+
+// The backdrop behind a screen: the flat painted background, or (3D on) a scrim over the lit pendopo so the scene shows through.
+function backdrop(ctx, th, t, glowY, w, h, glowX, scrim) {
+  const fa = flatAlpha();
+  if (fa > 0) { ctx.save(); ctx.globalAlpha = fa; background(ctx, th, t, glowY, w, h, glowX); ctx.restore(); }
+  if (v3.on && scrim > 0) { ctx.save(); ctx.globalAlpha = 1 - fa; ctx.fillStyle = `rgba(8,6,10,${scrim})`; ctx.fillRect(0, 0, w, h); ctx.restore(); }
+}
 
 // Largest text size (<= start) whose wrapped lines fit w x h. Used by every HUD text so zoom never overflows.
 export function fitText(str, w, h, start, min = 20, lh = 1.28) {
@@ -56,7 +64,15 @@ function drawDocBlocks(ctx, S, ui, scroll) {
     } else if (b.t === 'row') {
       for (const bt of it.btns) {
         if (bt.id == null) text(ctx, bt.label, ox + bt.x + bt.w / 2, oy + bt.y + bt.h / 2 + it.size * 0.34, it.size, th.ink, { weight: 700 });
-        else button(ctx, th, { x: ox + bt.x, y: oy + bt.y, w: bt.w, h: bt.h }, bt.lines, bt.kind ?? 'normal', { size: it.size, line: it.line, disabled: bt.disabled, pressed: S.press && S.press.id === bt.id && S.press.active });
+        else if (bt.icon) {
+          const pressed = S.press && S.press.id === bt.id && S.press.active, r = { x: ox + bt.x, y: oy + bt.y, w: bt.w, h: bt.h };
+          button(ctx, th, r, [], bt.kind ?? 'normal', { disabled: bt.disabled, pressed });
+          const is = it.size * 1.05, mid = r.y + r.h / 2 + (pressed ? 2 : 0), tot = is + it.size * 0.45 + Math.max(...bt.lines.map((l) => tw(l, it.size))), x0 = r.x + (r.w - tot) / 2;
+          ctx.save(); if (bt.disabled) ctx.globalAlpha = 0.4;
+          icon(ctx, bt.icon, x0 + is / 2, mid, is, th.ink);
+          bt.lines.forEach((ln, i) => text(ctx, ln, x0 + is + it.size * 0.45, mid + it.size * 0.34 + (i - (bt.lines.length - 1) / 2) * it.line, it.size, th.ink, { weight: 700, align: 'left' }));
+          ctx.restore();
+        } else button(ctx, th, { x: ox + bt.x, y: oy + bt.y, w: bt.w, h: bt.h }, bt.lines, bt.kind ?? 'normal', { size: it.size, line: it.line, disabled: bt.disabled, pressed: S.press && S.press.id === bt.id && S.press.active });
       }
     }
   }
@@ -224,6 +240,9 @@ function drawAttract(ctx, S) {
   const th = theme(S), t = S.t;
   const side = 440, bx = (W - side) / 2, by = 352;
   const geo = boardGeo(bx, by, side, false);
+  const fa = flatAlpha();
+  if (fa > 0) {
+  ctx.save(); ctx.globalAlpha = fa;
   const glow = ctx.createRadialGradient(W / 2, by + side / 2, 30, W / 2, by + side / 2, 360);
   glow.addColorStop(0, th.glow); glow.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.fillStyle = glow; ctx.fillRect(0, by - 140, W, side + 280);
@@ -235,7 +254,7 @@ function drawAttract(ctx, S) {
   const go = clamp01((tt - 1.2) / 2.6), e = easeIO(go), s = e * rg.len;
   const landed = go >= 1;
   const fade = tt > 5.8 ? 1 - clamp01((tt - 5.8) / 0.8) : 1;
-  ctx.save(); ctx.globalAlpha = fade;
+  ctx.save(); ctx.globalAlpha = fa * fade;
   if (tt > 0.6 && !landed) strokeRoute(ctx, rg, 0, rg.len, 'rgba(255,255,255,0.5)', th.light.glow, 7, 0.45 * clamp01((tt - 0.6) / 0.6));
   if (go > 0) strokeRoute(ctx, rg, Math.max(0, s - rg.len * 0.35), s, '#ffffff', th.light.glow, 8, landed ? Math.max(0, 1 - (tt - 3.8) * 1.4) : 1);
   st.cells.forEach((v, i) => {
@@ -247,6 +266,8 @@ function drawAttract(ctx, S) {
   });
   if (go > 0) { const [px, py] = landed ? pointXY(geo, ATTRACT_MV[1]) : pointAlong(rg, s); drawPiece(ctx, th, 1, px, py, geo.d, { lift: landed ? 0 : 0.6, glow: 0.5 }); }
   ctx.restore();
+  ctx.restore();
+  }
   const g = ctx.createLinearGradient(0, 120, 0, 290);
   g.addColorStop(0, light2(th.accent)); g.addColorStop(0.5, th.accent); g.addColorStop(1, '#a8782a');
   ctx.save();
@@ -259,10 +280,56 @@ function drawAttract(ctx, S) {
 }
 const light2 = (c) => (c.length === 7 ? `rgb(${Math.min(255, parseInt(c.slice(1, 3), 16) + 70)},${Math.min(255, parseInt(c.slice(3, 5), 16) + 70)},${Math.min(255, parseInt(c.slice(5, 7), 16) + 70)})` : '#fff3c4');
 
+// 3D title: the attract capture on the lit board. The stones go to the presenter; the glowing trail is drawn here, projected onto the
+// tilted board (round the loops too).
+function attract3(ctx, S, h) {
+  const th = theme(S), sc = h.sc;
+  const geo = v3.geo(0, 0, 0, false);
+  const st = parse(ATTRACT), route = captureRoute(st.cells, ATTRACT_MV[0], ATTRACT_MV[1], 1), rg = routeGeom(route, geo);
+  const tt = S.t % 7, go = clamp01((tt - 1.2) / 2.6), e = easeIO(go), s = e * rg.len, landed = go >= 1;
+  const fade = tt > 5.8 ? 1 - clamp01((tt - 5.8) / 0.8) : clamp01(tt / 0.4);
+  ctx.save(); ctx.globalAlpha = fade * (v3.fade ?? 1);
+  if (tt > 0.6 && !landed) strokeRoute(ctx, rg, 0, rg.len, 'rgba(255,255,255,0.5)', th.light.glow, Math.max(4, geo.u * 0.1), 0.45 * clamp01((tt - 0.6) / 0.6));
+  if (go > 0) strokeRoute(ctx, rg, Math.max(0, s - rg.len * 0.35), s, '#ffffff', th.light.glow, Math.max(5, geo.u * 0.12), landed ? Math.max(0, 1 - (tt - 3.8) * 1.4) : 1);
+  ctx.restore();
+  st.cells.forEach((v, i) => {
+    if (!v) return;
+    if (i === ATTRACT_MV[0]) { if (go <= 0) v3.pieces.push({ who: v, i, sc: fade }); return; }
+    if (i === ATTRACT_MV[1]) { if (!landed) v3.pieces.push({ who: v, i, cap: clamp01((go - 0.85) / 0.15), sc: fade }); return; }
+    v3.pieces.push({ who: v, i, sc: fade });
+  });
+  if (go > 0) {
+    if (landed) v3.pieces.push({ who: 1, i: ATTRACT_MV[1], sc: fade });
+    else v3.pieces.push({ who: 1, i: ATTRACT_MV[1], a: { kind: 'cap', from: ATTRACT_MV[0], k: go, g: pointAlongG(rg, s), g2: pointAlongG(rg, Math.min(rg.len, s + geo.u * 0.08)) }, sc: fade });
+  }
+}
+
+// Title over the 3D pendopo: a soft dark wash behind the wordmark and the menu so text reads on any part of the scene.
+function titleShade(ctx, S, L, m, h) {
+  const fa = 1 - flatAlpha();
+  ctx.save(); ctx.globalAlpha = fa;
+  const top = ctx.createLinearGradient(0, 0, 0, h.ty + 330 * h.sc);
+  top.addColorStop(0, 'rgba(6,5,10,0.74)'); top.addColorStop(0.7, 'rgba(6,5,10,0.4)'); top.addColorStop(1, 'rgba(6,5,10,0)');
+  ctx.fillStyle = top; ctx.fillRect(0, 0, L.w, h.ty + 330 * h.sc);
+  const r = m.region;
+  if (L.wide) {
+    const g = ctx.createLinearGradient(r.x - 120, 0, r.x + 20, 0);
+    g.addColorStop(0, 'rgba(6,5,10,0)'); g.addColorStop(1, 'rgba(6,5,10,0.66)');
+    ctx.fillStyle = g; ctx.fillRect(r.x - 120, 0, L.w - r.x + 120, L.h);
+  } else {
+    const g = ctx.createLinearGradient(0, r.y - 110, 0, r.y + 30);
+    g.addColorStop(0, 'rgba(6,5,10,0)'); g.addColorStop(1, 'rgba(6,5,10,0.7)');
+    ctx.fillStyle = g; ctx.fillRect(0, r.y - 110, L.w, L.h - r.y + 110);
+  }
+  ctx.restore();
+}
+
 function drawTitle(ctx, S, ui) {
   const L = S.L, m = L.menu, h = m.hero;
-  background(ctx, theme(S), S.t, h.ty + 560 * h.sc, L.w, L.h, h.tx + 360 * h.sc);
+  backdrop(ctx, theme(S), S.t, h.ty + 560 * h.sc, L.w, L.h, h.tx + 360 * h.sc, 0);
+  if (v3.on) titleShade(ctx, S, L, m, h);
   ctx.save(); ctx.translate(h.tx, h.ty); ctx.scale(h.sc, h.sc); drawAttract(ctx, S); ctx.restore();
+  if (v3.on) attract3(ctx, S, h);
   drawDocBlocks(ctx, S, ui, S.scroll[ui.scrollKey] ?? 0);
   drawFixed(ctx, S, ui.fixed);
   let cs = 20; while (cs > 17 && tw('AF  ARCFORGE · World Heritage Games', cs) * 1.5 > m.credit.maxW) cs -= 1;
@@ -271,7 +338,7 @@ function drawTitle(ctx, S, ui) {
 
 function drawDocScreen(ctx, S, ui) {
   const th = theme(S), L = S.L;
-  background(ctx, th, S.t, 700, L.w, L.h);
+  backdrop(ctx, th, S.t, 700, L.w, L.h, undefined, 0.58);
   if (ui.panel) panel(ctx, th, ui.panel.x, ui.panel.y, ui.panel.w, ui.panel.h, {});
   drawDocBlocks(ctx, S, ui, S.scroll[ui.scrollKey] ?? 0);
   drawFixed(ctx, S, ui.fixed);
@@ -299,6 +366,50 @@ function drawOverlay(ctx, S, ui) {
 
 // ------------------------------------------------------------------------------------------ play
 // Top header: title + sub line (centred on its anchor), plus the icon buttons that live there (back / pause / exit).
+// 3D on: a soft dark wash at the top (title, plates) and the foot (status, toolbar) so the HUD reads over the lit pendopo.
+function playShade(ctx, L, P) {
+  const W = L.w, H = L.h, fa = 1 - flatAlpha();
+  ctx.save(); ctx.globalAlpha = fa;
+  if (P.mode !== 'wide') {
+    const y1 = P.chips[0].y + P.chips[0].h + 8;
+    const g = ctx.createLinearGradient(0, 0, 0, y1);
+    g.addColorStop(0, 'rgba(6,5,10,0.78)'); g.addColorStop(0.8, 'rgba(6,5,10,0.46)'); g.addColorStop(1, 'rgba(6,5,10,0)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, y1);
+    const y0 = P.status.y - 36, b = ctx.createLinearGradient(0, y0, 0, H);
+    b.addColorStop(0, 'rgba(6,5,10,0)'); b.addColorStop(0.2, 'rgba(6,5,10,0.5)'); b.addColorStop(1, 'rgba(6,5,10,0.78)');
+    ctx.fillStyle = b; ctx.fillRect(0, y0, W, H - y0);
+  } else {
+    const bx = P.board.x, bw = P.board.side;
+    const l = ctx.createLinearGradient(bx - 60, 0, bx + 30, 0);
+    l.addColorStop(0, 'rgba(6,5,10,0.62)'); l.addColorStop(1, 'rgba(6,5,10,0)');
+    ctx.fillStyle = l; ctx.fillRect(0, 0, bx + 30, H);
+    const r = ctx.createLinearGradient(bx + bw - 30, 0, bx + bw + 60, 0);
+    r.addColorStop(0, 'rgba(6,5,10,0)'); r.addColorStop(1, 'rgba(6,5,10,0.62)');
+    ctx.fillStyle = r; ctx.fillRect(bx + bw - 30, 0, W - bx - bw + 30, H);
+  }
+  ctx.restore();
+}
+
+// A HUD plaque in the board's own world: a lacquered teak plate with a brass edge and a hairline groove inside it.
+function plaque(ctx, th, r, rad, active) {
+  ctx.save();
+  ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 18; ctx.shadowOffsetY = 6;
+  const g = ctx.createLinearGradient(r.x, r.y, r.x, r.y + r.h);
+  g.addColorStop(0, th.panel[0]); g.addColorStop(1, th.panel[1]);
+  ctx.globalAlpha = 0.94; ctx.fillStyle = g; rr(ctx, r.x, r.y, r.w, r.h, rad); ctx.fill();
+  ctx.restore();
+  ctx.save();
+  const ac = acc(th);
+  const e = ctx.createLinearGradient(r.x, r.y, r.x, r.y + r.h);
+  e.addColorStop(0, alpha(ac, active ? 1 : 0.7)); e.addColorStop(0.5, alpha(ac, active ? 0.75 : 0.35)); e.addColorStop(1, alpha(ac, active ? 0.95 : 0.55));
+  if (active) { ctx.shadowColor = alpha(ac, 0.65); ctx.shadowBlur = 16; }
+  ctx.strokeStyle = e; ctx.lineWidth = active ? 3 : 2; rr(ctx, r.x, r.y, r.w, r.h, rad); ctx.stroke();
+  ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
+  ctx.strokeStyle = 'rgba(0,0,0,0.45)'; ctx.lineWidth = 1.5; rr(ctx, r.x + 6, r.y + 6, r.w - 12, r.h - 12, Math.max(4, rad - 6)); ctx.stroke();
+  ctx.strokeStyle = 'rgba(255,236,200,0.10)'; ctx.lineWidth = 1; rr(ctx, r.x + 7.5, r.y + 7.5, r.w - 15, r.h - 15, Math.max(4, rad - 7)); ctx.stroke();
+  ctx.restore();
+}
+
 function drawHud(ctx, S, P, title, sub) {
   const th = theme(S), z = TEXT_SCALES[S.textIdx];
   const tSize = fitOne(title, P.title.maxW, 40 * (1 + (z - 1) * 0.25), 22);
@@ -315,12 +426,15 @@ function drawHud(ctx, S, P, title, sub) {
 
 function drawPlate(ctx, S, r, who, name, sub, active) {
   const th = theme(S), z = TEXT_SCALES[S.textIdx];
+  if (v3.on) plaque(ctx, th, r, 20, active);
+  else {
   ctx.save();
   ctx.fillStyle = 'rgba(8,6,6,0.55)'; rr(ctx, r.x, r.y, r.w, r.h, 20); ctx.fill();
   ctx.strokeStyle = active ? th.accent : 'rgba(255,255,255,0.14)'; ctx.lineWidth = active ? 3 : 1.5;
   if (active) { ctx.shadowColor = alpha(acc(th), 0.7); ctx.shadowBlur = 16; }
   rr(ctx, r.x, r.y, r.w, r.h, 20); ctx.stroke();
   ctx.restore();
+  }
   const md = Math.min(r.h - 28, 74, r.w * 0.2);
   drawPiece(ctx, th, who, r.x + 14 + md / 2, r.y + r.h / 2, md * 0.85, { noShadow: true, glow: active ? 0.4 : 0 });
   const tx = r.x + 24 + md, avail = r.w - md - 40;
@@ -335,10 +449,13 @@ function drawPlate(ctx, S, r, who, name, sub, active) {
 
 function drawStatus(ctx, S, r, head, body, col) {
   const th = theme(S), z = TEXT_SCALES[S.textIdx];
+  if (v3.on) plaque(ctx, th, r, 22, false);
+  else {
   ctx.save();
   ctx.fillStyle = 'rgba(8,6,6,0.6)'; rr(ctx, r.x, r.y, r.w, r.h, 22); ctx.fill();
   ctx.strokeStyle = th.stroke; ctx.lineWidth = 1.5; rr(ctx, r.x, r.y, r.w, r.h, 22); ctx.stroke();
   ctx.restore();
+  }
   const pad = 22, w = r.w - pad * 2;
   const full = body ? `${head}\n${body}` : head;
   const f = fitText(full, w, r.h - 24, 32 * (1 + (z - 1) * 0.6), 20);
@@ -362,27 +479,37 @@ function selRoutes(M) {
   return M.rc.list;
 }
 function routeGeomCached(holder, route, geo) {
-  const key = `${geo.x}|${geo.y}|${geo.side}|${geo.flip ? 1 : 0}`;
+  const key = `${geo.key ?? 'f'}|${geo.x}|${geo.y}|${geo.side}|${geo.flip ? 1 : 0}`;
   if (!holder.rg || holder.rgKey !== key) { holder.rg = routeGeom(route, geo); holder.rgKey = key; }
   return holder.rg;
 }
 
 // Draws the board and its pieces for a match. `auto` carries Watch & Learn's reveal info.
 export function drawBoardScene(ctx, S, M, geo, auto) {
-  const th = theme(S);
+  const th = theme(S), D3 = v3.on && geo.p3;
   ctx.save();
-  const glow = ctx.createRadialGradient(geo.x + geo.side / 2, geo.y + geo.side / 2, 40, geo.x + geo.side / 2, geo.y + geo.side / 2, geo.side * 0.85);
-  glow.addColorStop(0, th.glow); glow.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.fillStyle = glow; ctx.fillRect(geo.x - 160, geo.y - 160, geo.side + 320, geo.side + 320);
-  drawBoard(ctx, th, geo, {});
+  const fa = flatAlpha();
+  if (fa > 0) {
+    // the flat board (the fallback without WebGL, and the first frames while the 3D scene fades in)
+    const fg = D3 ? boardGeo(geo.x, geo.y, geo.side, geo.flip) : geo;
+    ctx.save(); ctx.globalAlpha = fa;
+    const glow = ctx.createRadialGradient(geo.x + geo.side / 2, geo.y + geo.side / 2, 40, geo.x + geo.side / 2, geo.y + geo.side / 2, geo.side * 0.85);
+    glow.addColorStop(0, th.glow); glow.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = glow; ctx.fillRect(geo.x - 160, geo.y - 160, geo.side + 320, geo.side + 320);
+    drawBoard(ctx, th, fg, {});
+    ctx.restore();
+  }
+  if (D3) v3.totals = { 1: countOf(M.start.cells, 1), 2: countOf(M.start.cells, 2) };
   const st = M.st, pl = pulse(S), a = acc(th), A = M.anim;
   const mover = st.turn;
   const glowOf = (who) => (who === 1 ? th.light : th.dark).glow;
   const ringAt = (i, col, lw = 4, al = 1, rad = 0.62) => {
+    if (D3) { v3.marks.push({ i, flip: geo.flip, col, a: al, r: rad, fill: false }); return; }
     const [cx, cy] = pointXY(geo, i);
     ctx.save(); ctx.strokeStyle = col; ctx.globalAlpha = al; ctx.lineWidth = lw; ctx.beginPath(); ctx.arc(cx, cy, geo.d * rad, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
   };
   const fillAt = (i, col, al, rad = 0.5) => {
+    if (D3) { v3.marks.push({ i, flip: geo.flip, col, a: al, r: rad, fill: true }); return; }
     const [cx, cy] = pointXY(geo, i);
     ctx.save(); ctx.fillStyle = col; ctx.globalAlpha = al; ctx.beginPath(); ctx.arc(cx, cy, geo.d * rad, 0, Math.PI * 2); ctx.fill(); ctx.restore();
   };
@@ -400,6 +527,7 @@ export function drawBoardScene(ctx, S, M, geo, auto) {
     const who = st.cells[M.sel], gl = glowOf(who);
     for (const m of targetsOf(M)) {
       if (m.cap) continue;
+      if (D3) { fillAt(m.to, a, 0.7 + 0.3 * pl, 0.34); continue; }
       const [cx, cy] = pointXY(geo, m.to);
       ctx.fillStyle = a; ctx.globalAlpha = 0.6 + 0.3 * pl; ctx.beginPath(); ctx.arc(cx, cy, geo.d * 0.14, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1;
     }
@@ -448,10 +576,27 @@ export function drawBoardScene(ctx, S, M, geo, auto) {
     else if (auto && auto.phase === 'reveal' && auto.plan && auto.plan.mv.from === i) o = { glow: 0.5 + 0.4 * pl };
     else if (M.over && M.winT > 0.3 && winner === who) o = { glow: 0.4 + 0.3 * Math.sin(M.winT * 5 + i) };
     else if (M.over && winner > 0 && winner !== who) o = { alpha: 0.7 };
+    if (D3) {
+      v3.pieces.push({ who, i, flip: geo.flip, sel: o.lift ? 1 : 0 });
+      if (o.glow > 0.3) fillAt(i, a, 0.3 * o.glow, 0.7);
+      continue;
+    }
     drawPiece(ctx, th, who, cx, cy, geo.d, o);
   }
   // the moving piece, and the piece about to be captured
-  if (A) {
+  if (A && D3) {
+    const k = clamp01(A.t / A.dur), fgx = colOf(A.from), fgy = rowOf(A.from), tgx = colOf(A.to), tgy = rowOf(A.to);
+    if (A.cap) {
+      if (k < 1) v3.pieces.push({ who: A.capWho, i: A.to, flip: geo.flip, cap: k > 0.88 ? 'go' : 0 });
+      const rg = routeGeomCached(A, A.route, geo), e = easeIO(k), s = e * rg.len;
+      strokeRoute(ctx, rg, Math.max(0, s - rg.len * 0.5), s, '#ffffff', glowOf(A.who), Math.max(5, geo.u * 0.14), 1 - clamp01((k - 0.9) / 0.1) * 0.4);
+      if (k >= 1) v3.pieces.push({ who: A.who, i: A.to, flip: geo.flip });
+      else v3.pieces.push({ who: A.who, i: A.to, flip: geo.flip, a: { kind: 'cap', from: A.from, k, g: pointAlongG(rg, s), g2: pointAlongG(rg, Math.min(rg.len, s + geo.u * 0.08)) } });
+    } else {
+      const e = easeIO(k), e2 = easeIO(Math.min(1, k + 0.03));
+      v3.pieces.push({ who: A.who, i: A.to, flip: geo.flip, a: { kind: 'step', from: A.from, k, g: [fgx + (tgx - fgx) * e, fgy + (tgy - fgy) * e], g2: [fgx + (tgx - fgx) * e2, fgy + (tgy - fgy) * e2] } });
+    }
+  } else if (A) {
     const [tx, ty] = pointXY(geo, A.to);
     const k = clamp01(A.t / A.dur);
     if (A.cap) {
@@ -525,14 +670,15 @@ const sideLabel = (M, who) => {
 export function playGeo(S, M) {
   const lay = (S.L ?? layoutFor()).play(TEXT_SCALES[S.textIdx], Boolean(M.auto));
   const flip = !M.two && !M.auto && M.human === 2;
-  return { lay, geo: boardGeo(lay.board.x, lay.board.y, lay.board.side, flip) };
+  return { lay, geo: v3.on && v3.geo ? v3.geo(lay.board.x, lay.board.y, lay.board.side, flip) : boardGeo(lay.board.x, lay.board.y, lay.board.side, flip) };
 }
 
 function drawPlay(ctx, S) {
   const th = theme(S), M = S.match, z = TEXT_SCALES[S.textIdx];
   const auto = S.scene === 'auto' ? S.auto : null;
   const { lay, geo } = playGeo(S, M);
-  background(ctx, th, S.t, geo.y + geo.side / 2, S.L.w, S.L.h, geo.x + geo.side / 2);
+  backdrop(ctx, th, S.t, geo.y + geo.side / 2, S.L.w, S.L.h, geo.x + geo.side / 2, 0);
+  if (v3.on) playShade(ctx, S.L, lay);
   const title = M.lesson ? M.lesson.title : 'Surakarta';
   const quiet = `${tr('quiet')} ${M.st.quiet}/${QUIET_LIMIT}`;
   const sub = M.lesson ? `Lesson ${S.lessonIdx + 1} of ${LESSONS.length}` : auto ? `${tr('autoSession')} · ${tr('think')} ${THINK_STEPS[S.thinkIdx]}${tr('seconds')}` : `${M.two ? tr('twoPlayers') : `${tr('vsComputer')} · ${LEVELS.find((l) => l.id === M.level)?.name}`} · ${quiet}`;
@@ -587,16 +733,16 @@ export function render(ctx, S, ui) {
     case 'title': drawTitle(ctx, S, ui); break;
     case 'setup': case 'learn': case 'howto': case 'rules': case 'about': case 'settings': drawDocScreen(ctx, S, ui); break;
     case 'demo-limit':
-      background(ctx, theme(S), S.t, 700, S.L.w, S.L.h);
+      backdrop(ctx, theme(S), S.t, 700, S.L.w, S.L.h, undefined, 0.58);
       panel(ctx, theme(S), ui.panel.x, ui.panel.y, ui.panel.w, ui.panel.h, {});
       drawDocBlocks(ctx, S, ui, S.scroll[ui.scrollKey] ?? 0);
       drawFixed(ctx, S, ui.fixed);
       break;
     case 'play': case 'auto':
-      if (!S.match) { background(ctx, theme(S), S.t, 700, S.L.w, S.L.h); break; }
+      if (!S.match) { backdrop(ctx, theme(S), S.t, 700, S.L.w, S.L.h, undefined, 0.4); break; }
       drawPlay(ctx, S);
       break;
-    default: background(ctx, theme(S), S.t, 700, S.L.w, S.L.h);
+    default: backdrop(ctx, theme(S), S.t, 700, S.L.w, S.L.h, undefined, 0.4);
   }
   if (S.overlay) drawOverlay(ctx, S, ui);
 }

@@ -1,6 +1,7 @@
 // Drawing for the ken, the ball, the string and the dusk scene behind them. Everything is canvas paths and gradients,
 // no image files. The backdrop is painted once into an off-screen canvas (when the host has one) and then blitted.
 import { R, L, W, H, anchorOf, CUPS } from './phys.js';
+import { v3 } from './v3.js';
 
 const TAU = Math.PI * 2;
 export const COL = {
@@ -133,6 +134,7 @@ export function paintBackdrop(ctx) {
 // Portrait: the sky / floor gradients of the backdrop continue above and below the stage window, seamlessly (same colours at the
 // same world heights). Wide: the same palette stretched over the whole screen, with the stage as a framed window.
 export function drawOuter(ctx, L, map = null) {
+  if (v3.on) return;
   const st = map ?? L.st;
   const sw = L.W, sh = L.H;
   let g;
@@ -196,6 +198,7 @@ function paintWide(ctx, w, h) {
 }
 let wideBack = { key: '', cv: null };
 export function drawWideBack(ctx, L) {
+  if (v3.on) return;
   const w = Math.round(L.W), h = Math.round(L.H), key = `${w}x${h}`;
   if (wideBack.key !== key) {
     setHost(ctx);
@@ -208,6 +211,7 @@ export function drawWideBack(ctx, L) {
 
 // The painted 720 x 1280 backdrop through a stage map { x, y, s, wy0 }, clipped to `rect` (screen units, optional rounded corners).
 export function drawBackdropIn(ctx, m, rect, round = 0) {
+  if (v3.on) return;
   ctx.save();
   if (round) rr(ctx, rect.x, rect.y, rect.w, rect.h, round); else { ctx.beginPath(); ctx.rect(rect.x, rect.y, rect.w, rect.h); }
   ctx.clip();
@@ -228,6 +232,7 @@ export function drawMenuBack(ctx, L) {
 
 let backdrop = null;      // off-screen canvas, or false when this host cannot make one
 export function drawBackdrop(ctx) {
+  if (v3.on) return;
   if (backdrop === null) {
     setHost(ctx);
     const cv = newCanvas(Math.round(W * 1.5), Math.round(H * 1.5));

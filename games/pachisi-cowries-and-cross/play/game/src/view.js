@@ -7,6 +7,7 @@ import { screenButtons, titleGeo, setupGeo, learnGeo, settingsGeo, readerGeo, ov
 import { drawLockupImage, drawMoreLine, drawBadgeStack, edgeStroke } from './brand.js';
 import { LESSONS } from './lessons.js';
 import { LEVEL_NAMES, LEVEL_BLURB } from './ai.js';
+import { v3 } from './v3.js';
 
 const FONT = '"Cormorant Garamond", Georgia, "Times New Roman", serif';
 const UI = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
@@ -92,8 +93,17 @@ export function render(ctx, state) {
   const savedBoard = isTitle ? { ...BOARD } : null;
   if (isTitle) Object.assign(BOARD, L.title.board(has));
   const noBoard = isTitle && BOARD.S <= 1;
-  if (panelScene || noBoard) drawFloorOnly(ctx); else drawStatic(ctx, mode, isTitle ? 'title' : '', !isTitle);
-  motes(ctx, T);
+  const scene3 = v3.on && boardScene && !noBoard;
+  v3.frame = null; v3.pieces.length = 0; v3.marks.length = 0; v3.dice.length = 0; v3.rugGlow = 0; v3.mode = g.mode;
+  if (scene3) {   // the 3D table takes the place of the flat floor, cloth, yards, rug and pawns; the flat layer keeps all geometry and the HUD
+    v3.gcx = BOARD.cx; v3.gcy = BOARD.cy; v3.cell = cellSize(mode);
+    const U = L.U, top = L.plaque.y + L.plaque.h + 4;
+    v3.frame = isTitle ? { mode: 'title', rect: L.land ? { x: BOARD.cx - BOARD.S / 2 - 6, y: BOARD.cy - BOARD.S / 2 - 6, w: BOARD.S + 12, h: BOARD.S + 12 } : { x: U.x0 + 8, y: BOARD.cy - BOARD.S / 2 - 6, w: U.w - 16, h: BOARD.S + 12 } }
+      : L.land ? { mode: 'play', rect: { x: (L.card ? L.card.x + L.card.w + 8 : U.x0 + 6), y: U.y0 + 6, w: L.col.x - 14 - (L.card ? L.card.x + L.card.w + 8 : U.x0 + 6), h: U.h - 12 } }
+        : { mode: 'play', rect: { x: U.x0 + 3, y: top + 30, w: U.w - 6, h: L.bar.y - 6 - top - 30 } };
+  }
+  if (panelScene || noBoard) drawFloorOnly(ctx); else if (!scene3) drawStatic(ctx, mode, isTitle ? 'title' : '', !isTitle);
+  if (!scene3) motes(ctx, T);
 
   if (boardScene && !noBoard) {
     drawYards(ctx, state, text, mode);
@@ -109,7 +119,7 @@ export function render(ctx, state) {
     if (sc === 'lesson' && state.lesson) shadowText(`Lesson ${state.lesson.i + 1} of ${LESSONS.length}: ${LESSONS[state.lesson.i].title}`, hx, L.head.y - 8 * hk, (big ? 36 : 40) * hk, '#f6dfae', FONT, 'center', hw);
     else if (sc === 'daily') shadowText(`Daily race  ·  score ${state.dl ? state.dl.score : 0}`, hx, L.head.y - 8 * hk, 46 * hk, '#f6dfae', FONT, 'center', hw);
     else if (sc === 'autoplay' || sc === 'autoplay-over') shadowText('Auto Play · Watch & Learn', hx, L.head.y - 8 * hk, 36 * hk, '#f6dfae', FONT, 'center', hw);
-    else shadowText('Pachisi', hx, L.head.y, L.head.size, '#f6dfae');
+    else { if (scene3) plaque(hx - 150, L.head.y - L.head.size * 0.82, 300, L.head.size * 1.08); shadowText('Pachisi', hx, L.head.y, L.head.size, '#f6dfae'); }
     const Pq = L.plaque; plaque(Pq.x, Pq.y, Pq.w, Pq.h);
     const msg = state.apPaused && sc === 'autoplay' ? 'Paused. Tap Resume to carry on watching.' : state.msg || '';
     fitWrap(msg, Pq.x + Pq.w / 2, Pq.y + 4, Pq.w - 56, Pq.h - 8, big ? 34 : 29, minSz, '#fff2d0');
@@ -206,9 +216,9 @@ export function render(ctx, state) {
     buttonsNow();
   }
 
-  // a soft lamp flicker over everything
-  ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.05 + 0.02 * Math.sin(T * 7.3) + 0.015 * Math.sin(T * 11.9 + 1);
-  const gr = ctx.createRadialGradient(90, 120, 10, 90, 120, 800); gr.addColorStop(0, 'rgba(255,170,70,1)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = gr; ctx.fillRect(0, 0, W, Math.min(H, 900)); ctx.restore();
+  // a soft lamp flicker over everything (the flat floor only)
+  if (!scene3) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.05 + 0.02 * Math.sin(T * 7.3) + 0.015 * Math.sin(T * 11.9 + 1);
+  const gr = ctx.createRadialGradient(90, 120, 10, 90, 120, 800); gr.addColorStop(0, 'rgba(255,170,70,1)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = gr; ctx.fillRect(0, 0, W, Math.min(H, 900)); ctx.restore(); }
 }
 
 function ctxTitle(ctx, text, str, y, size, cx, maxW) {
@@ -272,7 +282,16 @@ function ctxSmall(ctx, str, x, y) { ctx.textAlign = 'center'; ctx.font = `600 ${
 function drawYards(ctx, state, text, mode) {
   const g = state.g, cs = cellSize(mode), rad = (geo(mode).R / 2 - 0.5) * cs, T = state.t, z = clamp(Math.max(cs / 30, Math.ceil(11 / (host.px || 0.6)) / 22), 0.62, 1);
   for (let a = 0; a < 4; a++) {
-    const pl = g.players.findIndex((p) => p.arm === a), [ux, uy] = yardOffset(mode, a), p = gridXY(mode, ux, uy);
+    const pl = g.players.findIndex((p) => p.arm === a), [ux, uy] = yardOffset(mode, a), p = gridXY(mode, ux, uy), on3 = v3.on && v3.frame;
+    if (on3) {   // 3D: the brass bowl is in the scene; only the turn glow (a mark) and the name plaque are drawn here
+      if (pl < 0) continue;
+      if (state.scene !== 'title' && g.turn === pl && g.winner < 0) v3.marks.push({ kind: 'turn', x: p.x, y: p.y, r: rad / cs * 1.02, a: 0.55 + 0.35 * Math.sin(T * 4) });
+      const sg = p.y > BOARD.cy ? 1 : -1, c0 = v3.toScreen(p.x, p.y, 0.5), e0 = v3.toScreen(p.x, p.y + sg * rad, 0.5), pw = g.players[pl], h = homeCount(g, pl);
+      const lx = c0.x, ly = e0.y + (sg > 0 ? 30 * z : -12 * z);
+      ctx.save(); ctx.fillStyle = 'rgba(20,8,4,0.82)'; ctx.beginPath(); ctx.roundRect(lx - 84 * z, ly - 28 * z, 168 * z, 46 * z, 23 * z); ctx.fill(); ctx.strokeStyle = ARM_LIGHT[a]; ctx.lineWidth = 2.5; ctx.stroke(); ctx.restore();
+      text(pw.name + ' · ' + h + '/' + g.n, lx, ly + 2 * z, 22 * z, '#fff2d0', UI, 700);
+      continue;
+    }
     if (pl < 0) { ctx.fillStyle = 'rgba(15,6,2,0.45)'; ctx.beginPath(); ctx.arc(p.x, p.y, rad * 0.92, 0, TAU); ctx.fill(); continue; }
     const turn = state.scene !== 'title' && g.turn === pl && g.winner < 0;
     if (turn) {
@@ -289,7 +308,9 @@ function drawYards(ctx, state, text, mode) {
 // ---- pawns -----------------------------------------------------------------------------------------------------
 function drawPieces(ctx, state) {
   const g = state.g, G = geo(g.mode), T = state.t, list = [], PK = cellSize(g.mode) / 31, Z = BOARD.S / 680;
-  const flying = new Set(state.fly.map((f) => f.pl + ',' + f.i)), hop = state.hop;
+  const flying = new Set(state.fly.map((f) => f.pl + ',' + f.i)), hop = state.hop, on = !!(v3.on && v3.frame);
+  // 3D: a pawn is handed to the presenter as its canonical foot (lift in canonical units, scale relative to a normal pawn); the flat sprite is not drawn
+  const put3 = (arm, x, y, k, lift, a = 1) => v3.pieces.push({ arm, x, y, lift, s: k / PK, a });
   // REVEAL (Auto Play): the same destination-ring/selection-glow a human turn uses, shown once the
   // chosen move is picked (state.sel set in game.js's 'apthink' -> 'apreveal' transition), never
   // during 'apthink' itself so THINK still shows a bare board.
@@ -309,6 +330,7 @@ function drawPieces(ctx, state) {
   if (choose) {
     for (const m of state.opts) {
       const d = posXY(g, m.pl, m.i, m.to), sel = selMove && selMove.i === m.i, pulse = 0.5 + 0.5 * Math.sin(T * 5);
+      if (on) { v3.marks.push({ kind: m.caps.length ? 'cap' : sel ? 'sel' : 'dest', x: d.x, y: d.y, a: sel ? 1 : 0.55 + 0.3 * pulse }); continue; }
       ctx.save(); ctx.strokeStyle = m.caps.length ? `rgba(255,110,90,${0.7 + 0.3 * pulse})` : `rgba(255,224,130,${sel ? 1 : 0.45 + 0.25 * pulse})`; ctx.lineWidth = sel ? 5 : 3;
       if (!sel) ctx.setLineDash([5, 6]);
       ctx.beginPath(); ctx.ellipse(d.x, d.y + 2 * Z, (17 + pulse * 2) * Z, (12 + pulse) * Z, 0, 0, TAU); ctx.stroke(); ctx.restore();
@@ -320,34 +342,45 @@ function drawPieces(ctx, state) {
     let lift = 0, x = it.x, y = it.y + 6 * Z;
     if (it.movable) {
       const sel = selMove && selMove.from === it.p && (state.sel === it.i || (it.p < 0));
+      if (on) { v3.marks.push({ kind: sel ? 'glowSel' : 'glow', x: it.x, y: it.y, a: 0.5 + 0.3 * Math.sin(T * 5 + it.i) }); lift = ((sel ? 9 : 0) + (state.prefs.calm ? 0 : Math.abs(Math.sin(T * 4 + it.i)) * 3)) * Z; }
+      else {
       ctx.save(); ctx.globalAlpha = 0.5 + 0.3 * Math.sin(T * 5 + it.i); const g2 = ctx.createRadialGradient(x, y, 2, x, y, 26 * Z); g2.addColorStop(0, sel ? 'rgba(255,240,160,1)' : 'rgba(255,214,110,0.95)'); g2.addColorStop(1, 'rgba(255,190,60,0)');
       ctx.fillStyle = g2; ctx.beginPath(); ctx.ellipse(x, y + 2 * Z, 26 * Z, 16 * Z, 0, 0, TAU); ctx.fill(); ctx.restore();
       lift = ((sel ? 9 : 0) + (state.prefs.calm ? 0 : Math.abs(Math.sin(T * 4 + it.i)) * 3)) * Z;
+      }
     }
     if (state.shake && state.shake.pl === it.pl && state.shake.i === it.i) x += Math.sin(state.shake.t * 60) * 5 * (1 - state.shake.t / 0.55) * Z;
-    drawPawn(ctx, g.players[it.pl].arm, x, y, it.k, lift);
+    if (on) put3(g.players[it.pl].arm, x, it.y, it.k, lift); else drawPawn(ctx, g.players[it.pl].arm, x, y, it.k, lift);
   };
   for (const it of list) drawOne(it);
   // ghost, path and tag for the selected move
   if (selMove) {
     const pts = hopPath(g, selMove.pl, selMove.i, selMove.from, selMove.to), d = pts[pts.length - 1];
+    if (on) {
+      for (let i = 1; i < pts.length; i++) { const a = pts[i - 1], b = pts[i], n = Math.max(1, Math.round(Math.hypot(b.x - a.x, b.y - a.y) / (cellSize(g.mode) * 0.5))); for (let q = 0; q < n && v3.marks.length < 120; q++) v3.marks.push({ kind: 'dot', x: a.x + (b.x - a.x) * q / n, y: a.y + (b.y - a.y) * q / n, a: 0.8 }); }
+      v3.pieces.push({ arm: g.players[selMove.pl].arm, x: d.x, y: d.y, lift: 0, s: 1, a: 0.5 });
+    } else {
     ctx.save(); ctx.strokeStyle = 'rgba(255,236,170,0.75)'; ctx.lineWidth = 3; ctx.setLineDash([2, 8]); ctx.lineCap = 'round'; ctx.beginPath();
     pts.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y))); ctx.stroke(); ctx.restore();
     drawPawn(ctx, g.players[selMove.pl].arm, d.x, d.y + 6 * Z, PK, 0, 0.55 + 0.2 * Math.sin(T * 6));
+    }
     const tag = selMove.caps.length ? 'Capture!' : selMove.enter ? 'Enter' : selMove.to === G.END ? 'Home!' : (() => { const t = trackIndex(g, selMove.pl, selMove.to); return t != null && G.safe.has(t) ? 'Safe' : ''; })();
-    if (tag) { ctx.save(); const tsz = Math.max(20, Math.ceil(11 / (host.px || 0.6))); ctx.font = `700 ${tsz}px ${UI}`; const w = ctx.measureText(tag).width + 22, ty = Math.max(4, d.y - 66 * Z); ctx.fillStyle = selMove.caps.length ? '#b3202a' : '#2d6a35'; ctx.beginPath(); ctx.roundRect(d.x - w / 2, ty, w, 28, 14); ctx.fill(); ctx.strokeStyle = '#fbe7b0'; ctx.lineWidth = 2; ctx.stroke(); ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.fillText(tag, d.x, ty + 21 + (tsz - 20) * 0.5); ctx.restore(); }
+    if (tag) { ctx.save(); const tsz = Math.max(20, Math.ceil(11 / (host.px || 0.6))); ctx.font = `700 ${tsz}px ${UI}`; const w = ctx.measureText(tag).width + 22, dd = on ? v3.toScreen(d.x, d.y, 2.7) : { x: d.x, y: d.y + 66 * Z }, ty = Math.max(4, dd.y - 66 * Z); ctx.fillStyle = selMove.caps.length ? '#b3202a' : '#2d6a35'; ctx.beginPath(); ctx.roundRect(dd.x - w / 2, ty, w, 28, 14); ctx.fill(); ctx.strokeStyle = '#fbe7b0'; ctx.lineWidth = 2; ctx.stroke(); ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.fillText(tag, dd.x, ty + 21 + (tsz - 20) * 0.5); ctx.restore(); }
   }
   // the hopping pawn
   if (hop) {
     const a = hop.pts[Math.min(hop.seg, hop.n)], b = hop.pts[Math.min(hop.seg + 1, hop.n)], f = hop.seg >= hop.n ? 1 : clamp(hop.t / hop.per, 0, 1), e = ease(f);
     const x = a.x + (b.x - a.x) * e, y = a.y + (b.y - a.y) * e;
-    drawPawn(ctx, g.players[hop.pl].arm, x, y + 6 * Z, PK * (hop.m.enter ? 1.08 : 1.05), Math.sin(Math.PI * f) * (hop.m.enter ? 30 : 16) * Z);
+    if (on) put3(g.players[hop.pl].arm, x, y, PK * (hop.m.enter ? 1.08 : 1.05), Math.sin(Math.PI * f) * (hop.m.enter ? 30 : 16) * Z);
+    else drawPawn(ctx, g.players[hop.pl].arm, x, y + 6 * Z, PK * (hop.m.enter ? 1.08 : 1.05), Math.sin(Math.PI * f) * (hop.m.enter ? 30 : 16) * Z);
   }
   // captured pawns flying home
   for (const f of state.fly) {
     const u = ease(clamp(f.t / f.dur, 0, 1));
-    drawPawn(ctx, g.players[f.pl].arm, f.from.x + (f.to.x - f.from.x) * u, f.from.y + (f.to.y - f.from.y) * u + 6 * Z, PK, (Math.sin(Math.PI * u) * 90 + 6) * Z, 1);
-    if (f.t < 0.35) { ctx.save(); ctx.globalAlpha = 1 - f.t / 0.35; ctx.strokeStyle = '#ffdca0'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(f.from.x, f.from.y, (14 + f.t * 90) * Z, 0, TAU); ctx.stroke(); ctx.restore(); }
+    if (on) put3(g.players[f.pl].arm, f.from.x + (f.to.x - f.from.x) * u, f.from.y + (f.to.y - f.from.y) * u, PK, Math.sin(Math.PI * u) * 90 * Z);
+    else drawPawn(ctx, g.players[f.pl].arm, f.from.x + (f.to.x - f.from.x) * u, f.from.y + (f.to.y - f.from.y) * u + 6 * Z, PK, (Math.sin(Math.PI * u) * 90 + 6) * Z, 1);
+    if (f.t < 0.35 && on) v3.marks.push({ kind: 'ping', x: f.from.x, y: f.from.y, r: 0.6 + f.t * 4, a: 1 - f.t / 0.35 });
+    else if (f.t < 0.35) { ctx.save(); ctx.globalAlpha = 1 - f.t / 0.35; ctx.strokeStyle = '#ffdca0'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(f.from.x, f.from.y, (14 + f.t * 90) * Z, 0, TAU); ctx.stroke(); ctx.restore(); }
   }
 }
 
@@ -355,16 +388,35 @@ function drawPieces(ctx, state) {
 // Items keep their landing spot as a spot index plus a jitter (fractions), so a mid-throw rotation re-lays them on the live rug.
 export function throwItemXY(it, G, die, k) {
   const sp = die ? G.dieXY : G.spots[it.spot ?? k], zk = G.k / 1.3;
-  return { x0: G.cx - 60 + (die ? 60 : k * 24), y0: MAT.y + MAT.h + 140, tx: sp[0] + (it.jx || 0) * 50 * zk, ty: sp[1] + (it.jy || 0) * 22 * zk };
+  return { x0: G.cx - 60 + (die ? 60 : k * 24), y0: G.below, tx: sp[0] + (it.jx || 0) * 50 * zk, ty: sp[1] + (it.jy || 0) * 22 * zk };
 }
 function drawCowries(ctx, state, text) {
-  const R = state.roll, T = state.t, g = state.g, die = g.mode === 'ludo', G = throwGeo();
+  const R = state.roll, T = state.t, g = state.g, die = g.mode === 'ludo', G = throwGeo(), on = !!(v3.on && v3.frame);
   const yours = state.phase === 'throw' && (g.players[g.turn].human || state.scene === 'lesson' || state.scene === 'daily') && state.scene !== 'pass';
   if (yours) { // a soft glow calls for the throw
-    ctx.save(); const pulse = 0.5 + 0.5 * Math.sin(T * 4); const gl = G.glow, gr = ctx.createRadialGradient(gl.cx, gl.cy, 20, gl.cx, gl.cy, gl.rx); gr.addColorStop(0, `rgba(255,214,110,${0.25 + 0.2 * pulse})`); gr.addColorStop(1, 'rgba(255,190,60,0)');
-    ctx.fillStyle = gr; ctx.beginPath(); ctx.ellipse(gl.cx, gl.cy, gl.rx, gl.ry, 0, 0, TAU); ctx.fill(); ctx.restore();
+    if (on) v3.rugGlow = 0.5 + 0.5 * Math.sin(T * 4);
+    else { ctx.save(); const pulse = 0.5 + 0.5 * Math.sin(T * 4); const gl = G.glow, gr = ctx.createRadialGradient(gl.cx, gl.cy, 20, gl.cx, gl.cy, gl.rx); gr.addColorStop(0, `rgba(255,214,110,${0.25 + 0.2 * pulse})`); gr.addColorStop(1, 'rgba(255,190,60,0)');
+    ctx.fillStyle = gr; ctx.beginPath(); ctx.ellipse(gl.cx, gl.cy, gl.rx, gl.ry, 0, 0, TAU); ctx.fill(); ctx.restore(); }
   }
-  if (!R) {
+  if (on) {   // 3D: the shells / die are meshes on the rug; positions are the flat game's own throw animation, in rug design pixels from its centre
+    const G3 = throwGeo({ x: -314, y: -161, w: 628, h: 322 }, 2), zk = G3.k / 1.3;
+    if (!R) {
+      if (die) v3.dice.push({ kind: 'die', x: G3.dieXY[0], y: G3.dieXY[1], z: 0, rot: 0.3, face: 5 });
+      else G3.spots.forEach(([x, y], k) => v3.dice.push({ kind: 'cowry', x: x + (k % 2) * 6 - 3, y, z: 0, rot: k * 1.1 + 0.3, phi: k * 0.4 }));
+    } else {
+      const rolling = state.phase === 'roll';
+      R.items.forEach((it, k) => {
+        const P = throwItemXY(it, G3, die, k), D = R.dur - 0.28, u = rolling ? clamp((R.t - it.dl) / D, 0, 1) : 1;
+        const e1 = ease(clamp(u / 0.72, 0, 1)), x = P.x0 + (P.tx - P.x0) * e1, y = P.y0 + (P.ty - P.y0) * e1;
+        const bounce = (a, b, h) => (u > a && u < b ? h * 4 * ((u - a) / (b - a)) * (1 - (u - a) / (b - a)) : 0);
+        let z = u < 0.72 ? 190 * 4 * (u / 0.72) * (1 - u / 0.72) : bounce(0.72, 0.88, 26) + bounce(0.88, 1, 8);
+        if (state.prefs.calm) z = 0;
+        const rot = it.r0 + (it.r1 - it.r0) * (1 - (1 - u) * (1 - u)), phiEnd = Math.PI * (2 * it.flips + (it.mouth ? 1 : 0)), phi = phiEnd * (1 - Math.pow(1 - clamp(u / 0.85, 0, 1), 2));
+        if (die) v3.dice.push({ kind: 'die', x, y, z: z * zk, rot, face: R.value, tumble: (1 - clamp(u / 0.85, 0, 1)) * Math.PI * 5 });
+        else v3.dice.push({ kind: 'cowry', x, y, z: z * zk, rot, phi });
+      });
+    }
+  } else if (!R) {
     // resting shells, waiting to be thrown
     if (die) drawDie(ctx, G.dieXY[0], G.dieXY[1], 0.3, 5, 0, G.dieK);
     else G.spots.forEach(([x, y], k) => drawCowry(ctx, x + (k % 2) * 6 - 3, y + Math.sin(T * 2 + k) * 1.5, k * 1.1 + 0.3, k * 0.4, 0, G.k));
@@ -430,6 +482,7 @@ function drawCard(ctx, state, text, plaque) {
 // ---- title ----------------------------------------------------------------------------------------------------------
 function drawTitle(ctx, state, text, shadowText) {
   const T = state.t, Tt = L.title, has = !!state.saved, cx = L.col ? L.col.x + L.col.w / 2 : L.cx, half = Math.min(210, (L.col ? L.col.w : L.w) / 2 - 36);
+  if (v3.on && v3.frame) plate(ctx, cx - Math.min(270, (L.col ? L.col.w : L.w) / 2 - 10), Tt.orn - 20, Math.min(540, (L.col ? L.col.w : L.w) - 20), Tt.tagY + 22 - (Tt.orn - 20));
   ctx.save(); ctx.shadowColor = 'rgba(255,190,80,0.6)'; ctx.shadowBlur = 30 + 8 * Math.sin(T * 2);
   text('Pachisi', cx, Tt.y, Tt.size, '#f8e3a8', FONT, 700); ctx.restore();
   shadowText('The royal race of the cross', cx, Tt.tagY, Tt.tagSize, '#f0c56a', FONT);

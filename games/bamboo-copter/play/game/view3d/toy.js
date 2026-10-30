@@ -1,18 +1,17 @@
 // The toy: a lit 3D bamboo copter (shaft with nodes, hub, thin translucent blades, motion-blur disc) and the two real hands that
 // rub it. Presenter-only: it reads numbers handed in by the presenter and never touches the simulation.
-// Units: the rotor span is 1.0. The hands (real metres, athlete mesh) live in a group scaled by 5 (a real copter is about 0.2 m).
+// Units: the rotor span is 1.0. The hands (real metres, modelled in handmesh.js) live in a group scaled by 5 (a real copter is about 0.2 m).
 import * as THREE from '../vendor3d/three.js';
 import { ROTORS } from '../src/sim.js';
 import { createHandPair } from './hands.js';
-import { tex, bladeCanvas, bambooCanvas, clothCanvas, canvas } from './mats.js';
+import { tex, bladeCanvas, bambooCanvas, canvas } from './mats.js';
 
 const TAU = Math.PI * 2;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-const lerp = (a, b, k) => a + (b - a) * k;
 const HAND_SCALE = 5;                 // metres -> toy units (0.2 m span)
 export const SHAFT_LEN = 0.95;
 export const COPTER_SCALE = 1.4;      // the toy is drawn this much larger than the hands' natural size so the rotor reads
-const HANDS_Y = -0.72;                // toy units, where the palms meet the shaft
+const HANDS_Y = -0.84;                // toy units, where the palms meet the shaft (finger tips stay clear of the rotor)
 
 // A blade is a thin, curved, twisted leaf lying along +x (root at x = r0, tip at x = R), pitched about its own axis.
 function bladeGeometry(R, hw, pitch, camber, r0 = 0.07) {
@@ -89,7 +88,7 @@ function buildRotor(idx) {
   return g;
 }
 
-export async function createToy(V3D, { base, skin = 'tan' } = {}) {
+export async function createToy({ skin = 'tan' } = {}) {
   const root = new THREE.Group();            // toy space; hub at the origin
   const tiltG = new THREE.Group(); tiltG.scale.setScalar(COPTER_SCALE); root.add(tiltG);   // lean + wobble about the hub
   // shaft: bamboo culm with nodes
@@ -114,51 +113,11 @@ export async function createToy(V3D, { base, skin = 'tan' } = {}) {
   const rotors = ROTORS.map((_, i) => { const r = buildRotor(i); r.visible = false; tiltG.add(r); return r; });
   let cur = 0; rotors[0].visible = true;
 
-  // hands
+  // hands: real metres inside handsRoot (scaled to toy units); the palms hold the stick where it is SR * COPTER_SCALE thick
   const handsRoot = new THREE.Group(); handsRoot.scale.setScalar(HAND_SCALE); root.add(handsRoot);
-  const pair = await createHandPair(V3D, { skin, ...(base ? { base } : {}) });
+  const pair = await createHandPair({ skin, shaftR: (SR * COPTER_SCALE) / HAND_SCALE });
   handsRoot.add(pair.object);
-  const body = pair.human.root;
-  body.position.set(0, HANDS_Y / HAND_SCALE - 1.37, -0.33); body.rotation.y = 0;
-  // everything above the shoulders (head, hair) is clipped: the camera sits at the player's eyes
-  const clip = new THREE.Plane(new THREE.Vector3(0, -1, 0), HANDS_Y + 0.33 * HAND_SCALE);
-  body.traverse((o) => { if (o.isMesh || o.isSkinnedMesh) { const ms = Array.isArray(o.material) ? o.material : [o.material]; for (const m of ms) if (m) m.clippingPlanes = [clip]; } });
-  // sleeves with a cuff
-  const clothTex = tex(clothCanvas(128, '#2d4f86', '#172c52'), { repeat: [2, 2] });
-  const sleeveMat = new THREE.MeshStandardMaterial({ map: clothTex, roughness: 0.9, side: THREE.DoubleSide, envMapIntensity: 0.3, clippingPlanes: [clip] });
-  const cuffMat = new THREE.MeshStandardMaterial({ color: '#d7cfae', roughness: 0.8, envMapIntensity: 0.3, clippingPlanes: [clip] });
-  const sleeves = ['L', 'R'].map(() => {
-    const fore = new THREE.Mesh(new THREE.CylinderGeometry(0.068, 0.054, 1, 24, 1, true), sleeveMat);
-    const upper = new THREE.Mesh(new THREE.CylinderGeometry(0.088, 0.068, 1, 24, 1, true), sleeveMat);
-    const elbow = new THREE.Mesh(new THREE.SphereGeometry(0.068, 16, 12), sleeveMat);
-    const shoulder = new THREE.Mesh(new THREE.SphereGeometry(0.09, 16, 12), sleeveMat);
-    const cuff = new THREE.Mesh(new THREE.TorusGeometry(0.055, 0.0065, 8, 28), cuffMat);
-    handsRoot.add(fore, upper, elbow, shoulder, cuff); return { fore, upper, elbow, shoulder, cuff };
-  });
-  pair.object.updateMatrixWorld(true);
-  const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _c = new THREE.Vector3(), _d = new THREE.Vector3(), _q = new THREE.Quaternion(), _up = new THREE.Vector3(0, 1, 0);
-  const seg = (m, p0, p1) => { _d.copy(p1).sub(p0); const l = _d.length(); if (l < 1e-5) return; _d.divideScalar(l); m.position.copy(p0).addScaledVector(_d, l / 2); m.scale.set(1, l, 1); m.quaternion.setFromUnitVectors(_up, _d); };
-  function placeSleeves() {
-    ['L', 'R'].forEach((s, i) => {
-      pair.bone(`${s}_Hand`, _a); pair.bone(`${s}_Forearm`, _b); pair.bone(`${s}_UpperArm`, _c);
-      handsRoot.worldToLocal(_a); handsRoot.worldToLocal(_b); handsRoot.worldToLocal(_c);
-      const { fore, upper, elbow, shoulder, cuff } = sleeves[i];
-      const dir = _a.clone().negate().add(_b).normalize();
-      const p0 = _a.clone().addScaledVector(dir, 0.05);          // cuff just above the wrist bone
-      seg(fore, p0, _b);                                          // forearm (cuff end narrow)
-      seg(upper, _b, _c); upper.quaternion.setFromUnitVectors(_up, _c.clone().sub(_b).normalize());
-      elbow.position.copy(_b); shoulder.position.copy(_c);
-      cuff.position.copy(p0); cuff.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), dir);
-    });
-  }
-  const palmL = new THREE.Vector3(), palmR = new THREE.Vector3();
-  const fd = new THREE.Vector3(0, 0.12, 1).normalize();
-  const hs = HANDS_Y / HAND_SCALE;    // hand height in metres (toy y / scale)
-
-  // contact "pressure" blob lights are not needed; the shaft casts nothing onto the hands (flat key) -> keep it cheap.
-  const st = { rubK: 0, handsOn: 1, release: 0, pressT: 0 };
-  const zeroPose = (p, s) => { p.thumb = 0.3; };
-  void zeroPose;
+  const hs = HANDS_Y / HAND_SCALE;    // palm height on the stick in metres (toy y / scale)
 
   const api = {
     root, tiltG, shaftG, handsRoot, pair, rotors,
@@ -183,26 +142,15 @@ export async function createToy(V3D, { base, skin = 'tan' } = {}) {
       const on = p.hands > 0.002;
       handsRoot.visible = on;
       if (on) {
-        const rub = clamp(p.rub, -1, 1), rel = clamp(p.release, 0, 1);
-        const gap = 0.011 + rel * 0.075 - p.press * 0.003;
-        const dz = rub * 0.042, drop = rel * 0.1, lift = Math.sin(p.t * 9) * 0.0 * 0;
-        const y = hs - drop + lift;
-        palmL.set(gap, y, -0.07 + dz).multiplyScalar(HAND_SCALE); palmR.set(-gap, y, -0.07 - dz).multiplyScalar(HAND_SCALE);
-        pair.P.L.index = pair.P.R.index = lerp(0.22, 0.05, rel); pair.P.L.middle = pair.P.R.middle = lerp(0.26, 0.05, rel);
-        pair.P.L.ring = pair.P.R.ring = lerp(0.3, 0.07, rel); pair.P.L.pinky = pair.P.R.pinky = lerp(0.34, 0.1, rel);
-        pair.P.L.thumb = pair.P.R.thumb = lerp(0.3, 0.05, rel);
-        pair.P.L.spread = pair.P.R.spread = rel * 0.5;
-        pair.reach('L', palmL, new THREE.Vector3(-1, 0, 0), fd, new THREE.Vector3(2.5, -2.5, -0.5));
-        pair.reach('R', palmR, new THREE.Vector3(1, 0, 0), fd, new THREE.Vector3(-2.5, -2.5, -0.5));
-        root.updateMatrixWorld(true);
-        pair.update(dt || 1 / 60);
-        placeSleeves();
-      }
+        const rel = clamp(p.release, 0, 1);
+        // the hands hold the stick, so they lean and wobble with it (until they let go)
+        handsRoot.rotation.set(tz * (1 - rel), 0, tx * (1 - rel), 'XYZ');
+        pair.pose({ rub: p.rub, press: p.press, release: rel, y: hs }, dt || 1 / 60);
+      } else pair.reset();
     },
-    setSkin(s) { pair.setSkin(s); },
     dispose() { pair.dispose(); },
   };
   api.HANDS_Y = HANDS_Y; api.SHAFT_LEN = SHAFT_LEN;
-  void st; void canvas;
+  void canvas;
   return api;
 }

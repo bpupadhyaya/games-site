@@ -90,7 +90,9 @@ export async function createGame(env) {
   // ------------------------------------------------------------------------------ geometry helpers
   const geoNow = (M) => playGeo(S, M).geo;
   const pointAt = (M, x, y) => {
-    const g = geoNow(M), r = g.u * 0.55;
+    const g = geoNow(M);
+    if (g.hit) return g.hit(x, y);
+    const r = g.u * 0.55;
     let best = -1, bd = Infinity;
     for (let i = 0; i < NN; i++) { const [cx, cy] = pointXY(g, i); const d = Math.hypot(x - cx, y - cy); if (d <= r && d < bd) { bd = d; best = i; } }
     return best;

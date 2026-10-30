@@ -121,7 +121,7 @@ function renderLevels(ctx, st, L) {
   LEVELS.forEach((lv, i) => {
     const r = G.cards[i], best = st.best[lv.id] ?? {}, f = levelFacts(lv);
     const locked = !(i === 0 || st.dev || st.best[LEVELS[i - 1].id]) || (st.demo && i >= 2);
-    panel(ctx, r, { fill: 'rgba(26,15,51,0.88)' }); edgeStroke(ctx, r, 24, 0.22);
+    panel(ctx, r, { wood: true, fill: 'rgba(26,15,51,0.9)' }); edgeStroke(ctx, r, 24, 0.22);
     const pad = 16;
     txt(ctx, `${i + 1}`, r.x + pad, r.y + r.h * 0.2, Math.min(44, r.h * 0.2), PAL.orange, { weight: 800 });
     txt(ctx, lv.name.toUpperCase(), r.x + pad + 38, r.y + r.h * 0.2, Math.min(40, r.h * 0.17), PAL.text, { weight: 800, maxW: r.w - pad * 2 - 42 });
@@ -147,7 +147,7 @@ function renderPrep(ctx, st, L) {
   const cellMax = Math.min((D.info.w - pad * 2 - 30) / 8, 80);
   const need = 24 + 100 + 26 + 40 + rows * cellMax + 24;
   const I = { x: D.info.x, y: D.info.y, w: D.info.w, h: Math.min(D.info.h, need) };
-  panel(ctx, I, { fill: 'rgba(26,15,51,0.9)' }); edgeStroke(ctx, I, 24, 0.3);
+  panel(ctx, I, { wood: true, fill: 'rgba(26,15,51,0.9)' }); edgeStroke(ctx, I, 24, 0.3);
   ctx.save(); rrect(ctx, I, 24); ctx.clip();
   ctx.font = `600 28px "Barlow", system-ui, sans-serif`;
   const lines = wrap(ctx, lv.blurb, I.w - pad * 2);
@@ -172,7 +172,7 @@ function renderPrep(ctx, st, L) {
 function renderResult(ctx, st, L) {
   const r = st.result, Rr = L.result, p = Rr.panel, lv = LEVELS[r.li];
   const split = L.mode === 'wide' || p.h < 1000;
-  panel(ctx, p, { fill: 'rgba(26,15,51,0.94)' }); edgeStroke(ctx, p, 28, 0.6);
+  panel(ctx, p, { wood: true, fill: 'rgba(26,15,51,0.9)' }); edgeStroke(ctx, p, 28, 0.6);
   txt(ctx, r.failed ? 'THE ROPES TANGLED' : r.mode === 'play' ? 'ROUTINE COMPLETE' : r.mode === 'practice' ? 'PRACTICE DONE' : 'WATCHED', p.x + p.w / 2, p.y + 44, 28, PAL.dim, { align: 'center', weight: 800, maxW: p.w - 40 });
   txt(ctx, lv.name.toUpperCase(), p.x + p.w / 2, p.y + 100, 64, PAL.gold, { align: 'center', weight: 800, stroke: 8, maxW: p.w - 60 });
   const lx = split ? p.x + p.w * 0.23 : p.x + p.w / 2, rx0 = split ? p.x + p.w * 0.44 : p.x + 32, rw = split ? p.w * 0.53 - 28 : p.w - 64;
@@ -202,7 +202,7 @@ function renderResult(ctx, st, L) {
 
 function renderDemoLimit(ctx, st, L) {
   const S = L.S, r = { x: S.x + S.w / 2 - Math.min(S.w - 40, 560) / 2, y: S.y + S.h / 2 - 220, w: Math.min(S.w - 40, 560), h: 440 };
-  panel(ctx, r, { fill: 'rgba(26,15,51,0.95)' }); edgeStroke(ctx, r, 24, 0.6);
+  panel(ctx, r, { wood: true, fill: 'rgba(26,15,51,0.9)' }); edgeStroke(ctx, r, 24, 0.6);
   txt(ctx, 'THAT IS THE PREVIEW', r.x + r.w / 2, r.y + 80, 54, PAL.gold, { align: 'center', weight: 800, stroke: 8, maxW: r.w - 40 });
   ctx.font = `600 30px "Barlow", system-ui, sans-serif`;
   wrap(ctx, 'Get the full Double Dutch on iPhone and Android: all eight blocks, from the stoop to the final round.', r.w - 70).forEach((ln, i) => txt(ctx, ln, r.x + r.w / 2, r.y + 170 + i * 42, 30, PAL.text, { align: 'center', weight: 600, font: '"Barlow", system-ui, sans-serif' }));

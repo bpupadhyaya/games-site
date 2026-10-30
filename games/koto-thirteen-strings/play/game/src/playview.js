@@ -4,6 +4,18 @@ import { txt, button, panel, rrect, chip, wrap, minUnits } from './ui.js';
 import { menuRects, host } from './layout.js';
 import { NSTR, KANJI, GEO, PIECES, SPEEDS, ENSEMBLE, FINGERS, THINK, whyOf, stringsUsed, parsePiece, noteName, SCALES, scaleById } from './music.js';
 import { edgeStroke } from './brand.js';
+import { v3, flatAlpha } from './v3.js';
+
+// With the 3D koto on (v3.on) the instrument, room and pick are drawn by view3d; this canvas keeps the cues, notes and HUD.
+// The HUD then sits on lacquer plaques with a gold hairline, like the koto's own end panels.
+function plaque(ctx, r, rad = 20) {
+  ctx.save();
+  const g = ctx.createLinearGradient(0, r.y, 0, r.y + r.h); g.addColorStop(0, 'rgba(40,20,14,0.95)'); g.addColorStop(1, 'rgba(18,9,7,0.96)');
+  ctx.shadowColor = 'rgba(0,0,0,0.45)'; ctx.shadowBlur = 18; ctx.shadowOffsetY = 6;
+  ctx.fillStyle = g; rrect(ctx, r, rad); ctx.fill(); ctx.shadowColor = 'transparent';
+  ctx.strokeStyle = 'rgba(232,190,100,0.55)'; ctx.lineWidth = 2; rrect(ctx, { x: r.x + 5, y: r.y + 5, w: r.w - 10, h: r.h - 10 }, Math.max(4, rad - 5)); ctx.stroke();
+  ctx.restore();
+}
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const TAU = Math.PI * 2;
@@ -133,13 +145,15 @@ export function renderPlay(ctx, st, L, view, meta, pauseItems, X) {
   meta.previewBadge = { x: inst.r.x + inst.r.w / 2, y: inst.r.y + 6, align: 'center' };
   // cards / HUD
   if (P.hud === 'side') {
-    panel(ctx, P.left, { fill: 'rgba(14,10,30,0.7)' }); edgeStroke(ctx, P.left, 24, 0.3); panel(ctx, P.right, { fill: 'rgba(14,10,30,0.7)' }); edgeStroke(ctx, P.right, 24, 0.3);
+    if (v3.on) { plaque(ctx, P.left, 24); plaque(ctx, P.right, 24); }
+    else { panel(ctx, P.left, { fill: 'rgba(14,10,30,0.7)' }); edgeStroke(ctx, P.left, 24, 0.3); panel(ctx, P.right, { fill: 'rgba(14,10,30,0.7)' }); edgeStroke(ctx, P.right, 24, 0.3); }
     hudScore(ctx, P.score, st, pl); hudEns(ctx, P.ens, pl); hudProg(ctx, P.prog, pl);
     drawStats(ctx, P.stats, pl);
     hudCap(ctx, P.cap, pl, st);
   } else {
     const top = Math.min(P.score.y, P.pause.y) - 6;
-    ctx.fillStyle = 'rgba(8,6,22,0.45)'; ctx.fillRect(S.x, S.y, S.w, (P.cap.y + P.cap.h + 8) - S.y + 0 * top);
+    if (v3.on) plaque(ctx, { x: S.x + 4, y: Math.max(0, top - 2), w: S.w - 8, h: P.cap.y - Math.max(0, top - 2) - 4 }, 18);
+    else { ctx.fillStyle = 'rgba(8,6,22,0.45)'; ctx.fillRect(S.x, S.y, S.w, (P.cap.y + P.cap.h + 8) - S.y + 0 * top); }
     hudScore(ctx, P.score, st, pl); hudEns(ctx, P.ens, pl); hudProg(ctx, P.prog, pl); hudCap(ctx, P.cap, pl, st);
   }
   const hintIcon = pl.mode === 'auto' ? 'skip' : pl.mode === 'learn' && !pl.learn.final ? 'ear' : 'bulb';
@@ -147,8 +161,10 @@ export function renderPlay(ctx, st, L, view, meta, pauseItems, X) {
   button(ctx, P.hint, wideBtn ? (pl.mode === 'auto' ? 'Skip wait' : pl.mode === 'learn' && !pl.learn.final ? 'Listen again' : 'Show me') : '', { icon: hintIcon, kind: 'quiet', size: 26 });
   button(ctx, P.pause, wideBtn ? 'Pause' : '', { icon: 'pause', kind: 'quiet', size: 26 });
 
-  // instrument
-  drawBody(ctx, inst, 1);
+  // instrument (flat art only without 3D, or while the 3D scene fades in)
+  const fa = flatAlpha();
+  v3.tsume = null;
+  if (fa > 0) { ctx.save(); ctx.globalAlpha = fa; drawBody(ctx, inst, 1); ctx.restore(); }
   const cap = captionOf(pl), thinking = pl.auto && pl.auto.phase !== 'act';
   // per-string view state: plucks plus a glow for strings whose note is about to arrive
   const sv = pl.ss.map((s) => ({ vib: s.vib, ph: s.ph, glow: s.glow, press: s.press }));
@@ -157,6 +173,7 @@ export function renderPlay(ctx, st, L, view, meta, pauseItems, X) {
     const e = pl.ev[i]; if (e.s < 0 || silent(e) || e.who === 'ma' || e.who === 'mat' || e.j) continue;
     sv[e.s].glow = Math.max(sv[e.s].glow, 0.5 * (1 - Math.abs(e.t - pl.t) / 0.5));
   }
+  v3.bu = bu; v3.ss = sv;
   let focus = null;
   if (thinking) { focus = new Set(stringsUsed(pl.piece, pl.auto.k * 2, pl.auto.k * 2 + 2)); }
   // press cues (oshide): for notes that ask for it, and for fingers actually pressing
@@ -169,8 +186,8 @@ export function renderPlay(ctx, st, L, view, meta, pauseItems, X) {
     const c = inst.pt(bu[e.s] - GEO.halfBand * 0.5, e.s);
     txt(ctx, e.p === 1 ? '+½' : '+1', c.x, c.y, clamp(inst.sp * 0.42, 13, 22), '#ffe9a8', { align: 'center', weight: 800, stroke: 4 });
   }
-  drawStrings(ctx, inst, sv, bu, { focus });
-  drawBridges(ctx, inst, bu, { hot: focus });
+  drawStrings(ctx, inst, sv, bu, { focus, flat: fa });
+  drawBridges(ctx, inst, bu, { hot: focus, flat: fa });
   for (let s = 0; s < NSTR; s++) { const p = inst.pt(GEO.uHit, s); drawTarget(ctx, p.x, p.y, r, pl.ss[s].flash, sv[s].glow * 0.8); }
 
   // notes and silences
@@ -198,8 +215,13 @@ export function renderPlay(ctx, st, L, view, meta, pauseItems, X) {
 
   // the teacher's fingertip
   const h = pl.hand;
-  if (thinking && pl.auto.phase === 'reveal' && cap.s !== null) { const p = inst.pt(GEO.uHit + 0.1, cap.s); drawFinger(ctx, p.x, p.y, { x: -inst.along.x, y: -inst.along.y }, 0.5 + 0.5 * Math.sin(st.t * 6), 0.6, clamp(inst.sp / 36, 0.7, 1.3)); }
-  else if (h.on) { const a = inst.pt(GEO.uHit + 0.1, Math.floor(h.sf)), b = inst.pt(GEO.uHit + 0.1, Math.ceil(h.sf)), k = h.sf - Math.floor(h.sf); drawFinger(ctx, a.x + (b.x - a.x) * k, a.y + (b.y - a.y) * k, { x: -inst.along.x, y: -inst.along.y }, h.down, h.down, clamp(inst.sp / 36, 0.7, 1.3)); }
+  // with 3D on, an ivory-tipped 3D tsume takes the fingertip's place (v3.tsume); only its glow is drawn here
+  const finger = (x, y, sf, down, glow) => {
+    if (v3.on) { v3.tsume = { sf, down, glow }; if (glow > 0.05) drawTipGlow(ctx, x, y, clamp(inst.sp / 36, 0.7, 1.3) * 34, glow); }
+    if (fa > 0) { ctx.save(); ctx.globalAlpha = fa; drawFinger(ctx, x, y, { x: -inst.along.x, y: -inst.along.y }, down, glow, clamp(inst.sp / 36, 0.7, 1.3)); ctx.restore(); }
+  };
+  if (thinking && pl.auto.phase === 'reveal' && cap.s !== null) { const p = inst.pt(GEO.uHit + 0.1, cap.s), d = 0.5 + 0.5 * Math.sin(st.t * 6); finger(p.x, p.y, cap.s, d, 0.6); }
+  else if (h.on) { const a = inst.pt(GEO.uHit + 0.1, Math.floor(h.sf)), b = inst.pt(GEO.uHit + 0.1, Math.ceil(h.sf)), k = h.sf - Math.floor(h.sf); finger(a.x + (b.x - a.x) * k, a.y + (b.y - a.y) * k, h.sf, h.down, h.down); }
 
   drawParticles(ctx, pl.parts);
   for (const p of pl.pops) drawPopup(ctx, p);
@@ -223,6 +245,12 @@ export function renderPlay(ctx, st, L, view, meta, pauseItems, X) {
   }
   if (thinking) { const tp = inst.pt(0.19, 6); drawThink(ctx, st, pl, inst, tp.x, tp.y); }
   if (pl.paused || pl.over) drawPauseMenu(ctx, st, L, pl, pauseItems(pl));
+}
+
+function drawTipGlow(ctx, x, y, r, a) {
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  const g = ctx.createRadialGradient(x, y, 1, x, y, r); g.addColorStop(0, `rgba(255,230,160,${0.55 * a})`); g.addColorStop(1, 'rgba(255,230,160,0)');
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill(); ctx.restore();
 }
 
 function drawStats(ctx, r, pl) {
@@ -257,7 +285,9 @@ export function renderFree(ctx, st, L, meta, X) {
   drawRoom(ctx, L.w + 4, L.h + 4);
   meta.previewBadge = { x: inst.r.x + inst.r.w / 2, y: inst.r.y + 6, align: 'center' };
   const sc = scaleById(f.scale);
-  if (F.hud === 'side') { panel(ctx, F.left, { fill: 'rgba(14,10,30,0.7)' }); edgeStroke(ctx, F.left, 24, 0.3); panel(ctx, F.right, { fill: 'rgba(14,10,30,0.7)' }); edgeStroke(ctx, F.right, 24, 0.3); }
+  v3.tsume = null;
+  if (F.hud === 'side') { if (v3.on) { plaque(ctx, F.left, 24); plaque(ctx, F.right, 24); } else { panel(ctx, F.left, { fill: 'rgba(14,10,30,0.7)' }); edgeStroke(ctx, F.left, 24, 0.3); panel(ctx, F.right, { fill: 'rgba(14,10,30,0.7)' }); edgeStroke(ctx, F.right, 24, 0.3); } }
+  else if (v3.on) { const y1 = F.cap ? F.cap.y + F.cap.h + 8 : F.exit.y + F.exit.h + 12; plaque(ctx, { x: S.x + 4, y: S.y + 2, w: S.w - 8, h: y1 - S.y - 4 }, 18); if (F.scale.y > F.cap?.y) plaque(ctx, { x: S.x + 4, y: F.scale.y - 10, w: S.w - 8, h: F.scale.h + 20 }, 18); }
   else { ctx.fillStyle = 'rgba(8,6,22,0.45)'; ctx.fillRect(S.x, S.y, S.w, F.cap ? F.cap.y + F.cap.h + 8 - S.y : F.exit.y + F.exit.h + 12 - S.y); }
   button(ctx, F.exit, 'Menu', { icon: 'back', kind: 'ghost', size: 26 });
   button(ctx, F.scale, f.custom ? `${sc.name} (retuned)` : sc.name, { kind: 'primary', size: 28, sub: 'Tap for the next tuning' });
@@ -277,11 +307,13 @@ export function renderFree(ctx, st, L, meta, X) {
       lines.forEach((ln, i) => txt(ctx, ln, r.x + r.w / 2, r.y + fz * 0.9 + i * fz * 1.25, fz, PAL.text, { align: 'center', weight: 500, maxW: r.w - 20 }));
     } else txt(ctx, `FREE PLAY · ${sc.blurb}`, infoR.x, infoR.y + infoR.h / 2, 21, PAL.text, { weight: 600, maxW: infoR.w });
   }
-  drawBody(ctx, inst, 1);
+  const fa = flatAlpha();
+  if (fa > 0) { ctx.save(); ctx.globalAlpha = fa; drawBody(ctx, inst, 1); ctx.restore(); }
   for (let s = 0; s < NSTR; s++) if (f.ss[s].press > 0) drawPress(ctx, inst, s, bu[s], f.ss[s].press, 1);
+  v3.bu = bu; v3.ss = f.ss;
   const dragging = new Set([...st.tv].length ? [] : []);
-  drawStrings(ctx, inst, f.ss, bu, {});
-  drawBridges(ctx, inst, bu, { hot: dragging });
+  drawStrings(ctx, inst, f.ss, bu, { flat: fa });
+  drawBridges(ctx, inst, bu, { hot: dragging, flat: fa });
   // pitch names above each bridge
   for (let s = 0; s < NSTR; s++) { const c = inst.pt(bu[s] - 0.026, s), semi = X.semiOf(f, s); txt(ctx, noteName(semi), c.x, c.y, clamp(inst.sp * 0.4, 12, 21), 'rgba(70,40,10,0.85)', { align: 'center', weight: 800 }); }
   drawParticles(ctx, f.parts);

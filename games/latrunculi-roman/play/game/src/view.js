@@ -1,6 +1,6 @@
 // Everything drawn each frame. Reads state, changes nothing. The board never moves: effects are local to a square.
 import {
-  W, H, setSize, DISPLAY, THEMES, themeById, text, rr, panel, button, background, icon, drawParticles, drawPiece, boardGeo, drawSlab, drawField,
+  W, H, setSize, DISPLAY, THEMES, themeById, text, rr, panel, button, background, icon, plaque, drawParticles, drawPiece, boardGeo, drawSlab, drawField,
   drawMiniBoard, drawCross, arrow, alpha, clamp01, ease, backOut,
 } from './art.js';
 import { TEXT_SCALES, wrap, tw, clampScroll } from './ui.js';
@@ -10,6 +10,7 @@ import { LESSONS, lessonTitle, lessonTask } from './lessons.js';
 import { tr, getRules, soldiersText, sideLabel, lvName, themeShort } from './content.js';
 import { SCREEN, TOOLBAR_IDS, host, playFrame, titleFrame } from './layout.js';
 import { drawLockup } from './brand.js';
+import { v3, flatAlpha } from './v3.js';
 import { THINK_STEPS } from './screens.js';
 import { CAP_T, targetsOf, previewMove, humanTurn } from './match.js';
 
@@ -54,11 +55,11 @@ function drawDocBlocks(ctx, S, ui, scroll) {
       drawArt(ctx, S, b.name, ox, top, it.w, b.h, b);
     } else if (b.t === 'btn') {
       const bt = it.btns[0];
-      button(ctx, th, { x: ox + bt.x, y: oy + bt.y, w: bt.w, h: bt.h }, it.lines, b.kind ?? 'normal', { size: it.size, line: it.line, sub: it.sub, disabled: bt.disabled, pressed: S.press && S.press.id === bt.id && S.press.active });
+      iconButton(ctx, S, th, { x: ox + bt.x, y: oy + bt.y, w: bt.w, h: bt.h }, it.lines, b.kind ?? 'normal', { size: it.size, line: it.line, sub: it.sub, disabled: bt.disabled, pressed: S.press && S.press.id === bt.id && S.press.active }, bt.icon);
     } else if (b.t === 'row') {
       for (const bt of it.btns) {
         if (bt.id == null) text(ctx, bt.label, ox + bt.x + bt.w / 2, oy + bt.y + bt.h / 2 + it.size * 0.34, it.size, th.ink, { weight: 700 });
-        else button(ctx, th, { x: ox + bt.x, y: oy + bt.y, w: bt.w, h: bt.h }, bt.lines, bt.kind ?? 'normal', { size: it.size, line: it.line, disabled: bt.disabled, pressed: S.press && S.press.id === bt.id && S.press.active });
+        else iconButton(ctx, S, th, { x: ox + bt.x, y: oy + bt.y, w: bt.w, h: bt.h }, bt.lines, bt.kind ?? 'normal', { size: it.size, line: it.line, disabled: bt.disabled, pressed: S.press && S.press.id === bt.id && S.press.active }, bt.icon);
       }
     }
   }
@@ -71,6 +72,26 @@ function drawDocBlocks(ctx, S, ui, scroll) {
     ctx.fillStyle = alpha(th.accent.length === 7 ? th.accent : '#e8c46a', 0.75);
     rr(ctx, region.x + region.w + 8, ty, 6, tH, 3); ctx.fill();
   }
+}
+
+// A menu button with a line icon before a one-line label (the icon group is centred). Longer labels and large text fall back to text only.
+function iconButton(ctx, S, th, r, lines, kind, o, ic) {
+  if (!ic || lines.length !== 1 || (o.sub && o.sub.length)) { button(ctx, th, r, lines, kind, o); if (ic && lines.length === 1 && o.sub && o.sub.length) drawIconBeside(ctx, th, r, lines[0], kind, o, ic); return; }
+  button(ctx, th, r, [], kind, o);
+  const ink = kind === 'primary' ? th.primaryInk : th.ink, size = o.size ?? 28, is = Math.min(size * 1.05, r.h * 0.5), lw = tw(lines[0], size);
+  if (lw + is + 16 > r.w - 24) { button(ctx, th, r, lines, kind, o); return; }
+  const x0 = r.x + (r.w - (is + 14 + lw)) / 2, yy = r.y + r.h / 2 + (o.pressed ? 2 : 0);
+  ctx.save(); if (o.disabled) ctx.globalAlpha = 0.38;
+  icon(ctx, ic, x0 + is / 2, yy, is, ink);
+  text(ctx, lines[0], x0 + is + 14, yy + size * 0.34, size, ink, { weight: 700, align: 'left' });
+  ctx.restore();
+}
+// A button with a sub line (Play with the demo count): the icon sits left of the label line.
+function drawIconBeside(ctx, th, r, label, kind, o, ic) {
+  const size = o.size ?? 28, is = Math.min(size * 0.95, r.h * 0.42), lw = tw(label, size), subs = o.sub.length;
+  const line = o.line ?? size * 1.22, total = line + subs * size * 0.78 + 4, ty = r.y + (r.h - total) / 2 + size * 0.9 - size * 0.34;
+  if (r.w / 2 - lw / 2 - is - 12 < 12) return;
+  icon(ctx, ic, r.x + r.w / 2 - lw / 2 - is / 2 - 12, ty + (o.pressed ? 2 : 0), is, kind === 'primary' ? th.primaryInk : th.ink);
 }
 
 function drawFixed(ctx, S, list) {
@@ -252,20 +273,21 @@ const ATTRACT_PLAN = (() => {
   return out;
 })();
 
-function drawAttract(ctx, S, A) {
+function drawAttract(ctx, S, A, hero = null) {
   const th = theme(S), t = S.t;
   const side = 400, bx = (720 - side) / 2, by = 368;
   const steps = ATTRACT_PLAN.length - 1;
   const cycle = steps * ATTRACT_STEP + 1.6;
   const tt = t % cycle;
   const geo = boardGeo(bx, by, side);
+  const fa = flatAlpha();
   ctx.save();
   ctx.translate(A.x, A.y); ctx.scale(A.s, A.s);
+  ctx.save(); ctx.globalAlpha = fa;
   const glow = ctx.createRadialGradient(360, by + side / 2, 30, 360, by + side / 2, 360);
   glow.addColorStop(0, th.glow); glow.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.fillStyle = glow; ctx.fillRect(0, by - 140, 720, side + 280);
-  drawSlab(ctx, th, bx, by, side);
-  drawField(ctx, th, geo);
+  if (fa > 0) { ctx.fillStyle = glow; ctx.fillRect(0, by - 140, 720, side + 280); drawSlab(ctx, th, bx, by, side); drawField(ctx, th, geo); }
+  ctx.restore();
   const k = Math.min(steps, Math.floor(tt / ATTRACT_STEP));
   const age = tt - k * ATTRACT_STEP;
   const tail = steps * ATTRACT_STEP + 0.8;
@@ -281,17 +303,26 @@ function drawAttract(ctx, S, A) {
     cells[mv.from] = 0;
     if (slideK >= 0.9) for (const c of next.st.last.captured) { ghosts.push({ cell: c, code: cells[c], k: clamp01((age - 0.25 - 0.4) / CAP_T) }); cells[c] = 0; }
   }
-  for (let i = 0; i < NN; i++) {
-    if (!cells[i]) continue;
-    const [cx, cy] = geo.centers[i];
-    drawPiece(ctx, th, cells[i], cx, cy, geo.d, { alpha: fade });
+  if (v3.on) {
+    // the 3D presenter draws the board and this little game on the marble tabula (hero rectangle in virtual units)
+    v3.frame = { kind: 'title', theme: S.themeId, hero: hero ?? { x: A.x + 30 * A.s, y: A.y + 330 * A.s, w: 660 * A.s, h: 440 * A.s },
+      att: { cells: cells.slice(), moving: moving ? { from: moving.mv.from, to: moving.mv.to, k: moving.k, code: moving.piece } : null, ghosts: ghosts.map((g) => ({ cell: g.cell, code: g.code, k: g.k })) } };
   }
-  for (const g of ghosts) { const [cx, cy] = geo.centers[g.cell]; drawPiece(ctx, th, g.code, cx, cy, geo.d, { alpha: fade * (1 - g.k), scale: 1 - 0.4 * g.k, noShadow: true }); }
-  if (moving) {
-    const [fx, fy] = geo.centers[moving.mv.from], [tx, ty] = geo.centers[moving.mv.to];
-    const e = moving.k * moving.k * (3 - 2 * moving.k);
-    drawPiece(ctx, th, moving.piece, fx + (tx - fx) * e, fy + (ty - fy) * e, geo.d, { alpha: fade, lift: Math.sin(moving.k * Math.PI) });
+  ctx.save(); ctx.globalAlpha = fa;
+  if (fa > 0) {
+    for (let i = 0; i < NN; i++) {
+      if (!cells[i]) continue;
+      const [cx, cy] = geo.centers[i];
+      drawPiece(ctx, th, cells[i], cx, cy, geo.d, { alpha: fade });
+    }
+    for (const g of ghosts) { const [cx, cy] = geo.centers[g.cell]; drawPiece(ctx, th, g.code, cx, cy, geo.d, { alpha: fade * (1 - g.k), scale: 1 - 0.4 * g.k, noShadow: true }); }
+    if (moving) {
+      const [fx, fy] = geo.centers[moving.mv.from], [tx, ty] = geo.centers[moving.mv.to];
+      const e = moving.k * moving.k * (3 - 2 * moving.k);
+      drawPiece(ctx, th, moving.piece, fx + (tx - fx) * e, fy + (ty - fy) * e, geo.d, { alpha: fade, lift: Math.sin(moving.k * Math.PI) });
+    }
   }
+  ctx.restore();
   const g = ctx.createLinearGradient(0, 110, 0, 300);
   g.addColorStop(0, light2(th.accent)); g.addColorStop(0.5, th.accent); g.addColorStop(1, '#9a7428');
   ctx.save();
@@ -310,16 +341,37 @@ const light2 = (c) => (c.length === 7 ? `rgb(${Math.min(255, parseInt(c.slice(1,
 
 function drawTitle(ctx, S, ui) {
   const T = ui.title ?? titleFrame(S.w, S.h);
-  background(ctx, theme(S), S.t, T.art.y + 560 * T.art.s, true, T.art.x + 360 * T.art.s);
-  drawAttract(ctx, S, T.art);
+  backdrop(ctx, S, () => background(ctx, theme(S), S.t, T.art.y + 560 * T.art.s, true, T.art.x + 360 * T.art.s));
+  if (v3.on) veil(ctx, T.art.x + 360 * T.art.s, T.art.y + 210 * T.art.s, 520 * T.art.s, T);
+  drawAttract(ctx, S, T.art, T.wide ? null : { x: T.U.x0 + 8, y: T.art.y + 330 * T.art.s, w: T.U.w - 16, h: Math.max(200, (ui.region ? ui.region.y : T.menu.y) - 18 - (T.art.y + 330 * T.art.s)) });
   drawDocBlocks(ctx, S, ui, S.scroll[ui.scrollKey] ?? 0);
   drawFixed(ctx, S, ui.fixed);
   drawLockup(ctx, T.lock, 0.9, Boolean(S.press && S.press.id === 'af:home' && S.press.active));
 }
 
+// The flat backdrop: drawn as before without 3D, faded out during the crossfade, then left to the 3D room.
+function backdrop(ctx, S, draw) {
+  const fa = flatAlpha();
+  if (fa <= 0) return;
+  ctx.save(); ctx.globalAlpha = fa; draw(); ctx.restore();
+}
+// A soft dark pool behind the gilded title lettering and under the menu so both read over the lit room.
+function veil(ctx, cx, cy, r, T) {
+  const g = ctx.createRadialGradient(cx, cy, r * 0.1, cx, cy, r);
+  g.addColorStop(0, 'rgba(6,4,4,0.62)'); g.addColorStop(1, 'rgba(6,4,4,0)');
+  ctx.fillStyle = g; ctx.fillRect(cx - r, cy - r, 2 * r, 2 * r);
+  if (T && T.menu) {
+    const m = T.menu, x0 = T.wide ? m.x - 30 : 0, ww = T.wide ? m.w + 60 : W, gy = ctx.createLinearGradient(0, m.y - 40, 0, m.y + 60);
+    gy.addColorStop(0, 'rgba(6,4,4,0)'); gy.addColorStop(1, 'rgba(6,4,4,0.5)');
+    ctx.fillStyle = gy; ctx.fillRect(x0, m.y - 40, ww, 100);
+    ctx.fillStyle = 'rgba(6,4,4,0.5)'; ctx.fillRect(x0, m.y + 60, ww, H);
+  }
+}
+const scrim = (ctx, a = 0.5) => { if (v3.on) { ctx.fillStyle = `rgba(8,6,6,${a})`; ctx.fillRect(0, 0, W, H); } };
+
 function drawDocScreen(ctx, S, ui) {
   const th = theme(S);
-  background(ctx, th, S.t);
+  backdrop(ctx, S, () => background(ctx, th, S.t)); scrim(ctx, 0.42);
   if (ui.panel) panel(ctx, th, ui.panel.x, ui.panel.y, ui.panel.w, ui.panel.h, {});
   drawDocBlocks(ctx, S, ui, S.scroll[ui.scrollKey] ?? 0);
   drawFixed(ctx, S, ui.fixed);
@@ -377,12 +429,7 @@ function drawHud(ctx, S, L, title, sub, showPause) {
 
 function drawPlate(ctx, S, r, who, name, sub, active) {
   const th = theme(S), z = TEXT_SCALES[S.textIdx];
-  ctx.save();
-  ctx.fillStyle = 'rgba(8,8,12,0.55)'; rr(ctx, r.x, r.y, r.w, r.h, 20); ctx.fill();
-  ctx.strokeStyle = active ? th.accent : 'rgba(255,255,255,0.14)'; ctx.lineWidth = active ? 3 : 1.5;
-  if (active) { ctx.shadowColor = alpha(th.accent.length === 7 ? th.accent : '#e8c46a', 0.7); ctx.shadowBlur = 16; }
-  rr(ctx, r.x, r.y, r.w, r.h, 20); ctx.stroke();
-  ctx.restore();
+  plaque(ctx, th, r, { active });
   const md = Math.min(r.h - 28, 74);
   drawPiece(ctx, th, who, r.x + 14 + md / 2, r.y + r.h / 2, md * 0.8, { noShadow: true, glow: active ? 0.4 : 0 });
   const tx = r.x + 24 + md, avail = r.w - md - 40;
@@ -395,10 +442,7 @@ function drawPlate(ctx, S, r, who, name, sub, active) {
 
 function drawStatus(ctx, S, r, head, body, col) {
   const th = theme(S), z = TEXT_SCALES[S.textIdx];
-  ctx.save();
-  ctx.fillStyle = 'rgba(8,8,12,0.6)'; rr(ctx, r.x, r.y, r.w, r.h, 22); ctx.fill();
-  ctx.strokeStyle = th.stroke; ctx.lineWidth = 1.5; rr(ctx, r.x, r.y, r.w, r.h, 22); ctx.stroke();
-  ctx.restore();
+  plaque(ctx, th, r, {});
   const pad = 22, w = r.w - pad * 2;
   const full = body ? `${head}\n${body}` : head;
   const f = fitText(full, w, r.h - 24, 32 * (1 + (z - 1) * 0.6), 16);
@@ -512,8 +556,52 @@ function drawBoardScene(ctx, S, M, geo, auto) {
     ctx.save(); ctx.strokeStyle = '#ff8a70'; ctx.globalAlpha = 0.9 * (1 - 0.3 * k); ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(cx, cy, geo.d * (1.1 - 0.42 * ease(k)), 0, Math.PI * 2); ctx.stroke(); ctx.restore();
   }
   ctx.restore();
-  drawParticles(ctx, M.parts);
+  if (!v3.on) drawParticles(ctx, M.parts);
 }
+// The same marks as drawBoardScene, handed to the 3D presenter (it lays them on the tilted marble). Pieces, taken soldiers,
+// the toppling dux and the particles are drawn by the presenter from the match itself.
+const rgbOf = (hex) => (hex.length === 7 ? `${parseInt(hex.slice(1, 3), 16)},${parseInt(hex.slice(3, 5), 16)},${parseInt(hex.slice(5, 7), 16)}` : '231,192,108');
+function pushMarks(S, M, auto) {
+  const th = theme(S), acc = rgbOf(th.accent.length === 7 ? th.accent : '#e8c46a'), red = '255,106,84', st = M.st, pl = pulse(S);
+  const mk = (i, type, rgb, a, grow) => { if (i >= 0) v3.marks.push({ i, type, rgb, a, grow }); };
+  const arw = (from, to, rgb, a = 0.95) => v3.arrows.push({ from, to, rgb, a });
+  if (M.last && !M.over && M.last.to >= 0) { mk(M.last.to, 'fill', acc, 0.2 + 0.08 * pl); mk(M.last.from, 'fill', acc, 0.12); }
+  if (M.lesson && M.lesson.marks && !M.over) for (const i of M.lesson.marks) { mk(i, 'fill', acc, 0.18 + 0.14 * pl); mk(i, 'ring', acc, 0.75 + 0.25 * pl, 0.86); }
+  const selected = M.sel >= 0 ? M.sel : -1;
+  if (selected >= 0 && !M.over) {
+    mk(selected, 'fill', acc, 0.3 + 0.12 * pl); mk(selected, 'glow', '255,214,140', 0.5 + 0.2 * pl);
+    for (const to of targetsOf(M)) {
+      const pv = previewMove(M, to), hit = pv.caps.length || pv.dux;
+      if (hit) { mk(to, 'fill', red, 0.28 + 0.1 * pl); mk(to, 'ring', red, 0.95, 0.9); mk(to, 'dot', red, 1); for (const c of pv.caps) mk(c, 'cross', red, 0.95); if (pv.dux) mk(st.cells.indexOf(DUX[other(st.turn)]), 'circle', red, 0.6 + 0.4 * pl, 1.15); }
+      else { mk(to, 'fill', acc, 0.12 + 0.06 * pl); mk(to, 'dot', acc, 0.95); }
+    }
+  }
+  if (S.kbd && humanTurn(M) && !M.over) mk(M.cur, 'ring', '255,255,255', 0.8, 0.98);
+  if (M.flash >= 0) mk(M.flash, 'fill', '255,106,90', 0.5 * clamp01(M.flashT / 0.3));
+  if (M.hint && !M.over) { const mv = M.hint.mv; mk(mv.to, 'fill', acc, 0.3 + 0.2 * pl); mk(mv.to, 'ring', acc, 0.6 + 0.4 * pl); mk(mv.from, 'ring', acc, 0.8); mk(mv.from, 'glow', '255,214,140', 0.6); arw(mv.from, mv.to, acc); }
+  if (auto && auto.phase === 'reveal' && auto.plan) {
+    const chosen = auto.plan.mv;
+    for (const o of auto.plan.options ?? []) mk(o.to, 'ring', '170,200,255', 0.5 + 0.15 * pl, 0.8);
+    mk(chosen.to, 'fill', acc, 0.35 + 0.2 * pl); mk(chosen.to, 'ring', acc, 0.7 + 0.3 * pl); mk(chosen.from, 'ring', acc, 0.85); mk(chosen.from, 'glow', '255,214,140', 0.5 + 0.4 * pl); arw(chosen.from, chosen.to, acc);
+  }
+  if (auto && auto.phase === 'think' && auto.scan != null) mk(auto.scan, 'fill', '255,255,255', 0.1 + 0.08 * pl);
+  const over = M.over;
+  if (over && over.winner) {
+    const enclosers = over.why === 'dux' && M.last ? ADJ[M.last.duxAt] : [];
+    for (let i = 0; i < NN; i++) if (SIDE[st.cells[i]] === over.winner) mk(i, 'glow', '255,214,140', (enclosers.includes(i) ? 0.75 : 0.4) + 0.25 * Math.sin(M.winT * 6 - (i % 5)), 1.2);
+  }
+  if (M.ghosts.length && M.last && M.last.captured && M.last.captured.length) {
+    const to = M.last.to, gk = clamp01(1 - (Math.max(...M.ghosts.map((g) => g.t - g.delay)) + 0.2) / (CAP_T + 0.2));
+    mk(to, 'circle', acc, 0.9 * gk, 0.9);
+    for (const c of M.last.captured) {
+      const beyond = c + (c - to);
+      const partner = beyond >= 0 && beyond < NN && ADJ[c].includes(beyond) && (Math.abs(c - to) === 8 || Math.floor(beyond / 8) === Math.floor(c / 8)) ? beyond : ADJ[c].find((j) => j !== to && SIDE[st.cells[j]] === SIDE[st.cells[to]]) ?? -1;
+      mk(partner, 'circle', acc, 0.9 * gk, 0.9);
+    }
+  }
+  if (M.enclose && over && over.why === 'dux') { const k = clamp01((M.enclose.t - M.enclose.delay) / 0.5); mk(M.enclose.cell, 'circle', red, 0.9 * (1 - 0.3 * k), 1.4 - 0.5 * ease(k)); }
+}
+
 const nudge = (a, b, pad) => {
   const dx = b[0] - a[0], dy = b[1] - a[1], len = Math.hypot(dx, dy) || 1;
   return [a[0] + (dx / len) * pad, a[1] + (dy / len) * pad, b[0] - (dx / len) * pad, b[1] - (dy / len) * pad];
@@ -596,8 +684,14 @@ function drawPlay(ctx, S) {
   const th = theme(S), M = S.match, z = TEXT_SCALES[S.textIdx];
   const auto = S.scene === 'auto' ? S.auto : null;
   const lay = playFrame(S.w, S.h, z);
-  background(ctx, th, S.t, lay.board.y + lay.board.side / 2, false, lay.board.x + lay.board.side / 2);
-  for (const c of lay.cards) { ctx.fillStyle = 'rgba(8,8,12,0.28)'; rr(ctx, c.x, c.y, c.w, c.h, 24); ctx.fill(); ctx.strokeStyle = th.stroke; ctx.globalAlpha = 0.5; ctx.lineWidth = 1.5; rr(ctx, c.x, c.y, c.w, c.h, 24); ctx.stroke(); ctx.globalAlpha = 1; }
+  backdrop(ctx, S, () => background(ctx, th, S.t, lay.board.y + lay.board.side / 2, false, lay.board.x + lay.board.side / 2));
+  if (v3.on && lay.mode === 'stack') {
+    // the room stays visible around the board; a soft shade at the top and bottom keeps the HUD readable
+    const tg = ctx.createLinearGradient(0, 0, 0, lay.board.y), bg = ctx.createLinearGradient(0, lay.status.y - 40, 0, H);
+    tg.addColorStop(0, 'rgba(6,4,4,0.7)'); tg.addColorStop(1, 'rgba(6,4,4,0)'); bg.addColorStop(0, 'rgba(6,4,4,0)'); bg.addColorStop(1, 'rgba(6,4,4,0.72)');
+    ctx.fillStyle = tg; ctx.fillRect(0, 0, W, lay.board.y); ctx.fillStyle = bg; ctx.fillRect(0, lay.status.y - 40, W, H);
+  }
+  for (const c of lay.cards) plaque(ctx, th, c, { faint: true });
   const title = M.lesson ? lessonTitle(M.lesson) : tr('latrunculorum');
   const quiet = !M.lesson ? tr('noCapture', { q: M.st.quiet, m: QUIET_LIMIT }) : '';
   const sub = M.lesson ? tr('lessonOf', { n: S.lessonIdx + 1, m: LESSONS.length }) : auto ? tr('watchSub', { n: THINK_STEPS[S.thinkIdx] }) + quiet : (M.two ? tr('twoPlayers') : tr('vsLevel', { level: lvName(M.level) })) + quiet;
@@ -614,7 +708,12 @@ function drawPlay(ctx, S) {
   drawPlate(ctx, S, lay.chips[0], bottomSide, nameOf(M, bottomSide), plateSub(bottomSide), toMove === bottomSide);
   drawPlate(ctx, S, lay.chips[1], other(bottomSide), nameOf(M, other(bottomSide)), plateSub(other(bottomSide)), toMove === other(bottomSide));
   const geo = boardGeo(lay.board.x, lay.board.y, lay.board.side, Boolean(M.flip));
-  drawBoardScene(ctx, S, M, geo, auto);
+  if (v3.on) {
+    v3.frame = { kind: 'board', theme: S.themeId, M, flip: Boolean(M.flip), rect: lay.board, wide: lay.mode === 'wide', sel: M.over ? -1 : M.sel, over: Boolean(M.over) };
+    pushMarks(S, M, auto);
+  }
+  const fa = flatAlpha();
+  if (fa > 0) { ctx.save(); ctx.globalAlpha = fa; drawBoardScene(ctx, S, M, geo, auto); ctx.restore(); }
   const { head, body } = statusText(S, M, auto);
   drawStatus(ctx, S, lay.status, head, body, null);
   if (auto && auto.phase === 'think' && !auto.paused) {
@@ -628,20 +727,21 @@ function drawPlay(ctx, S) {
 export function render(ctx, S, ui) {
   setSize(S.w ?? SCREEN.width, S.h ?? SCREEN.height);
   ctx.textBaseline = 'alphabetic';
+  v3.frame = { kind: 'env', theme: S.themeId };
   switch (S.scene) {
     case 'title': drawTitle(ctx, S, ui); break;
     case 'setup': case 'learn': case 'howto': case 'rules': case 'about': case 'settings': drawDocScreen(ctx, S, ui); break;
     case 'demo-limit':
-      background(ctx, theme(S), S.t);
+      backdrop(ctx, S, () => background(ctx, theme(S), S.t)); scrim(ctx, 0.42);
       panel(ctx, theme(S), ui.panel.x, ui.panel.y, ui.panel.w, ui.panel.h, {});
       drawDocBlocks(ctx, S, ui, S.scroll[ui.scrollKey] ?? 0);
       drawFixed(ctx, S, ui.fixed);
       break;
     case 'play': case 'auto':
-      if (!S.match) { background(ctx, theme(S), S.t); break; }
+      if (!S.match) { backdrop(ctx, S, () => background(ctx, theme(S), S.t)); break; }
       drawPlay(ctx, S);
       break;
-    default: background(ctx, theme(S), S.t);
+    default: backdrop(ctx, S, () => background(ctx, theme(S), S.t));
   }
   if (S.overlay) drawOverlay(ctx, S, ui);
 }

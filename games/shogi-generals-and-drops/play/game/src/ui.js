@@ -13,8 +13,9 @@ export function titleGeom(s, L = DEFAULT_L()) {
   let y = T.listY;
   const full = (id, label, o = {}) => { out.push({ id, label, x, y, w: fw, h: bh, ...o }); y += p; };
   const half = (idL, lL, idR, lR, oL = {}, oR = {}) => { out.push({ id: idL, label: lL, x, y, w: hw, h: bh, ...oL }, { id: idR, label: lR, x: x + hw + 16, y, w: hw, h: bh, ...oR }); y += p; };
-  if (s.saved) { full('continue', 'Continue game', { primary: true }); full('play', 'New game vs computer'); }
-  else full('play', 'Play the computer', { primary: true });
+  const hero = (id, label) => { const hh = T.c3 ? T.playH : bh; out.push({ id, label, x, y, w: fw, h: hh, primary: true, hero: !!T.c3 }); y += hh + (p - bh); };
+  if (s.saved) { hero('continue', 'Continue game'); full('play', 'New game vs computer'); }
+  else hero('play', 'Play the computer');
   half('learn', 'Learn to play', 'puzzle', 'Puzzle of the day');
   half('mini', 'Mini shogi 5x5', 'two', 'Two players');
   { const tw = (fw - 32) / 3; out.push({ id: 'howto', label: 'How to play', x, y, w: tw, h: bh }, { id: 'about', label: 'About shogi', x: x + tw + 16, y, w: tw, h: bh }, { id: 'rules', label: 'Rules', x: x + (tw + 16) * 2, y, w: tw, h: bh }); y += p; }

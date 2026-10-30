@@ -7,7 +7,7 @@
 import { hooks } from '../src/hooks.js';
 import { buildWorld } from './world.js';
 import { buildClub, CLUB_LEN, HEAD_AT } from './club.js';
-import { createHand } from './hand3d.js';
+import { buildHandGeometry, createGripHand, skinMaterial, nailMaterial, GRIP_SOLVED } from './handmesh.js';
 
 const LIB = '../vendor3d/index.js';
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -15,6 +15,8 @@ const HAND_Y = 1.3;        // metres: height of the pad's centre line (the sim's
 const HAND_Z = 0.3;        // metres in front of the body
 const CAM_Z = 5.4, CAM_Y = 2.3;   // camera: 5.4 m away, 2.3 m up, looking straight ahead (lens shifted, so the hand plane stays exactly parallel)
 const GRIP_S = 0.2;        // where along the club (0 knob .. 1 end) the hand holds the neck
+const HAND_SCALE = 1.08;   // the modelled hand (17.6 cm) scaled to a 1.75 m man (19 cm); its handle radius then matches the club neck (1.5 cm)
+const HAND_SKIN = '#7c4c32';   // the athlete's 'brown' skin tone
 const TAU = Math.PI * 2;
 
 export async function createPresenter() {
@@ -22,7 +24,7 @@ export async function createPresenter() {
   let V3;
   try { V3 = await import(LIB); } catch (e) { console.warn('view3d failed to load; using the 2D scene', e); return off; }
   const { createStage, loadHuman, THREE, CLIP_BONES } = V3;
-  const { semanticRot } = V3;
+  const { semanticRot, handQuat } = V3;
   const doc = document;
 
   const canvas = doc.createElement('canvas');
@@ -40,6 +42,9 @@ export async function createPresenter() {
   stage.setShadowTarget(0, 1, 0);
   stage.setSky?.(null, null);
 
+  // the modelled hands mesh while the athlete loads (it yields to the page between slabs)
+  const handGeoP = buildHandGeometry({ voxel: 0.26, skin: HAND_SKIN, armEnd: 8, solved: GRIP_SOLVED, yieldMs: 8 });
+  handGeoP.catch(() => {});
   // ---- world + athlete
   let world;
   try { world = buildWorld(V3, stage); } catch (e) { console.warn('view3d world failed; using the 2D scene', e); stage.dispose(); canvas.remove(); return off; }
@@ -82,9 +87,17 @@ export async function createPresenter() {
     for (const s of ['L', 'R']) { human.bonePosition(`${s}_Foot`, v); ankle[s] = v.clone(); ankle[s].x = (s === 'L' ? 1 : -1) * 0.15; ankle[s].z = 0.02; }
   }
 
-  // ---- hands: the athlete's own hands, driven through the hand3d module (finger curl presets + palm/finger frame math)
-  const hands = {};
-  for (const s of ['L', 'R']) { hands[s] = await createHand(V3, { human, side: s }); hands[s].setPreset('gripRod'); }
+  // ---- hands: a modelled adult hand closed round each handle (handmesh.js: jointed fingers and thumb solved onto the wood, nails, skin
+  // shading). The body's own low-poly hands are folded away into the wrist (hand bone scaled to nothing); the arm reaches its wrist to the
+  // modelled hand's wrist, the elbow following the line of the modelled forearm.
+  let handGeo;
+  try { handGeo = await handGeoP; } catch (e) { console.warn('hand model failed; using the 2D scene', e); stage.dispose(); canvas.remove(); return off; }
+  const hands = {}, nailM = nailMaterial();
+  for (const s of ['L', 'R']) {
+    hands[s] = createGripHand(handGeo, s, { scale: HAND_SCALE, skinMat: skinMaterial(), nailMat: nailM });
+    scene.add(hands[s].object);
+    human.bones[`Bip01_${s}_Hand`].scale.setScalar(0.001);
+  }
 
   // ---- clubs (+ trails)
   const clubs = [buildClub(V3, doc, 0), buildClub(V3, doc, 1)];   // 0 = lead (athlete's left hand, screen right), 1 = second
@@ -157,8 +170,11 @@ export async function createPresenter() {
   // ---- smoothed body state
   const sm = { lean: 0, dip: 0.3, twist: 0, raise: 0, headX: 0, speed: 0, breath: 0, weight: 0, flex: 0 };
   const tmp = { a: new THREE.Vector3(), b: new THREE.Vector3(), c: new THREE.Vector3(), d: new THREE.Vector3(), s: new THREE.Vector3(), t: new THREE.Vector3() };
-  const handQ = { L: new THREE.Quaternion(), R: new THREE.Quaternion() }, roll = { L: 0, R: 0 }, rollV = { L: 0, R: 0 }, rollTarget = { L: 0, R: 0 };
-  let lastPulse = 0, lastWeightSide = 0, handInit = false;
+  const roll = { L: 0, R: 0 }, rollV = { L: 0, R: 0 }, rollTarget = { L: 0, R: 0 };
+  const hv = { w: new THREE.Vector3(), fa: new THREE.Vector3(), fx: new THREE.Vector3(), pn: new THREE.Vector3(), z: new THREE.Vector3(), e: new THREE.Vector3(), c2: new THREE.Vector3(), b: new THREE.Vector3() };
+  tmp.e3 = new THREE.Vector3();
+  const rollInit = { L: false, R: false };
+  let lastPulse = 0, lastWeightSide = 0;
   const clubAng = [null, null]; let headS = null;
   const toW = (f, px, py, out) => out.set((px - f.cx) / f.R, HAND_Y - (py - f.cy) / f.R, HAND_Z);
 
@@ -209,36 +225,39 @@ export async function createPresenter() {
       club.position.set(H.x - dx * HEAD_AT * CLUB_LEN, H.y - dy * HEAD_AT * CLUB_LEN, HAND_Z);
       club.rotation.set(0, 0, Math.atan2(dy, dx) - Math.PI / 2);
       club.userData.mat.emissiveIntensity = (i === 0 ? (f.glow || 0) : (f.glow || 0) * 0.6) * 0.55 + 0.04 * (f.pulse || 0);
-      // hand: back of the hand faces outward, fingers run toward the viewer, wrapped round the neck
       const side = i === 0 ? 'L' : 'R', hand = hands[side];
       const ax = tmp.b.set(dx, dy, 0).normalize();
       const out = side === 'L' ? 1 : -1;
-      const fromBase = tmp.c.set(ax.y, -ax.x, 0);                       // ax x zc: the back-of-hand direction for fingers toward +z
-      // the grip flips side only well past horizontal (hysteresis); the wrist ROLLS there (a continuous angle about the club), never snaps
-      let want = rollTarget[side];
-      if (fromBase.x * out * (want ? -1 : 1) < -0.35) want = 1 - want;
-      rollTarget[side] = want;
-      { // critically damped spring (omega 11 rad/s): the roll eases in and out, no velocity step
-        const om = 11, tg = want ? Math.PI : 0, n = Math.max(1, Math.ceil(dt / 0.008)), h = dt / n;
-        for (let s2 = 0; s2 < n; s2++) { rollV[side] += (om * om * (tg - roll[side]) - 2 * om * rollV[side]) * h; roll[side] += rollV[side] * h; }
-      }
-      const cph = Math.cos(roll[side]), sph = Math.sin(roll[side]);
-      const from = tmp.s.set(fromBase.x * cph, fromBase.y * cph, -sph).clone();
       const centre = tmp.d.set(club.position.x + ax.x * GRIP_S * CLUB_LEN, club.position.y + ax.y * GRIP_S * CLUB_LEN, HAND_Z);
-      hand.gripCylinder({ radius: 0.017, axis: ax, center: centre, from, thumbSide: 1 });
-      // finger pressure: a tighter hold on fast turns, a looser one at rest
-      const tight = clamp(0.62 + 0.05 * sm.speed, 0.6, 0.85);
-      hand.setPose({ index: tight, middle: tight + 0.02, ring: tight + 0.05, pinky: tight + 0.07, thumb: 0.5 + 0.2 * (tight - 0.6) / 0.25 });
-      // smooth the hand orientation (a rod turning through horizontal flips the grip side: let the wrist roll there instead of snapping)
-      const pl = hand.placement;
-      if (!handInit) handQ[side].copy(pl.q); else handQ[side].slerp(pl.q, k(0.03));
-      pl.q.copy(handQ[side]);
-      // elbow: a pole below and outside the midpoint of shoulder and wrist
-      const sh = human.bonePosition(`${side}_UpperArm`, tmp.s), w = pl.wrist;
-      const pole = tmp.t.set((sh.x + w.x) / 2 + out * 0.2, Math.min(sh.y, w.y) - 0.22, (sh.z + w.z) / 2 - 0.12);
-      hand.apply(pole);
+      // the modelled hand sits ON the handle (its solved grip round the neck at GRIP_S). Its only free choice is the ROLL about the club:
+      // pick the roll that points the modelled forearm at a natural elbow (outside and below the shoulder-wrist midpoint), then let the
+      // wrist roll there on a critically damped spring (a continuous angle, never a snap, also where the club turns through horizontal)
+      const fromBase = tmp.c.set(ax.y, -ax.x, 0);                       // reference: in the picture plane, perpendicular to the club
+      const zc = hv.z.crossVectors(ax, fromBase);
+      hand.place(ax, centre, fromBase);
+      const w = hand.wrist(hv.w), fa0 = hand.forearmDir(hv.fa);
+      const sh = human.bonePosition(`${side}_UpperArm`, tmp.s);
+      // elbow target: where the arm's elbow actually is (last frame's IK), so hand and forearm meet in a line; a natural guess on frame 1
+      const el = rollInit[side] ? human.bonePosition(`${side}_Forearm`, hv.e).sub(w) : hv.e.set((sh.x + w.x) / 2 + out * 0.13, (sh.y + w.y) / 2 - 0.1, (sh.z + w.z) / 2 - 0.06).sub(w);
+      const pa = fa0.addScaledVector(ax, -fa0.dot(ax)), pd = el.addScaledVector(ax, -el.dot(ax));
+      if (pa.lengthSq() > 1e-6 && pd.lengthSq() > 4e-4) {
+        let tg = Math.atan2(hv.c2.crossVectors(pa, pd).dot(ax), pa.dot(pd));
+        tg += Math.round((roll[side] - tg) / TAU) * TAU;                // unwrapped next to the current angle
+        rollTarget[side] = tg;
+      }
+      if (!rollInit[side]) { roll[side] = rollTarget[side]; rollV[side] = 0; rollInit[side] = true; }
+      { // critically damped spring (omega 12 rad/s): the roll eases in and out, no velocity step
+        const om = 12, n = Math.max(1, Math.ceil(dt / 0.008)), h = dt / n;
+        for (let s2 = 0; s2 < n; s2++) { rollV[side] += (om * om * (rollTarget[side] - roll[side]) - 2 * om * rollV[side]) * h; roll[side] += rollV[side] * h; }
+      }
+      const back = hv.b.copy(fromBase).multiplyScalar(Math.cos(roll[side])).addScaledVector(zc, Math.sin(roll[side]));
+      hand.place(ax, centre, back);
+      // the arm: wrist to the hand's wrist, palm/fingers frame for the forearm twist; the roll above turns the hand to the elbow
+      hand.wrist(w);
+      const pole = tmp.t.set((sh.x + w.x) / 2 + out * 0.2, Math.min(sh.y, w.y) - 0.22, (sh.z + w.z) / 2 - 0.12);   // elbow below and outside (as before)
+      const q = handQuat(human, side, hand.backDir(hv.pn).negate(), hand.fingersDir(hv.fx));
+      human.setReach(side, w, { weight: 1, pole, quat: q });
     }
-    handInit = true;
 
     // ---- head follows the lead club (eyes on the work), a little lag
     toW(f, f.lead.hx, f.lead.hy, tmp.a); tmp.a.z = 0.6;
@@ -319,6 +338,7 @@ export async function createPresenter() {
     setCamera(f.w, f.h, f.cx, f.cy, f.R);
     poseAndRender(f, dt);
     stage.update(dt, { renderNow: false });
+    for (const s of ['L', 'R']) hands[s].bendTo(human.bonePosition(`${s}_Forearm`, tmp.e3));   // the wrist joint follows the arm's solved elbow
     sash(dt);
     stage.render();
     return true;

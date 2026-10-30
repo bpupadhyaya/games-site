@@ -12,7 +12,7 @@ import { render } from './view.js';
 export { meta };
 export const wheelInput = { dy: 0 };
 
-const VERSION = '1.0.0';
+const VERSION = '1.1.0';
 const COMMIT_ANGLE = 1.75;          // radians turned (about 100 degrees) after which a released flap falls shut
 const NEAT_TOL = 0.15;              // sheet widths: a finger this far from the landing ring scores 0
 const AUTO_MODELS = ['kite', 'puppy'];

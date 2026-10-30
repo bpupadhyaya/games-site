@@ -13,7 +13,7 @@ const KITS = [
   { top: '#d9382c', bottoms: '#f2f2f2', socks: '#d9382c', shoes: '#f2f2f2', trim: '#ffffff' },
   { top: '#2a63cc', bottoms: '#f2f2f2', socks: '#2a63cc', shoes: '#f2f2f2', trim: '#ffffff' },
 ];
-const SKINS = ['peach', 'clay', 'wood', 'tan', 'brown', 'deep', 'ivory', 'tan', 'clay', 'brown', 'peach', 'deep'];
+const SKINS = ['peach', 'clay', 'wood', 'tan', 'brown', 'deep', 'light', 'tan', 'clay', 'brown', 'peach', 'deep'];
 const HAIRS = ['black', 'brown', 'black', 'blond', 'brown', 'black', 'ginger', 'black', 'brown', 'black', 'grey', 'black'];
 export const BALL_R = 0.095 * BALL_VIS;
 export const CD = BALL_R + 0.02;                       // palm-centre distance from the ball centre when a hand is on the ball
@@ -61,8 +61,8 @@ export async function createPresenter({ kitCanvas, meta = { width: 720, height: 
   async function loadPlayers(women) {
     if (loading) return; loading = true;
     try {
-      const ch = women ? 'mannequin_f' : 'mannequin_m';
-      const hs = await Promise.all(Array.from({ length: 12 }, (_, i) => loadHuman({ character: ch, kit: KITS[i < 6 ? 0 : 1], skin: SKINS[i], hair: HAIRS[i], quality, silhouette: 0.75, stripes: true, decal: String((i % 6) + 1) })));
+      const ch = women ? 'athlete_f' : 'athlete_m';
+      const hs = await Promise.all(Array.from({ length: 12 }, (_, i) => loadHuman({ character: ch, top: 'long', kit: KITS[i < 6 ? 0 : 1], skin: SKINS[i], hair: HAIRS[i], quality, silhouette: 0.75, stripes: true, decal: String((i % 6) + 1) })));
       if (list) for (const e of list) stage.remove(e.human);
       list = hs.map((h, i) => {
         addFootyClips(h);
@@ -78,7 +78,7 @@ export async function createPresenter({ kitCanvas, meta = { width: 720, height: 
         return { human: h, id: i, ctrl: { mode: '', until: -1, act: -9, partner: -1, held: false }, prev: null, cur: null, jr: 0 };
       });
       if (ref) stage.remove(ref.human);
-      { const rh = await loadHuman({ character: ch, kit: { top: '#f2c200', bottoms: '#1c1c1c', socks: '#1c1c1c', shoes: '#111111', trim: '#1c1c1c' }, skin: 'tan', hair: 'grey', quality }); if (quality !== 'high') rh.setLOD(quality === 'low' ? 2 : 1); rh.root.scale.setScalar(BS); rh.groundClamp = 'auto'; rh.footPlanting = true; rh.play('idle_relaxed', { fade: 0, loop: true }); stage.add(rh); ref = { human: rh, x: 0, z: -4 }; }
+      { const rh = await loadHuman({ character: ch, top: 'long', kit: { top: '#f2c200', bottoms: '#1c1c1c', socks: '#1c1c1c', shoes: '#111111', trim: '#1c1c1c' }, skin: 'tan', hair: 'grey', quality }); if (quality !== 'high') rh.setLOD(quality === 'low' ? 2 : 1); rh.root.scale.setScalar(BS); rh.groundClamp = 'auto'; rh.footPlanting = true; rh.play('idle_relaxed', { fade: 0, loop: true }); stage.add(rh); ref = { human: rh, x: 0, z: -4 }; }
       builtKind = women ? 'f' : 'm'; ready = true;
       try { stage.renderer.compile?.(stage.scene, camera); } catch { /* optional */ }
       stage.invalidate();

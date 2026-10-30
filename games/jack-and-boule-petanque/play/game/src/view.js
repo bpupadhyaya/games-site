@@ -6,6 +6,7 @@ import { startBake, BAKE_BG, BAKE_NEED, drawBoule, drawJack, dustSprite, bouleSp
 import { PULL, THINK_STEPS, applyStage } from './layout.js';
 import { FONT, C, roundPath, drawButton, paintButton, panel, textShadow, wrapLines } from './ui.js';
 import { PROFILES } from './opponents.js';
+import { v3 } from './v3.js';
 
 const TAU = Math.PI * 2;
 const pitchCache = new Map();
@@ -127,7 +128,7 @@ function drawSling(ctx, state, humanTurn) {
   }
   const lp = project(-30, -4, 0), rp = project(30, -4, 0), lt = project(-30, -4, 40), rt = project(30, -4, 40);
   // posts
-  for (const [a, b] of [[lp, lt], [rp, rt]]) {
+  if (!v3.on) for (const [a, b] of [[lp, lt], [rp, rt]]) {
     const g = ctx.createLinearGradient(a.x - 6, 0, a.x + 6, 0);
     g.addColorStop(0, '#6a4a2c'); g.addColorStop(0.5, '#b88a58'); g.addColorStop(1, '#4e341c');
     ctx.strokeStyle = g; ctx.lineWidth = 11 * (a.s / 3.3); ctx.lineCap = 'round';
@@ -151,6 +152,7 @@ function drawSling(ctx, state, humanTurn) {
   // shadow of the held boule
   const side = state.m.turn;
   const rpx = R_B * base.s * 1.0;
+  if (v3.on) { v3.held = { sx: bx, sy: by, team: side, jack: state.m.phase === 'jack' }; return { bx, by }; }
   shadowGrad(ctx, bx + rpx * 0.5, by + rpx * 1.2 + (dr ? 0 : 6), rpx * 1.1, rpx * 0.55, 0.38);
   // pouch + ball
   ctx.fillStyle = '#4a2e1a'; ctx.beginPath(); ctx.ellipse(bx, by + rpx * 0.15, rpx * 1.15, rpx * 0.95, 0, 0, TAU); ctx.fill();
@@ -168,7 +170,7 @@ function drawSnap(ctx, state) {
   const k = Math.exp(-7 * sn.t) * Math.cos(26 * sn.t);
   const f = Math.min(1, PULL.max / Math.max(1, sn.len));
   const bx = base.x - sn.vx * PULL.draw * f * k * 0.35, by = base.y - sn.vy * PULL.draw * f * k * 0.35;
-  for (const [a, b] of [[project(-30, -4, 0), lp], [project(30, -4, 0), rp]]) {
+  if (!v3.on) for (const [a, b] of [[project(-30, -4, 0), lp], [project(30, -4, 0), rp]]) {
     const g = ctx.createLinearGradient(a.x - 6, 0, a.x + 6, 0);
     g.addColorStop(0, '#6a4a2c'); g.addColorStop(0.5, '#b88a58'); g.addColorStop(1, '#4e341c');
     ctx.strokeStyle = g; ctx.lineWidth = 11 * (a.s / 3.3); ctx.lineCap = 'round';
@@ -205,15 +207,24 @@ function drawHud(ctx, state, L, t) {
     const y1 = P.cards[0].y + 126;
     const g = ctx.createLinearGradient(0, 0, 0, y1);
     g.addColorStop(0, 'rgba(24,14,6,0.78)'); g.addColorStop(0.8, 'rgba(24,14,6,0.5)'); g.addColorStop(1, 'rgba(24,14,6,0)');
-    ctx.fillStyle = g; ctx.fillRect(0, 0, w, y1);
+    if (!v3.on) { ctx.fillStyle = g; ctx.fillRect(0, 0, w, y1); }
   }
   for (const side of [0, 1]) {
     const r = P.cards[side], active = m.turn === side && (m.phase === 'aim' || m.phase === 'jack');
     const small = r.w < 250, bs = small ? 26 : 30, bstep = small ? 30 : 34;
     ctx.save();
     roundPath(ctx, r.x, r.y, r.w, r.h, 22);
-    ctx.fillStyle = active ? 'rgba(255,240,204,0.2)' : 'rgba(255,240,204,0.08)'; ctx.fill();
-    ctx.lineWidth = active ? 3 : 1.5; ctx.strokeStyle = active ? 'rgba(255,214,120,0.95)' : 'rgba(255,240,204,0.25)'; ctx.stroke();
+    if (v3.on) {
+      // plaque: dark walnut with a brass rim, lit from above
+      const pg = ctx.createLinearGradient(0, r.y, 0, r.y + r.h);
+      pg.addColorStop(0, active ? '#5a3a20' : '#42291a'); pg.addColorStop(1, active ? '#3a2312' : '#281810');
+      ctx.fillStyle = pg; ctx.fill();
+      ctx.lineWidth = active ? 3.5 : 2; ctx.strokeStyle = active ? '#f0c060' : '#9a7a44'; ctx.stroke();
+      roundPath(ctx, r.x + 5, r.y + 5, r.w - 10, r.h - 10, 17); ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(255,224,160,0.18)'; ctx.stroke();
+    } else {
+      ctx.fillStyle = active ? 'rgba(255,240,204,0.2)' : 'rgba(255,240,204,0.08)'; ctx.fill();
+      ctx.lineWidth = active ? 3 : 1.5; ctx.strokeStyle = active ? 'rgba(255,214,120,0.95)' : 'rgba(255,240,204,0.25)'; ctx.stroke();
+    }
     ctx.restore();
     ctx.textBaseline = 'middle';
     const left = side === 0 || L.wide;
@@ -446,9 +457,10 @@ function stepJob(ctx, T, ms, f = 1) {
 // Screenshot mode (?shot=1) draws only a few frames, so there bake the whole pitch at once, no loading beat.
 const SHOT_MODE = (() => { try { return /[?&]shot=/.test(globalThis.location.search); } catch { return false; } })();
 let curF = 1;
-const ensurePitch = (ctx, T) => stepJob(ctx, T, SHOT_MODE ? Infinity : BAKE_NEED, curF);
+const ensurePitch = (ctx, T) => (v3.on ? 'v3' : stepJob(ctx, T, SHOT_MODE ? Infinity : BAKE_NEED, curF));
 // Called once per frame after drawing: spend a few idle ms baking pitches the game will need soon.
 export function warmPitches(ctx, list, L) {
+  if (v3.on) return;
   if (L) { setStage(L.cam); curF = L.stage.f; }
   if (steppedThisFrame) { steppedThisFrame = false; return; }
   for (const T of list) {
@@ -479,8 +491,10 @@ export function inStage(ctx, L, fn) {
 export function drawWorldLayer(ctx, state, w, parts, o = {}) {
   const T = w.terrain, t = state.t;
   const sprite = ensurePitch(ctx, T);
-  if (sprite) { lastSprite = sprite; lastSpriteT = T; }
-  if (!sprite) {
+  v3.world = w;
+  if (sprite && sprite !== 'v3') { lastSprite = sprite; lastSpriteT = T; }
+  if (sprite === 'v3') { /* the WebGL scene paints the pitch, the backdrop and the balls */ }
+  else if (!sprite) {
     if (sprite === null) {
       // baking for this stage: keep showing the previous sprite of this pitch (stretched), else the loading screen
       if (lastSprite && lastSpriteT === T) { ctx.drawImage(lastSprite, 0, 0, W, H); }
@@ -516,7 +530,7 @@ export function drawWorldLayer(ctx, state, w, parts, o = {}) {
     o.alts.slice(1).forEach((a) => { if (a.rest) groundRing(ctx, a.rest.x, a.rest.y, R_B * 1.1, 'rgba(255,246,226,0.5)', 2.5); });
   }
   const order = w.balls.slice().sort((a, b) => b.y - a.y);
-  for (const b of order) drawGroundShadow(ctx, b);
+  if (!v3.on) for (const b of order) drawGroundShadow(ctx, b);
   const jack = theJack(w);
   if (jack && !o.noRing) {
     const calm = state.settings.calm;
@@ -540,8 +554,7 @@ export function drawWorldLayer(ctx, state, w, parts, o = {}) {
   for (const b of order) {
     const s = ballScreen(b);
     const alpha = b.out ? Math.max(0, 1 - b.fade) : 1;
-    if (b.k) drawJack(ctx, s.x, s.y, s.r, alpha);
-    else drawBoule(ctx, b.team, s.x, s.y, s.r, b.n, alpha);
+    if (!v3.on) { if (b.k) drawJack(ctx, s.x, s.y, s.r, alpha); else drawBoule(ctx, b.team, s.x, s.y, s.r, b.n, alpha); }
     if (o.mark && o.mark === b.id) {
       ctx.strokeStyle = 'rgba(255,230,120,0.95)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(s.x, s.y, s.r + 6 + Math.sin(t * 6) * 2, 0, TAU); ctx.stroke();
     }
@@ -557,6 +570,7 @@ export function worldBackdrop(ctx, L, state, w, parts, o = {}) {
 
 export function renderPlay(ctx, state, L) {
   const m = state.m, t = state.t, P = L.play;
+  v3.held = null;
   const ok = inStage(ctx, L, () => {
     const okk = drawWorldLayer(ctx, state, state.w, state.parts, {
       zone: m.phase === 'jack' && state.humanTurn, holding: m.phase === 'aim' || m.phase === 'score', guide: state.guide, hint: state.hint, mark: state.mark, alts: state.alts,

@@ -4,7 +4,7 @@
   "tagline": "Japan's game of generals and drops",
   "genre": "board",
   "orientation": "any",
-  "version": "0.2.7",
+  "version": "0.3.0",
   "monetization": {
     "model": "premium",
     "priceUsd": 2.99,

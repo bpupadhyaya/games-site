@@ -13,6 +13,7 @@
 // The board is always drawn in "canonical" units (point spacing 120, frame 64) under one uniform scale `board.k`; `board.ox/oy` is
 // the screen position of grid point (0,0). Everything the view draws on the board uses canonical coordinates.
 import { ROWS, COLS, rowOf, colOf } from './rules.js';
+import { v3 } from './v3.js';
 
 export const TEXT_SCALES = [1, 1.5, 2, 2.5, 3];
 export const THINK_STEPS = [2, 5, 8, 10];
@@ -122,6 +123,7 @@ function build(w, h, ins) {
     const groupH = pl.h * k + gap1 + mH, gy = boardTop + Math.max(0, (regionH - groupH) / 2);
     L.board = { orient, k, plate: R(mL + (cw - pl.w * k) / 2, gy, pl.w * k, pl.h * k) };
     L.MSG = R(mL, gy + pl.h * k + gap1, cw, mH); L.MSGL = L.MSG;
+    L.board.area = R(mL, boardTop, cw, Math.max(60, L.MSG.y - 6 - boardTop));       // the room the 3D board may fill (the camera fits it)
     const hw = (cw - 16) / 2; CHOICE.approach = R(mL, L.MSG.y, hw, mH); CHOICE.withdraw = R(mL + hw + 16, L.MSG.y, hw, mH);
   } else {
     const pad = 14, x0 = U.x0 + pad, x1 = U.x1 - pad, y0 = U.y0 + pad, y1 = U.y1 - pad, availH = y1 - y0;
@@ -129,6 +131,7 @@ function build(w, h, ins) {
     const k0 = fitK(300), orient = k0.v >= k0.h ? 'v' : 'h', k = Math.max(0.2, k0[orient]), pl = PLATE[orient];
     const P = clamp(x1 - x0 - pl.w * k - pad, 300, 500), groupW = P + pad + pl.w * k, gx = x0 + Math.max(0, (x1 - x0 - groupW) / 2);
     L.board = { orient, k, plate: R(gx + P + pad, y0 + (availH - pl.h * k) / 2, pl.w * k, pl.h * k) };
+    L.board.area = R(gx + P + pad, y0, x1 - (gx + P + pad), availH);
     // the control column
     const cx0 = gx, cWd = P, conflict = back && cx0 < backBox.x + backBox.w;
     // the kit's "Preview m:ss" badge sits top-centre (y 6-34): keep the Menu / sound row clear of it
@@ -163,6 +166,7 @@ function build(w, h, ins) {
   L.pt = (p, flip) => { const c = canon[flip ? 1 : 0][p]; return { x: B.ox + c.x * B.k, y: B.oy + c.y * B.k }; };
   L.toCanon = (x, y) => ({ x: (x - B.ox) / B.k, y: (y - B.oy) / B.k });
   L.pointAt = (x, y, flip, tolFrac = 0.46) => {
+    if (v3.on && v3.pick) return v3.pick(x, y, flip, tolFrac, B.orient);       // 3D: through the tilted camera
     const q = L.toCanon(x, y), pts = canon[flip ? 1 : 0]; let best = -1, bd = S0 * tolFrac;
     for (let p = 0; p < pts.length; p++) { const d = Math.hypot(pts[p].x - q.x, pts[p].y - q.y); if (d < bd) { bd = d; best = p; } }
     return best;

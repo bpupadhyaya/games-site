@@ -153,7 +153,9 @@ export const ABOUT = [
   H('Credits'),
   LI('Design, painting and code: Arcforge.'),
   LI('Titles use the Cinzel typeface (SIL Open Font License).'),
-  LI('All art and sound are drawn and synthesised on your device.'),
+  LI('All art and sound are drawn and synthesised on your device: the lit 3D road, camels, cities and crowds are built from shapes and procedural textures, with the painted scenes kept for devices without 3D.'),
+  LI('3D rendering: three.js, Copyright (c) 2010-2024 three.js authors, MIT License, including GLTFLoader, SkeletonUtils and RoomEnvironment; meshoptimizer decoder, Copyright (c) 2016-2024 Arseny Kapoulkine, MIT License.'),
+  LI('Horse model based on work by Quaternius (CC0); coats, mane, tack and gaits are procedural. Crowd faces and fabrics are generated at runtime.'),
 ];
 
 export const HOWTO = [

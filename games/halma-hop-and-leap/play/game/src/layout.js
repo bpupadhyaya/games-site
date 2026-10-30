@@ -12,13 +12,13 @@ export const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 // Safe areas and the host's floating back button, in virtual units. main.js keeps this current (browsers: all zero).
 // px = css pixels per virtual unit (type never goes below ~11 css px); dpr = device pixel ratio (sprite resolution).
-export const host = { t: 0, r: 0, b: 0, l: 0, back: 0, px: 0.6, dpr: 2 };
+export const host = { t: 0, r: 0, b: 0, l: 0, back: 0, px: 0.6, dpr: 2, c3: false };   // c3: the 3D board is on (rect3 below is where it is fitted)
 
 const FRAME = 0.5, THICK = 0.22;
 const cache = new Map();
 export function layoutFor(w, h, variant = 'classic') {
   w = Math.round(w); h = Math.round(h);
-  const key = `${w}x${h}|${Math.round(host.t)},${Math.round(host.r)},${Math.round(host.b)},${Math.round(host.l)},${Math.round(host.back)}|${variant}`;
+  const key = `${w}x${h}|${Math.round(host.t)},${Math.round(host.r)},${Math.round(host.b)},${Math.round(host.l)},${Math.round(host.back)}|${variant}|${host.c3 ? 3 : 2}`;
   let L = cache.get(key);
   if (!L) { L = build(w, h, { ...host }, variant); L.key = key; cache.set(key, L); if (cache.size > 40) cache.delete(cache.keys().next().value); }
   return L;
@@ -79,9 +79,10 @@ function build(w, h, ins, variant) {
     const cardTop = ins.back ? Math.max(U.y0 + pad, L.backBox.y + L.backBox.h + 4) : U.y0 + pad, cardH = U.y1 - pad - cardTop;
     const inner = (c) => ({ x: c.x + 14, w: c.w - 28 });
     if (two) {
-      const bx = U.x0 + (U.w - S) / 2, lw = bx - U.x0 - gap - 6, rw = U.x1 - (bx + S) - gap - 6;
-      board = boardAt(bx + S / 2, topB, cell, n);
-      L.leftCard = R(U.x0 + 6, cardTop, lw, cardH); L.rightCard = R(bx + S + gap, cardTop, rw, cardH);
+      const Se = ins.c3 ? Math.max(S, Math.min(U.w - 2 * (panelMin + gap), U.h * 1.1)) : S;       // 3D: the tilted board is wider than the flat one, give it the room
+      const bx = U.x0 + (U.w - Se) / 2, lw = bx - U.x0 - gap - 6, rw = U.x1 - (bx + Se) - gap - 6;
+      board = boardAt(bx + Se / 2, topB, cell, n);
+      L.leftCard = R(U.x0 + 6, cardTop, lw, cardH); L.rightCard = R(bx + Se + gap, cardTop, rw, cardH);
       L.layoutKind = 'wide2';
       const lc = L.leftCard, rc = L.rightCard, iw = inner(lc), bw = clamp(rc.w - 28, 120, 340), bxr = rc.x + (rc.w - bw) / 2;
       const msgH = clamp(cardH * 0.22, 74, 140), chipH = clamp((cardH - 28 - msgH - seats * G) / seats, 56, 150);
@@ -94,9 +95,9 @@ function build(w, h, ins, variant) {
       L.lessonBox = R(lc.x + 10, lc.y + 14, lc.w - 20, lc.h - 28);
       L.badge = { cx: rc.x + rc.w / 2, bottom: rc.y + rc.h - 14, w: rc.w - 28, show: rc.y + rc.h - 14 - (y0 + 4 * BH + 3 * G) > 100 };
     } else {
-      const bx = U.x0 + gap + 4;
-      board = boardAt(bx + S / 2, topB, cell, n);
-      L.rightCard = R(bx + S + gap, cardTop, U.x1 - 6 - (bx + S + gap), cardH); L.leftCard = null;
+      const bx = U.x0 + gap + 4, Se = ins.c3 ? Math.max(S, Math.min(U.w - panelMin - 3 * gap - 16, U.h * 1.1)) : S;
+      board = boardAt(bx + Se / 2, topB, cell, n);
+      L.rightCard = R(bx + Se + gap, cardTop, U.x1 - 6 - (bx + Se + gap), cardH); L.leftCard = null;
       L.layoutKind = 'wide1';
       const rc = L.rightCard, iw = inner(rc), bw = clamp(rc.w - 28, 120, 340), bxr = rc.x + (rc.w - bw) / 2, bh2 = Math.min(BH, 66);
       const btnH = 4 * bh2 + 3 * G, msgH = clamp(cardH * 0.16, 52, 110);
@@ -111,6 +112,17 @@ function build(w, h, ins, variant) {
       L.badge = { show: false };
     }
   }
+  if (ins.c3 && !land) {                                // 3D portrait: slim seat plaques and a one-line message on top, the board takes everything else
+    const pad = 12, backRes = ins.back ? 62 : 0, top0 = Math.max(ins.t + 6, backRes ? ins.t + backRes : 0), pw = w - 2 * pad - 12, cw = (pw - (seats - 1) * G) / seats;
+    let chipH = seats > 2 ? 78 : 84; const msgH = 44, ideal = (w - 8) * 0.96, avail0 = L.barY - G - 4 - (top0 + chipH + msgH + 8), extra = avail0 - ideal; if (extra > 0) chipH += Math.min(extra * 0.3, 44);
+    L.chips = Array.from({ length: seats }, (_, k) => R(pad + 6 + k * (cw + G), top0, cw, chipH)); L.msg = R(pad + 6, top0 + chipH + 2, pw, msgH);
+    const rh0 = Math.min(L.barY - G - 4 - (top0 + chipH + msgH + 8), (w - 8) * 0.84), free = L.barY - G - 4 - (top0 + chipH + msgH + 8) - rh0, sh = free > 0 ? free * 0.3 : 0;
+    for (const c of L.chips) c.y += sh; L.msg.y += sh;                                   // the plaques and the board are one group: spare height goes above, below and between them
+    const y3 = top0 + sh + chipH + msgH + 8, availH = L.barY - G - 4 - y3, rh = Math.min(availH, rh0), yb = y3 + (availH - rh) * 0.3;
+    L.rect3 = R(4, yb, w - 8, rh); L.lessonBox = R(pad + 6, top0, pw, 236); L.rect3Lesson = R(4, top0 + 236 + 6, w - 8, L.barY - G - 4 - (top0 + 242));
+    const cl = (w - 8) / OUT; board = boardAt(w / 2, yb, cl, n); board.rect = L.rect3;
+  } else if (ins.c3 && L.leftCard) { const x0 = L.leftCard.x + L.leftCard.w + 4; L.rect3 = R(x0, U.y0, L.rightCard.x - 4 - x0, U.h); board.rect = L.rect3; }
+  else if (ins.c3) { L.rect3 = R(U.x0 + 4, U.y0, L.rightCard.x - 4 - U.x0 - 4, U.h); board.rect = L.rect3; }
   L.board = board; L.sq = board.sq; L.squareAt = board.squareAt; L.cell = board.cell;
   const cw = clamp(Math.min(U.w - 40, 560), 300, 600), ch = land ? Math.min(U.h - 30, 600) : Math.min(700, U.h - 60);
   L.over = { card: R(U.x0 + (U.w - cw) / 2, U.y0 + (U.h - ch) / 2, cw, ch) };

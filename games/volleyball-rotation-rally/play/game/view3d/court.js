@@ -44,8 +44,9 @@ export function buildCourt(stage, { netHeight = 2.43 } = {}) {
   const floorTex = canvasTex(TW, TH, (c, w, h) => {
     const S = w / FW;                                   // px per metre
     const X = (x) => (x + FW / 2) * S, Z = (z) => (1 - (z + FL / 2) / FL) * h;
-    c.fillStyle = '#26566f'; c.fillRect(0, 0, w, h);    // free zone
-    c.fillStyle = '#d28a4a'; c.fillRect(X(-HW), Z(HL), 2 * HW * S, 2 * HL * S);   // playing court
+    c.fillStyle = '#1d4f8f'; c.fillRect(0, 0, w, h);    // free zone: arena blue
+    { const rg = c.createRadialGradient(w / 2, h / 2, w * 0.1, w / 2, h / 2, h * 0.62); rg.addColorStop(0, 'rgba(120,175,240,0.28)'); rg.addColorStop(1, 'rgba(5,15,40,0.45)'); c.fillStyle = rg; c.fillRect(0, 0, w, h); }
+    c.fillStyle = '#e2a45c'; c.fillRect(X(-HW), Z(HL), 2 * HW * S, 2 * HL * S);   // playing court
     // wood grain: thin planks along the length with slight tone variation
     let seed = 5; const rnd = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
     for (let i = 0; i < 70; i++) { const x = X(-HW) + (i / 70) * 2 * HW * S; c.fillStyle = `rgba(${rnd() < 0.5 ? '255,235,200' : '90,45,15'},${0.04 + rnd() * 0.05})`; c.fillRect(x, Z(HL), 2 * HW * S / 70, 2 * HL * S); }
@@ -85,16 +86,18 @@ export function buildCourt(stage, { netHeight = 2.43 } = {}) {
   for (const sx of [-1, 1]) {
     L.push([sx * 5.1, (netHeight + 0.12) / 2, 0, 0.12, netHeight + 0.12, 0.12, '#cfd3da']);                    // post
     for (let k = 0; k < 6; k++) L.push([sx * (HW + 0.02), netHeight + 0.03 + 0.1 + k * 0.2, 0, 0.04, 0.2, 0.04, k % 2 ? '#f2f2f2' : '#d83a32']);   // antenna stripes
-    L.push([sx * (HW + 3.3), 0.45, 0, 0.12, 0.9, 2 * (HL + 3.3), '#16384d']);                                  // side boards
-    L.push([sx * (HW + 3.3), 0.92, 0, 0.14, 0.05, 2 * (HL + 3.3), '#e7ecf2']);
+    L.push([sx * (HW + 3.3), 0.45, 0, 0.12, 0.9, 2 * (HL + 3.3), '#0e2547']);                                  // side boards
+    L.push([sx * (HW + 3.3), 0.92, 0, 0.14, 0.05, 2 * (HL + 3.3), '#e0b24a']);
+    L.push([sx * (HW + 3.22), 0.45, 0, 0.02, 0.18, 2 * (HL + 3.3), '#e0b24a']);
   }
-  L.push([0, 0.45, HL + 3.3, 2 * (HW + 3.3), 0.9, 0.12, '#16384d']); L.push([0, 0.45, -HL - 3.3, 2 * (HW + 3.3), 0.9, 0.12, '#16384d']);
+  L.push([0, 0.45, HL + 3.3, 2 * (HW + 3.3), 0.9, 0.12, '#0e2547']); L.push([0, 0.45, -HL - 3.3, 2 * (HW + 3.3), 0.9, 0.12, '#0e2547']);
+  L.push([0, 0.9, HL + 3.24, 2 * (HW + 3.3), 0.05, 0.1, '#e0b24a']); L.push([0, 0.9, -HL - 3.24, 2 * (HW + 3.3), 0.05, 0.1, '#e0b24a']);
   L.push([HW + 0.9, 0.9, 0.0, 0.5, 1.8, 0.5, '#d9dde4']);                                                    // referee stand
   L.push([HW + 0.9, 1.9, 0.0, 0.7, 0.1, 0.7, '#6d7a8c']);
   L.push([-HW - 1.3, 0.2, -3.6, 1.6, 0.4, 0.5, '#2a3f55']); L.push([-HW - 1.3, 0.2, 3.6, 1.6, 0.4, 0.5, '#2a3f55']);   // benches
   // crowd stand behind the far end and along both sides: rows of coloured blocks that step upwards
   let seed = 11; const rnd = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
-  const cols = ['#c45a4a', '#e0b84c', '#3f86c9', '#e8e8ea', '#52a37a', '#8f5ec2', '#d98b3a', '#7b8794'];
+  const cols = ['#5d6f88', '#8a5a5e', '#4a6f93', '#9aa3b2', '#6f7f6a', '#7a6a8f', '#a07a52', '#48586e'];
   for (let row = 0; row < 3; row++) {
     const y = 0.9 + row * 0.42, z = HL + 4.6 + row * 0.55;
     L.push([0, y - 0.25, z + 0.1, 2 * (HW + 5), 0.5, 0.9, '#1d2c3c']);

@@ -10,6 +10,7 @@ import { LESSONS, lessonStart, judge } from './lessons.js';
 import { createMatch, playMove, undoMatch, tapCell, stepMatch, spawn, canUndo, humanTurn, settled } from './match.js';
 import { RULE_COUNT, HOWTO_COUNT, tr, sideLabel, lvName, soldiersObj, piecesText } from './content.js';
 import { boardGeo, themeById, THEMES } from './art.js';
+import { v3 } from './v3.js';
 import { render } from './view.js';
 
 // Fluid viewport (kit 1.7): the short side is 720 units, the long side follows the screen. meta.width/height are live.
@@ -95,6 +96,7 @@ export async function createGame(env) {
   const lay = () => playFrame(S.w, S.h, TEXT_SCALES[S.textIdx]);
   const geoNow = () => { const l = lay(); return boardGeo(l.board.x, l.board.y, l.board.side, Boolean(S.match?.flip)); };
   const cellAt = (x, y) => {
+    if (v3.on && v3.pick && (S.scene === 'play' || S.scene === 'auto')) return v3.pick(x, y);   // the tilted 3D board
     const g = geoNow(), r = g.cell / 2 + 2;
     for (let i = 0; i < NN; i++) { const [cx, cy] = g.centers[i]; if (Math.abs(x - cx) <= r && Math.abs(y - cy) <= r) return i; }
     return -1;

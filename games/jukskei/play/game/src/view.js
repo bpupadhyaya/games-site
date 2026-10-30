@@ -213,7 +213,7 @@ function pill(ctx, x, y, text, maxW) {
 function phaseText(state) {
   const m = state.m, lab = state.labels[m.turn], a = state.aim;
   if (m.phase === 'score') return 'Round over';
-  if (m.phase === 'judge') return state.pop ? state.pop.text : 'Pin down';
+  if (m.phase === 'judge') return state.pop ? (state.pop.small || state.pop.big) : 'Pin down';
   if (m.phase === 'fly') return 'In the air…';
   if (m.phase === 'swing') return state.humanTurn ? 'Tap Release in the gold zone' : `${lab.name} swings`;
   if (m.phase === 'throw') return `${lab.name} throws`;

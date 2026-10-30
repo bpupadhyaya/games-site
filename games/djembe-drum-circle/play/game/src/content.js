@@ -14,7 +14,7 @@ export const ABOUT = [
   { p: 'Echo your way into the beat, build a full circle one drummer at a time, learn six rhythms in the style of real Guinean and Malian dance music, or play freely and record loops. Every stroke you hear is made by the game itself from oscillators and filtered noise, so it works offline.' },
   { p: 'The rhythms here are simplified teaching versions. Real drummers and villages play them differently. If you can learn from a teacher, do.' },
   { h: 'Credits' },
-  { p: 'Art, sound and code by Arcforge. Display font: Cormorant Garamond (SIL Open Font License). Arcforge makes world heritage games.' },
+  { p: 'Art, sound and code by Arcforge. Display font: Cormorant Garamond (SIL Open Font License). The 3D drum is drawn with three.js (MIT License). Arcforge makes world heritage games.' },
 ];
 
 export const HOWTO = [

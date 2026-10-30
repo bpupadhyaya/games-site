@@ -180,5 +180,5 @@ export function menuRects(L, n, extraTop = 120) {
 // The camera for the road stage: pixels per metre from the stage size.
 export function stageScale(stage) {
   const laneDy = stage.h > stage.w * 1.15 ? 0.5 : 0.38;
-  return clamp(Math.min(stage.w / 5.6, stage.h / (2.95 + 3 * laneDy + 0.45)), 50, 190);
+  return clamp(Math.min(stage.w / (stage.h > stage.w * 1.15 ? 4.7 : 5.6), stage.h / (2.95 + 3 * laneDy + 0.45)), 50, 190);
 }

@@ -9,18 +9,21 @@ const rnd = (seed) => { let s = seed >>> 0; return () => { s = (s * 1664525 + 10
 
 export function makeCaber(THREE, { L = 5.9, rSmall = 0.075, rBig = 0.19 } = {}) {
   const R = rnd(Math.round(L * 100));
-  const bark = tex(THREE, 128, 256, (g, w, h) => {
-    g.fillStyle = '#7b5a37'; g.fillRect(0, 0, w, h);
-    for (let i = 0; i < 260; i++) { const x = R() * w, y = R() * h, l = 10 + R() * 50; g.strokeStyle = `rgba(${40 + R() * 40},${28 + R() * 20},${14 + R() * 12},${0.25 + R() * 0.4})`; g.lineWidth = 1 + R() * 3; g.beginPath(); g.moveTo(x, y); g.lineTo(x + (R() - 0.5) * 6, y + l); g.stroke(); }
-    for (let i = 0; i < 40; i++) { g.fillStyle = `rgba(210,180,130,${0.04 + R() * 0.08})`; g.fillRect(R() * w, R() * h, 10 + R() * 30, 2 + R() * 4); }
-  }, [1, Math.round(L / 1.2)]);
+  // a real caber is a peeled larch or spruce trunk: pale honey wood with long grain, resin streaks, knots where branches were cut, and scuffed ends
+  const bark = tex(THREE, 256, 512, (g, w, h) => {
+    const gr = g.createLinearGradient(0, 0, w, 0); gr.addColorStop(0, '#c49a62'); gr.addColorStop(0.5, '#d6b07a'); gr.addColorStop(1, '#c39860'); g.fillStyle = gr; g.fillRect(0, 0, w, h);
+    for (let i = 0; i < 420; i++) { const x = R() * w, y = R() * h, l = 30 + R() * 140; g.strokeStyle = `rgba(${120 + R() * 40},${80 + R() * 30},${40 + R() * 20},${0.12 + R() * 0.25})`; g.lineWidth = 0.6 + R() * 1.8; g.beginPath(); g.moveTo(x, y); g.bezierCurveTo(x + (R() - 0.5) * 6, y + l / 3, x + (R() - 0.5) * 6, y + (2 * l) / 3, x + (R() - 0.5) * 4, y + l); g.stroke(); }
+    for (let i = 0; i < 26; i++) { g.fillStyle = `rgba(120,78,40,${0.15 + R() * 0.2})`; g.fillRect(R() * w, R() * h, 2 + R() * 4, 40 + R() * 120); }
+    for (let i = 0; i < 5; i++) { const x = R() * w, y = R() * h, r = 3 + R() * 4; const kg = g.createRadialGradient(x, y, 0, x, y, r * 2.2); kg.addColorStop(0, 'rgba(105,66,34,0.75)'); kg.addColorStop(0.4, 'rgba(140,92,50,0.45)'); kg.addColorStop(1, 'rgba(150,100,55,0)'); g.fillStyle = kg; g.beginPath(); g.ellipse(x, y, r * 1.6, r * 2.6, 0, 0, Math.PI * 2); g.fill(); }
+    for (let i = 0; i < 14; i++) { g.fillStyle = `rgba(110,74,40,${0.25 + R() * 0.3})`; g.fillRect(R() * w, R() * h, 6 + R() * 18, 2 + R() * 3); }
+  }, [1, Math.max(1, Math.round(L / 2.4))]);
   const geo = new THREE.CylinderGeometry(rBig, rSmall, L, 20, 8, false);   // top = big end, bottom = small end
   geo.translate(0, L / 2, 0);
-  const body = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: bark, roughness: 0.92 }));
+  const body = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: bark, roughness: 0.78 }));
   body.castShadow = true;
   const g = new THREE.Group(); g.name = 'caber'; g.add(body);
   // pale cut faces at both ends and a darker band where the hands go
-  const cut = (r, y, up) => { const m = new THREE.Mesh(new THREE.CircleGeometry(r * 0.98, 20), new THREE.MeshStandardMaterial({ color: 0xd2b283, roughness: 0.8 })); m.position.y = y; m.rotation.x = up ? -Math.PI / 2 : Math.PI / 2; return m; };
+  const cut = (r, y, up) => { const m = new THREE.Mesh(new THREE.CircleGeometry(r * 0.98, 20), new THREE.MeshStandardMaterial({ color: 0xe2c79a, roughness: 0.85 })); m.position.y = y; m.rotation.x = up ? -Math.PI / 2 : Math.PI / 2; return m; };
   g.add(cut(rBig, L + 0.002, true), cut(rSmall, -0.002, false));
   g.userData = { L, rSmall, rBig };
   return g;
@@ -53,7 +56,7 @@ export function makeWeight(THREE) {
 }
 
 // A pleated kilt of generic heather-and-moss check, attached to the pelvis bone of a loaded human. Returns { mesh, remove() }.
-export function addKilt(THREE, human, { waist = 0.19, hem = 0.3, len = 0.4 } = {}) {
+export function addKilt(THREE, human, { waist = 0.19, hem = 0.27, len = 0.4 } = {}) {
   const bone = human.bones.Bip01_Pelvis;
   human.model.updateMatrixWorld(true);
   const inv = bone.getWorldQuaternion(new THREE.Quaternion()).invert();
@@ -86,5 +89,56 @@ export function addKilt(THREE, human, { waist = 0.19, hem = 0.3, len = 0.4 } = {
   // belt
   const belt = new THREE.Mesh(new THREE.CylinderGeometry(waist + 0.005, waist + 0.005, 0.05, 20, 1, true), new THREE.MeshStandardMaterial({ color: 0x3a2a1c, roughness: 0.6, side: THREE.DoubleSide })); belt.position.y = 0.045; holder.add(belt);
   bone.add(holder);
-  return { mesh, holder, remove() { bone.remove(holder); } };
+  // secondary motion: the heavy wool lags behind the hips and flares out with speed and with the drop of the heave, on a damped spring.
+  // Only the lower rows move (the waist stays on the belt).
+  const base = Float32Array.from(geo.attributes.position.array), P3 = geo.attributes.position;
+  const vv = new Float32Array(P3.count); for (let i = 0; i < P3.count; i++) vv[i] = Math.min(1, Math.max(0, (0.03 - base[i * 3 + 1]) / len));
+  const last = new THREE.Vector3(), vel = new THREE.Vector3(), tmp = new THREE.Vector3(), qi = new THREE.Quaternion();
+  const sp = { x: 0, z: 0, y: 0, f: 0, vx: 0, vz: 0, vy: 0, vf: 0 };
+  const find = (re) => { let b = null; human.model.traverse((o) => { if (!b && o.isBone && re.test(o.name)) b = o; }); return b; };
+  const thL = find(/L_Thigh$/), thR = find(/R_Thigh$/), caL = find(/L_Calf$/), caR = find(/R_Calf$/);
+  const legs = [{ on: false }, { on: false }]; let have = false, kt = 0;
+  function update(dt) {
+    if (!(dt > 0)) return;
+    kt += dt;
+    holder.getWorldPosition(tmp);
+    if (have) vel.copy(tmp).sub(last).divideScalar(dt); else vel.set(0, 0, 0);
+    last.copy(tmp); have = true;
+    holder.getWorldQuaternion(qi).invert(); const lv = vel.clone().applyQuaternion(qi);   // hip velocity in kilt space (x left, y up, z forward)
+    const spd = Math.hypot(lv.x, lv.z);
+    const tx = Math.max(-0.09, Math.min(0.09, -lv.x * 0.035)), tz = Math.max(-0.12, Math.min(0.05, -lv.z * 0.035)), ty = Math.max(-0.05, Math.min(0.08, -lv.y * 0.03));
+    const tf = Math.min(0.22, spd * 0.035 + Math.max(0, lv.y) * 0.05) + 0.015 * Math.sin(kt * 7.1) * Math.min(1, spd);
+    const k = 70, c = 9;
+    for (const [key, tg] of [['x', tx], ['z', tz], ['y', ty], ['f', tf]]) { const vk = 'v' + key; sp[vk] += ((tg - sp[key]) * k - sp[vk] * c) * dt; sp[key] += sp[vk] * dt; }
+    // drape over the thighs: the front of the kilt is carried forward and up by each thigh as the hip flexes (crouch, put, heave),
+    // so the knees never poke through the cloth and it does not stand off like a barrel
+    // each leg: its horizontal direction in kilt space and how far it is lifted from hanging straight down (measured, so it works whatever
+    // way the pelvis bone is oriented)
+    for (const [k, th, ca] of [[0, thL, caL], [1, thR, caR]]) {
+      legs[k].on = false; if (!th || !ca) continue;
+      const hp = holder.worldToLocal(th.getWorldPosition(tmp.clone())), kn = holder.worldToLocal(ca.getWorldPosition(tmp.clone()));
+      const dx = kn.x - hp.x, dy = kn.y - hp.y, dz = kn.z - hp.z, hz = Math.hypot(dx, dz);
+      if (hz < 1e-4) continue;
+      legs[k].on = true; legs[k].dx = dx / hz; legs[k].dz = dz / hz; legs[k].lift = Math.max(0, Math.min(1.8, Math.atan2(hz, -dy) - 0.12)); legs[k].py = hp.y;
+    }
+    const lift = Math.max(legs[0].on ? legs[0].lift : 0, legs[1].on ? legs[1].lift : 0);
+    const a = P3.array;
+    for (let i = 0; i < P3.count; i++) {
+      const v = vv[i]; if (v <= 0) continue; const w = v * v;
+      let bx = base[i * 3], by = base[i * 3 + 1], bz = base[i * 3 + 2];
+      const fl = 1 + sp.f * Math.pow(v, 1.5) * (1 - 0.7 * Math.min(1, lift / 0.7));
+      const r = Math.hypot(bx, bz) || 1, ux = bx / r, uz = bz / r;
+      let L = null, best = 0;
+      for (const G of legs) { if (!G.on || G.lift < 0.01) continue; const d = ux * G.dx + uz * G.dz; if (d > best) { best = d; L = G; } }
+      if (L) {
+        const th = L.lift * Math.min(1, Math.pow(best, 0.8) * 1.1) * Math.min(1, v * 3.2);
+        const u = bx * L.dx + bz * L.dz, ry = by - L.py, cs = Math.cos(th), sn = Math.sin(th);
+        const u2 = u * cs - ry * sn, ry2 = ry * cs + u * sn * 0.6;
+        bx += (u2 - u) * L.dx; bz += (u2 - u) * L.dz; by = L.py + ry2;
+      }
+      a[i * 3] = bx * fl + sp.x * w; a[i * 3 + 1] = by + sp.y * w + sp.f * 0.25 * w * len; a[i * 3 + 2] = bz * fl + sp.z * w;
+    }
+    P3.needsUpdate = true;
+  }
+  return { mesh, holder, update, legs, remove() { bone.remove(holder); } };
 }

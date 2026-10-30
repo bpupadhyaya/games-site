@@ -8,8 +8,9 @@ import { HW, HL } from '../src/consts.js';
 import { camFor } from '../src/camera.js';
 
 const LIB = '../vendor3d/index.js';
-const SKINS = ['tan', 'peach'];
-const HAIRS = ['brown', 'blond'];
+const CHARS = ['athlete_m', 'athlete_m'];
+const SKINS = ['tan', 'brown'];
+const HAIRS = ['brown', 'black'];
 const KITS = [{ top: '#f4f4ef', bottoms: '#1d3f78', socks: '#f4f4ef' }, { top: '#f2efe6', bottoms: '#b8433b', socks: '#f2efe6' }];
 const RACKET_COL = ['#1d3f78', '#b8433b'];
 
@@ -101,7 +102,7 @@ export async function createPresenter({ kitCanvas, meta = { width: 720, height: 
     for (const h of P.humans) stage.remove(h);
     P.humans = []; P.actors = [];
     for (let i = 0; i < 2; i++) {
-      const h = await loadHuman({ character: 'mannequin_m', kit: KITS[i], skin: SKINS[i], hair: HAIRS[i], legs: 'shorts' });
+      const h = await loadHuman({ character: CHARS[i], kit: KITS[i], skin: SKINS[i], hair: HAIRS[i], legs: 'shorts', body: 'anatomic' });
       h.groundClamp = 'auto'; h.footPlanting = true;
       h.play('ready_stance', { fade: 0 });
       h.setPosition(0, 0, 0);

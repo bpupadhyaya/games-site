@@ -430,7 +430,7 @@ const HERO_STEPS = [[0, 0, 0], [1, 0, 0], [1, 1, 0], [2, 1, 0], [2, 1, 1], [2, 2
 // The hero face of the title: where it sits and the sliding panels at time t (also used behind the Boxes / Rules / Settings pages).
 export function titleHero(w, h) {
   const L = titleLayout(w, h), hero = L.hero;
-  const H = hero.h, tb = Math.min(160, Math.max(66, H * 0.3)), side = Math.max(90, Math.min(hero.w * 0.82, H - tb - 16, 520));
+  const H = hero.h, tb = Math.min(160, Math.max(66, H * 0.3)), side = Math.max(90, Math.min(hero.w * 0.82, H - tb - 16, 680));
   return { L, hero, tb, fr: R(hero.x + (hero.w - side) / 2, hero.y + Math.max(0, (H - side - tb) / 2), side, side) };
 }
 export function heroItems(t) {

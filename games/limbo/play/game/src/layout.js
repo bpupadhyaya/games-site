@@ -30,14 +30,14 @@ function build(w, h) {
   // ---- PLAY ----------------------------------------------------------------------------------------------------------------
   {
     const P = {}, bw = Math.max(64, mb);
-    const hudH = mode === 'wide' ? Math.max(86, bw + 22) : 124;
+    const hudH = mode === 'wide' ? Math.max(86, bw + 22) : 112;
     P.hud = R(S.x, S.y, S.w, hudH);
     P.pause = R(S.x + S.w - 12 - bw, S.y + 10, bw, bw);
     P.think = R(P.pause.x - 12 - bw, S.y + 10, bw, bw);
     P.score = { x: S.x + 16 + backPad, y: mode === 'wide' ? S.y + hudH / 2 - 28 : S.y + 12 };
     P.round = mode === 'wide' ? { x: S.x + 16 + backPad + 190, y: S.y + hudH / 2 + 4 } : { x: S.x + 16 + backPad, y: S.y + hudH - 34 };
     P.tries = { x: P.think.x - 16, y: S.y + 10 + bw / 2 };
-    const gaugeH = mode === 'wide' ? Math.max(104, mb + 40) : clamp(S.h * 0.17, 232, 290);
+    const gaugeH = mode === 'wide' ? Math.max(104, mb + 40) : clamp(S.h * 0.125, 168, 214);
     P.gaugeH = gaugeH;
     P.panel = R(S.x + 10, S.y + S.h - gaugeH - 8, S.w - 20, gaugeH);
     const px = P.panel.x, py = P.panel.y, pw = P.panel.w;
@@ -48,14 +48,14 @@ function build(w, h) {
       P.leanLabel = { x: P.leanG.x, y: py + 20 }; P.balLabel = { x: P.balG.x, y: py + 20 };
       P.hintLine = { x: px + pw / 2, y: py + gaugeH - 18 };
     } else {
-      P.leanG = R(px + 22, py + 64, pw - 44, 34);
-      P.balG = R(px + 22, py + 140, pw - 44, 34);
-      P.leanLabel = { x: P.leanG.x, y: py + 40 }; P.balLabel = { x: P.balG.x, y: py + 116 };
-      P.hintLine = { x: px + pw / 2, y: py + gaugeH - 24 };
+      P.leanG = R(px + 22, py + 44, pw - 44, 26);
+      P.balG = R(px + 22, py + 108, pw - 44, 26);
+      P.leanLabel = { x: P.leanG.x, y: py + 22 }; P.balLabel = { x: P.balG.x, y: py + 86 };
+      P.hintLine = { x: px + pw / 2, y: py + gaugeH - 20 };
     }
     // The scene: unit U (one standing body height) in virtual units, ground line gy, bar x.
     const top = S.y + hudH, bottom = P.panel.y - 2;
-    const span = 1.75;
+    const span = mode === 'tall' ? 1.6 : 1.75;
     let U, gy;
     if (mode === 'wide') {
       U = Math.min((S.w - 80) / span, (bottom - top - 64) / 1.1, S.w * 0.3);
@@ -63,7 +63,7 @@ function build(w, h) {
     } else {
       const fill = mode === 'compact' ? 0.64 : 0.52;
       U = Math.min((S.w - 80) / span, (bottom - top) * fill);
-      gy = top + (bottom - top) * (mode === 'compact' ? 0.8 : 0.78);
+      gy = top + (bottom - top) * (mode === 'compact' ? 0.82 : 0.85);
     }
     U = Math.max(120, U);
     let bx = mode === 'wide' ? S.x + S.w * 0.71 : S.x + S.w / 2 + 0.4 * U;

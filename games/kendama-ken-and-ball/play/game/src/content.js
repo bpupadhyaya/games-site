@@ -141,3 +141,8 @@ export const RULES = [
     'A real ken and ball has depth and spin; this one is a flat side view, and a ball swung up from below always passes through the ken. The ball and cups are a little more forgiving than wood, so the toy is playable with one finger.',
   ] },
 ];
+// Credits for the optional 3D layer (three.js and the shared view3d library), added at the end of About by main.js once loaded.
+export const addAboutCredits = (body) => {
+  if (ABOUT.some((d) => d.credits)) return;
+  ABOUT.push({ credits: true, title: '3D graphics credits', p: [body] });
+};

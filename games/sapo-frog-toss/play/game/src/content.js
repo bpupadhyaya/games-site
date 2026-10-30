@@ -19,6 +19,9 @@ export const ABOUT = [
   { title: { en: 'Language', es: 'Idioma' }, p: [
     { en: 'The whole game is available in English and in Spanish. Choose "Play in English" or "Jugar en español" on the main menu or in Settings.', es: 'Todo el juego está disponible en español y en inglés. Elige "Jugar en español" o "Play in English" en el menú principal o en Ajustes.' },
   ] },
+  { title: { en: 'Credits', es: 'Créditos' }, p: [
+    { en: 'The 3D view uses three.js (MIT licence). The table, the frog and the room are drawn by this game itself.', es: 'La vista 3D usa three.js (licencia MIT). La mesa, el sapo y el cuarto los dibuja este mismo juego.' },
+  ] },
 ];
 
 export const HOWTO = [

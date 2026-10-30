@@ -196,3 +196,21 @@ export function drawStar(ctx, x, y, r, fill, glow = 0) {
   ctx.restore();
 }
 export { clamp };
+
+// ---- 3D hand-off: the sheet (paper, guides, ink) is drawn into a canvas that the presenter lays on the 3D paper ----------------------------------------
+// Returns a context whose units are the flat layout's virtual units, so the 2D drawing code runs unchanged (rect = where the sheet sits in the flat layout).
+export function sheetBegin(v3, rect, cssPerUnit) {
+  const cap = v3.texCap || 1024, dpr = v3.dpr || 1;
+  const k = Math.max(0.35, Math.min((cssPerUnit || 1) * dpr, cap / Math.max(rect.w, rect.h)));
+  const W = Math.max(8, Math.round(rect.w * k)), H = Math.max(8, Math.round(rect.h * k));
+  let sh = v3.sheet;
+  if (!sh || sh.canvas.width !== W || sh.canvas.height !== H) {
+    const c = mk(W, H);
+    sh = v3.sheet = { canvas: c, k, ver: 0 };
+  }
+  const g = sh.canvas.getContext('2d');
+  g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, W, H);
+  g.setTransform(W / rect.w, 0, 0, H / rect.h, -rect.x * W / rect.w, -rect.y * H / rect.h);
+  sh.ver++; sh.rect = rect;
+  return g;
+}

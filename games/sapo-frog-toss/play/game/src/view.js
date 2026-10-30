@@ -4,6 +4,7 @@
 import { W, H, TEXT_SCALES, COMPACT, TRAY, SCENE_Y0, SCENE_H, PULL, playLayout, wideLayout, host, screen } from './layout.js';
 
 import { FONT, NUM, roundPath, drawButton, paintButton, panel, wrapLines, textShadow, ease } from './ui.js';
+import { r3 } from './r3.js';
 import { drawRoom, drawTable, drawHoles, drawActors, drawRing, drawArc, drawRestMark, drawParts, proj, TAU, DISC_COL } from './scene.js';
 import { PROFILES, pname } from './ai.js';
 import { planPath } from './phys.js';
@@ -157,6 +158,12 @@ function pips(ctx, x, y, n, total, side) {
 }
 function drawCardRaw(ctx, x, y, w, h, z, name, score, sub, active, side, left) {
   panel(ctx, x, y, w, h, { r: 18, fill: active ? 'rgba(48,32,18,0.9)' : 'rgba(22,15,10,0.82)', stroke: active ? 'rgba(240,200,100,0.95)' : 'rgba(217,174,82,0.35)', lw: active ? 3 : 2, shadow: true });
+  // a carved-wood plaque: walnut grain lines and a fine inner brass line (flat, no gloss shape)
+  ctx.save(); roundPath(ctx, x, y, w, h, 18); ctx.clip();
+  ctx.strokeStyle = active ? 'rgba(255,214,140,0.10)' : 'rgba(255,214,140,0.05)'; ctx.lineWidth = 1.5;
+  for (let i = 1; i < 7; i++) { const gy = y + (h * i) / 7; ctx.beginPath(); ctx.moveTo(x, gy); ctx.bezierCurveTo(x + w * 0.3, gy - 3, x + w * 0.6, gy + 4, x + w, gy - 1); ctx.stroke(); }
+  ctx.restore();
+  roundPath(ctx, x + 5, y + 5, w - 10, h - 10, 14); ctx.lineWidth = 1.2; ctx.strokeStyle = active ? 'rgba(240,200,100,0.45)' : 'rgba(217,174,82,0.18)'; ctx.stroke();
   ctx.textBaseline = 'alphabetic';
   fitFont(ctx, String(score), 46 * z, w * 0.4, 800, NUM);
   ctx.textAlign = 'right'; ctx.fillStyle = '#ffe7a8'; ctx.fillText(String(score), x + w - 14, y + h * 0.62);
@@ -334,12 +341,13 @@ function drawHand(ctx, S, lay) {
 export function renderPlay(ctx, S) {
   const lay = computeLayout(S, ctx);
   if (lay.wide) { renderPlayWide(ctx, S, lay); return; }
-  ctx.fillStyle = '#0b0705'; ctx.fillRect(0, 0, W, H);
-  if (lay.compact && lay.sy > 0) {   // tall screen: the wall and floor colours carry on above and below the room picture
+  if (!r3.on) { ctx.fillStyle = '#0b0705'; ctx.fillRect(0, 0, W, H); }
+  r3.clip(ctx, 0, 0, W, H);
+  if (!r3.on && lay.compact && lay.sy > 0) {   // tall screen: the wall and floor colours carry on above and below the room picture
     ctx.fillStyle = '#3a2216'; ctx.fillRect(0, 0, W, lay.sy + 2); ctx.fillStyle = '#4e3324'; ctx.fillRect(0, lay.sy + 1278, W, H - lay.sy - 1278);
   }
   ctx.save();
-  if (lay.clip) { ctx.beginPath(); ctx.rect(lay.clip.x, lay.clip.y, lay.clip.w, lay.clip.h); ctx.clip(); }
+  if (lay.clip) { ctx.beginPath(); ctx.rect(lay.clip.x, lay.clip.y, lay.clip.w, lay.clip.h); ctx.clip(); r3.clip(ctx, lay.clip.x, lay.clip.y, lay.clip.w, lay.clip.h); }
   ctx.translate(lay.vx, lay.vy - SCENE_Y0 * lay.s); ctx.scale(lay.s, lay.s);
   drawScene(ctx, S);
   ctx.restore();
@@ -444,8 +452,8 @@ function drawPanelBack(ctx, x, y, w, h) {
 }
 function renderPlayWide(ctx, S, lay) {
   const w = lay.w, h = lay.h, sc = lay.scene;
-  ctx.fillStyle = '#0b0705'; ctx.fillRect(0, 0, w, h);
-  ctx.save(); ctx.beginPath(); ctx.rect(sc.x, sc.y, sc.w, sc.h); ctx.clip();
+  if (!r3.on) { ctx.fillStyle = '#0b0705'; ctx.fillRect(0, 0, w, h); }
+  ctx.save(); ctx.beginPath(); ctx.rect(sc.x, sc.y, sc.w, sc.h); ctx.clip(); r3.clip(ctx, sc.x, sc.y, sc.w, sc.h);
   ctx.translate(lay.vx, lay.vy - SCENE_Y0 * lay.s); ctx.scale(lay.s, lay.s);
   drawScene(ctx, S);
   ctx.restore();

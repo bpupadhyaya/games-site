@@ -2,7 +2,7 @@
 // buildUi() with the same state, so layout and taps always agree at every text-zoom step.
 import { LEVELS } from './levels.js';
 import { TEXT_SCALES, layoutDoc } from './ui.js';
-import { CHAPTERS, HOWTO, RULES, ABOUT, tr } from './content.js';
+import { CHAPTERS, HOWTO, RULES, ABOUT, ABOUT_EXTRA, creditBlocks, tr } from './content.js';
 import { layout } from './layout.js';
 
 export const DEMO_LEVELS = 6;
@@ -132,6 +132,7 @@ export function buildUi(S) {
       ui.fixed = fixedBar(S, T, D);
       const b = [{ t: 'img', name: 'logo', h: 230 }];
       ABOUT[S.lang].forEach((s, i) => { b.push({ t: 'h', text: s.title, size: i === 0 ? 38 : 30 }); b.push({ t: 'p', text: s.body, size: 26 }); });
+      if (ABOUT_EXTRA.md) { b.push({ t: 'h', text: S.lang === 'zh' ? '3D 图形致谢' : '3D graphics credits', size: 30 }); b.push(...creditBlocks(ABOUT_EXTRA.md)); }
       b.push({ t: 'p', text: `v${S.version}`, size: 22 });
       ui.blocks = b;
       break;

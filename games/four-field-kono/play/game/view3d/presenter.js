@@ -138,7 +138,7 @@ export async function createPresenter({ kitCanvas, quality = 'high' }) {
   const feltHud = new THREE.MeshStandardMaterial({ color: '#10343a', roughness: 0.95 });
   const brassHud = B.material('brass', { envIntensity: 1.4 });
   const lacq = (c, em) => new THREE.MeshPhysicalMaterial({ color: c, roughness: 0.42, metalness: 0.05, clearcoat: 0.6, clearcoatRoughness: 0.2, envMapIntensity: 0.35, emissive: em, emissiveIntensity: 0.55 });
-  const lacqJade = lacq('#12a373', '#0a5a3c'), lacqTeal = lacq('#0d6468', '#06353a'), lacqOn = lacq('#a67a24', '#4a3208'), lacqDim = lacq('#17353a', '#07161a');
+  const lacqJade = lacq('#12a373', '#0a5a3c'), lacqTeal = lacq('#0d6468', '#06353a'), lacqOn = lacq('#a67a24', '#4a3208'), lacqDim = lacq('#17353a', '#07161a'), lacqGold = lacq('#f0b83a', '#8a5a0c');
   const scrim = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ color: 0x050c0c, transparent: true, opacity: 0, depthWrite: false }));
   hud.add(scrim);
   function panelAt(i) {
@@ -168,7 +168,7 @@ export async function createPresenter({ kitCanvas, quality = 'high' }) {
     const cx0 = r.x + r.w / 2, cy0 = -(r.y + r.h / 2), rad = Math.min(18, r.h / 3), z = -400, dep = pressed ? 8 : 18;
     b.rim.geometry = slabG(r.w, r.h, dep - 3, rad, 4); b.rim.rotation.x = ROT; b.rim.position.set(cx0, cy0, z);
     b.body.geometry = slabG(r.w - 7, r.h - 7, dep, rad - 2, 6); b.body.rotation.x = ROT; b.body.position.set(cx0, cy0, z);
-    b.body.material = bt.dim ? lacqDim : bt.primary ? lacqJade : bt.on ? lacqOn : lacqTeal;
+    b.body.material = bt.dim ? lacqDim : bt.gold ? lacqGold : bt.primary ? lacqJade : bt.on ? lacqOn : lacqTeal;
     b.g.position.set(0, pressed ? -3 : 0, 0);
   }
 
@@ -425,7 +425,7 @@ export async function createPresenter({ kitCanvas, quality = 'high' }) {
       fitCamera({ x: L.w * 0.06, y: L.h * 0.3, w: L.w * 0.88, h: L.w * 0.88 }, L, 38, 34, state.calm ? 0 : Math.sin(clock * 0.15) * 7);
       heroState(state);
     } else {
-      fitCamera({ x: L.board.x, y: L.board.y, w: L.board.S, h: L.board.S }, L, L.land ? 52 : 58, 28, 0);
+      fitCamera({ x: L.board.x, y: L.board.y, w: L.board.S, h: L.board.S }, L, L.land ? 66 : 74, 28, 0);   // steep view: the square board uses its height on screen as well as its width
       boardState(state);
     }
   }

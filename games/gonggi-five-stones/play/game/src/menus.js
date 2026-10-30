@@ -10,8 +10,10 @@ import { FONT, DISPLAY, C, roundPath, drawButton, panel, wrapLines, textShadow, 
 import { LEVELS, TAGS } from './ai.js';
 import { LESSONS, DEMO_LESSONS } from './lessons.js';
 import { tx, lessonText, stageName } from './content.js';
+import { v3 } from './v3.js';
 
 const TAU = Math.PI * 2;
+const clampT = (v) => Math.max(0, Math.min(1, v));
 const tr = (state) => (k, v) => tx(state.settings.lang, k, v);
 
 // ---- flow screens ------------------------------------------------------------------------------
@@ -69,7 +71,7 @@ const heroArt = (state, hs = 1) => ({
     ctx.save(); ctx.shadowColor = 'rgba(10,6,30,0.7)'; ctx.shadowBlur = 14; ctx.shadowOffsetY = 4; ctx.fillStyle = '#ff7a5a';
     ctx.fillText(ko ? '다섯 개의 돌' : 'FIVE STONES', cx, 272); ctx.restore();
     ctx.font = `500 ${Math.max(20, 26 * k)}px ${FONT}`; textShadow(ctx, state.settings.lang === 'ko' ? '던지고, 줍고, 받아내는 우리의 놀이' : 'Toss one, take the rest, catch it before it falls', cx, 318, '#fff6e4', 8);
-    for (let i = 0; i < 5; i++) drawStone(ctx, { id: i, x: cx + (i - 2) * 58 * k, y: 362 - Math.abs(i - 2) * 4, rot: i * 0.8 });
+    if (!v3.on) for (let i = 0; i < 5; i++) drawStone(ctx, { id: i, x: cx + (i - 2) * 58 * k, y: 362 - Math.abs(i - 2) * 4, rot: i * 0.8 });   // 3D: the real pebbles lie on the cloth below
     ctx.restore();
   },
 });
@@ -77,26 +79,32 @@ const heroArt = (state, hs = 1) => ({
 export function titleWidgets(state) {
   const T = tr(state), sv = state.saved, lang = state.settings.lang;
   const split = flowFrame('title').split;
-  // portrait: on shorter screens (4:3, tablets) the hero shrinks so the whole menu fits without scrolling
-  let hs = 1;
+  // portrait: the title art on top, the menu anchored at the bottom, and the cloth with its pebbles (3D, or the flat mat) showing
+  // in between; on shorter screens (4:3, tablets) the gap closes first, then the title art shrinks so the whole menu fits without scrolling
+  let hs = 1, flex = 0;
   if (!split && !state._heroProbe) {
     const f = flowFrame('title'), sc = TEXT_SCALES[state.settings.textIdx];
     state._heroProbe = true; const menu = layFlow(estCtx, titleWidgets(state), sc, f).contentH; delete state._heroProbe;
-    hs = Math.max(0.45, Math.min(1, (f.bottom - f.top - menu - 6 - 16) / 400));
+    const room = f.bottom - f.top - menu - 6 - 16;
+    hs = Math.max(0.45, Math.min(1, room / 400));
+    const heroH = v3.on ? 330 : 400;
+    flex = Math.max(0, room - heroH * hs);
   }
+  const heroW = heroArt(state, hs);
+  if (v3.on && !split) heroW.h = Math.round(330 * hs);
   return [
-    { t: 'gap', h: split ? 6 : 50 },
-    ...(split ? [] : state._heroProbe ? [] : [heroArt(state, hs)]),
-    ...(sv ? [{ t: 'btn', id: 'continue', label: T('m_continue'), sub: T('m_continueSub', { a: sv.scores[0], b: sv.scores[1], stage: sv.stage }), primary: true, h: 88 }] : []),
-    { t: 'btn', id: 'play', label: T('m_play'), primary: !sv, h: 88 },
-    { t: 'btn', id: 'learn', label: T('m_learn'), sub: T('m_learnSub') },
-    { t: 'btn', id: 'watch', label: T('m_watch'), sub: T('m_watchSub') },
-    { t: 'btn', id: 'howto', label: T('m_howto'), row: 2 },
-    { t: 'btn', id: 'rules', label: T('m_rules'), row: 2 },
-    { t: 'btn', id: 'about', label: T('m_about'), row: 2 },
-    { t: 'btn', id: 'settings', label: T('m_settings') },
-    { t: 'btn', id: 'lang:en', label: 'Play in English', row: 3, active: lang === 'en' },
-    { t: 'btn', id: 'lang:ko', label: '한국어로 플레이', row: 3, active: lang === 'ko' },
+    { t: 'gap', h: split ? 6 : 30 },
+    ...(split ? [] : state._heroProbe ? [] : [heroW, { t: 'gap', h: flex, id: 'heroGap' }]),
+    ...(sv ? [{ t: 'btn', id: 'continue', label: T('m_continue'), sub: T('m_continueSub', { a: sv.scores[0], b: sv.scores[1], stage: sv.stage }), primary: true, h: 96 }] : []),
+    { t: 'btn', id: 'play', label: T('m_play'), primary: !sv, h: sv ? 84 : 108, dark: !!sv },
+    { t: 'btn', id: 'learn', label: T('m_learn'), row: 1, icon: 'learn', h: split ? 88 : 100 },
+    { t: 'btn', id: 'watch', label: T('m_watch'), row: 1, icon: 'watch', h: split ? 88 : 100 },
+    { t: 'btn', id: 'howto', label: T('m_howto'), row: 2, icon: 'howto' },
+    { t: 'btn', id: 'rules', label: T('m_rules'), row: 2, icon: 'rules' },
+    { t: 'btn', id: 'about', label: T('m_about'), row: split ? 4 : 2, icon: 'about' },
+    { t: 'btn', id: 'settings', label: T('m_settings'), row: split ? 4 : 2, icon: 'settings' },
+    { t: 'btn', id: 'lang:en', label: 'Play in English', row: 3, active: lang === 'en', h: 72 },
+    { t: 'btn', id: 'lang:ko', label: '한국어로 플레이', row: 3, active: lang === 'ko', h: 72 },
   ];
 }
 
@@ -229,7 +237,8 @@ export function demoLimitWidgets(state) {
 function scrim(ctx, a = 0.55) {
   const { w, h } = screen;
   const g = ctx.createLinearGradient(0, 0, 0, h);
-  g.addColorStop(0, `rgba(14,8,34,${a * 0.7})`); g.addColorStop(0.5, `rgba(14,8,34,${a})`); g.addColorStop(1, `rgba(14,8,34,${Math.min(0.92, a + 0.3)})`);
+  const c = v3.on ? '16,9,6' : '14,8,34'; if (v3.on) a *= 0.78;   // 3D: a warm, lighter shade so the room stays visible
+  g.addColorStop(0, `rgba(${c},${a * 0.7})`); g.addColorStop(0.5, `rgba(${c},${a})`); g.addColorStop(1, `rgba(${c},${Math.min(0.92, a + 0.3)})`);
   ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
 }
 
@@ -276,15 +285,40 @@ function drawLockupAt(ctx, state) {      // the themed Arcforge lockup under the
 export function renderTitle(ctx, state) {
   const f = flowFrame('title'), U = safeArea();
   bg(ctx, state, f.split ? 'left' : null);
-  scrim(ctx, 0.5);
+  const world = v3.on && v3.want && v3.want.kind === 'hero';
+  if (world && !f.split) {
+    // 3D portrait: the room shows through between the title and the menu; shade only behind the lettering and the buttons
+    const it = LAID.key === 'title' && LAID.lay ? LAID.lay.items : null;
+    const art = it && it.find((q) => q.w.t === 'art'), play = it && it.find((q) => q.w.id === 'continue' || q.w.id === 'play');
+    const y0 = art ? LAID.top + art.y + art.h * 0.8 : screen.h * 0.25, y1 = play ? LAID.top + play.y - 14 : screen.h * 0.6;
+    if (y1 - y0 > 160) v3.want.rect = { x: U.x0 + 8, y: y0, w: U.w - 16, h: y1 - y0 };
+    v3.want.tight = true;
+    const g = ctx.createLinearGradient(0, 0, 0, screen.h);
+    const a = clampT(y0 / screen.h), b = clampT(y1 / screen.h);
+    g.addColorStop(0, 'rgba(14,8,6,0.72)'); g.addColorStop(Math.max(0, a - 0.06), 'rgba(14,8,6,0.45)'); g.addColorStop(a + 0.02, 'rgba(14,8,6,0)');
+    g.addColorStop(Math.max(a + 0.03, b - 0.04), 'rgba(14,8,6,0)'); g.addColorStop(Math.min(1, b + 0.03), 'rgba(14,8,6,0.6)'); g.addColorStop(1, 'rgba(14,8,6,0.85)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, screen.w, screen.h);
+  } else if (world) {
+    const g = ctx.createLinearGradient(U.x0 + U.w * 0.45, 0, U.x0 + U.w * 0.62, 0);
+    g.addColorStop(0, 'rgba(14,8,6,0.05)'); g.addColorStop(1, 'rgba(14,8,6,0.72)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, screen.w, screen.h);
+  } else scrim(ctx, 0.5);
   if (f.split) {
     // landscape: the title art sits over the demo mat on the left, the menu on the right
     const half = U.w / 2, cx = U.x0 + half / 2;
     const g = ctx.createRadialGradient(cx, screen.h / 2, 40, cx, screen.h / 2, half * 0.9);
-    g.addColorStop(0, 'rgba(14,8,34,0.5)'); g.addColorStop(1, 'rgba(14,8,34,0)');
+    g.addColorStop(0, world ? 'rgba(14,8,6,0.42)' : 'rgba(14,8,34,0.5)'); g.addColorStop(1, 'rgba(14,8,34,0)');
     ctx.fillStyle = g; ctx.fillRect(U.x0, 0, half, screen.h);
-    const hero = heroArt(state);
-    ctx.save(); ctx.translate(U.x0, Math.max(U.y0 + 10, (screen.h - 400) / 2 - 24)); hero.draw(ctx, half); ctx.restore();
+    if (world) {
+      // 3D landscape: the lettering at the top of the left half, the cloth and pebbles below it
+      const k = Math.max(0.55, Math.min(1, (U.h * 0.44) / 330)), hero = heroArt(state, k);
+      ctx.save(); ctx.translate(U.x0, U.y0 + 4 - 40 * k); hero.draw(ctx, half); ctx.restore();
+      const top = U.y0 + 300 * k;
+      v3.want.rect = { x: U.x0 + 10, y: top, w: half - 20, h: U.y1 - top - 8 }; v3.want.tight = true;
+    } else {
+      const hero = heroArt(state);
+      ctx.save(); ctx.translate(U.x0, Math.max(U.y0 + 10, (screen.h - 400) / 2 - 24)); hero.draw(ctx, half); ctx.restore();
+    }
   } else {
     const g = ctx.createRadialGradient(screen.w / 2, 250, 40, screen.w / 2, 250, 460);
     g.addColorStop(0, 'rgba(14,8,34,0.5)'); g.addColorStop(1, 'rgba(14,8,34,0)');
@@ -397,7 +431,7 @@ export function renderPages(ctx, state, list, header) {
   ART_LANG = state.settings.lang;
   const sc = TEXT_SCALES[state.settings.textIdx];
   const RL = refLayout(), PANEL = RL.panel, cxm = PANEL.x + PANEL.w / 2;
-  const pkey = `${header}:${sc}:${state.settings.lang}:${Math.round(PANEL.w)}x${Math.round(PANEL.h)}`;
+  const pkey = `${header}:${list.length}:${sc}:${state.settings.lang}:${Math.round(PANEL.w)}x${Math.round(PANEL.h)}`;
   let pages = pageCache.get(pkey);
   if (!pages) { pages = buildPages(ctx, list, sc, PANEL); pageCache.set(pkey, pages); if (pageCache.size > 60) pageCache.delete(pageCache.keys().next().value); }
   const pg = pages[0];

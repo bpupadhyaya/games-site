@@ -135,7 +135,7 @@ export async function createPresenter({ kitCanvas, quality = pickQuality(), stan
       }
       // a few by the table and the bales near the start
       for (const [x, z, yaw] of [[-0.4, -3.9, 0.3], [0.5, -4.1, -0.1], [-2.6, -4.6, 0.4], [4.6, -4.2, 0.0], [6.1, -4.8, -0.2]]) pts.push({ x, y: 0, z, yaw, seated: 0 });
-      crowd = V3.createCrowd3d({ scene, camera: cam }, { points: pts, count: pts.length, seed: 21, culture: ['european_village', 'american_rural'], quality: quality === 'high' ? 'medium' : 'low', excitement: 0.25, props: { flag: 0.1, phone: 0.1, child: 0.12 }, flagColors: ['#d8362f', '#f6eed8', '#2f6fb4'] });
+      crowd = V3.createCrowd3d({ scene, camera: cam }, { points: pts, count: pts.length, seed: 21, culture: ['european_village', 'american_rural'], quality: quality === 'low' ? 'low' : 'high', excitement: 0.25, props: { flag: 0.1, phone: 0.1, child: 0.12 }, flagColors: ['#d8362f', '#f6eed8', '#2f6fb4'] });
       P.crowd = crowd; stage.invalidate();
     } catch (e) { console.warn('crowd unavailable', e); }
   }

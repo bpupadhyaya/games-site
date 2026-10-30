@@ -171,9 +171,12 @@ export const rulesPages = () => rulesEn();
 export const RULE_COUNT = rulesEn().length;
 export const HOWTO_COUNT = HOWTO.length;
 
+// Credits of the optional 3D layer, added by main.js once web/vendor3d/LICENSES.md has loaded.
+export const EXTRA_ABOUT = [];
 export const aboutSections = () => [
   { title: 'Gabata', body: 'The three-row sowing game of Ethiopia and Eritrea, played on a carved wooden board with glossy seeds that are dropped one at a time.' },
   { title: 'Where it comes from', body: 'Gabata, also spelled Gebeta, is the name used in Ethiopia and Eritrea for a family of mancala sowing games, most of them played on two rows. A three-row form is recorded from the nineteenth century. Rules differ from region to region and from family to family, so this game follows one documented pattern, states its rules in full on the Rules pages and notes where it takes turns instead of the traditional simultaneous start.' },
   { title: 'Language', body: 'Choose Play in English, or the Amharic choice. The Amharic choice shows the name of the game, the menus, buttons and scores in Amharic script. The long texts are in English.' },
   { title: 'In this game', body: 'Three rows of six holes, three seeds in each, relay sowing and column captures. Five opponent levels from Novice to Master, two players on one phone, Think with a reason in words, six lessons and Watch & Learn. Free to play with short ads; go ad-free once.' },
+  ...EXTRA_ABOUT,
 ];

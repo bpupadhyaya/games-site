@@ -44,7 +44,7 @@ function scoreboard(ctx, G, s) {
   if (h > 205) { const k = 195 / h; h = 20; for (const r of rows) { r.fs = fitFont(ctx, r.t, r.size * k, maxW, r.w, SANS, LY.minText); h += r.fs * 1.2; } }   // a fixed strip: it never grows over the picture
   const hd = LY.hud;
   hudBottom = hd.y + h;
-  panel(ctx, { x: hd.x, y: hd.y, w: hd.w, h }, { radius: 24, top: 'rgba(6,36,48,0.9)', bottom: 'rgba(4,24,32,0.92)' });
+  panel(ctx, { x: hd.x, y: hd.y, w: hd.w, h }, { radius: 24, top: 'rgba(66,42,26,0.9)', bottom: 'rgba(38,23,14,0.92)' });
   ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
   let y = hd.y + 10;
   for (const r of rows) { y += r.fs * 1.2; ctx.font = `${r.w} ${r.fs}px ${SANS}`; ctx.fillStyle = r.col; ctx.fillText(r.t, hd.x + 18, y - r.fs * 0.2); }
@@ -69,7 +69,7 @@ export function radarMap(rect) {
   return { to: (x, z) => [rect.x + rect.w / 2 + (x - FIELD.cx) * sx, rect.y + rect.h / 2 - (z - FIELD.cz) * sz], sx, sz };
 }
 function drawRadar(ctx, G, s, rect, opts = {}) {
-  panel(ctx, { x: rect.x - 6, y: rect.y - 6, w: rect.w + 12, h: rect.h + 12 }, { radius: 16, top: 'rgba(6,36,48,0.78)', bottom: 'rgba(4,24,32,0.8)' });
+  panel(ctx, { x: rect.x - 6, y: rect.y - 6, w: rect.w + 12, h: rect.h + 12 }, { radius: 16, top: 'rgba(66,42,26,0.78)', bottom: 'rgba(38,23,14,0.8)' });
   const m = radarMap(rect);
   ctx.save();
   ctx.beginPath(); ctx.ellipse(rect.x + rect.w / 2, rect.y + rect.h / 2, FIELD.ax * m.sx, FIELD.az * m.sz, 0, 0, 7); ctx.fillStyle = '#3f8f46'; ctx.fill(); ctx.strokeStyle = '#fff6e0'; ctx.lineWidth = 2; ctx.stroke();
@@ -194,7 +194,7 @@ function roleBadge(ctx, G, s, y) {
   const tw = ctx.measureText(txt).width;
   y = Math.max(y, hudBottom + 14 + fs);   // always just under the score strip, whatever the text size
   const bx = LY.hud.x + 2;
-  rr(ctx, bx, y - fs - 6, tw + 28, fs + 16, 14); ctx.fillStyle = 'rgba(4,24,32,0.78)'; ctx.fill();
+  rr(ctx, bx, y - fs - 6, tw + 28, fs + 16, 14); ctx.fillStyle = 'rgba(38,23,14,0.78)'; ctx.fill();
   ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'; ctx.fillStyle = idle ? 'rgba(255,244,224,0.85)' : PAL.gold; ctx.fillText(txt, bx + 14, y);
 }
 
@@ -350,7 +350,7 @@ function drawWatchPanel(ctx, G, s) {
     fs -= 1;
   }
   const r = { x: cd.x, y: 0, w: cd.w, h: 58 + wrapped.length * fs * 1.33 + 14 }; r.y = cd.bottom - r.h;
-  panel(ctx, r, { radius: 22, top: 'rgba(4,22,30,0.88)', bottom: 'rgba(4,22,30,0.84)' });
+  panel(ctx, r, { radius: 22, top: 'rgba(38,23,14,0.88)', bottom: 'rgba(38,23,14,0.84)' });
   textFill(ctx, phaseName, r.x + 22, r.y + 42, 28, { align: 'left', color: phaseCol, italic: true, weight: 700 });
   const frac = a.total > 0 ? clamp(1 - a.timer / a.total, 0, 1) : 1;
   ctx.fillStyle = 'rgba(255,255,255,0.15)'; rr(ctx, r.x + 150, r.y + 28, r.w - 180, 10, 5); ctx.fill();

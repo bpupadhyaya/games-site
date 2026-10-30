@@ -5,6 +5,7 @@ import { W, H, LAND, SAFE, inRect, TEXT_SCALES, playLayout } from './layout.js';
 import { BR, CUP_R, inZone, zoneBox, moversAt, compileHole, WALL_RAD } from './sim.js';
 import { FONT, C, roundPath, drawButton, panel, wrapLines, textShadow, FLOOR } from './ui.js';
 import { COURSE_BY_ID, holeById } from './courses.js';
+import { v3, makeCam3 } from './v3.js';
 
 const TAU = Math.PI * 2;
 export const BALL_COLORS = [
@@ -57,7 +58,7 @@ export function makeCam(h, area, prefRot = 0, cover = false) {
   };
   return cam;
 }
-export const place = (ctx, cam) => { ctx.translate(cam.ox, cam.oy); if (cam.rot) ctx.rotate(Math.PI / 2); ctx.scale(cam.s, cam.s); };
+export const place = (ctx, cam) => { if (cam.mat) { ctx.transform(...cam.mat); return; } ctx.translate(cam.ox, cam.oy); if (cam.rot) ctx.rotate(Math.PI / 2); ctx.scale(cam.s, cam.s); };
 const polyPath = (ctx, pts, close = true) => { ctx.beginPath(); pts.forEach((p, i) => (i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]))); if (close) ctx.closePath(); };
 function zonePath(ctx, z) {
   ctx.beginPath();
@@ -456,7 +457,7 @@ export function drawGuide(ctx, cam, guide, t) {
   ctx.restore();
 }
 export function drawPowerRing(ctx, cam, bx, by, pow, ang) {
-  const [x, y] = cam.m2s(bx, by), R0 = Math.max(22, cam.s * 0.95);
+  const [x, y0] = cam.m2s(bx, by), y = y0 - (cam.lift ? cam.lift(BR) : 0), R0 = Math.max(22, cam.s * 0.95);
   ctx.save(); ctx.translate(x, y); ctx.lineCap = 'round';
   ctx.lineWidth = 7; ctx.strokeStyle = 'rgba(0,20,10,0.5)'; ctx.beginPath(); ctx.arc(0, 0, R0, 0, TAU); ctx.stroke();
   const col = pow < 0.5 ? '#7be38a' : pow < 0.8 ? '#ffd24a' : '#ff6a4a';
@@ -590,8 +591,7 @@ export function layoutFor(state) {
 }
 export const camFor = (state, lay) => {
   const h = compileHole(state.m.holes[state.m.idx]);
-  const cam = makeCam(h, lay.sheet, state.camRot ?? 0);
-  return cam;
+  return v3.on ? makeCam3(h, lay.sheet, state.camRot ?? 0) : makeCam(h, lay.sheet, state.camRot ?? 0);
 };
 
 // ---- the play screen --------------------------------------------------------------------------------------------------------------
@@ -602,9 +602,15 @@ export function renderPlay(ctx, state) {
   const cam = camFor(state, lay);
   state.camRot = cam.rot;
   state.cam = cam;
-  drawBackdrop(ctx, COURSE_BY_ID[def.course].feel, state.t);
-  // the hole
-  drawCourse(ctx, h, cam, state.clock, th, state.fx);
+  if (v3.on) {
+    // the 3D scene behind this canvas draws the table, the course, the balls and the flag; this layer draws guide, trails and HUD
+    v3.want = { mode: 'play', def, cam, clock: state.clock, t: state.t, bump: state.fx?.bump ?? {}, cur: m.cur,
+      balls: state.balls.map((b, i) => ({ x: b.ball.x, y: b.ball.y, mode: b.ball.mode, sink: b.ball.sink, hd: b.ball.hd, rot: b.ball.rot, ci: i % 4, hide: !!(b.done && b.sunkShown >= 1), dim: !(i === m.cur || m.players.length === 1) })) };
+  } else {
+    drawBackdrop(ctx, COURSE_BY_ID[def.course].feel, state.t);
+    // the hole
+    drawCourse(ctx, h, cam, state.clock, th, state.fx);
+  }
   ctx.save(); place(ctx, cam);
   const order = state.balls.map((b, i) => i).sort((a, b2) => (a === m.cur ? 1 : 0) - (b2 === m.cur ? 1 : 0));
   // the tunnel pulse and ball trails
@@ -613,15 +619,15 @@ export function renderPlay(ctx, state) {
     const cb = state.balls[m.cur];
     if (cb && state.aim.placed && !cb.done) { drawGuide(ctx, cam, state.guide, state.t); }
   }
-  for (const i of order) { const b = state.balls[i]; if (b.done && b.sunkShown >= 1) continue; drawBall(ctx, cam, b.ball, BALL_COLORS[i % 4], { alpha: i === m.cur || m.players.length === 1 ? 1 : 0.9 }); }
+  if (!v3.on) for (const i of order) { const b = state.balls[i]; if (b.done && b.sunkShown >= 1) continue; drawBall(ctx, cam, b.ball, BALL_COLORS[i % 4], { alpha: i === m.cur || m.players.length === 1 ? 1 : 0.9 }); }
   drawParts(ctx, cam, state.parts);
   ctx.restore();
   const cb = state.balls[m.cur];
   const nearBall = cb && Math.hypot(cb.ball.x - h.cup.x, cb.ball.y - h.cup.y) < 2.4;
-  drawFlag(ctx, cam, h, th, state.t, nearBall);
+  if (v3.on) v3.want.near = nearBall; else drawFlag(ctx, cam, h, th, state.t, nearBall);
   // slingshot band and power ring (screen space)
   if (state.drag && state.drag.on && cb && !cb.done) {
-    const [bx, by] = cam.m2s(cb.ball.x, cb.ball.y);
+    const [bx, by0] = cam.m2s(cb.ball.x, cb.ball.y), by = by0 - (cam.lift ? cam.lift(BR) : 0);
     ctx.save(); ctx.strokeStyle = 'rgba(255,255,255,0.65)'; ctx.lineWidth = 4; ctx.lineCap = 'round'; ctx.setLineDash([2, 9]);
     ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(state.drag.px, state.drag.py); ctx.stroke(); ctx.setLineDash([]);
     ctx.beginPath(); ctx.arc(state.drag.px, state.drag.py, 13, 0, TAU); ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,0.85)'; ctx.lineWidth = 3; ctx.stroke();
@@ -629,7 +635,7 @@ export function renderPlay(ctx, state) {
   }
   if (cb && state.aim.placed && state.phase === 'aim' && !state.holeEnd && !cb.done) {
     drawPowerRing(ctx, cam, cb.ball.x, cb.ball.y, state.aim.pow, state.aim.ang);
-    const [bx, by] = cam.m2s(cb.ball.x, cb.ball.y);
+    const [bx, by0] = cam.m2s(cb.ball.x, cb.ball.y), by = by0 - (cam.lift ? cam.lift(BR) : 0);
     ctx.save(); ctx.font = `800 ${Math.max(FLOOR, 22)}px ${FONT}`; ctx.textAlign = 'center'; ctx.fillStyle = '#fff';
     textShadow(ctx, `${Math.round(state.aim.pow * 100)}%`, bx, by - Math.max(22, cam.s * 0.95) - 12, '#ffffff', 5); ctx.restore();
   }
@@ -645,7 +651,7 @@ export function renderPlay(ctx, state) {
   if (state.toastT > 0 && state.toast) {
     ctx.save(); const fs = Math.max(FLOOR, Math.round(Math.min(lay.fs, 36) * 0.85)); ctx.font = `700 ${fs}px ${FONT}`;
     const maxW = Math.min(lay.sheet.w - 24, 640), lines = wrapLines(ctx, state.toast, maxW - 40), tw = Math.min(maxW, Math.max(...lines.map((l) => ctx.measureText(l).width)) + 40), th2 = lines.length * fs * 1.25 + 20;
-    const x = lay.sheet.x + (lay.sheet.w - tw) / 2, y = lay.sheet.y + 10;
+    const x = lay.sheet.x + (lay.sheet.w - tw) / 2, y = lay.sheet.y + (lay.land ? 40 : 10); // landscape: clear the centred preview pill
     ctx.globalAlpha = Math.min(1, state.toastT * 2);
     roundPath(ctx, x, y, tw, th2, 16); ctx.fillStyle = 'rgba(6,30,18,0.88)'; ctx.fill(); ctx.strokeStyle = 'rgba(150,215,170,0.5)'; ctx.lineWidth = 2; ctx.stroke();
     ctx.fillStyle = '#f6fbf1'; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
@@ -703,4 +709,18 @@ function drawHoleEnd(ctx, state, lay) {
     if (i === best) { ctx.fillStyle = '#c47d12'; ctx.fillText('★', x + w - 24 - ctx.measureText(`${res.strokes}  ${res.name}`).width - 10, yy); }
   });
   ctx.restore();
+}
+
+// The flat felt, sand, water, slopes, boost pads, bridges, tee mat and cup painted top-down in hole units (already under the caller's
+// transform) for the 3D presenter to wrap on the ground mesh. Static: the animated bits live in the 3D layer.
+export function paintGround(ctx, h, th) {
+  const b = h.box, fake = { toLight: (k) => [-0.53 * k, -0.85 * k] };
+  const g = ctx.createLinearGradient(b.x0, b.y0, b.x1, b.y1);
+  g.addColorStop(0, th.felt0); g.addColorStop(1, th.felt1);
+  ctx.fillStyle = g; ctx.fillRect(b.x0 - 3, b.y0 - 3, b.x1 - b.x0 + 6, b.y1 - b.y0 + 6);
+  ctx.fillStyle = th.stripe;
+  for (let x = Math.floor(b.x0); x < b.x1 + 1; x += 2) ctx.fillRect(x, b.y0 - 3, 1, b.y1 - b.y0 + 6);
+  for (const [x, y, s, q] of decorFor(h).speck) { ctx.fillStyle = q < 0.5 ? 'rgba(0,40,12,0.10)' : 'rgba(210,255,200,0.08)'; ctx.fillRect(x, y, s * 1.6, s); }
+  drawZones(ctx, fake, h, 0, th);
+  drawTeeAndCup(ctx, fake, h, th);
 }

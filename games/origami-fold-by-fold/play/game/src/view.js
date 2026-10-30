@@ -11,6 +11,7 @@ import {
 } from './paper.js';
 import { MODELS, stateAt, finalState } from './models.js';
 import { tr, RULES } from './content.js';
+import { v3 } from './v3.js';
 import { TEXT_SCALES, wrap } from './ui.js';
 import { layout, host } from './layout.js';
 import { drawLockup } from './brand.js';
@@ -78,6 +79,17 @@ function drawFixed(ctx, S, list) {
       text(ctx, f.label, f.rect.x + 62 + (f.rect.w - 72) / 2, f.rect.y + f.rect.h / 2 + f.size * 0.34 + (pressed ? 3 : 0), f.size, INK, { weight: 700 });
     } else button(ctx, f.rect, f.lines ?? [f.label], f.kind, { size: f.size, line: f.line, disabled: f.disabled, pressed });
   }
+}
+
+// The one big paper of a screen: drawn by the WebGL presenter when it is alive, otherwise by the software renderer.
+let titleXf = null;   // the title scales its art block; the 3D camera needs the final virtual-unit camera
+function paperDraw(ctx, faces, cam, paper, creases, mode) {
+  if (v3.on && paper.front) {
+    const c = titleXf ? makeCam({ ...cam, x: titleXf.tx + titleXf.k * cam.x, y: titleXf.ty + titleXf.k * cam.y, S: cam.S * titleXf.k }) : cam;
+    v3.paper = { faces, cam: c, creases: creases || [], paper, mode, title: !!titleXf };
+    return;
+  }
+  drawFaces(ctx, faces, cam, paper, creases, mode);
 }
 
 // A thumbnail of a finished model, drawn with the real paper renderer.
@@ -266,7 +278,7 @@ function drawAttract(ctx, S, cx, cy, size) {
     const f = finalOf(m);
     const kk = clamp01(ph / 0.6);
     const c2 = makeCam({ x: cx, y: cy, S: size * (0.96 + 0.04 * kk), cx: f.b.cx, cy: f.b.cy + 0.2, tilt: 0.36, yaw: 0.12 * Math.sin(S.t * 0.8) });
-    drawFaces(ctx, flatFaces(st), c2, paper, st.creases, {});
+    paperDraw(ctx, flatFaces(st), c2, paper, st.creases, {});
     drawDecals(ctx, m.decals, c2, clamp01(ph / 1.6));
     return;
   }
@@ -280,7 +292,7 @@ function drawAttract(ctx, S, cx, cy, size) {
   const w = easeIO(clamp01((ph - 0.8) / 1.3));
   const th = step.type === 'fold' ? Math.PI * w * 0.985 : Math.PI * (1 - w * 0.985);
   const cs = step.type === 'fold' ? (th > 0.04 ? pl.creasesAll : st.creases) : pl.creasesAll;
-  drawFaces(ctx, foldFaces(st, pl, th), cam, paper, cs, { fold: true, theta: th, kind: pl.spec.kind });
+  paperDraw(ctx, foldFaces(st, pl, th), cam, paper, cs, { fold: true, theta: th, kind: pl.spec.kind });
 }
 
 function drawTitle(ctx, S, ui) {
@@ -295,7 +307,7 @@ function drawTitle(ctx, S, ui) {
   ctx.fillStyle = '#fff3e8'; ctx.font = `800 40px ${DISPLAY}`; ctx.textAlign = 'center'; ctx.fillText('折', 0, 14); ctx.restore();
   text(ctx, 'FOLD BY FOLD', 360, 276, 40, VERM, { weight: 800, font: DISPLAY });
   text(ctx, tr('tagline'), 360, 326, 26, INK2, { weight: 500 });
-  drawAttract(ctx, S, 360, 610, 270);
+  titleXf = Tt; drawAttract(ctx, S, 360, 610, 270); titleXf = null;
   ctx.restore();
   drawDocBlocks(ctx, S, ui, S.scroll[ui.scrollKey] ?? 0);
 }
@@ -488,7 +500,7 @@ function drawPlay(ctx, S, ui, extras) {
   const sc = sceneOf(P);
   const paper = getPaper(P.paperId, P.studio ? undefined : m.back);
   ctx.save(); ctx.beginPath(); ctx.rect(R.board.x - 8, R.board.y - 6, R.board.w + 16, R.board.h + 12); ctx.clip();
-  drawFaces(ctx, sc.faces, cam, paper, sc.creases, sc.mode);
+  paperDraw(ctx, sc.faces, cam, paper, sc.creases, sc.mode);
   if (P.phase === 'reveal') drawDecals(ctx, m.decals, cam, P.decalK);
   if (a) drawAutoLines(ctx, S, P, cam, a);
   if (!P.studio && P.phase !== 'reveal' && P.plan) drawGuides(ctx, S, P, cam, a);
@@ -520,6 +532,7 @@ function drawPlay(ctx, S, ui, extras) {
 
 export function render(ctx, S, ui, extras = {}) {
   bakeStep();
+  v3.paper = null;
   const sc = S.scene;
   if (sc === 'title') drawTitle(ctx, S, ui);
   else if (sc === 'play' || sc === 'studio' || sc === 'auto') drawPlay(ctx, S, ui, extras);

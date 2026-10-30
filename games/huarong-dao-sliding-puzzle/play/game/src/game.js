@@ -525,6 +525,7 @@ export async function createGame(env) {
   return {
     rects,
     layout: () => LAY,
+    peek: () => S,
     debugGo(scene) {
       if (scene === 'play') startLevel(0);
       else if (scene === 'auto') startAuto();

@@ -10,6 +10,9 @@ import { DOCS, DUEL_ROUNDS, LEVELS } from './content.js';
 import { BOX_KEYS, TILE_KEYS } from './art.js';
 import { layoutFor, TEXT_SCALES, THINK_STEPS, inRect } from './layout.js';
 import { render, docMetrics } from './view.js';
+import { v3 } from './v3.js';
+// Tap rectangle of tile k: the live projection of the 3D tile when the 3D scene is drawn, otherwise the flat layout rectangle.
+const tileRect = (L, k) => (v3.on && v3.tiles && v3.tiles[k - 1]) || L.tiles[k - 1];
 
 export const meta = { width: 720, height: 1560, fluid: { short: 720 } };
 export const wheelInput = { dy: 0 };
@@ -151,7 +154,7 @@ export function createGame(env) {
   function commit(sub) {
     const g = S.g, bx = g.box, L = lay().board(g.n), ks = tilesOf(sub);
     bx.open &= ~sub; bx.hist.push({ total: bx.total, sub }); bx.sel = 0; bx.phase = 'flipping'; S.hint = null; S.plan = null;
-    ks.forEach((k, i) => { S.delay[k - 1] = i * 0.12; sClack(i); const r = L.tiles[k - 1]; burst(r.x + r.w / 2, r.y + r.h * 0.4, 10 + 4 * ks.length); });
+    ks.forEach((k, i) => { S.delay[k - 1] = i * 0.12; sClack(i); const r = tileRect(L, k); burst(r.x + r.w / 2, r.y + r.h * 0.4, 10 + 4 * ks.length); });
     S.actT = 0.35 + 0.12 * ks.length + (S.calm ? 0 : 0.25);
     S.gameShake = S.calm ? 0 : 0.18;
   }
@@ -341,7 +344,7 @@ export function createGame(env) {
   }
   function tileAt(x, y) {
     const L = lay().board(S.g.n);
-    for (let k = 1; k <= S.g.n; k++) if (inRect(L.tiles[k - 1], x, y)) return k;
+    for (let k = 1; k <= S.g.n; k++) if (inRect(tileRect(L, k), x, y)) return k;
     return 0;
   }
   function updatePlay(dt, input, tap) {
@@ -382,7 +385,7 @@ export function createGame(env) {
     if (k.has('KeyD')) return { x: P.btn.dice.x + 5, y: P.btn.dice.y + 5 };
     if (k.has('Enter') || k.has('Space')) return { x: P.tray.x + 5, y: P.tray.y + 5 };
     const codes = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9', 'Digit0', 'Minus', 'Equal'];
-    for (let i = 0; i < codes.length; i++) if (k.has(codes[i]) || k.has(codes[i].replace('Digit', 'Numpad'))) { const r = lay().board(g.n).tiles[i]; if (r) return { x: r.x + r.w / 2, y: r.y + r.h / 2 }; }
+    for (let i = 0; i < codes.length; i++) if (k.has(codes[i]) || k.has(codes[i].replace('Digit', 'Numpad'))) { const r = tileRect(lay().board(g.n), i + 1); if (r) return { x: r.x + r.w / 2, y: r.y + r.h / 2 }; }
     return null;
   }
 

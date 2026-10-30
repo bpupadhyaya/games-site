@@ -1,6 +1,7 @@
 // Drawing only. Reads the run state and a list of visual-only effects; changes neither.
 import { SLOTS, BOSS_SLOT } from './tuning.js';
 import { birdPoint, perchPoint, chooseDest, threatened } from './rules.js';
+import { v3, flatAlpha, launchPoint } from './v3.js';
 
 export const W = 720, H = 1280, HORIZON = 330;
 const TAU = Math.PI * 2;
@@ -116,7 +117,7 @@ const lerp = (a, b, f) => a + (b - a) * f;
 const smooth = (a, b, x) => { const f = Math.max(0, Math.min(1, (x - a) / (b - a))); return f * f * (3 - 2 * f); };
 
 // Aim: the direction the stone will leave, from the cheek toward the perch (lobs aim high).
-function aimOf(perches, slot, target, kind) {
+export function aimOf(perches, slot, target, kind) {
   const sl = SLOTS[slot], k = sl.s, tp = perchPoint(perches, target);
   const face = tp.x >= sl.x ? 1 : -1, cx = sl.x + face * CHEEK.x * k, cy = sl.y + CHEEK.y * k;
   const lift = kind === 'flat' ? 0 : 150;
@@ -255,7 +256,7 @@ export function telegraph(ctx, s, t) {
     const p = perchPoint(s.perches, h.target), prog = 1 - h.timer / h.total;
     ctx.save(); ctx.globalAlpha = 0.25 + 0.5 * prog;
     ctx.strokeStyle = '#fff3d0'; ctx.lineWidth = 3; ctx.setLineDash([2, 12]); ctx.lineCap = 'round';
-    const ho = handOrigin(s.perches, h.slot, h.target, h.kind); ctx.beginPath(); ctx.moveTo(ho.x, ho.y);
+    const ho = launchPoint(h.slot, () => handOrigin(s.perches, h.slot, h.target, h.kind)); ctx.beginPath(); ctx.moveTo(ho.x, ho.y);
     ctx.quadraticCurveTo((ho.x + p.x) / 2, Math.min(ho.y, p.y) - (h.kind === 'flat' ? 30 : 200), p.x, p.y); ctx.stroke(); ctx.setLineDash([]);
     ctx.strokeStyle = h.cancel ? '#ffd35c' : '#ff5a4a'; ctx.lineWidth = 4;
     const r = (46 - prog * 8 + Math.sin(t * 12) * 2) * Math.max(0.55, p.s);
@@ -443,14 +444,32 @@ export function hud(ctx, s) {
 
 // `L` is the live layout (layout.js): the world is drawn through its transform. Without one (the Rules art) the 720 x 1280 page.
 export function drawScene(ctx, s, fx, t, title = false, L = null) {
+  if (L && v3.on) {
+    // The 3D presenter draws the field (sky, trees, hunters, stones, the bird) behind this canvas; here only the cues stay flat:
+    // the aim rings and arcs, perch choices, knock-down rings, the beaters' warning, dazed stars and the feather bursts.
+    v3.frame = { s, fx, t, title, L };
+    const a = flatAlpha();
+    if (a > 0.01) { ctx.save(); ctx.globalAlpha = a; drawField(ctx, s, [], t, title, L); ctx.restore(); }
+    const V = L.V; EDGE.l = V.vx0; EDGE.r = V.vx1;
+    ctx.save(); ctx.translate(V.ox, V.oy); ctx.scale(V.z, V.z);
+    telegraph(ctx, s, t);
+    if (!title) choices(ctx, s, t);
+    beaterWarnings(ctx, s, t); nutRings(ctx, s, t); dazed(ctx, s, t, title);
+    drawFx(ctx, fx);
+    ctx.restore();
+    return;
+  }
+  drawField(ctx, s, fx, t, title, L);
+}
+
+function drawField(ctx, s, fx, t, title, L) {
   const V = L ? { ...L.V } : DEFAULT_V;
   EDGE.l = V.vx0; EDGE.r = V.vx1;
   ctx.save();
   if (L) { ctx.translate(V.ox, V.oy); ctx.scale(V.z, V.z); }
   sky(ctx, t, title ? 0 : Math.min(1, s.t / s.duration), V); ground(ctx, V);
   sideTrees(ctx, V, s.feats.wind && !title ? { w: s.wind, t } : null);
-  const shown = title ? 3 : Math.min(s.maxHunters, s.startHunters + s.wave);
-  const hs = s.hunters.filter((h) => h.slot < shown || (!title && s.feats.boss && h.slot === BOSS_SLOT)).sort((a, b) => SLOTS[a.slot].y - SLOTS[b.slot].y);
+  const hs = shownHunters(s, title).sort((a, b) => SLOTS[a.slot].y - SLOTS[b.slot].y);
   for (const h of hs) if (SLOTS[h.slot].s < 0.9) hunter(ctx, h, t, s.perches);
   const wind = s.feats.wind ? { w: s.wind, t } : null;
   for (const tr of [...s.trees].sort((a, b) => a.y - b.y)) drawTree(ctx, tr, wind);
@@ -460,6 +479,55 @@ export function drawScene(ctx, s, fx, t, title = false, L = null) {
   seeds(ctx, s, t); beaters(ctx, s, t);
   stones(ctx, s); nuts(ctx, s, t);
   bird(ctx, s, t, title);
+  drawFx(ctx, fx);
+  ctx.globalAlpha = 1;
+  ctx.restore();
+}
+
+// Hunters shown on the field: the title shows three; a run adds one per wave up to the level's cap (the boss on boss levels).
+export function shownHunters(s, title) {
+  const shown = title ? 3 : Math.min(s.maxHunters, s.startHunters + s.wave);
+  return s.hunters.filter((h) => h.slot < shown || (!title && s.feats.boss && h.slot === BOSS_SLOT));
+}
+// Side trees in the margins of wide screens (no perches): the same fixed list the flat art draws.
+export function sideTreeList(V) {
+  if (V.vx0 > -60 && V.vx1 < W + 60) return [];
+  const list = [];
+  for (let k = 0; k < 40; k++) {
+    const off = 90 + k * 230;
+    if (-off < V.vx0 - 130 && W + off > V.vx1 + 130) break;
+    for (const sgn of [-1, 1]) {
+      const x = sgn < 0 ? -off : W + off, row = SIDE_ROWS[(k + (sgn < 0 ? 0 : 1)) % 2];
+      if (x < V.vx0 - 130 || x > V.vx1 + 130) continue;
+      list.push({ x: x + ((k * 53) % 40) - 20, y: row.y + ((k * 29) % 3) * 24, s: row.s, offs: [], crown: 0.62, key: k * 2 + (sgn < 0 ? 0 : 1) });
+    }
+  }
+  return list;
+}
+function beaterWarnings(ctx, s, t) {
+  for (const bt of s.beaters) {
+    const q = 1 - bt.timer / bt.total, pp = perchPoint(s.perches, bt.perch), k = Math.max(0.55, s.trees[s.perches[bt.perch].tree].s);
+    if (Math.floor(t * (6 + q * 10)) % 2 === 0) { ctx.fillStyle = '#ffd35c'; ctx.font = `900 ${34 * k}px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText('!', pp.x, pp.y - 46 * k); }
+  }
+}
+function nutRings(ctx, s, t) {
+  if (!(s.ammo > 0 && !s.over && !s.won)) return;
+  for (const h of s.hunters) {
+    if (!(h.phase === 'pull' || h.phase === 'queued')) continue;
+    const sl = SLOTS[h.slot], k = Math.max(0.6, sl.s), c = { x: sl.x, y: sl.y - 75 * sl.s };
+    ctx.save(); ctx.globalAlpha = 0.55 + 0.3 * Math.sin(t * 9); ctx.strokeStyle = '#fff6c0'; ctx.lineWidth = 3.5; ctx.setLineDash([7, 6]);
+    ctx.beginPath(); ctx.arc(c.x, c.y, 62 * k, 0, TAU); ctx.stroke(); ctx.restore();
+  }
+}
+function dazed(ctx, s, t, title) {
+  for (const h of shownHunters(s, title)) {
+    if (h.phase !== 'stunned') continue;
+    const sl = SLOTS[h.slot], k = sl.s;
+    ctx.fillStyle = '#ffe27a';
+    for (let i = 0; i < 3; i++) { const a = t * 5 + i * 2.09, sx = sl.x + (Math.cos(a) * 26) * k, sy = sl.y + (-150 + Math.sin(a) * 7) * k; ctx.beginPath(); ctx.moveTo(sx, sy - 6 * k); ctx.lineTo(sx + 2 * k, sy - 2 * k); ctx.lineTo(sx + 6 * k, sy); ctx.lineTo(sx + 2 * k, sy + 2 * k); ctx.lineTo(sx, sy + 6 * k); ctx.lineTo(sx - 2 * k, sy + 2 * k); ctx.lineTo(sx - 6 * k, sy); ctx.lineTo(sx - 2 * k, sy - 2 * k); ctx.fill(); }
+  }
+}
+function drawFx(ctx, fx) {
   for (const f of fx) {
     ctx.globalAlpha = Math.max(0, f.life / f.max); ctx.save(); ctx.translate(f.x, f.y);
     if (f.net) {
@@ -472,7 +540,6 @@ export function drawScene(ctx, s, fx, t, title = false, L = null) {
     ctx.restore();
   }
   ctx.globalAlpha = 1;
-  ctx.restore();
 }
 
 export function drawText(ctx, str, x, y, size, color = '#fff', weight = 800) {

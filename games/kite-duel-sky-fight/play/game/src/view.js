@@ -5,6 +5,7 @@ import { drawSky, drawClouds, drawWindStreaks, drawLand, drawFlyer, drawKite, dr
 import { THINK_STEPS, TEXT_SCALES, visibleWorld, cardGeom, MIN_TXT } from './layout.js';
 import { FONT, DISPLAY, C, roundPath, paintButton, drawButton, panel, textShadow, wrapLines, fitPx } from './ui.js';
 import { PROFILES, MODE_WORD } from './ai.js';
+import { v3 } from './v3.js';
 
 const TAU = Math.PI * 2;
 
@@ -20,6 +21,21 @@ export const palsOf = (m) => (m.cfg.mode === 'watch' ? [KITE_PAL[1 + m.cfg.watch
 export function drawScene(ctx, state, w, sky, pals, o = {}) {
   const t = state.t, wp = state.wp, dir = w.wind.dir;
   const vw = o.vw;
+  if (v3.on && vw) {
+    // WebGL draws the sky, land, flyers, kites and strings (view3d/presenter.js). The 2D layer keeps the free-kite wisps, the
+    // crossing flare and the sparks, in the same world transform, so every overlay lines up with the 3D scene.
+    ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height); ctx.restore();
+    v3.want = true; v3.frame = { sky, t, wp, dir, w, pals, noFlyers: !!o.noFlyers, vw };
+    if (w.contact && !w.over) drawContact(ctx, w.contact, t, Math.max(w.contact.rate[0], w.contact.rate[1]));
+    for (const k of w.k) {
+      if (!k.free) continue;
+      ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.lineWidth = 1.6; ctx.beginPath();
+      for (let i = 0; i <= 10; i++) { const x = k.x - Math.sin(t * 5 + i * 0.6) * 6 - w.wind.dir * i * 3, y = k.y - i * 9; if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); }
+      ctx.stroke();
+    }
+    drawParticles(ctx, state.parts);
+    return;
+  }
   drawSky(ctx, sky, t, vw);
   drawClouds(ctx, sky, wp, dir, vw);
   drawWindStreaks(ctx, wp, dir, w.wnow, vw);

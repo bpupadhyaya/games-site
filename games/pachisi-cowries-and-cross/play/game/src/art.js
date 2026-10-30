@@ -64,17 +64,17 @@ export function star(ctx, x, y, s, col, lw) {
   for (const [dx, dy] of [[-s, -s], [s, -s], [-s, s], [s, s]]) { ctx.beginPath(); ctx.arc(x + dx, y + dy, lw * 0.9, 0, TAU); ctx.fill(); }
 }
 
-function paintBoard(ctx, mode) {
+function paintBoard(ctx, mode, flat = false) {
   const G = geo(mode), cs = cellSize(mode), R = G.R, r = lcg(11);
   const P = (x, y) => gridXY(mode, x, y);
   const outer = crossPts(mode, 2, R + 2), inner = crossPts(mode, 1.5, R + 1.5), mid = crossPts(mode, 1.75, R + 1.75);
   // fringe under the cloth
-  for (let a = 0; a < 4; a++) for (let n = -22; n <= 22; n++) {
+  if (!flat) for (let a = 0; a < 4; a++) for (let n = -22; n <= 22; n++) {
     const [ux, uy] = rot(n * 0.09, R + 2, a), [vx, vy] = rot(n * 0.09 + (r() - 0.5) * 0.06, R + 2.42 + r() * 0.08, a), p = P(ux, uy), q = P(vx, vy);
     ctx.strokeStyle = n % 2 ? OCHRE : '#a3282d'; ctx.lineWidth = 2.6; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(q.x, q.y); ctx.stroke();
   }
   // shadow + base
-  ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.65)'; ctx.shadowBlur = 30; ctx.shadowOffsetX = 7; ctx.shadowOffsetY = 12;
+  ctx.save(); if (!flat) { ctx.shadowColor = 'rgba(0,0,0,0.65)'; ctx.shadowBlur = 30; ctx.shadowOffsetX = 7; ctx.shadowOffsetY = 12; }
   poly(ctx, outer); ctx.fillStyle = RED; ctx.fill(); ctx.restore();
   poly(ctx, inner); ctx.fillStyle = CREAM; ctx.fill();
   // beaded ochre stitch and cream line in the woven band
@@ -134,7 +134,7 @@ function paintBoard(ctx, mode) {
   ctx.fillStyle = g; ctx.fillRect(x0, y0, BOARD.S, BOARD.S); ctx.restore();
 
   // the four brass yards
-  for (let a = 0; a < 4; a++) {
+  for (let a = 0; a < 4 && !flat; a++) {
     const [ux, uy] = yardOffset(mode, a), p = P(ux, uy), rad = (R / 2 - 0.5) * cs;
     ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.6)'; ctx.shadowBlur = 20; ctx.shadowOffsetX = 5; ctx.shadowOffsetY = 9;
     let gg = ctx.createLinearGradient(p.x - rad, p.y - rad, p.x + rad, p.y + rad); gg.addColorStop(0, '#f6d98b'); gg.addColorStop(0.45, '#b98526'); gg.addColorStop(1, '#6e4a12');
@@ -208,4 +208,16 @@ export function drawPanel(ctx, x, y, w, h) {
   ctx.save(); ctx.beginPath(); ctx.roundRect(x + 4, y + 4, w - 8, h - 8, 18); ctx.strokeStyle = OCHRE; ctx.lineWidth = 6; ctx.setLineDash([0.1, 14]); ctx.lineCap = 'round'; ctx.stroke(); ctx.restore();
   ctx.beginPath(); ctx.roundRect(x + 12, y + 12, w - 24, h - 24, 14); ctx.strokeStyle = 'rgba(239,220,174,0.8)'; ctx.lineWidth = 2; ctx.stroke();
   ctx.beginPath(); ctx.roundRect(x + 16, y + 16, w - 32, h - 32, 12); ctx.strokeStyle = 'rgba(142,27,34,0.85)'; ctx.lineWidth = 2; ctx.stroke();
+}
+
+// For the 3D presenter: the cloth (no yards, no fringe, no shadow) painted at N x N, the whole cross footprint (2R+4 squares) filling the canvas,
+// and the throwing rug on a padded transparent canvas. Same artwork as the flat game, so the two layers never disagree.
+export function paintClothTex(ctx, mode, N) {
+  const sb = { ...BOARD }, k = N / 680;
+  Object.assign(BOARD, { cx: 340, cy: 340, S: 680 }); ctx.save(); ctx.scale(k, k);
+  try { paintBoard(ctx, mode, true); } finally { ctx.restore(); Object.assign(BOARD, sb); }
+}
+export function paintRugTex(ctx, w, h, pad) {
+  const sm = { ...MAT }; Object.assign(MAT, { x: pad, y: pad, w, h });
+  try { paintMat(ctx); } finally { Object.assign(MAT, sm); }
 }

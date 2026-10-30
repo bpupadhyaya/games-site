@@ -24,7 +24,7 @@ const BTN_FILL = {
   disabled: ['rgba(200,205,225,0.35)', 'rgba(255,255,255,0.25)'],
   primary: ['#c8452c', '#8f2b19'],
   active: ['#e8a33a', '#a8681a'],
-  dark: ['rgba(40,20,10,0.86)', 'rgba(255,230,190,0.38)'],
+  dark: ['rgba(40,20,10,0.86)', 'rgba(214,170,90,0.6)'],
   plain: ['#fbf1dc', 'rgba(70,36,14,0.45)'],
 };
 export function paintButton(ctx, r, o = {}) {
@@ -36,7 +36,12 @@ export function paintButton(ctx, r, o = {}) {
   ctx.save();
   if (!disabled) { roundPath(ctx, r.x, r.y + (pressed ? 2 : 5), r.w, r.h, 18); ctx.fillStyle = pressed ? 'rgba(20,8,2,0.25)' : 'rgba(20,8,2,0.34)'; ctx.fill(); }
   roundPath(ctx, r.x, r.y + dy, r.w, r.h, 18);
-  ctx.fillStyle = fill; ctx.fill();
+  if (k === 'dark' || k === 'primary') {
+    const g = ctx.createLinearGradient(0, r.y + dy, 0, r.y + dy + r.h);
+    if (k === 'dark') { g.addColorStop(0, 'rgba(78,42,20,0.93)'); g.addColorStop(1, 'rgba(36,17,7,0.94)'); } else { g.addColorStop(0, '#d4513a'); g.addColorStop(1, '#a8331f'); }
+    ctx.fillStyle = g;
+  } else ctx.fillStyle = fill;
+  ctx.fill();
   if (pressed) { ctx.fillStyle = 'rgba(20,8,2,0.16)'; ctx.fill(); }
   ctx.lineWidth = 1.5; ctx.strokeStyle = edge; ctx.stroke();
   ctx.restore();
@@ -78,8 +83,13 @@ export function panel(ctx, x, y, w, h, opts = {}) {
   ctx.save();
   if (shadow) { roundPath(ctx, x, y + 6, w, h, r); ctx.fillStyle = 'rgba(20,8,2,0.38)'; ctx.fill(); }
   roundPath(ctx, x, y, w, h, r);
-  ctx.fillStyle = fill; ctx.fill();
-  ctx.lineWidth = 2.5; ctx.strokeStyle = stroke; ctx.stroke();
+  if (opts.wood) {
+    // a walnut plaque with a brass edge (the table's own materials), flat: one gradient, no gloss shapes
+    const g = ctx.createLinearGradient(0, y, 0, y + h); g.addColorStop(0, 'rgba(84,46,22,0.94)'); g.addColorStop(1, 'rgba(38,18,7,0.95)');
+    ctx.fillStyle = g; ctx.fill();
+    ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(214,170,90,0.85)'; ctx.stroke();
+    roundPath(ctx, x + 5, y + 5, w - 10, h - 10, Math.max(4, r - 5)); ctx.lineWidth = 1.2; ctx.strokeStyle = 'rgba(20,8,2,0.6)'; ctx.stroke();
+  } else { ctx.fillStyle = fill; ctx.fill(); ctx.lineWidth = 2.5; ctx.strokeStyle = stroke; ctx.stroke(); }
   ctx.restore();
 }
 
@@ -170,7 +180,7 @@ export function flowLayout(ctx, widgets, scale, o = {}) {
       continue;
     }
     if (wd.t === 'btn') {
-      const fs = Math.max(minFont(1), Math.round((o.btn ?? 26) * Math.min(scale, 3)));
+      const fs = Math.max(minFont(1), Math.round((o.btn ?? 26) * Math.min(scale, 3) * (wd.big ? 1.32 : 1)));
       ctx.font = `700 ${fs}px ${FONT}`;
       const lines = wrapLines(ctx, wd.label, w0 - 28);
       const sub = wd.sub ? wrapLines(ctx, wd.sub, w0 - 28).length : 0;

@@ -55,14 +55,14 @@ export function buildUi(S) {
       const b = [], th = Math.max(64, Math.min(92, L.tap));
       const playSub = S.demo ? T('demoLeft', { n: Math.max(0, levelsIn(0).length - totalDone(S)) }) : (totalDone(S) ? `${totalDone(S)} / ${LEVELS.length} · ${totalStars(S)} ★` : undefined);
       if (L.title.compact) {
-        b.push({ t: 'btn', id: 'play', label: T('playBtn'), kind: 'primary', size: 34, sub: playSub, minH: th + 14 });
+        b.push({ t: 'btn', id: 'play', label: T('playBtn'), kind: 'gold', size: 34, sub: playSub, minH: th + 14 });
         b.push({ t: 'row', size: 26, minH: th, items: [{ id: 'studio', label: T('studioBtn'), disabled: S.demo }, { id: 'gallery', label: T('galleryBtn') }] });
         b.push({ t: 'row', size: 26, minH: th, items: [{ id: 'auto', label: T('autoBtn') }, { id: 'howto', label: T('howtoBtn') }] });
         b.push({ t: 'row', size: 26, minH: th, items: [{ id: 'rules', label: T('rulesBtn') }, { id: 'about', label: T('aboutBtn') }] });
         b.push({ t: 'btn', id: 'settings', label: T('settingsBtn'), size: 26, minH: th - 6 });
         b.push({ t: 'img', name: 'lockup', id: 'arcforge', h: 78, hitW: 250 });
       } else {
-        b.push({ t: 'btn', id: 'play', label: T('playBtn'), kind: 'primary', size: 36, sub: playSub, minH: 118 });
+        b.push({ t: 'btn', id: 'play', label: T('playBtn'), kind: 'gold', size: 36, sub: playSub, minH: 118 });
         b.push({ t: 'row', size: 28, minH: 92, items: [{ id: 'studio', label: T('studioBtn'), disabled: S.demo }, { id: 'gallery', label: T('galleryBtn') }] });
         b.push({ t: 'btn', id: 'auto', label: T('autoBtn'), size: 30, minH: 92 });
         b.push({ t: 'row', size: 28, minH: 92, items: [{ id: 'howto', label: T('howtoBtn') }, { id: 'rules', label: T('rulesBtn') }] });

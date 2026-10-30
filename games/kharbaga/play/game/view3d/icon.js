@@ -10,7 +10,7 @@ renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap;
 const scene = new THREE.Scene();
 B.createEnvironment(renderer, scene, { intensity: 0.4 });
 B.lightingRig(scene, 'warmIndoor', { renderer, shadow: 4096, extent: 5, fog: { near: 9, far: 24 },
-  overrides: { bg: 0x1a0d07, fog: 0x2a140a, key: 0xffd2a0, keyI: 1.35, keyPos: [-3.5, 5.5, 4.5], rim: 0xffa050, rimI: 1.8, rimPos: [4, 3, -5], hemi: 0.22, exposure: 0.78 } });
+  overrides: { bg: 0x1a0d07, fog: 0x2a140a, key: 0xffd2a0, keyI: 0.9, keyPos: [-3.5, 5.5, 4.5], rim: 0xffa050, rimI: 1.8, rimPos: [4, 3, -5], hemi: 0.22, exposure: 0.7 } });
 
 const board = buildBoard('sand'); scene.add(board);
 const rug = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), B.material('cloth', { color: '#2a120c', color2: '#4a1c10', repeat: [30, 30], size: 256 }));
@@ -23,12 +23,10 @@ const put = (v, i, o = {}) => {
   scene.add(g); return g;
 };
 // the moment of a chain: the crowned dark Master stands in front, two light men have just been taken behind it
-put(3, 0, { x: -0.15, z: 1.75, yaw: 0.5, s: 1.4 });
-put(2, 0, { x: -1.0, z: 0.5, yaw: 0.2 }); put(2, 0, { x: 1.05, z: 0.45, yaw: 0.8 });
-put(1, 0, { x: -2.05, z: 1.15, yaw: 0.3 }); put(1, 0, { x: 1.95, z: 1.25, yaw: 1.1 });
-put(2, 0, { x: 0.0, z: -0.6, yaw: 0.4 }); put(1, 0, { x: -1.95, z: -0.55, yaw: 0.9 }); put(2, 0, { x: 2.0, z: -0.55, yaw: 0.1 });
+put(3, 0, { x: 0.0, z: 1.35, yaw: 0.5, s: 1.9 });
+put(2, 0, { x: -1.35, z: 0.1, yaw: 0.2 }); put(2, 0, { x: 1.5, z: -0.2, yaw: 0.8 }); put(1, 0, { x: 0.1, z: -0.9, yaw: 0.4 });
 // legal-move glow rings and the lamp glow under the Master
-for (const [x, z, r, c] of [[-0.15, 1.75, 0.9, '#ffd36a'], [-1.1, 1.05, 0.5, '#ffe08a'], [0.95, 1.05, 0.5, '#ffe08a']]) { const g = B.glowRing(r, c); g.position.set(x, TILE_TOP + 0.012, z); g.material.opacity = 0.5; g.scale.setScalar(1.1); scene.add(g); }
+for (const [x, z, r, c] of [[0.0, 1.35, 1.25, '#ffd36a']]) { const g = B.glowRing(r, c); g.position.set(x, TILE_TOP + 0.012, z); g.material.opacity = 0.28; g.scale.setScalar(1.1); scene.add(g); }
 // lanterns behind the board give the bokeh and the warm rim
 for (const [x, z, s] of [[-3.3, -3.0, 1.4], [3.6, -3.4, 1.6], [0.3, -4.6, 1.2]]) {
   const l = makeLantern(); l.position.set(x, 0, z); l.scale.setScalar(s); scene.add(l);
@@ -39,6 +37,6 @@ for (let i = 0; i < 60; i++) { const s = new THREE.Sprite(new THREE.SpriteMateri
 scene.add(embers);
 
 const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 80);
-camera.position.set(2.3, 3.5, 7.2); camera.lookAt(-0.05, 0.9, 0.7);
-const res = B.renderIcon({ scene, camera, size: SIZE, renderer, exposure: 0.82, background: '#1a0d07', bloom: 0.3, vignette: 0.55 });
+camera.position.set(1.9, 2.9, 6.3); camera.lookAt(-0.1, 0.5, 0.9);
+const res = B.renderIcon({ scene, camera, size: SIZE, renderer, exposure: 0.66, background: '#1a0d07', bloom: 0.3, vignette: 0.55 });
 document.title = 'READY';

@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Senet icon</title>
+<style>html,body{margin:0;background:#000;overflow:hidden}canvas{display:block}</style></head>
+<body><canvas id="game" style="display:none"></canvas>
+<script type="module">
+// Offline icon render (never loaded by the game): node store/make-icon.mjs opens this page at 1024 x 1024 CSS px, DPR 2.
+import { createPresenter } from './view3d/presenter.js';
+const q = new URLSearchParams(location.search), num = (k, d) => (q.has(k) ? Number(q.get(k)) : d);
+const p = await createPresenter({ kitCanvas: document.getElementById('game'), icon: true });
+document.getElementById('senet3d').style.transition = 'none';
+p.renderIcon({ elev: num('elev', 18), azim: num('azim', -32), dist: num('dist', 7), stickT: num('st', 0.55), t: num('t', 2.2),
+  pieces: JSON.parse(q.get('pieces') || '[{"kind":1,"i":2},{"kind":2,"i":1},{"kind":1,"i":0}]'), cells: JSON.parse(q.get('cells') || '[0,1,2]'),
+  target: q.has('target') ? JSON.parse(q.get('target')) : undefined, rect: q.has('rect') ? JSON.parse(q.get('rect')) : undefined, sticks: q.get('sticks') !== '0', stickAt: q.has('sa') ? JSON.parse(q.get('sa')) : undefined });
+document.title = 'icon-ready';
+</script></body></html>

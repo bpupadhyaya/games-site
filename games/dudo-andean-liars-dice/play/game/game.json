@@ -3,7 +3,7 @@
   "title": "Dudo: Andean Bluff Dice",
   "genre": "bluffing dice game",
   "orientation": "any",
-  "version": "1.1.4",
+  "version": "1.2.0",
   "monetization": {
     "model": "premium",
     "priceUsd": 2.99,

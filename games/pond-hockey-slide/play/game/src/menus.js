@@ -97,6 +97,11 @@ export function hitScreen(x, y, scroll) {
   }
   return null;
 }
+// Dev check scripts only (reached through env.config.dev): the screen rectangle of a flow widget, for real-tap tests.
+export function widgetRect(id, scroll = 0) {
+  for (let i = 0; i < LAID.cols.length; i++) { const c = LAID.cols[i]; for (const it of c.lay.items || []) if (it.w && it.w.id === id) return { x: it.x, y: c.top + it.y - (i === 0 ? scroll : 0), w: it.wd, h: it.h }; }
+  return null;
+}
 export const setupPinRects = (state) => (LAID.key === 'setup' && LAID.pins) || frameFor(state, 'setup').pins;
 
 // The title: the name in a chunky italic with an icy gradient, a tagline and a puck.

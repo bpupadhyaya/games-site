@@ -137,7 +137,7 @@ function buildPlay(scale) {
   if (mode !== 'wide') {
     const cf = clamp((h - 1000) / 540, 0, 1), kk = k * (0.4 + 0.6 * cf);
     const gap = Math.round(lerp(8, 10, cf));
-    const xL = Math.round((w - 672) / 2);
+    const PW = w - 24, xL = Math.round((w - PW) / 2);          // full-width strips: the play area dominates
     const hdrY = Math.max(22, U.y0 + 6);
     const bx = host.back ? backBox.x + backBox.w + 8 : U.x0 + 16;
     P.back = R(bx, hdrY, 84, BTN_H); P.pause = R(U.x1 - 16 - 84, hdrY, 84, BTN_H);
@@ -146,29 +146,29 @@ function buildPlay(scale) {
     const toolH0 = Math.round(lerp(84, 112, cf) + 40 * kk);
     const toolY = U.y1 - 28 - toolH0;
     const top = hdrY + 96, bottom = toolY - 14;
-    const matMin = scale >= 2 ? lerp(120, 200, cf) : lerp(130, 340, cf);
+    const matMin = scale >= 2 ? lerp(120, 200, cf) : lerp(122, 340, cf);
     const matHard = cf > 0.9 ? 200 : 120;
-    const maxBW = Math.min(644, w - 76);
-    let yardH = Math.round(lerp(88, 124, cf) + 50 * kk), chipH = Math.round(lerp(60, 68, cf) + 30 * kk), statusH = Math.round(lerp(84, 138, cf) + 110 * kk);
+    const maxBW = Math.min(PW - 8, w - 40);
+    let yardH = Math.round(lerp(80, 124, cf) + 50 * kk), chipH = Math.round(lerp(52, 68, cf) + 30 * kk), statusH = Math.round(lerp(78, 138, cf) + 110 * kk);
     for (let pass = 0; pass < 3; pass++) {
       const fixed = yardH * 2 + chipH + statusH + gap * 5;
       const bw = clamp(Math.floor((bottom - top - fixed - matMin) / BOARD_RATIO), 280, maxBW), bh = Math.round(bw * BOARD_RATIO);
       let y = top;
-      P.yardTop = R(xL, y, 672, yardH); y += yardH + gap;
+      P.yardTop = R(xL, y, PW, yardH); y += yardH + gap;
       P.board = R(Math.round((w - bw) / 2), y, bw, bh); y += bh + gap;
-      P.yardBottom = R(xL, y, 672, yardH); y += yardH + gap;
-      P.chips = R(xL, y, 672, chipH); y += chipH + gap;
+      P.yardBottom = R(xL, y, PW, yardH); y += yardH + gap;
+      P.chips = R(xL, y, PW, chipH); y += chipH + gap;
       const matH = bottom - y - statusH - gap;
       if (matH >= matHard || pass === 2) {
-        P.mat = R(xL, y, 672, Math.max(matHard, matH)); y += P.mat.h + gap;
-        P.status = R(xL, y, 672, statusH);
+        P.mat = R(xL, y, PW, Math.max(matHard, matH)); y += P.mat.h + gap;
+        P.status = R(xL, y, PW, statusH);
         break;
       }
       yardH = Math.max(80, yardH - 14); chipH = Math.max(52, chipH - 8); statusH = Math.max(70, statusH - 24);
     }
-    const tw = Math.floor((672 - 32) / 3);
+    const tw = Math.floor((PW - 32) / 3);
     P.tool = [0, 1, 2].map((i) => R(xL + i * (tw + 16), toolY, tw, toolH0));
-    P.auto = { slower: R(xL, toolY, 160, toolH0), pause: R(xL + 176, toolY, 320, toolH0), faster: R(xL + 512, toolY, 160, toolH0), labelY: toolY - 22 };
+    P.auto = { slower: R(xL, toolY, 160, toolH0), pause: R(xL + 176, toolY, PW - 352, toolH0), faster: R(xL + PW - 160, toolY, 160, toolH0), labelY: toolY - 22 };
     return finish(P, U);
   }
   // ---- wide: board + yards on the left, one column on the right

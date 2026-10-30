@@ -239,6 +239,12 @@ function drawRails(ctx, c, far) {
     ctx.fillStyle = '#2a4a8a'; ctx.beginPath(); ctx.arc(p + step * 0.5, by + bh * 0.5, bh * 0.14, 0, TAU); ctx.fill();
   }
   ctx.fillStyle = '#8a6238'; ctx.fillRect(x0, y - hgt, x1 - x0, Math.max(3, hgt * 0.1));
+  if (!far && y < live.h) {
+    // the meadow in front of the near boards sinks into soft shade toward the bottom edge: depth for the picture, contrast for the thumb controls
+    const sh = ctx.createLinearGradient(0, y, 0, live.h);
+    sh.addColorStop(0, 'rgba(18,26,8,0.38)'); sh.addColorStop(0.18, 'rgba(18,26,8,0.12)'); sh.addColorStop(1, 'rgba(10,14,6,0.42)');
+    ctx.fillStyle = sh; ctx.fillRect(0, y, live.w, live.h - y);
+  }
 }
 function drawBunting(ctx, c, v) {
   const z = -HW - 0.3, a = proj(c, c.x - c.span, z, 0), b = proj(c, c.x + c.span, z, 0);

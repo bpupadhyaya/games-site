@@ -17,7 +17,7 @@ import { render, playGeo } from './view.js';
 export const meta = { width: 720, height: 1560, fluid: { short: 720 } };
 const TOOLBAR_IDS = ['undo', 'think', 'restart'];
 
-const VERSION = '1.1.2';   // fallback only: the About page shows env.manifest.version (game.json) when the kit provides it
+const VERSION = '1.2.0';   // fallback only: the About page shows env.manifest.version (game.json) when the kit provides it
 const WIN_NOTES = [523, 659, 784, 1047, 1319];
 // Watch & Learn: Master plays Light and Expert plays Dark: a real, well-played game with captures and a finish.
 const AUTO_LEVEL = { 1: 'master', 2: 'expert' };

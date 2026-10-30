@@ -20,7 +20,7 @@ const lerp = (a, b, k) => a + (b - a) * k;
 export function scopeParams(rect) {
   const a = rect.w / Math.max(1, rect.h), k = Math.max(0, Math.min(1, (a - 0.9) / 1.3));
   const camH = lerp(2.3, 1.8, k), d0 = lerp(3.4, 4.4, k), extra = d0 - 4.0, hy = rect.y + rect.h * 0.34;
-  const f = Math.min(1.3 * rect.w, ((0.86 - 0.34) * rect.h * d0) / camH);
+  const f = Math.min(lerp(1.15, 1.3, k) * rect.w, ((0.86 - 0.34) * rect.h * d0) / camH);
   return { camH, extra, f, cx: rect.x + rect.w / 2, hy };
 }
 export function makeScope(rect, cam0) {

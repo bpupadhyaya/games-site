@@ -108,7 +108,7 @@ export function render(ctx, state, L) {
       wrapBox('Get Yote on iPhone and Android for unlimited games, every level and every board.', R(r.x + 24, r.y + r.h * 0.42, r.w - 48, r.h * 0.4), 28, 1.3, CREAM);
     } else {
       if (Rr.resume) button(Rr.resume, 'Continue your game', { primary: true, size: 30 });
-      button(Rr.play, 'Play the computer', { primary: !Rr.resume, size: 32, sub: `${LEVELS[state.level].name} · as ${sideName(style, state.humanSide)}` });
+      button(Rr.play, 'Play the computer', { primary: !Rr.resume, size: 42, sub: `${LEVELS[state.level].name} · as ${sideName(style, state.humanSide)}` });
       button(Rr.two, 'Two players', { size: 26 }); button(Rr.learn, state.learned ? 'Learn' : 'Learn to play', { size: 26 });
       button(Rr.auto, 'Auto Play · Watch & Learn', { size: 26 });
       button(Rr.rules, 'Rules', { size: 26 }); button(Rr.how, 'How to Play', { size: 26 });

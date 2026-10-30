@@ -152,7 +152,7 @@ export function settingsWidgets(state, split = false) {
     { t: 'btn', id: 'think-dec', label: 'Shorter', row: 5, disabled: st.thinkIdx === 0 },
     { t: 'btn', id: 'think-inc', label: 'Longer', row: 5, disabled: st.thinkIdx === THINK_STEPS.length - 1 },
     { t: 'btn', id: 'kit-next', label: `Your jersey: ${['Blue', 'Green', 'Purple', 'Orange'][st.kitIdx | 0]} (tap to change)` },
-    { t: 'btn', id: 'court-next', label: `Court: ${['Maple', 'Blue floor', 'Street'][st.courtIdx | 0]} (tap to change)` },
+    { t: 'btn', id: 'court-next', label: `Court: ${['Terracotta', 'Blue floor', 'Street'][st.courtIdx | 0]} (tap to change)` },
     { t: 'p', label: 'The role, the opponent difficulty and the game length are chosen when a game starts.', size: 22 },
     ...(state.demo ? [] : [{ t: 'btn', id: 'restore', label: 'Restore purchases', dark: true }]),
     ...(state.restoreMsg ? [{ t: 'p', label: state.restoreMsg, size: 24, color: '#ffe9a0' }] : []),
@@ -289,7 +289,7 @@ const bg = (ctx, a) => { ctx.clearRect(0, 0, W, H); scrim(ctx, a); };
 export function renderTitle(ctx, state) {
   const L = curL(state);
   ctx.clearRect(0, 0, W, H);
-  const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, 'rgba(6,14,26,0.15)'); g.addColorStop(0.35, 'rgba(6,14,26,0.45)'); g.addColorStop(1, 'rgba(6,14,26,0.9)');
+  const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, 'rgba(34,22,30,0.1)'); g.addColorStop(0.35, 'rgba(34,22,30,0.4)'); g.addColorStop(1, 'rgba(34,22,30,0.78)');
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
   if (L.title.wide) {
     // landscape: a dark panel behind the buttons keeps them readable over the court, the art stands on the left

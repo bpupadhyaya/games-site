@@ -29,8 +29,9 @@ export function frame(w, h) {
 
 // ---- play: header, board, brief card, paint pots, tools -------------------------------------------------------------------------------
 // o: { nPots, tools, coach, hand }
+export const PANEL_STRETCH = 1.4;   // portrait wide panels are drawn this much taller than wide (3D camera stretch, up to this) so they fill the play band
 export function playLayout(w, h, o = {}) {
-  const key = `play|${Math.round(w)}x${Math.round(h)}|${insKey()}|${o.nPots}|${o.tools}|${o.coach ? 1 : 0}|${o.hand}`;
+  const key = `play|${Math.round(w)}x${Math.round(h)}|${insKey()}|${o.nPots}|${o.tools}|${o.coach ? 1 : 0}|${o.hand}|${o.asp ? o.asp.toFixed(3) : 1}`;
   return memo(key, () => buildPlay(frame(w, h), o));
 }
 function buildPlay(F, o) {
@@ -45,8 +46,12 @@ function buildPlay(F, o) {
     L.pause = R(U.x1 - m - 66, hudTop + 6, 66, 66);
     const top = hudTop + hudH + g, avail = potsY - g - top;
     const briefH = clamp(avail * (o.coach ? 0.42 : 0.27), o.coach ? 210 : 112, o.coach ? 340 : 250);
-    L.board = R(U.x0 + m, top, U.w - 2 * m, Math.max(120, avail - briefH - g));
-    L.brief = R(U.x0 + m, L.board.y + L.board.h + g, U.w - 2 * m, briefH);
+    // The board uses nearly the full width (slim side margin); a wide, short panel gives its spare height to the brief card instead of empty wood.
+    const mb = m * 0.35, bw = U.w - 2 * mb, asp = o.asp || 1, boardNeed = bw / asp * (asp === 1 ? 1.06 : PANEL_STRETCH) + 14;
+    const boardH0 = Math.max(120, avail - briefH - g), boardH = Math.min(boardH0, boardNeed), spare = Math.max(0, boardH0 - boardH);
+    const rem = Math.max(0, spare), padTop = rem * 0.4, briefH2 = briefH + rem * 0.6;
+    L.board = R(U.x0 + mb, top + padTop, bw, boardH);
+    L.brief = R(U.x0 + m, L.board.y + L.board.h + g, U.w - 2 * m, briefH2 - 0);
     L.potsR = R(U.x0 + m, potsY, U.w - 2 * m, potH);
     L.tools = R(U.x0 + m, toolsY, U.w - 2 * m, toolsH);
     L.potRects = grid(L.potsR, n, 1, 8);
@@ -204,4 +209,4 @@ export function pauseLayout(w, h, area) {
 export function centerCard(w, h, cw, ch) { const F = frame(w, h), { U } = F; return R(U.x0 + (U.w - Math.min(cw, U.w - 32)) / 2, U.y0 + (U.h - Math.min(ch, U.h - 32)) / 2, Math.min(cw, U.w - 32), Math.min(ch, U.h - 32)); }
 
 export const toolsFor = (ch) => (ch.mode === 'free' ? ['undo', 'redo', 'erase', 'clear', 'save'] : ['undo', 'redo', 'erase', 'hint']);
-export const playOpts = (s) => ({ nPots: s.ch.colors.length, tools: toolsFor(s.ch).join(), nTools: toolsFor(s.ch).length, coach: !!(s.hint || s.auto.on), hand: s.prefs.hand });
+export const playOpts = (s) => ({ nPots: s.ch.colors.length, tools: toolsFor(s.ch).join(), nTools: toolsFor(s.ch).length, coach: !!(s.hint || s.auto.on), hand: s.prefs.hand, asp: s.ch.piece.kind === 'wheel' ? 1 : (s.ch.piece.geom.cols + 0.68) / (s.ch.piece.geom.rows + 0.68) });

@@ -31,7 +31,7 @@ export function cellAt(m, rect, cam, px, py) {
   return y * m.cols + x;
 }
 
-function wallRuns(m, x0, y0, x1, y1, show) {
+export function wallRuns(m, x0, y0, x1, y1, show) {
   const runs = [], { cols, rows, o } = m;
   const doorY = cellY(m, m.start), doorX = cellX(m, m.start);
   for (let y = y0; y <= y1 + 1 && y <= rows; y++) {       // horizontal lines
@@ -181,8 +181,9 @@ export function drawMaze(ctx, rect, V) {
   ctx.translate(rect.x + rect.w / 2, rect.y + rect.h / 2); ctx.scale(cs, cs); ctx.translate(-cam.cx, -cam.cy);
   const hv = cam.v / 2 + 1.2, x0 = Math.max(0, Math.floor(cam.cx - hv)), x1 = Math.min(m.cols - 1, Math.ceil(cam.cx + hv)), y0 = Math.max(0, Math.floor(cam.cy - hv)), y1 = Math.min(m.rows - 1, Math.ceil(cam.cy + hv));
   const fog = V.seen && V.torch > 0;
-  drawFrame(ctx, m, V, T);
-  drawFloor(ctx, m, V, T, x0, y0, x1, y1);
+  const d3 = !!V.use3d;   // the 3D scene (view3d/presenter.js) draws frame, floor, walls, posts, spool, heart and lamp underneath; this layer keeps the overlays
+  if (!d3) { drawFrame(ctx, m, V, T); drawFloor(ctx, m, V, T, x0, y0, x1, y1); }
+  else if (V.dust && V.visited) { ctx.fillStyle = 'rgba(255,238,205,0.13)'; for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) if (V.visited[y * m.cols + x]) ctx.fillRect(x + 0.04, y + 0.04, 0.92, 0.92); }
 
   // route glow (result / Rules figures) and hint thread
   const glowPath = (cells, a, width) => {
@@ -211,11 +212,15 @@ export function drawMaze(ctx, rect, V) {
   // heart chamber
   const gp = centerOf(m, m.goal);
   { const rg = ctx.createRadialGradient(gp.x, gp.y, 0, gp.x, gp.y, 0.8); rg.addColorStop(0, rgba(T.gold, 0.45)); rg.addColorStop(1, rgba(T.gold, 0)); ctx.fillStyle = rg; ctx.fillRect(gp.x - 1, gp.y - 1, 2, 2); }
-  drawRosette(ctx, gp.x, gp.y, V.t, T, V.goalGlow);
+  if (!d3) drawRosette(ctx, gp.x, gp.y, V.t, T, V.goalGlow);
 
   // thread: shadow, strands, highlight
   if (V.thread && V.thread.length > 1) {
-    const pts = V.thread, off = V.off;
+    let pts = V.thread; const off = V.off;
+    if (d3 && V.lamp) {   // the 3D lamp sits at the end of the thread: stop the strand at its rim so it is not painted over the lamp
+      let k = pts.length; while (k > 2 && Math.hypot(pts[k - 1].x - V.lamp.x, pts[k - 1].y - V.lamp.y) < 0.27) k--;
+      if (k < pts.length) pts = pts.slice(0, k);
+    }
     ctx.lineCap = 'round'; ctx.lineJoin = 'round';
     polyline(ctx, pts, off, 0.035, 0.05); ctx.lineWidth = 0.15; ctx.strokeStyle = 'rgba(0,0,0,0.30)'; ctx.stroke();
     polyline(ctx, pts, off); ctx.lineWidth = 0.115; ctx.strokeStyle = T.thread0; ctx.stroke();
@@ -227,13 +232,13 @@ export function drawMaze(ctx, rect, V) {
 
   const fogRgb = T.fog.length === 7 ? T.fog : '#07040a';
   if (fog) {
-    ctx.fillStyle = rgba(fogRgb, 0.99);
+    ctx.fillStyle = rgba(fogRgb, d3 ? 1 : 0.99);
     for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) if (!V.seen[y * m.cols + x]) ctx.fillRect(x - 0.01, y - 0.01, 1.02, 1.02);
   }
 
   // walls
   const showEdge = fog ? (i) => !!V.seen[i] : null;
-  const runs = wallRuns(m, x0, y0, x1, y1, showEdge);
+  const runs = d3 ? [] : wallRuns(m, x0, y0, x1, y1, showEdge);
   ctx.lineCap = 'square'; ctx.lineJoin = 'miter';
   ctx.lineWidth = 0.28; ctx.strokeStyle = 'rgba(0,0,0,0.12)'; strokeRuns(ctx, runs, 0.09, 0.12);
   ctx.lineWidth = 0.21; ctx.strokeStyle = 'rgba(0,0,0,0.26)'; strokeRuns(ctx, runs, 0.07, 0.095);
@@ -246,7 +251,7 @@ export function drawMaze(ctx, rect, V) {
   ctx.lineCap = 'butt';
 
   // doorway posts and threshold
-  { const c = centerOf(m, m.start), dx = m.door === E ? 0.5 : m.door === W ? -0.5 : 0, dy = m.door === S ? 0.5 : m.door === N ? -0.5 : 0, px = dy ? 0.5 : 0, py = dx ? 0.5 : 0;
+  if (!d3) { const c = centerOf(m, m.start), dx = m.door === E ? 0.5 : m.door === W ? -0.5 : 0, dy = m.door === S ? 0.5 : m.door === N ? -0.5 : 0, px = dy ? 0.5 : 0, py = dx ? 0.5 : 0;
     ctx.fillStyle = mix(T.wallTop, '#000000', 0.12); ctx.fillRect(c.x + dx - (dx ? 0.1 : 0.5), c.y + dy - (dy ? 0.1 : 0.5), dx ? 0.2 : 1, dy ? 0.2 : 1);
     for (const sgn of [-1, 1]) {
       const qx = c.x + dx + sgn * px, qy = c.y + dy + sgn * py;
@@ -256,10 +261,10 @@ export function drawMaze(ctx, rect, V) {
       ctx.fillStyle = T.wallHi; ctx.fillRect(qx - 0.14, qy - 0.14, 0.27, 0.03);
     }
   }
-  if (V.showSpool) drawSpool(ctx, m, T, V.t);
+  if (V.showSpool && !d3) drawSpool(ctx, m, T, V.t);
 
   // lamp
-  if (V.lamp) drawLamp(ctx, V.lamp.x, V.lamp.y, V.t, T);
+  if (V.lamp && !d3) drawLamp(ctx, V.lamp.x, V.lamp.y, V.t, T);
 
   // fog and torchlight
   const wx0 = cam.cx - hv - 2, wy0 = cam.cy - hv - 2, ww = hv * 2 + 4;
@@ -285,11 +290,11 @@ export function drawMaze(ctx, rect, V) {
     const fl = 1 + 0.025 * Math.sin(V.t * 9) + 0.02 * Math.sin(V.t * 23), R = (fog ? V.torch + 0.8 : 8.5) * fl;
     const d = ctx.createRadialGradient(V.lamp.x, V.lamp.y, R * 0.22, V.lamp.x, V.lamp.y, R * 1.15);
     const nc = T.night.slice(T.night.indexOf('(') + 1, T.night.lastIndexOf(',')), na = Number(T.night.slice(T.night.lastIndexOf(',') + 1, -1));
-    d.addColorStop(0, `rgba(${nc},0)`); d.addColorStop(1, `rgba(${nc},${(fog ? na * 0.9 : na * V.night / 0.45 * 0.5).toFixed(3)})`);
+    d.addColorStop(0, `rgba(${nc},0)`); d.addColorStop(1, `rgba(${nc},${(fog ? na * 0.9 : na * V.night / 0.45 * (d3 ? 0.15 : 0.5)).toFixed(3)})`);
     ctx.fillStyle = d; ctx.fillRect(wx0, wy0, ww, ww);
     ctx.globalCompositeOperation = 'lighter';
     const w1 = ctx.createRadialGradient(V.lamp.x, V.lamp.y, 0, V.lamp.x, V.lamp.y, R * 0.8);
-    w1.addColorStop(0, rgba(T.lamp, T.dark ? 0.30 : 0.16)); w1.addColorStop(1, rgba(T.lamp, 0));
+    w1.addColorStop(0, rgba(T.lamp, (T.dark ? 0.30 : 0.16) * (d3 ? 0.35 : 1))); w1.addColorStop(1, rgba(T.lamp, 0));
     ctx.fillStyle = w1; ctx.fillRect(wx0, wy0, ww, ww);
     ctx.globalCompositeOperation = 'source-over';
   } else if (!fog) {
@@ -301,7 +306,7 @@ export function drawMaze(ctx, rect, V) {
     const b = ctx.createRadialGradient(gp.x, gp.y, 0, gp.x, gp.y, 2.2); b.addColorStop(0, rgba(T.gold, 0.28 + 0.06 * Math.sin(V.t * 2))); b.addColorStop(1, rgba(T.gold, 0));
     ctx.fillStyle = b; ctx.fillRect(gp.x - 2.3, gp.y - 2.3, 4.6, 4.6);
     ctx.globalCompositeOperation = 'source-over';
-    ctx.globalAlpha = V.seen[m.goal] ? 0 : 0.55; if (ctx.globalAlpha > 0) drawRosette(ctx, gp.x, gp.y, V.t, T, V.goalGlow); ctx.globalAlpha = 1;
+    ctx.globalAlpha = V.seen[m.goal] ? 0 : 0.55; if (ctx.globalAlpha > 0 && !d3) drawRosette(ctx, gp.x, gp.y, V.t, T, V.goalGlow); ctx.globalAlpha = 1;
   }
   ctx.restore();
   // rim of the board

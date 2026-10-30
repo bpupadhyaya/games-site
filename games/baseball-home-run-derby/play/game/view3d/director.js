@@ -190,7 +190,8 @@ export function createDirector(P) {
     world.setScoreboard(live ? r : null);
     world.update(idleT, state.v ? state.v.crowd : 0);
     stage.setShadowTarget(-0.7 * r.batter.hand, 0, 0.2);
-    for (const a of [batter, pitcher]) if (a.h.root.visible) a.h.autoLOD(P.cam, P.cssH, stage.lodPolicy);
+    if (batter.h.root.visible) { if (P.quality === 'low') batter.h.autoLOD(P.cam, P.cssH, stage.lodPolicy); else if (batter.h.lod !== 0 && batter.h.lodSets && batter.h.lodSets.ready) batter.h.setLOD(0); }   // close to the camera: always full detail (complete hands)
+    if (pitcher.h.root.visible) pitcher.h.autoLOD(P.cam, P.cssH, stage.lodPolicy);
     stage.render();
   }
 

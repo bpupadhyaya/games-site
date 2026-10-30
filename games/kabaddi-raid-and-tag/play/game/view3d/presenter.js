@@ -62,7 +62,7 @@ export async function createPresenter({ kitCanvas, quality }) {
   async function loadPool(kind) {
     if (pools[kind]) return pools[kind];
     const list = [];
-    const hs = await Promise.all(Array.from({ length: POOL }, () => loadHuman({ character: kind === 'f' ? 'mannequin_f' : 'mannequin_m', kit: KITS[0], quality })));
+    const hs = await Promise.all(Array.from({ length: POOL }, () => loadHuman({ character: kind === 'f' ? 'athlete_f' : 'athlete_m', top: 'long', kit: KITS[0], quality })));
     for (const h of hs) {
       addKabaddiClips(h);
       h.addLayer('live', { mask: 'all', additive: true, weight: 1 }); h.addLayer('react', { mask: 'upper', additive: true, weight: 0 });

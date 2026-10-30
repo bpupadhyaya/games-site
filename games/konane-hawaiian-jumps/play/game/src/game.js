@@ -2,7 +2,7 @@
 // puzzles.js and content.js are content. See design/GDD.md for the map.
 // How a move is made: TAP a stone (it lifts, its landing squares glow), then TAP a landing square. An impossible move visibly TRIES:
 // the stone slides toward the square, shudders, comes back, and a message says why.
-import { W, H, TEXT_SCALES, AUTO_THINK_STEPS, AUTO_THINK_DEFAULT, AUTO_REVEAL_SECONDS, inRect, lockHit, layoutFor } from './layout.js';
+import { W, H, TEXT_SCALES, AUTO_THINK_STEPS, AUTO_THINK_DEFAULT, AUTO_REVEAL_SECONDS, inRect, lockHit, layoutFor, live } from './layout.js';
 import { newGame, clone, applyMove, tryMove, legalMoves, jumpsFrom, overSquares, countMoves, NAMES } from './rules.js';
 import { LEVELS, createThinker, fromRules } from './engine.js';
 import { LESSONS, lessonGame } from './lessons.js';
@@ -23,6 +23,7 @@ void fromRules;
 export function createGame(env) {
   let LY = layoutFor(meta.width, meta.height);          // the live layout (refreshed every update / render)
   const { rng, storage, audio, monetization, config } = env;
+  const slimNow = () => (live.slim = state.scene === 'play' || state.scene === 'over');
   const state = {
     scene: 'title', t: 0, game: newGame(6), human: 1, two: false, level: 1, cfg: { n: 6, side: 1, level: 1 },
     sound: true, calm: false, textScaleIdx: 0, marks: true, cursor: 0, kb: false, canAct: false,
@@ -383,7 +384,7 @@ export function createGame(env) {
 
   return {
     update(dt, input) {
-      LY = layoutFor(meta.width, meta.height);
+      LY = layoutFor(meta.width, meta.height, slimNow());
       state.t += dt; if (state.lockPress > 0) state.lockPress = Math.max(0, state.lockPress - dt);
       if (state.msg) { state.msg.t += dt; if (state.msg.t > state.msg.hold) state.msg = null; }
       const p = input.pointer, kbd = keyboard(input), tap = p.pressed ? { x: p.x, y: p.y } : kbd;
@@ -403,7 +404,7 @@ export function createGame(env) {
         else if (inRect(LY.BTN.back, tap.x, tap.y)) state.scene = 'title';
       }
     },
-    render(ctx, view) { LY = layoutFor(view?.width ?? meta.width, view?.height ?? meta.height); render(ctx, state, LY); },
+    render(ctx, view) { LY = layoutFor(view?.width ?? meta.width, view?.height ?? meta.height, slimNow()); render(ctx, state, LY); },
     getState: () => state,
     // kit 1.6.1: exempt Auto Play from the free-preview timer (game.json monetization.previewSeconds)
     // - this game is priced, so without this hook the preview clock would run (and could cut off) a

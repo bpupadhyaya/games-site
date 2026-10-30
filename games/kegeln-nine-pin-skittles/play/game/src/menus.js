@@ -3,7 +3,8 @@
 import { W, SW, SH, syncSize, isWide, host, minUnits, tapUnits, backBox, TEXT_SCALES, THINK_STEPS, refGeom, setupGeom, sceneLayout, SCENE_Y0 } from './layout.js';
 import { drawLockup, lockupAlpha, hasLockup, drawCredit, drawMoreLine } from './brand.js';
 import { FONT, NUM, C, roundPath, drawButton, panel, wrapLines, textShadow, flowLayout, drawFlow, flowHit } from './ui.js';
-import { drawRoom, drawLane, drawActors, drawParts, interpSim, TAU } from './scene.js';
+import { drawRoom, drawLane, drawActors, drawParts, interpSim, setForce2D, TAU } from './scene.js';
+import { v3, flatAlpha } from './v3.js';
 import { PROFILES, ASSIST } from './ai.js';
 import { LENGTHS, totals, countOf } from './engine.js';
 import { PIN_POS, PIN_NAMES, KING, POWERS, pathPoints, LANE_HALF, PIN_Z0 } from './phys.js';
@@ -94,11 +95,24 @@ export function bgXf() { return isWide() ? sceneLayout(1, 0, 0, { cx: SW / 2 }) 
 export function drawAttract(ctx, state) {
   syncSize();
   const a = state.att, cam = a.cam, xf = bgXf();
+  const iv = interpSim(a.sim, a.alpha);
+  const d3 = v3.on && v3.prepare;
+  if (d3) {
+    // The 3D alley behind the menus: framed for the title (pins under the lettering, the buttons over the foreground lane).
+    const want = { kind: 'hero', rect: isWide() ? { x: 0, y: 0, w: SW, h: SH } : { x: 0, y: SH * 0.1, w: SW, h: SH * 0.52 }, pins: iv.pins, ball: iv.ball.on ? iv.ball : null, ballOpts: null, pinFx: null, inset: null };
+    v3.want = want; v3.xf = { vx: xf.vx, vy: xf.vy - SCENE_Y0 * xf.s, s: xf.s }; v3.map.active = false; v3.map.skip = null; v3.prepare(want);
+  }
+  const fa = d3 ? flatAlpha() : 1;
   ctx.save();
   ctx.translate(xf.vx, xf.vy - SCENE_Y0 * xf.s); ctx.scale(xf.s, xf.s);
-  drawRoom(ctx, cam, state.t); drawLane(ctx, cam, state.t);
-  const iv = interpSim(a.sim, a.alpha);
-  drawActors(ctx, cam, iv.pins, iv.ball.on ? iv.ball : null, {});
+  if (fa > 0.01) {
+    setForce2D(!!d3);
+    ctx.save(); ctx.globalAlpha = fa;
+    drawRoom(ctx, cam, state.t); drawLane(ctx, cam, state.t);
+    drawActors(ctx, cam, iv.pins, iv.ball.on ? iv.ball : null, {});
+    ctx.restore();
+    setForce2D(false);
+  }
   drawParts(ctx, cam, a.parts);
   ctx.restore();
 }

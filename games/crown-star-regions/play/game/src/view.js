@@ -4,6 +4,7 @@
 import { inRect, host, TEXT_SCALES, AUTO_THINK_STEPS, SIBLINGS, layoutFor } from './layout.js';
 import { PALETTES, regionColor } from './palettes.js';
 import { RULES } from './content.js';
+import { v3, flatAlpha } from './v3.js';
 
 // W/H follow the live screen size (set at the top of render()); static layers are cached per size.
 let W = 720, H = 1560;
@@ -260,7 +261,12 @@ function paintBackdrop(ctx, palette) {
 }
 
 function drawBackdrop(ctx, state, palette) {
-  layer(ctx, `bg:${state.palette}:${W}x${H}`, 0, 0, W, H, (l) => paintBackdrop(l, palette));
+  const fa = flatAlpha(state.scene);
+  if (fa > 0) {
+    ctx.save(); ctx.globalAlpha = fa;
+    layer(ctx, `bg:${state.palette}:${W}x${H}`, 0, 0, W, H, (l) => paintBackdrop(l, palette));
+    ctx.restore();
+  }
   // slow gold motes drifting upward
   for (let k = 0; k < 16; k++) {
     const ph = (state.t * (0.018 + (k % 5) * 0.004) + k * 0.173) % 1;
@@ -624,7 +630,10 @@ function button(ctx, state, rect, label, o = {}) {
   ctx.fillStyle = primary ? '#7a4a06' : '#23105c';
   ctx.beginPath(); ctx.roundRect(0, depth, rect.w, fh, R); ctx.fill();
   // face
-  ctx.fillStyle = primary ? '#f5c23f' : '#6d43d6';   // flat face: no gloss, glint or inner outline
+  // face: one soft lamp-light gradient from the top (no gloss shape, glint or inner outline)
+  const fg = ctx.createLinearGradient(0, push, 0, push + fh);
+  if (primary) { fg.addColorStop(0, '#ffd666'); fg.addColorStop(1, '#e9a92a'); } else { fg.addColorStop(0, '#7c52e6'); fg.addColorStop(1, '#5634b8'); }
+  ctx.fillStyle = fg;
   ctx.beginPath(); ctx.roundRect(0, push, rect.w, fh, R); ctx.fill();
   ctx.strokeStyle = primary ? '#6b3f04' : '#f0c24c';
   ctx.lineWidth = primary ? 2 : 2.5;
@@ -914,7 +923,7 @@ function card(ctx, r) {
 // ---------------------------------------------------------------------------------------------
 // Title screen hero: a small field that fills itself in, over and over
 // ---------------------------------------------------------------------------------------------
-const HERO = {
+export const HERO = {
   geo: { x: 150, y: 414, px: 420, n: 5 }, // the art blocks in the Rules reader use this size
   regions: [0, 0, 1, 1, 1, 0, 0, 1, 2, 2, 3, 0, 1, 2, 2, 3, 3, 4, 4, 2, 3, 3, 4, 4, 4],
   crowns: [0, 7, 14, 16, 23],
@@ -965,7 +974,8 @@ function drawTitle(ctx, state, manifest, palette, demoLimit, L) {
   goldText(ctx, manifest.title.toUpperCase(), T.cx, T.titleY, T.titleSize, T.titleMaxW, 900);
   note(ctx, manifest.tagline ?? '', { x: T.cx - T.titleMaxW / 2, y: T.tagY - 22, w: T.titleMaxW, h: 56 }, 24, 'rgba(250,240,215,0.92)');
 
-  if (T.hero) drawHero(ctx, state, palette, T.hero);
+  const fa = flatAlpha(state.scene);
+  if (T.hero && fa > 0) { ctx.save(); ctx.globalAlpha = fa; drawHero(ctx, state, palette, T.hero); ctx.restore(); }
 
   const big = T.big;
   button(ctx, state, T.play7, 'Play 7 × 7', { primary: true, size: big ? 42 : 36, icon: 'crown' });
@@ -1035,11 +1045,16 @@ function drawPlay(ctx, state, palette, L) {
 
   // board (fixed surface: no settle-in scale)
   ctx.save();
+  const fa = flatAlpha(state.scene);
+  if (fa < 1) drawBoardSparkles3D(ctx, state, solved);           // the 3D board is drawn behind this canvas
+  if (fa > 0) {
+  ctx.globalAlpha = fa;
   if (solved) rays(ctx, geo.x + geo.px / 2, geo.y + geo.px / 2, geo.px * 0.9, state.t, 0.2 * clamp01(state.sceneT));
   drawBoardBase(ctx, geo, state.regions, palette, state.palette);
   drawBoardMarks(ctx, state, geo);
+  }
   // Auto Play's REVEAL: a pulsing ring on the cell about to be crowned.
-  if (isAuto && A && A.sub === 'reveal' && A.target >= 0) {
+  if (fa > 0 && isAuto && A && A.sub === 'reveal' && A.target >= 0) {
     const cs = geo.px / size, col = A.target % size, row = Math.floor(A.target / size);
     const cx = geo.x + col * cs + cs / 2, cy = geo.y + row * cs + cs / 2, pulse = 0.5 + 0.5 * Math.sin(state.t * 6);
     ctx.strokeStyle = `rgba(120,220,255,${0.7 + 0.3 * pulse})`;
@@ -1057,6 +1072,7 @@ function drawPlay(ctx, state, palette, L) {
     const gap = Math.min(64, tl.maxW / size);
     for (let k = 0; k < size; k++) {
       const px = tl.cx + (k - (size - 1) / 2) * gap;
+      if (v3.tray && flatAlpha(state.scene) === 0) break;            // the 3D cushion shows the crowns instead
       if (k < placed) drawCrown(ctx, px, tl.rowY, gap * 0.3, {});
       else {
         ctx.fillStyle = 'rgba(14,5,44,0.6)';
@@ -1240,9 +1256,38 @@ function drawRulesPage(ctx, state, manifest, palette, L) {
   button(ctx, state, RL.done, 'Done', { id: 'rulesDone', size: 32, primary: true });
 }
 
+// Sparkles over the 3D board (the crowns themselves, their glow and the X marks are drawn by view3d/presenter.js).
+function drawBoardSparkles3D(ctx, state, solved) {
+  if (!v3.pt) return;
+  const { size, cells, cellT, t } = state;
+  for (let i = 0; i < cells.length; i++) {
+    if (cells[i] !== 'crown') continue;
+    const age = t - (cellT[i] ?? -9);
+    if (age > 0.15 && age < 0.85) {
+      const p = v3.pt(size, i, 0.25), cs = p.s, s = (age - 0.15) / 0.7;
+      for (let k = 0; k < 6; k++) {
+        const a = (k / 6) * TAU + 0.4, d = cs * (0.25 + 0.42 * easeOut(s));
+        star4(ctx, p.x + Math.cos(a) * d, p.y + Math.sin(a) * d * 0.7, cs * 0.11 * (1 - s) + 1, 1 - s);
+      }
+    }
+    if (solved) {
+      const p = v3.pt(size, i, 0.55), cs = p.s, tw = (state.sceneT * 1.3 + i * 0.37) % 1;
+      star4(ctx, p.x + cs * 0.24, p.y - cs * 0.3, cs * 0.16 * Math.sin(tw * Math.PI), Math.sin(tw * Math.PI));
+    }
+  }
+}
+
+// Credits for the 3D layer (three.js, view3d): appended to the Rules reader as its last section (main.js fetches the text).
+export function addCredits(paragraphs) {
+  if (SECTIONS.some((s) => s.title === '3D graphics credits')) return;
+  SECTIONS.push({ title: '3D graphics credits', art: null, lines: paragraphs });
+  flowCache.clear();
+}
+
 export function render(ctx, state, manifest, demoLimit, view) {
   const L = layoutFor(view?.width ?? 720, view?.height ?? 1560);
   W = L.w; H = L.h;
+  if (v3.on) { ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height); ctx.restore(); }
   const palette = PALETTES[state.palette] ?? PALETTES[0];
   drawBackdrop(ctx, state, palette);
   if (state.scene === 'demo-limit') drawDemoLimit(ctx, state, L);

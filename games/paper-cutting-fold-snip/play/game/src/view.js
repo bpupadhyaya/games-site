@@ -15,6 +15,7 @@ import { layout } from './layout.js';
 import { drawLockup } from './brand.js';
 import { rectsFor, camOf, sceneOf, levelOf, textScaleCap, resultButtons, paperFor, fitTarget, planOf, cutsKey, flatState } from './playcommon.js';
 import { THINK_STEPS, rec } from './screens.js';
+import { v3, flatAlpha, is3d, xf } from './v3.js';
 
 // ----------------------------------------------------------------------------------------- thumbnails (baked one per frame)
 const thumbs = new Map(), thumbQ = [];
@@ -148,7 +149,25 @@ function cutHoles(l, cam, cuts, def, sx) {
   l.restore();
 }
 
+// 3D: describe the paper to the presenter instead of drawing it (the camera numbers are exactly the ones used for hit-testing).
+function paper3(ctx, P, cam, sc, paper) {
+  const q = xf(ctx);
+  let pp = paper;
+  if (sc.stack && P.sheet && P.n) {       // the wedge with every cut so far as REAL holes through all layers (not vectors on top)
+    pp = bakeCut(P.paper, `${P.sheet}:${P.n}:${P.cuts.length}:${cutsKey(P.cuts)}`, layersOf(P.sheet, P.n), P.cuts.map(cutPoly), SHEETS[P.sheet].pts, foldPlan(P.sheet, P.n).creases);
+  }
+  v3.req.paper = { faces: sc.faces, paper: pp, paperId: P.paper, fold: Boolean(sc.mode && sc.mode.fold), stack: Boolean(sc.stack), cam: { x: cam.x * q.k + q.e, y: cam.y * q.k + q.f, S: cam.S * q.k, cx: cam.cx, cy: cam.cy, tilt: cam.tilt, yaw: cam.yaw, roll: cam.roll, k: cam.k } };
+}
+
 function paintBoard(ctx, S, P, R, cam, sc, paper, lift) {
+  if (is3d(ctx)) {
+    paper3(ctx, P, cam, sc, paper);
+    const a = flatAlpha(); if (a <= 0) return;
+    ctx.save(); ctx.globalAlpha = a; paintBoardFlat(ctx, S, P, R, cam, sc, paper, lift); ctx.restore(); return;
+  }
+  paintBoardFlat(ctx, S, P, R, cam, sc, paper, lift);
+}
+function paintBoardFlat(ctx, S, P, R, cam, sc, paper, lift) {
   const b = R.board, def = PAPERS[P.paper], tm = typeof ctx.getTransform === 'function' ? ctx.getTransform() : null, kd = (tm && tm.a) || 1;
   const useLayer = (sc.baked || sc.stack) && typeof OffscreenCanvas !== 'undefined' && Boolean(tm);
   ctx.save(); ctx.beginPath(); ctx.rect(b.x - 4, b.y - 4, b.w + 8, b.h + 8); ctx.clip();
@@ -337,17 +356,21 @@ function drawAttract(ctx, S, cx, cy, size) {
   const cam = makeCam({ x: cx, y: cy, S: f.S, cx: f.cx, cy: f.cy, tilt, roll });
   ctx.save();
   // the mat the paper lies on
-  ctx.fillStyle = PAPERS[l.paper].mat; ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 24; ctx.shadowOffsetY = 8; rr(ctx, cx - size * 1.1, cy - size * 1.1, size * 2.2, size * 2.2, 30); ctx.fill(); ctx.shadowColor = 'transparent';
+  if (is3d(ctx)) { const q = xf(ctx); v3.req.mat = { x: (cx - size * 1.1) * q.k + q.e, y: (cy - size * 1.1) * q.k + q.f, w: size * 2.2 * q.k, h: size * 2.2 * q.k, color: PAPERS[l.paper].mat, dark: false, hero: true }; ctx.globalAlpha = flatAlpha(); }
+  if (ctx.globalAlpha > 0) { ctx.fillStyle = PAPERS[l.paper].mat; ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 24; ctx.shadowOffsetY = 8; rr(ctx, cx - size * 1.1, cy - size * 1.1, size * 2.2, size * 2.2, 30); ctx.fill(); ctx.shadowColor = 'transparent'; }
   ctx.restore();
   ctx.save(); rr(ctx, cx - size * 1.1, cy - size * 1.1, size * 2.2, size * 2.2, 30); ctx.clip();
   if (cutsShown > 0 && !mode.fold) {
-    const sc = { faces, creases, mode, baked: false, stack: true }, P = { cuts: l.cuts.slice(0, cutsShown), paper: l.paper };
+    const sc = { faces, creases, mode, baked: false, stack: true }, P = { cuts: l.cuts.slice(0, cutsShown), paper: l.paper, sheet: l.sheet, n: l.ref };
     paintBoard(ctx, S, P, { board: { x: rect.x, y: rect.y, w: rect.w, h: rect.h } }, cam, sc, paper, 0);
   } else if (mode.fold && paper.baked) {
-    paintBoard(ctx, S, { cuts: [], paper: l.paper }, { board: rect }, cam, { faces, creases, mode, baked: true }, paper, 0.1);
+    paintBoard(ctx, S, { cuts: [], paper: l.paper, sheet: l.sheet, n: l.ref }, { board: rect }, cam, { faces, creases, mode, baked: true }, paper, 0.1);
   } else if (paper.baked) {
-    paintBoard(ctx, S, { cuts: [], paper: l.paper }, { board: rect }, cam, { faces, creases, mode, baked: true }, paper, 0);
-  } else drawFaces(ctx, faces, cam, paper, creases, mode);
+    paintBoard(ctx, S, { cuts: [], paper: l.paper, sheet: l.sheet, n: l.ref }, { board: rect }, cam, { faces, creases, mode, baked: true }, paper, 0);
+  } else {
+    if (is3d(ctx)) paper3(ctx, { cuts: [], paper: l.paper, sheet: l.sheet, n: l.ref }, cam, { faces, creases, mode, baked: false }, paper);
+    if (flatAlpha() > 0) { ctx.save(); ctx.globalAlpha = flatAlpha(); drawFaces(ctx, faces, cam, paper, creases, mode); ctx.restore(); }
+  }
   ctx.restore();
   void ease; void backOut;
 }

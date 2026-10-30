@@ -7,8 +7,8 @@ export function chaseCam(w, L, extra = {}) {
   const wide = L.mode === 'wide';
   const asp = L.w / L.h;
   const focus = me.x * 0.82;
-  const dist = (wide ? 12.5 : 21) + (extra.back ?? 0);
-  const eye = [focus + clamp(me.vx, -3, 3) * 0.25, wide ? 3.6 : 6.0, me.z - dist];
+  const dist = (wide ? 12.5 : 18.5) + (extra.back ?? 0);
+  const eye = [focus + clamp(me.vx, -3, 3) * 0.25, wide ? 3.6 : 5.3, me.z - dist];
   const at = [me.x * 0.92, 0.6, me.z + (wide ? 16 : 12)];
   return { eye, at, fov: wide ? 44 : clamp(52 + (0.5 - Math.min(asp, 0.5)) * 20, 48, 62), ox: 0, oy: wide ? 0.02 : 0.14, roll: -clamp(me.vx, -3, 3) * 0.006 };
 }
@@ -35,8 +35,8 @@ export function titleCam(w, L, t) {
   const wide = L.mode === 'wide';
   let star = w.boats[0]; for (const b of w.boats) if (b.z > star.z) star = b;
   const a = t * 0.12;
-  const eye = [star.x + (wide ? 4.2 : 3.4) + Math.sin(a) * 2.2, 1.7 + Math.sin(a * 1.3) * 0.25, star.z + HALF_LEN + (wide ? 15 : 17) + Math.cos(a * 0.7) * 2];
-  return { eye, at: [star.x - 0.4, 1.7, star.z + 1], fov: wide ? 36 : 40, ox: wide ? 0.42 : 0, oy: wide ? 0.0 : 0.44, roll: 0 };
+  const eye = [star.x + (wide ? 3.0 : 3.4) + Math.sin(a) * 2.2, 1.7 + Math.sin(a * 1.3) * 0.25, star.z + HALF_LEN + (wide ? 8.5 : 10.5) + Math.cos(a * 0.7) * 1.2];
+  return { eye, at: [star.x - 0.2, 1.5, star.z + (wide ? 2.0 : 3.5)], fov: wide ? 38 : 40, ox: wide ? 0.42 : 0, oy: wide ? 0.0 : 0.37, roll: 0 };
 }
 
 export function project(cam, L, x, y, z) {

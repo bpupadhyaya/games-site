@@ -13,8 +13,18 @@ import { drawMoreLine, drawLockup } from './brand.js';
 import { THINK_STEPS, AUTO_SPEEDS, lvName, piecesLabel } from './screens.js';
 import { humanTurn, movesOf, canThrow, canUndo, isHumanSide } from './match.js';
 import { planThrow, stickPose, restPose } from './sticks.js';
+import { v3 } from './v3.js';
 
 const theme = (S) => themeById(S.themeId);
+// With the 3D scene alive the table, board, stones and sticks are drawn by view3d/presenter.js: this layer only describes them (v3.pieces, v3.marks,
+// v3.sockets, v3.sticks) and draws text, plaques, badges and particles.
+const bgd = (...a) => { if (!v3.on) background(...a); };
+const piece = (ctx, th, who, cx, cy, d, o = {}) => {
+  if (!v3.on) { drawPiece(ctx, th, who, cx, cy, d, o); return; }
+  if ((o.alpha ?? 1) <= 0.01) return;
+  v3.pieces.push({ who, x: cx, y: cy, d, lift: o.lift ?? 0, glow: o.glow ?? 0, alpha: o.alpha ?? 1, scale: o.scale ?? 1 });
+  if (o.ring) v3.marks.push({ kind: 'ring', x: cx, y: cy, r: d * 0.66 * (o.scale ?? 1), col: o.ring, a: 0.95 });
+};
 const T = (S, k, v) => tr(k, v, S.lang);
 const STEP = 1 / 60;
 // Display time of a clocked animation: the simulation is one step ahead of what is drawn, and the drawn time is interpolated
@@ -253,7 +263,7 @@ function drawSticksOn(ctx, th, mat, plan, tm, S, yClip = true) {
 
 function drawTitle(ctx, S, ui) {
   const th = theme(S), ar = S.lang === 'ar', TL = titleLayout();
-  background(ctx, th, S.t, 560);
+  bgd(ctx, th, S.t, 560);
   const g = ctx.createLinearGradient(0, TL.titleY - 122, 0, TL.titleY + 68);
   g.addColorStop(0, light2(th.accent)); g.addColorStop(0.5, th.accent); g.addColorStop(1, '#a8782a');
   ctx.save();
@@ -264,9 +274,9 @@ function drawTitle(ctx, S, ui) {
   text(ctx, T(S, 'titleSub'), TL.cx, TL.subY, fitOne(T(S, 'titleSub'), TL.maxW, TL.subSize, 20), 'rgba(246,236,214,0.92)', { weight: 600, font: DISPLAY });
   text(ctx, T(S, 'tagline'), TL.cx, TL.tagY, fitOne(T(S, 'tagline'), TL.maxW, TL.tagSize, 16), 'rgba(246,236,214,0.62)', { weight: 500 });
   if (TL.mat) {
-    drawFelt(ctx, th, TL.mat, S.t);
     const plans = titlePlans(), cyc = 4.8, k = Math.floor(S.t / cyc) % plans.length, tm = S.t % cyc;
-    drawSticksOn(ctx, th, TL.mat, plans[k], Math.min(tm, plans[k].dur), S);
+    if (v3.on) v3.sticks = plans[k].sticks.map((_, i) => stickPose(plans[k], i, Math.min(tm, plans[k].dur)));
+    else { drawFelt(ctx, th, TL.mat, S.t); drawSticksOn(ctx, th, TL.mat, plans[k], Math.min(tm, plans[k].dur), S); }
   }
   drawDocBlocks(ctx, S, ui, S.scroll[ui.scrollKey] ?? 0);
   drawFixed(ctx, S, ui.fixed);
@@ -276,7 +286,7 @@ const light2 = (c) => (c.length === 7 ? `rgb(${Math.min(255, parseInt(c.slice(1,
 
 function drawDocScreen(ctx, S, ui) {
   const th = theme(S);
-  background(ctx, th, S.t);
+  bgd(ctx, th, S.t);
   if (ui.panel) panel(ctx, th, ui.panel.x, ui.panel.y, ui.panel.w, ui.panel.h, {});
   drawDocBlocks(ctx, S, ui, S.scroll[ui.scrollKey] ?? 0);
   drawFixed(ctx, S, ui.fixed);
@@ -305,23 +315,27 @@ function drawOverlay(ctx, S, ui) {
 export function playGeo(S, M) {
   const lay = playLayout(TEXT_SCALES[S.textIdx]);
   const flip = !M.two && !M.auto && M.human === 1;
+  if (v3.on && v3.play) return { lay: v3.play.lay, geo: v3.play.geo(flip), flip };
   const geo = boardGeo(lay.board.x, lay.board.y, lay.board.w, flip);
   return { lay, geo, flip };
 }
 // The yard of side p (top or bottom, depending on which side the player sits).
 export const yardRect = (lay, flip, p) => ((p === 0) !== flip ? lay.yardBottom : lay.yardTop);
 export function slotXY(rect, n, k) {
+  if (rect.slot) return rect.slot(n, k);
   const slotS = Math.min(96, (rect.w - 40) / n), total = slotS * n;
   const x0 = rect.x + (rect.w - total) / 2;
   const d = Math.min(slotS * 0.8, 50, Math.max(28, rect.h - 52));
   return [x0 + (k + 0.5) * slotS, rect.y + rect.h - 8 - d / 2, d];
 }
 export function exitBadge(geo, p) {
+  if (geo.exitXY) return geo.exitXY(p);
   const sq = p === 0 ? N - 1 : 0, [, cy] = geo.sqXY(sq);
   return [geo.flip ? geo.x + geo.w - geo.m * 0.55 : geo.x + geo.m * 0.55, cy];
 }
 // The square tapped (path index) or -1.
 export function squareAt(geo, x, y) {
+  if (geo.hitSq) return geo.hitSq(x, y);
   for (let sq = 0; sq < N; sq++) { const [cx, cy] = geo.sqXY(sq); if (Math.abs(x - cx) <= geo.s / 2 && Math.abs(y - cy) <= geo.s / 2) return sq; }
   return -1;
 }
@@ -370,12 +384,15 @@ function drawHud(ctx, S, lay, title, sub, showPause) {
 function drawYard(ctx, S, M, lay, p, name, sub, active, geo) {
   const th = theme(S), z = TEXT_SCALES[S.textIdx], flip = geo.flip;
   const r = yardRect(lay, flip, p), st = M.st, n = st.pos[p].length, A = M.anim;
-  ctx.save();
-  ctx.fillStyle = 'rgba(8,6,6,0.55)'; rr(ctx, r.x, r.y, r.w, r.h, 20); ctx.fill();
-  ctx.strokeStyle = active ? th.accent : 'rgba(255,255,255,0.14)'; ctx.lineWidth = active ? 3 : 1.5;
-  if (active) { ctx.shadowColor = alpha(acc(th), 0.7); ctx.shadowBlur = 16; }
-  rr(ctx, r.x, r.y, r.w, r.h, 20); ctx.stroke();
-  ctx.restore();
+  if (v3.on) { if (active) v3.trayActive = p === 0 !== flip ? 1 : 0; }
+  else {
+    ctx.save();
+    ctx.fillStyle = 'rgba(8,6,6,0.55)'; rr(ctx, r.x, r.y, r.w, r.h, 20); ctx.fill();
+    ctx.strokeStyle = active ? th.accent : 'rgba(255,255,255,0.14)'; ctx.lineWidth = active ? 3 : 1.5;
+    if (active) { ctx.shadowColor = alpha(acc(th), 0.7); ctx.shadowBlur = 16; }
+    rr(ctx, r.x, r.y, r.w, r.h, 20); ctx.stroke();
+    ctx.restore();
+  }
   const left = S.lang === 'ar' ? r.x + r.w - 22 : r.x + 22, alg = S.lang === 'ar' ? 'right' : 'left';
   const subCol = active ? th.accent : 'rgba(246,236,214,0.66)';
   const sNs = fitOne(name, r.w - 40, 30 * (1 + (z - 1) * 0.45), 16), sSs = fitOne(sub, r.w - 40, 21 * (1 + (z - 1) * 0.45), 14);
@@ -399,10 +416,10 @@ function drawYard(ctx, S, M, lay, p, name, sub, active, geo) {
   if (A && A.cap && A.p !== p && A.t < A.dur + A.capDur) wait -= 1;
   for (let k = 0; k < n; k++) {
     const [sx, sy, d] = slotXY(r, n, k);
-    ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.arc(sx, sy, d * 0.5, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = 'rgba(255,255,255,0.12)'; ctx.lineWidth = 1.5; ctx.stroke();
-    if (k < wait) drawPiece(ctx, th, p + 1, sx, sy, d, { noShadow: true });
-    else if (k >= n - home) drawPiece(ctx, th, p + 1, sx, sy, d, { noShadow: true, ring: th.accent, scale: A && A.off && A.p === p && A.landed && k === n - home ? backOut(clamp01((A.t - A.dur) / 0.3)) : 1 });
+    if (v3.on) v3.sockets.push({ x: sx, y: sy, d });
+    else { ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.arc(sx, sy, d * 0.5, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,0.12)'; ctx.lineWidth = 1.5; ctx.stroke(); }
+    if (k < wait) piece(ctx, th, p + 1, sx, sy, d, { noShadow: true });
+    else if (k >= n - home) piece(ctx, th, p + 1, sx, sy, d, { noShadow: true, ring: th.accent, scale: A && A.off && A.p === p && A.landed && k === n - home ? backOut(clamp01((A.t - A.dur) / 0.3)) : 1 });
   }
 }
 
@@ -417,12 +434,15 @@ function describeAnim(S, A) {
 export function drawBoardScene(ctx, S, M, geo, lay, auto) {
   const th = theme(S), st = M.st, A = M.anim, a = acc(th), pl = pulse(S), n = st.pos[0].length;
   ctx.save();
-  const glow = ctx.createRadialGradient(geo.x + geo.w / 2, geo.y + geo.h / 2, 40, geo.x + geo.w / 2, geo.y + geo.h / 2, geo.w * 0.8);
-  glow.addColorStop(0, th.glow); glow.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.fillStyle = glow; ctx.fillRect(geo.x - 120, geo.y - 120, geo.w + 240, geo.h + 240);
-  drawBoard(ctx, th, geo, {});
-  const ringAt = (cx, cy, col, lw = 4, al = 1, rad = 0.62) => { ctx.save(); ctx.strokeStyle = col; ctx.globalAlpha = al; ctx.lineWidth = lw; ctx.beginPath(); ctx.arc(cx, cy, geo.d * rad, 0, Math.PI * 2); ctx.stroke(); ctx.restore(); };
-  const cellAt = (sq, col, al) => { const [cx, cy] = geo.sqXY(sq); ctx.save(); ctx.fillStyle = col; ctx.globalAlpha = al; rr(ctx, cx - geo.s / 2 + 3, cy - geo.s / 2 + 3, geo.s - 6, geo.s - 6, 9); ctx.fill(); ctx.restore(); };
+  if (v3.on) v3.flip = geo.flip;
+  else {
+    const glow = ctx.createRadialGradient(geo.x + geo.w / 2, geo.y + geo.h / 2, 40, geo.x + geo.w / 2, geo.y + geo.h / 2, geo.w * 0.8);
+    glow.addColorStop(0, th.glow); glow.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = glow; ctx.fillRect(geo.x - 120, geo.y - 120, geo.w + 240, geo.h + 240);
+    drawBoard(ctx, th, geo, {});
+  }
+  const ringAt = (cx, cy, col, lw = 4, al = 1, rad = 0.62) => { if (v3.on) { v3.marks.push({ kind: 'ring', x: cx, y: cy, r: geo.d * rad, col, a: al }); return; } ctx.save(); ctx.strokeStyle = col; ctx.globalAlpha = al; ctx.lineWidth = lw; ctx.beginPath(); ctx.arc(cx, cy, geo.d * rad, 0, Math.PI * 2); ctx.stroke(); ctx.restore(); };
+  const cellAt = (sq, col, al) => { const [cx, cy] = geo.sqXY(sq); if (v3.on) { v3.marks.push({ kind: 'cell', x: cx, y: cy, r: geo.s * 0.45, col, a: al * 1.6 }); return; } ctx.save(); ctx.fillStyle = col; ctx.globalAlpha = al; rr(ctx, cx - geo.s / 2 + 3, cy - geo.s / 2 + 3, geo.s - 6, geo.s - 6, 9); ctx.fill(); ctx.restore(); };
   const badge = (cx, cy, label, col, al = 1, rad = 0.3) => {
     ctx.save(); ctx.globalAlpha = al;
     ctx.fillStyle = 'rgba(10,6,4,0.82)'; ctx.beginPath(); ctx.arc(cx, cy, geo.s * rad, 0, Math.PI * 2); ctx.fill();
@@ -452,7 +472,7 @@ export function drawBoardScene(ctx, S, M, geo, lay, auto) {
   if (playable) {
     const shown = sel !== null && sel !== undefined ? dests : dests.filter((m) => m.from === WAIT);
     for (const m of shown) {
-      if (m.off) { const [bx, by] = exitBadge(geo, turn); ctx.save(); ctx.fillStyle = alpha(a, 0.9); ctx.beginPath(); ctx.arc(bx, by, geo.s * 0.3 + 3 * pl, 0, Math.PI * 2); ctx.fill(); ctx.restore(); badge(bx, by, `${m.v}`, a, 1, 0.26); continue; }
+      if (m.off) { const [bx, by] = exitBadge(geo, turn); if (v3.on) v3.marks.push({ kind: 'disc', x: bx, y: by, r: geo.s * 0.3, col: a, a: 0.9 }); else { ctx.save(); ctx.fillStyle = alpha(a, 0.9); ctx.beginPath(); ctx.arc(bx, by, geo.s * 0.3 + 3 * pl, 0, Math.PI * 2); ctx.fill(); ctx.restore(); } badge(bx, by, `${m.v}`, a, 1, 0.26); continue; }
       const [cx, cy] = geo.sqXY(m.sq);
       cellAt(m.sq, m.cap ? RED : a, 0.22 + 0.12 * pl);
       badge(cx, cy, `${m.v}`, m.cap ? RED : a, 0.95);
@@ -488,24 +508,24 @@ export function drawBoardScene(ctx, S, M, geo, lay, auto) {
       else if (auto && auto.phase === 'reveal' && auto.plan && turn === p && auto.plan.mv.from === x) o = { glow: 0.5 + 0.4 * pl };
       else if (M.over && M.winT > 0.3 && winner === p) o = { glow: 0.4 + 0.3 * Math.sin(M.winT * 5 + x) };
       else if (M.over && winner >= 0 && winner !== p) o = { alpha: 0.75 };
-      drawPiece(ctx, th, p + 1, cx, cy, geo.d, o);
+      piece(ctx, th, p + 1, cx, cy, geo.d, o);
     }
   }
   // the stone in flight (and the captured one, until it lands)
   if (A) {
     const ta = vis(S, A);
     const pts = animRoute(geo, lay, geo.flip, n, A);
-    if (A.cap && ta < A.dur) { const [cx, cy] = geo.sqXY(A.sq); drawPiece(ctx, th, (A.p === 0 ? 1 : 0) + 1, cx, cy, geo.d, { glow: 0.3 + 0.5 * clamp01((kA - 0.6) / 0.4) }); }
+    if (A.cap && ta < A.dur) { const [cx, cy] = geo.sqXY(A.sq); piece(ctx, th, (A.p === 0 ? 1 : 0) + 1, cx, cy, geo.d, { glow: 0.3 + 0.5 * clamp01((kA - 0.6) / 0.4) }); }
     if (ta < A.dur) {
       const k = clamp01(ta / A.dur), e = smooth(k), [px, py] = pointOnRoute(pts, e);
       const fade = A.off ? 1 - smooth(clamp01((k - 0.7) / 0.3)) : 1;
-      drawPiece(ctx, th, A.p + 1, px, py, geo.d * (A.from === WAIT ? 0.9 + 0.1 * e : 1) * (A.off ? 0.55 + 0.45 * fade : 1), { lift: Math.sin(k * Math.PI) * 0.8, glow: 0.5, alpha: fade });
+      piece(ctx, th, A.p + 1, px, py, geo.d * (A.from === WAIT ? 0.9 + 0.1 * e : 1) * (A.off ? 0.55 + 0.45 * fade : 1), { lift: Math.sin(k * Math.PI) * 0.8, glow: 0.5, alpha: fade });
     }
     if (A.cap && ta >= A.dur && ta < A.dur + A.capDur) {
       const e = A.p === 0 ? 1 : 0, yr = yardRect(lay, geo.flip, e), wcount = st.pos[e].filter((x) => x === WAIT).length;
       const [hx, hy, hd] = slotXY(yr, n, wcount - 1), [sx, sy] = geo.sqXY(A.sq);
       const k = clamp01((ta - A.dur) / A.capDur), ee = smooth(k);
-      drawPiece(ctx, th, e + 1, sx + (hx - sx) * ee, sy + (hy - sy) * ee, geo.d + (hd - geo.d) * ee, { lift: Math.sin(k * Math.PI) * 0.9, alpha: 1 });
+      piece(ctx, th, e + 1, sx + (hx - sx) * ee, sy + (hy - sy) * ee, geo.d + (hd - geo.d) * ee, { lift: Math.sin(k * Math.PI) * 0.9, alpha: 1 });
     }
   }
   ctx.restore();
@@ -541,16 +561,18 @@ function drawChips(ctx, S, M, r) {
   void done;
 }
 
+const restPoses = () => [false, true, false, true].map((f, i, a) => restPose(a, i));
 function drawMat(ctx, S, M, r) {
   const th = theme(S);
-  drawFelt(ctx, th, r, S.t);
+  if (!v3.on) drawFelt(ctx, th, r, S.t);
   const A = M.throwAnim;
   let plan = null, tm = 0;
   if (A) { plan = A.plan; tm = vis(S, A); }
   else if (M.lastPlan) { plan = M.lastPlan.plan; tm = plan.dur; }
   const L = Math.min(250, r.h * 0.64), Wd = L * 0.19;
   ctx.save(); ctx.beginPath(); ctx.rect(r.x, r.y, r.w, r.h); ctx.clip();      // a plain rectangle clip is far cheaper than a rounded one; the sticks never reach the corners
-  if (plan) drawSticksOn(ctx, th, r, plan, Math.min(tm, plan.dur), S, false);
+  if (v3.on) v3.sticks = plan ? plan.sticks.map((_, i) => stickPose(plan, i, Math.min(tm, plan.dur))) : restPoses();
+  else if (plan) drawSticksOn(ctx, th, r, plan, Math.min(tm, plan.dur), S, false);
   else {
     const flats = [false, true, false, true];
     const items = flats.map((f, i) => ({ i, p: restPose(flats, i), f }));
@@ -688,7 +710,7 @@ function statusOf(S, M, auto) {
 
 function drawPlay(ctx, S) {
   const th = theme(S), M = S.match, z = TEXT_SCALES[S.textIdx];
-  background(ctx, th, S.t, 800);
+  bgd(ctx, th, S.t, 800);
   const auto = S.scene === 'auto' ? S.auto : null;
   const { lay, geo } = playGeo(S, M);
   const title = M.lesson ? lessonText(M.lesson, S.lang).title : T(S, 'title');
@@ -727,16 +749,16 @@ export function render(ctx, S, ui) {
     case 'title': drawTitle(ctx, S, ui); break;
     case 'setup': case 'learn': case 'howto': case 'rules': case 'about': case 'settings': drawDocScreen(ctx, S, ui); break;
     case 'demo-limit':
-      background(ctx, theme(S), S.t);
+      bgd(ctx, theme(S), S.t);
       panel(ctx, theme(S), ui.panel.x, ui.panel.y, ui.panel.w, ui.panel.h, {});
       drawDocBlocks(ctx, S, ui, S.scroll[ui.scrollKey] ?? 0);
       drawFixed(ctx, S, ui.fixed);
       break;
     case 'play': case 'auto':
-      if (!S.match) { background(ctx, theme(S), S.t); break; }
+      if (!S.match) { bgd(ctx, theme(S), S.t); break; }
       drawPlay(ctx, S);
       break;
-    default: background(ctx, theme(S), S.t);
+    default: bgd(ctx, theme(S), S.t);
   }
   if (S.overlay) drawOverlay(ctx, S, ui);
 }

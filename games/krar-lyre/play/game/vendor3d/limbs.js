@@ -181,7 +181,7 @@ export function restLengths(m) {
  *   feet:     toe-out beyond ~35 deg rotated back about the shin axis; ankle range limited
  *   hips / forearms: axial twist beyond range pulled back to the limit (no inverted foot, no candy-wrapper)
  *   wrists:   total bend limited (blends toward the rest relation)
- * opts: { knees, feet, hips, forearms, wrists } set false to skip a family. Returns the number of corrections applied.
+ * opts: { knees, feet, hips, forearms, wrists } set false to skip a family; { gripSides: {L,R} } skips wrists + forearms of those sides only (Human passes it while a hand is reaching/holding). Returns the number of corrections applied.
  */
 export function limbSanity(h, opts = {}) {
   const { update = true } = opts;
@@ -239,15 +239,16 @@ export function limbSanity(h, opts = {}) {
       const excess = tw - Math.sign(tw) * lim;
       bone.quaternion.copy(restQ(name).multiply(new C.Q().setFromAxisAngle(ax, -excess).multiply(rel))); bone.updateMatrixWorld(true); n++;
     };
-    if (opts.forearms !== false) untwist(`Bip01_${s}_Forearm`, h.bones[`Bip01_${s}_Forearm`], j.forearmTwist, LIMIT.forearmTwistWarn);
+    const gripped = opts.gripSides && opts.gripSides[s];   // 1.13.1: a hand being solved onto a prop/target keeps its IK result (no wrist/forearm correction)
+    if (opts.forearms !== false && !gripped) untwist(`Bip01_${s}_Forearm`, h.bones[`Bip01_${s}_Forearm`], j.forearmTwist, LIMIT.forearmTwistWarn);
     const shrink = (name, bone, tot, lim) => {
       if (tot <= lim) return;
       const rel = relQ(h, bone, name, C);
       bone.quaternion.copy(restQ(name).multiply(new C.Q().slerp(rel, lim / tot))); bone.updateMatrixWorld(true); n++;
     };
     if (opts.feet !== false) shrink(`Bip01_${s}_Foot`, h.bones[`Bip01_${s}_Foot`], j.footTotal, LIMIT.footWarn);
-    if (opts.wrists !== false) shrink(`Bip01_${s}_Hand`, h.bones[`Bip01_${s}_Hand`], j.wristTotal, LIMIT.wristWarn * 1.6);
-    if (opts.wrists !== false && j.wristBend > LIMIT.wristWarn) {   // bend between forearm axis and hand axis: swing the hand back toward the forearm line
+    if (opts.wrists !== false && !gripped) shrink(`Bip01_${s}_Hand`, h.bones[`Bip01_${s}_Hand`], j.wristTotal, LIMIT.wristWarn * 1.6);
+    if (opts.wrists !== false && !gripped && j.wristBend > LIMIT.wristWarn) {   // bend between forearm axis and hand axis: swing the hand back toward the forearm line
       const hand = h.bones[`Bip01_${s}_Hand`], k = h.bones[`Bip01_${s}_Finger2`];
       const e = (b) => { const w = b.matrixWorld.elements; return new C.V(w[12], w[13], w[14]); };
       const fa = e(hand).sub(e(h.bones[`Bip01_${s}_Forearm`])).normalize(), hd = e(k).sub(e(hand)).normalize();

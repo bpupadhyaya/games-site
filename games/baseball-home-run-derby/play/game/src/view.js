@@ -299,9 +299,9 @@ function pips(ctx, x, y, n, used, size, color) {
 
 function drawHud(ctx, state) {
   const r = state.r, hud = LY.hud, zs = Math.min(scaleOf(state), 2);
-  panel(ctx, { x: hud.x, y: hud.y, w: hud.w, h: hud.h }, { radius: 22, top: 'rgba(14,20,44,0.82)', bottom: 'rgba(10,14,32,0.82)' });
-  edgeStroke(ctx, { x: hud.x, y: hud.y, w: hud.w, h: hud.h }, 22, 0.5);
-  const pad = 18, mw = hud.textMaxW, compact = hud.h < 100;
+  panel(ctx, { x: hud.x, y: hud.y, w: hud.w, h: hud.h }, { radius: 18, top: 'rgba(64,40,22,0.9)', bottom: 'rgba(38,22,12,0.92)' });
+  ctx.save(); ctx.strokeStyle = 'rgba(224,178,92,0.9)'; ctx.lineWidth = 2.5; rr(ctx, hud.x + 1.5, hud.y + 1.5, hud.w - 3, hud.h - 3, 17); ctx.stroke(); ctx.restore();
+  const pad = 18, mw = hud.textMaxW, compact = hud.h < 100 || (!LY.land && hud.h < 124);
   ctx.textBaseline = 'alphabetic';
   const lab = `${r.label} · ${r.batter.name}`;
   const f1 = fitFont(ctx, lab, txt(20) * zs, compact ? mw * 0.5 : mw, 600); ctx.font = `600 ${f1}px ${SANS}`; ctx.fillStyle = 'rgba(255,230,180,0.9)'; ctx.textAlign = 'left'; ctx.fillText(lab, hud.x + pad, hud.y + 8 + f1);
@@ -315,7 +315,8 @@ function drawHud(ctx, state) {
   if (r.swingOff) { ctx.font = `700 ${txt(20) * zs}px ${SANS}`; ctx.fillStyle = PAL.peach; ctx.fillText(`swing ${Math.min(r.pitches + (['pitch', 'flight', 'swing'].includes(r.phase) ? 0 : 1), r.limit)} of ${r.limit}`, hud.x + pad, hud.y + hud.h - 14); }
   else {
     const n = r.outsMax;
-    if (compact) { const pw = Math.min(ps, (mw * 0.5) / (n * 1.5)); pips(ctx, hud.x + hud.w - 18 - n * pw * 1.5 - (LY.think.x < hud.x + hud.w ? 0 : 0) + (compact ? -0 : 0) - 64 + 64 - (hud.w - mw - 22 > 0 ? 0 : 0), hud.y + 8 + f1 * 0.62, n, r.outs, pw, '#ff6b57'); }
+    if (compact && !LY.land) { const pw = 13; ctx.font = `600 ${f1}px ${SANS}`; const lw0 = ctx.measureText(lab).width; pips(ctx, hud.x + pad + lw0 + 16, hud.y + 8 + f1 * 0.62, n, r.outs, pw, '#ff6b57'); }
+    else if (compact) { const pw = Math.min(ps, (mw * 0.5) / (n * 1.5)); pips(ctx, hud.x + hud.w - 18 - n * pw * 1.5 - (LY.think.x < hud.x + hud.w ? 0 : 0) + (compact ? -0 : 0) - 64 + 64 - (hud.w - mw - 22 > 0 ? 0 : 0), hud.y + 8 + f1 * 0.62, n, r.outs, pw, '#ff6b57'); }
     else { const pw = Math.min(ps, (mw - 80) / (n * 1.5)); const label = 'outs'; ctx.font = `600 ${txt(18) * zs}px ${SANS}`; ctx.fillStyle = 'rgba(255,230,180,0.85)'; ctx.fillText(label, hud.x + pad, hud.y + hud.h - 12); const lw = ctx.measureText(label).width; pips(ctx, hud.x + pad + lw + 12, hud.y + hud.h - 18, n, r.outs, pw, '#ff6b57'); }
   }
   // pause / think

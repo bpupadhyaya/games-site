@@ -2,7 +2,6 @@
 // hands the game uses, with a shallow depth of field on the backdrop, glow and a vignette, and exposes the finished canvas as
 // window.__icon (dataURL) for tools/render-icon.mjs.
 import * as THREE from '../vendor3d/three.js';
-import * as V3D from '../vendor3d/index.js';
 import { createWorld, createSky, RIGS } from './world.js';
 import { createToy, COPTER_SCALE } from './toy.js';
 import { makeConditions, seeded } from '../src/sim.js';
@@ -46,7 +45,7 @@ const backdrop = snap();
 
 // ---- subject: rotor and two hands (first-person), transparent
 const toyScene = new THREE.Scene(); toyScene.environment = env; toyScene.environmentIntensity = 0.4;
-const toy = await createToy(V3D, { skin: q.get('skin') || 'tan' });
+const toy = await createToy({ skin: q.get('skin') || 'tan' });
 toyScene.add(toy.root);
 const hemi = new THREE.HemisphereLight(0xfff2dc, 0x3a5a3a, 0.45), key = new THREE.DirectionalLight(0xffe2b0, 2.6), rim = new THREE.DirectionalLight(0x9fe0ff, 2.2), fill = new THREE.DirectionalLight(0xffd8b0, 0.6);
 key.position.set(-3, 5, -3); rim.position.set(4, 4, 5); fill.position.set(3, 1, -4);

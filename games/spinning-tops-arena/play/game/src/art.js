@@ -2,6 +2,7 @@
 // The table and dish are painted once into a cached layer (OffscreenCanvas where there is one); tops are drawn live.
 import { ARENA, BODIES, TIPS, BALLAST, ARENAS, derive, tiltOf, clamp } from './sim.js';
 import { VIEW } from './layout.js';
+import { v3 } from './v3.js';
 
 const TAU = Math.PI * 2;
 export const CAM = { sy: ARENA.sy };
@@ -14,7 +15,7 @@ export const shade = (c, k) => { const [r, g, b] = hex(c); const f = (v) => Math
 const WOOD = ['#e3b878', '#c28b4a', '#8d5a2a'];
 
 // ---- the table and the dish ----------------------------------------------------------------------------------------
-function drawTable(ctx, TW = 720, TH = 1280) {
+export function drawTable(ctx, TW = 720, TH = 1280) {
   const g = ctx.createLinearGradient(0, 0, 0, TH);
   g.addColorStop(0, '#3a2216'); g.addColorStop(0.45, '#4d2f1d'); g.addColorStop(1, '#2a180f');
   ctx.fillStyle = g; ctx.fillRect(0, 0, TW, TH);
@@ -111,6 +112,8 @@ function bakeOne(paint, bw, bh, ox = 0, oy = 0, S = 2) {
 let tableKey = '', tableLayer = null;
 const tableScale = (w, h) => Math.min(1.5, 2600 / Math.max(w, h));
 export function drawTableLayer(ctx, w = VIEW.w, h = VIEW.h) {
+  // on the 3D table: wipe the (transparent) 2D layer instead, the WebGL table shows through
+  if (v3.on) { ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height); ctx.restore(); v3.want = true; return; }
   const key = `${Math.round(w)}x${Math.round(h)}`;
   if (key !== tableKey) { tableKey = key; tableLayer = bakeOne((x) => drawTable(x, w, h), w, h, 0, 0, tableScale(w, h)); }
   if (tableLayer) ctx.drawImage(tableLayer, 0, 0, w, h); else drawTable(ctx, w, h);
@@ -130,26 +133,26 @@ export function prebake(arenaId) { const key = `dish:${arenaId}`; if (baked[key]
 
 // ---- the tops --------------------------------------------------------------------------------------------------------
 // Profiles are (height share, radius share) from the shoulder at the tip end up to the crown.
-const PROFILE = {
+export const PROFILE = {
   disc: [[0, 0.1], [0.06, 0.4], [0.2, 0.93], [0.34, 1], [0.5, 0.98], [0.64, 0.7], [0.8, 0.42], [0.92, 0.28], [1, 0.24]],
   pear: [[0, 0.1], [0.1, 0.44], [0.28, 0.82], [0.45, 0.98], [0.6, 0.92], [0.78, 0.6], [0.92, 0.32], [1, 0.24]],
   spire: [[0, 0.08], [0.12, 0.38], [0.3, 0.8], [0.42, 0.95], [0.56, 0.82], [0.78, 0.46], [0.95, 0.2], [1, 0.15]],
   dome: [[0, 0.12], [0.08, 0.62], [0.2, 0.98], [0.34, 1], [0.55, 0.9], [0.78, 0.6], [0.92, 0.34], [1, 0.26]],
 };
-const BANDS = {
+export const BANDS = {
   disc: [[0.1, 0.2, 2], [0.28, 0.5, 1], [0.58, 0.68, 2], [0.7, 1, 1]],
   pear: [[0.16, 0.3, 2], [0.3, 0.62, 1], [0.62, 0.7, 2], [0.7, 1, 1]],
   spire: [[0.16, 0.28, 2], [0.28, 0.6, 1], [0.6, 0.66, 2], [0.66, 1, 1]],
   dome: [[0.1, 0.24, 2], [0.24, 0.55, 1], [0.55, 0.64, 2], [0.64, 1, 1]],
 };
 const VIEWK = 0.34;
-const bodyDims = (b) => {
+export const bodyDims = (b) => {
   const d = derive(b);
   const H = 1.7 * d.h + 22;
   const tipLen = b.tip === 'steel' ? 17 : b.tip === 'pebble' ? 11 : 8;
   return { r: d.r, H, tipLen, d };
 };
-const profAt = (prof, z) => {
+export const profAt = (prof, z) => {
   for (let i = 1; i < prof.length; i++) if (z <= prof[i][0]) { const a = prof[i - 1], c = prof[i], k = (z - a[0]) / Math.max(1e-6, c[0] - a[0]); return a[1] + (c[1] - a[1]) * k; }
   return prof[prof.length - 1][1];
 };

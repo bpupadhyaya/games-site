@@ -11,6 +11,7 @@ import { LESSONS, buildLesson } from './lessons.js';
 import { createPuzzleMaker, puzzleGame } from './puzzles.js';
 import { RULES, ABOUT, HOW } from './about.js';
 import { render, docMetrics } from './view.js';
+import { v3 } from './v3.js';
 
 // `meta.width/height` are updated live by the kit on every resize; every position comes from layoutFor(meta.width, meta.height).
 export const meta = { width: W, height: H, fluid: { short: 720 } };
@@ -44,8 +45,9 @@ export function createGame(env) {
     BTN = { ...C.BTN, again: L.res.again, back: L.res.back }; PAGE = L.doc.nav; TEXT_STEPPER = L.doc.step;
   };
   // A screen point -> the board square it is on (-1 none, 30 = the exit), through the board's current placement.
-  const squareAt = (x, y) => squareAtCanon((x - C.board.ox) / C.board.s, (y - C.board.oy) / C.board.s);
-  const sqCentre = (i) => { const c = i === 30 ? { cx: EXIT.cx, cy: EXIT.cy } : cell(i); return { x: C.board.ox + c.cx * C.board.s, y: C.board.oy + c.cy * C.board.s }; };
+  // With the 3D chamber on (v3.on), the presenter maps screen points to squares through its own camera (pieces first, then the tile tops).
+  const squareAt = (x, y) => (v3.on && v3.pick ? v3.pick(x, y) : squareAtCanon((x - C.board.ox) / C.board.s, (y - C.board.oy) / C.board.s));
+  const sqCentre = (i) => { const c = i === 30 ? { cx: EXIT.cx, cy: EXIT.cy } : cell(i); return v3.on && v3.proj ? v3.proj(c.cx, c.cy) : { x: C.board.ox + c.cx * C.board.s, y: C.board.oy + c.cy * C.board.s }; };
   const rc = (r) => ({ x: r.x + r.w / 2, y: r.y + r.h / 2 });
   const maker = createPuzzleMaker(state.daily.day);
   const isAutoplay = () => state.scene === 'autoplay' || state.scene === 'autoplay-over';

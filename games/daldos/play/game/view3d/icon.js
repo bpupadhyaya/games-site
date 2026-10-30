@@ -25,10 +25,9 @@ const put = (side, row, col, o = {}) => {
 put(0, 2, 6, { turned: true, s: 1.75, yaw: -0.25 });          // the hero: a red spatula that has turned over (gold star)
 put(1, 1, 3, { s: 1.4, yaw: 0.3 });                           // a blue rival, out of focus
 put(0, 2, 3, { s: 1.3, yaw: 0.2 });
-const stick = makeStick(); stick.scale.setScalar(3.1); stick.position.set(1.3, Y.deck + 0.09, 2.15); stick.rotation.set(-Math.PI / 2 * 2, 0.12, 0); scene.add(stick);
 const camera = new THREE.PerspectiveCamera(num('fov', 30), 1, 0.2, 200);
-const look = new THREE.Vector3(3.5 + num('lx', 0), Y.deck + num('ly', 0.55), 1.6 + num('lz', 0));
-const pitch = (num('pitch', 17) * Math.PI) / 180, dist = num("dist", 8.6), yaw = (num('yaw', 14) * Math.PI) / 180;
+const look = new THREE.Vector3(3.5 + num('lx', -1.0), Y.deck + num('ly', 0.85), 1.6 + num('lz', 0));
+const pitch = (num('pitch', 17) * Math.PI) / 180, dist = num("dist", 7.2), yaw = (num('yaw', 14) * Math.PI) / 180;
 camera.position.set(look.x + Math.sin(yaw) * Math.cos(pitch) * dist, look.y + Math.sin(pitch) * dist, look.z + Math.cos(yaw) * Math.cos(pitch) * dist);
 camera.lookAt(look); camera.updateMatrixWorld();
 const pool = new THREE.PointLight(0xffa04a, 2.2, 10, 1.5); pool.position.set(1.5, 2.2, 3.2); scene.add(pool);
@@ -65,8 +64,8 @@ const out = cv(), x = out.getContext('2d');
 x.drawImage(bb, 0, 0); x.drawImage(sharp, 0, 0); x.drawImage(mask, 0, 0);
 const bl = cv(), bc = bl.getContext('2d'); bc.filter = `blur(${S * 0.02}px) brightness(1.1)`; bc.drawImage(out, 0, 0);
 x.save(); x.globalCompositeOperation = 'lighter'; x.globalAlpha = 0.22; x.drawImage(bl, 0, 0); x.restore();
-const vg = x.createRadialGradient(S / 2, S * 0.5, S * 0.34, S / 2, S / 2, S * 0.78); vg.addColorStop(0, 'rgba(8,4,16,0)'); vg.addColorStop(1, 'rgba(8,4,16,0.65)'); x.fillStyle = vg; x.fillRect(0, 0, S, S);
-const fin = cv(), fx = fin.getContext('2d'); fx.filter = 'contrast(1.1) saturate(1.12)'; fx.drawImage(out, 0, 0);
+const vg = x.createRadialGradient(S / 2, S * 0.5, S * 0.34, S / 2, S / 2, S * 0.78); vg.addColorStop(0, 'rgba(8,4,16,0)'); vg.addColorStop(1, 'rgba(6,3,12,0.85)'); x.fillStyle = vg; x.fillRect(0, 0, S, S);
+const fin = cv(), fx = fin.getContext('2d'); fx.filter = 'contrast(1.18) saturate(1.1) brightness(0.78)'; fx.drawImage(out, 0, 0);
 const small = cv(1024, 1024), sx = small.getContext('2d'); sx.imageSmoothingQuality = 'high'; sx.drawImage(fin, 0, 0, 1024, 1024);
 window.__icon = () => small.toDataURL('image/png'); window.__iconJpeg = () => small.toDataURL('image/jpeg', 0.93);
 document.title = 'ready';

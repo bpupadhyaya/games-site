@@ -8,6 +8,7 @@ import { ui, beginFrame, hitAt, checkFonts } from './ui.js';
 import { renderPlay, cellAt } from './view.js';
 import { renderTitle, renderSetup, renderSettings, renderReader, renderLearn, renderOver, renderDemoLimit } from './screens.js';
 import { WOOD_IDS, STONE_IDS } from './art.js';
+import { v3 } from './v3.js';
 
 // Fluid viewport (kit): the short side is 720 units and the long side follows the screen; the kit updates meta.width/height live.
 export const meta = { width: 720, height: 1560, fluid: { short: 720 } };
@@ -403,6 +404,8 @@ export function createGame(env) {
   // ---- render --------------------------------------------------------------------------------------------------------------------------
   function render(ctx) {
     const L = lay(), sc = state.scene;
+    v3.hero = null; v3.scene = sc;
+    if (v3.on) ctx.clearRect(0, 0, L.w, L.h);              // the lit 3D table shows through (see v3.js); the kit fills nothing
     checkFonts(ctx);
     beginFrame(sc, L.key);
     if (sc === 'title') renderTitle(ctx, state, L);

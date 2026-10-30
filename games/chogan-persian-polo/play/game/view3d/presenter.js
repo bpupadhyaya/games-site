@@ -5,7 +5,7 @@ import { createRider } from './rider.js';
 import { Actor } from './actor.js';
 import { HorseBatch, COATS, setHorseDetail } from './horse.js';
 import { buildField, buildBlobs, buildPuffs } from './field.js';
-import { CAM, rigFor, SHOW_CAM } from '../src/camera.js';
+import { CAM, rigFor, SHOW_CAM, stepFollow } from '../src/camera.js';
 import { BALL_R, FIG, SPOTS } from '../src/consts.js';
 
 const LIB = '../vendor3d/index.js';
@@ -66,14 +66,14 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
   P.ready_p = (async () => {
     for (let i = 0; i < 6; i++) {
       const team = i < 3 ? 0 : 1, role = i % 3, K = KITS[team];
-      const rider = await createRider({ top: K.top, trim: K.trim, bottoms: K.bottoms, helmet: K.helmet, skin: SKINS[(i * 5 + 1) % 6], lod: quality === 'high' ? 0 : quality === 'medium' ? 'medium' : 'light', seed: i + 1 });
+      const rider = await createRider({ top: K.top, trim: K.trim, bottoms: K.bottoms, helmet: K.helmet, skin: SKINS[(i * 5 + 1) % 6], lod: quality === 'low' ? 'medium' : 0, seed: i + 1 });
       stage.add(rider.human); stage.track(rider.human);
       batch.paint(i, COATS[COAT[team][role]], K.cloth, K.trim);
       actors.push(new Actor(i, rider, THREE, i + 1));
     }
     // the showcase rider (a seventh horse far from the field): shown only through the transparent windows of the Rules pages
     const K0 = KITS[0];
-    const sr = await createRider({ top: K0.top, trim: K0.trim, bottoms: K0.bottoms, helmet: K0.helmet, skin: 'brown', lod: quality === 'high' ? 0 : 'medium', seed: 9 });
+    const sr = await createRider({ top: K0.top, trim: K0.trim, bottoms: K0.bottoms, helmet: K0.helmet, skin: 'brown', lod: quality === 'low' ? 'medium' : 0, seed: 9 });
     stage.add(sr.human); sr.human.root.visible = false;
     batch.paint(6, COATS.bay, K0.cloth, K0.trim);
     P.show = { actor: new Actor(0, sr, THREE, 9), t: 0, key: '', st: { riders: [{ x: -SC.x, z: SC.z, h: -Math.PI / 2, v: 0, w: 0 }], ball: { x: 0, z: 0, y: 0.3, vx: 0, vz: 0 } }, ballV: [0, 0], ballPos: null };
@@ -152,13 +152,14 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
     // follow the live aspect, so nothing is stretched and the whole field stays in view after a resize or rotation
     const W = canvas.clientWidth || 720, H = canvas.clientHeight || 1280;
     const rig = rigFor(W / H);
+    const c = rig.cam;
     if (P.rig !== rig.key) {
       P.rig = rig.key;
-      const c = rig.cam; cam.position.set(c.x, c.y, c.z); cam.up.set(0, 1, 0); cam.lookAt(c.lx, c.ly, c.lz); cam.updateMatrixWorld(true); camQ.copy(cam.quaternion);
       if (crowdSide) crowdSide.visible = rig.key === 'end'; if (crowdLeft) crowdLeft.visible = rig.key === 'side';
       stage.lights.key.position.set(rig.key === 'end' ? -14 : 14, 26, rig.key === 'end' ? -12 : -6);
-      stage.invalidate();
     }
+    // the follow camera slides and zooms along a fixed viewing direction, so the orientation (and the billboards) never change
+    cam.position.set(c.x, c.y, c.z); cam.up.set(0, 1, 0); cam.lookAt(c.lx, c.ly, c.lz); cam.updateMatrixWorld(true); camQ.copy(cam.quaternion); stage.invalidate();
     if (Math.abs(cam.fov - rig.fov) > 1e-3 || Math.abs(cam.aspect - W / H) > 1e-4) { cam.fov = rig.fov; cam.aspect = W / H; cam.updateProjectionMatrix(); }
     if (!P.noRender) { stage.render(); if (showing || fm) renderShowcase(G, W, H); P.drawCalls = stage.renderer.info.render.calls; P.tris = stage.renderer.info.render.triangles; }
   }
@@ -256,6 +257,8 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
     const r = game.render.bind(game);
     game.render = (ctx, view) => {
       view.cssW = kitCanvas.clientWidth || 720; view.cssH = kitCanvas.clientHeight || 1280;
+      const G = game.getState(), now = nowMs(), dt = P.lastCam ? (now - P.lastCam) / 1000 : 0; P.lastCam = now;
+      stepFollow(G.artRect ? null : G.sim, view.cssW / view.cssH, dt);
       r(ctx, view);
       frame(game);
     };

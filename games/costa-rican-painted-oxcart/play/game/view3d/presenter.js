@@ -8,6 +8,7 @@ import * as B from '../vendor3d/board3d.js';
 import { v3 } from '../src/v3.js';
 import * as M from './models.js';
 import { PAINT } from '../src/art.js';
+import { PANEL_STRETCH } from '../src/layout.js';
 const PAINT_HEX = Object.fromEntries(Object.entries(PAINT).map(([k, v]) => [k, v.base]));
 
 const TAU = Math.PI * 2;
@@ -216,17 +217,21 @@ export async function createPresenter({ kitCanvas, quality = 'high', instant = f
     hudCam.projectionMatrixInverse.copy(m).invert();
   }
   const tmp = new THREE.Vector3(), tmp2 = new THREE.Vector3(), ray = new THREE.Vector3(), orig = new THREE.Vector3();
-  let vw = 720, vh = 1280, fitted = null;
+  let vw = 720, vh = 1280, fitted = null, stretchOn = false;
   function fitCamera(rect, hx, hz, topY, pitchDeg, fov, yawDeg, shift = 0, round = false) {
+    const asp0 = (2 * hx) / (2 * hz);
     const k = W / vw, p = (pitchDeg * Math.PI) / 180, yaw = (yawDeg * Math.PI) / 180, lookY = topY * 0.5;
     camera.fov = fov; camera.clearViewOffset(); camera.aspect = W / H; camera.updateProjectionMatrix();
     const cs = [];   // the footprint is rotation invariant (a circle for wheels), so a spinning hero never pulses the zoom
     if (round) { for (let i = 0; i < 24; i++) { const an = (i / 24) * TAU; for (const y of [0, topY + 0.1]) cs.push([Math.cos(an) * hx, y, Math.sin(an) * hx]); } }
     else for (const sx of [-1, 1]) for (const sz of [-1, 1]) for (const y of [0, topY + 0.1]) cs.push([sx * hx, y, sz * hz]);
     let d = 12;
+    // Portrait wide panels: stretch the projection vertically (project/unproject use the same matrix, so taps stay exact).
+    const sy = stretchOn && !round && H >= W * 1.12 ? Math.max(1, Math.min(PANEL_STRETCH, (rect.h / rect.w) * asp0 * 0.98)) : 1;
+    const stretch = () => { if (sy !== 1) { const e = camera.projectionMatrix.elements; e[5] *= sy; e[9] *= sy; camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert(); } };
     const place = () => {
       camera.position.set(Math.sin(yaw) * Math.cos(p) * d, lookY + Math.sin(p) * d, Math.cos(yaw) * Math.cos(p) * d);
-      camera.lookAt(0, lookY, 0); camera.updateMatrixWorld(); camera.updateProjectionMatrix();
+      camera.lookAt(0, lookY, 0); camera.updateMatrixWorld(); camera.updateProjectionMatrix(); stretch();
     };
     const bbox = () => {
       let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
@@ -241,7 +246,7 @@ export async function createPresenter({ kitCanvas, quality = 'high', instant = f
     const [x0, x1, y0, y1] = bbox();
     const tx = (rect.x + rect.w / 2) * k, ty = (rect.y + rect.h / 2) * k + shift * k;
     camera.setViewOffset(W, H, (x0 + x1) / 2 - tx, (y0 + y1) / 2 - ty, W, H);
-    camera.updateProjectionMatrix(); camera.updateMatrixWorld();
+    camera.updateProjectionMatrix(); stretch(); camera.updateMatrixWorld();
     const dist = camera.position.length(); scene.fog.near = dist * 1.25; scene.fog.far = dist * 3.4;
   }
   const topOf = () => (active ? active.top : 0.2);
@@ -270,7 +275,8 @@ export async function createPresenter({ kitCanvas, quality = 'high', instant = f
     const hero = !!req.hero, wheel = pc.kind === 'wheel';
     pieceRoot.rotation.y = -(req.rot || 0); pieceRoot.updateMatrixWorld(true);
     const sway = hero ? Math.sin(clock * 0.22) * 5 : 0;
-    fitCamera(req.rect, pc.half[0], pc.half[1], pc.top, hero ? 50 : wheel ? (w > h ? 52 : 56) : 55, 30, sway, 0, wheel);
+    stretchOn = !hero && !wheel;
+    fitCamera(req.rect, pc.half[0], pc.half[1], pc.top, hero ? 50 : wheel ? (w > h ? 52 : 56) : (w > h ? 55 : 68), 30, sway, 0, wheel);
     placeProps(pc.half[0], pc.half[1], hero);
     const sh = Math.max(pc.half[0], pc.half[1]) + 1.4;
     Object.assign(key.shadow.camera, { left: -sh, right: sh, top: sh, bottom: -sh, near: 1, far: 60 }); key.shadow.camera.updateProjectionMatrix();
@@ -334,6 +340,7 @@ export async function createPresenter({ kitCanvas, quality = 'high', instant = f
     if (frames > 90 && ema > 30 && tier < TIERS.length - 1) { tier++; applyTier(); frames = 0; ema = 16; }
     if (!pieceThisFrame) {
       if (active) active.group.visible = false;
+      stretchOn = false;
       fitCamera({ x: 0, y: 0, w: vw, h: vh * 0.8 }, 1.7, 1.2, 0.2, 52, 30, 0);
       placeProps(1.7, 1.2); v3.fit = null; blob.scale.set(0.001, 0.001, 1);
     }

@@ -412,12 +412,13 @@ function renderTitle(ctx, state, T) {
   drawButton(ctx, R.learn, 'Learn', T, { px: cap(30, 44), sub: `${state.learned.length}/${LESSONS.length} lessons`, subPx: cap(20, 26) });
   drawButton(ctx, R.watch, 'Watch & Learn', T, { px: cap(28, 44) });
   drawButton(ctx, R.history, 'History', T, { px: cap(30, 44), sub: 'ancient vs modern', subPx: cap(19, 26) });
-  drawButton(ctx, R.level, `Level: ${LEVELS[state.level].name}`, T, { px: cap(25, 40) });
-  drawButton(ctx, R.era, `Moves: ${eraName}`, T, { px: cap(25, 40), active: state.era === MODERN });
-  drawButton(ctx, R.settings, 'Settings', T, { px: cap(22, 38) });
-  drawButton(ctx, R.howto, tall ? 'How to Play' : 'How to', T, { px: cap(22, 38) });
-  drawButton(ctx, R.rules, 'Rules', T, { px: cap(22, 38) });
-  drawButton(ctx, R.about, 'About', T, { px: cap(22, 38) });
+  if (tall) {
+    drawButton(ctx, R.settings, 'Settings', T, { px: cap(22, 38) }); drawButton(ctx, R.howto, 'How to Play', T, { px: cap(22, 38) });
+    drawButton(ctx, R.rules, 'Rules', T, { px: cap(22, 38) }); drawButton(ctx, R.about, 'About', T, { px: cap(22, 38) });
+  } else {
+    iconButton(ctx, R.settings, 'gear', 'Settings', T); iconButton(ctx, R.howto, 'help', 'How to', T);
+    iconButton(ctx, R.rules, 'book', 'Rules', T); iconButton(ctx, R.about, 'info', 'About', T);
+  }
   { const c = R.lock, lh = c.w * 327 / 1200, pad = lh * 0.12; ctx.save(); ctx.globalAlpha = state.lockPress > 0 ? 0.7 : 1; ctx.fillStyle = 'rgba(10,8,24,0.6)'; ctx.beginPath(); ctx.roundRect(c.x - c.w / 2 - pad, c.y - pad, c.w + 2 * pad, lh + 2 * pad, (lh + 2 * pad) * 0.3); ctx.fill(); ctx.restore();
     drawLockupImage(ctx, c.x, c.y, lh, state.lockPress > 0 ? 0.7 : 1); }
   void TITLE_SOUND;

@@ -84,9 +84,9 @@ function playLayoutAt(s, land, two, watch) {
   const pb = placeButtons(ids, bx, bw, 0, s, land);
   if (!land) {
     // the picture takes whatever the meters, buttons and a compact pull pad leave
-    const padMin = watch ? 0 : Math.max(240, Math.round(fs * 7));
+    const padMin = watch ? 0 : Math.max(210, Math.round(fs * 6.5));
     const free = sy1 - 8 - y - mh - 4 - pb.h - 8 - padMin;
-    const sh = clamp(free, 190, Math.round(bw * 0.95));
+    const sh = clamp(free, 190, Math.round(bw * 1.0));
     lay.free = free;
     lay.stage = { x: bx, y, w: bw, h: sh };
     y += sh + 4;
@@ -110,7 +110,7 @@ export function playLayout(sc, two = false, watch = false) {
   let lay = null;
   for (const s of steps) {
     lay = playLayoutAt(s, land, two, watch);
-    const okPad = lay.pad.h >= (watch ? 0 : 230), okStage = land ? lay.stage.w >= Math.min(480, W * 0.45) : lay.free >= 195;
+    const okPad = lay.pad.h >= (watch ? 0 : 205), okStage = land ? lay.stage.w >= Math.min(480, W * 0.45) : lay.free >= 195;
     if (okPad && okStage) break;
   }
   return lay;

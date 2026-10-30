@@ -50,8 +50,8 @@ const heroArt = (compact) => ({
 // on the left of the screen and the menu is a column on the right. The gap between the heading and the buttons is whatever the screen has to spare.
 let titleLockTap = null;
 export const getLockTap = () => titleLockTap;
-let titleGap = 372, titlePad = 0;
-export const titleBand = () => ({ top: topOf() + titlePad + 290 + 14, gap: titleGap });
+let titleGap = 372, titlePad = 0, titleHero = 290;
+export const titleBand = () => ({ top: topOf() + titlePad + titleHero + 14, gap: titleGap });
 export function titleWidgets(state) {
   const sv = state.saved, big = TEXT_SCALES[state.settings.textIdx] > 1.5, land = scr.land, three = W >= 640;
   const tight = !land && H < 1200, bh = land ? 80 : tight ? 68 : 88, rh = land ? 78 : tight ? 62 : 78;
@@ -69,11 +69,13 @@ export function titleWidgets(state) {
   ];
   if (land) { titleGap = 0; titlePad = 0; return [heroArt(true), { t: 'gap', h: 4 }, ...buttons]; }
   const sc = TEXT_SCALES[state.settings.textIdx];
-  const h0 = flowLayout(estCtx, [heroArt(false), ...buttons], sc, flowOpts('title')).contentH;
+  const cmp = H < 1100;                                                       // short portrait (tablets): a compact heading gives the players the room
+  titleHero = cmp ? 190 : 290;
+  const h0 = flowLayout(estCtx, [heroArt(cmp), ...buttons], sc, flowOpts('title')).contentH;
   const spare = extentOf("title")[1] - topOf() - h0 - 54;                  // the foot of the screen keeps room for the brand lockup
   titleGap = big ? 10 : clamp(spare, 0, 440);
   titlePad = big ? 0 : Math.max(0, Math.round((spare - 440) * 0.45));
-  return [{ t: 'gap', h: titlePad }, heroArt(false), { t: 'gap', h: titleGap }, ...buttons];
+  return [{ t: 'gap', h: titlePad }, heroArt(cmp), { t: 'gap', h: titleGap }, ...buttons];
 }
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 

@@ -325,7 +325,7 @@ export function createSand({ quality = 'high' } = {}) {
       if (lastCfg && key !== lastCfg.join('')) {
         const diff = []; for (let i = 0; i < cfg.length; i++) if (cfg[i] !== lastCfg[i]) diff.push(i);
         if (diff.length === 1 && !opts.calm && !opts.snap) {
-          anim = { cell: diff[0], t: 0, dur: opts.quick ? 0.28 : 0.42 };
+          anim = { cell: diff[0], t: 0, dur: (opts.quick ? 0.28 : 0.42) * (window.__dbgSlow || 1) };
           const sk = new Set([diff[0]]);
           paintStatic(cfg, struts, sk); anim.final = cfg.slice();
         } else { anim = null; paintStatic(cfg, struts, null); composeFrom(); paintEmissive(cfg, false); winGlowOn = false; texC.needsUpdate = texH.needsUpdate = true; }
@@ -384,6 +384,9 @@ export function createSand({ quality = 'high' } = {}) {
     // cell index from a world point on the plane (or -1)
     cellAt(x, z) { const c = Math.floor(x / CELL + W / 2), r = Math.floor(z / CELL + H / 2); return c >= 0 && c < W && r >= 0 && r < H ? r * W + c : -1; },
     halfExtent() { return { hw: PW / 2, hh: PH / 2 }; },
+    // height of the undisturbed sand surface (plate + dome + base displacement) and of a groove floor, metres
+    surfaceY(x, z) { const hw = PW / 2, hh = PH / 2; return 0.033 + 0.0014 + 0.012 * (1 - Math.min(1, (x * x) / (hw * hw) + (z * z) / (hh * hh))); },
+    grooveDepth: 0.0275,
     forceRepaint() { lastCfg = null; lastW = 0; },
     dispose() { for (const t of [texC, texH, texE]) t && t.dispose(); plate?.geometry.dispose(); },
   };

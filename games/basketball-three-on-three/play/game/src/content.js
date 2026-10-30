@@ -9,7 +9,7 @@ const mins = (s) => `${Math.round(s / 60)} minutes`;
 export const ABOUT = [
   { title: 'Basketball 3x3', p: ['A half-court basketball game for your phone. Three players a side share one hoop: you play one of them, the computer plays the rest.', 'Dribble, pass, set screens, time your shot and fight for rebounds against a computer team at five levels.'] },
   { title: 'The sport', p: ['Three-a-side basketball is played on a half court with a single hoop, in parks, school yards and city squares as well as in organised competitions around the world. Games are short, fast and physical, with one hoop, a short shot clock and a simple scoring rule: one point inside the arc, two beyond it.', 'This game follows the published rules of the sport, simplified where a phone screen needs it. The Rules pages list every simplification.'] },
-  { title: 'How it was made', p: ['The players are stylised mannequins, animated with inverse kinematics so the hands meet the ball at the exact moment of every dribble, pass and release. The ball, the rim, the backboard and the net are simulated, and the picture is one fixed camera beside the court that never moves.', 'All sound is synthesised on your device. The game works offline.'] },
+  { title: 'How it was made', p: ['The players are lit 3D athletes on an outdoor street court at dusk, animated with inverse kinematics so the hands meet the ball at the exact moment of every dribble, pass and release. The ball, the rim, the backboard and the net are simulated, and the picture is one fixed camera beside the court that never moves.', 'All sound is synthesised on your device. The game works offline.'] },
 ];
 
 export const HOWTO = [

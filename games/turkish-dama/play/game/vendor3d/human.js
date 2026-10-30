@@ -5,6 +5,8 @@ import { decodeClips, CLIP_BONES } from './clipcodec.js';
 import { Clip, Layer, NB, MASKS, makePose, copyPose, sampleClip } from './animation.js';
 import { buildMannequinGeometry, MANNEQUIN_DETAIL, MANNEQUIN_BASE } from './mannequin.js';
 import { buildLodSet, makeLightMaterial, LOD_NAMES, LOD_POLICY, screenHeightPx, pickLod } from './lod.js';
+import { limbSanity } from './limbs.js';
+import { buildAnatomicGeometry, addCoverAttribute, clavicleLift } from './anatomy.js';
 import { FingerRig, WristLimiter, LookAt, solveTwoBone, FINGER_POSES, blendFingerPose } from './rig.js';
 
 export const SKIN_TONES = { original: null, light: null, tan: '#c8936a', brown: '#8c5a3c', deep: '#583826', clay: '#b48765', wood: '#a97a47', ivory: '#e2d8c8', peach: '#e0a982' };   // clay/wood/ivory/peach: the mannequin tones
@@ -41,19 +43,36 @@ export async function loadClips(setOrUrl = 'base', base = defaultAssetBase()) {
   });
 }
 
-function shaderTint(mat, kind, u) {
+// top: 'tank' (the shipped vest; default, shader unchanged) | 'bare' (vest panels become skin: bare torso) | 'long' (skin of the trunk and
+// arms is dressed in the top colour down to a cuff at the wrist; needs the aCover vertex attribute, see anatomy.addCoverAttribute)
+const TOP_GLSL = {
+  bare: `{ float tl = dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722));
+          vec3 bare = uBare * clamp(0.77 + 0.08 * (tl / 0.5 - 1.0), 0.72, 0.83);
+          float mr = smoothstep(0.04, 0.45, m.r);   // feathered: the vest's binding / armhole edge texels become skin too
+          c = mix(c, bare, mr); skin = max(skin, mr); }`,
+  long: `{ float mr = smoothstep(0.04, 0.45, m.r);
+          // skin texels of the trunk and arms AND the vest panels themselves get ONE cloth formula, so no armhole / strap piping survives
+          float cov = smoothstep(0.5, 0.75, vCover) * max(smoothstep(0.3, 0.6, skin), mr);
+          float tl = dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722));
+          vec3 sl = vec3(0.54) * clamp(0.94 + 0.35 * (tl / mix(uSkinLum, 0.5, mr) - 1.0), 0.8, 1.1) * uTop;
+          sl *= 1.0 - 0.16 * smoothstep(0.5, 0.56, vCover) * (1.0 - smoothstep(0.6, 0.7, vCover));   // cuff band
+          c = mix(c, sl, cov); skin *= 1.0 - cov; }`,
+};
+function shaderTint(mat, kind, u, top = 'tank') {
   mat.userData.tint = u;
+  const topMode = kind === 'body' && TOP_GLSL[top] ? top : null;
   mat.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, u);
     const head = kind === 'head';
-    if (!head) sh.vertexShader = `varying float vBy; varying float vBx;\n${sh.vertexShader}`.replace('#include <begin_vertex>', '#include <begin_vertex>\n vBy = position.y; vBx = abs(position.x);');
-    sh.fragmentShader = `uniform sampler2D tMask; uniform sampler2D tSkin; uniform vec3 uTop; uniform vec3 uBottoms; uniform vec3 uSocks; uniform vec3 uSkin; uniform float uSkinK; uniform float uSkinLum; uniform vec3 uHair; uniform float uHairK; uniform float uHairLum; float gFloor = 0.0; ${head ? '' : 'varying float vBy; varying float vBx;'}\n${sh.fragmentShader}`.replace('#include <map_fragment>', `#include <map_fragment>
+    if (!head) sh.vertexShader = `varying float vBy; varying float vBx;${topMode === 'long' ? ' attribute float aCover; varying float vCover;' : ''}\n${sh.vertexShader}`.replace('#include <begin_vertex>', `#include <begin_vertex>\n vBy = position.y; vBx = abs(position.x);${topMode === 'long' ? ' vCover = aCover;' : ''}`);
+    sh.fragmentShader = `uniform sampler2D tMask; uniform sampler2D tSkin; uniform vec3 uTop; uniform vec3 uBottoms; uniform vec3 uSocks; uniform vec3 uSkin; uniform float uSkinK; uniform float uSkinLum; uniform vec3 uHair; uniform float uHairK; uniform float uHairLum; float gFloor = 0.0; ${head ? '' : 'varying float vBy; varying float vBx;'}${topMode ? ' uniform vec3 uBare;' : ''}${topMode === 'long' ? ' varying float vCover;' : ''}\n${sh.fragmentShader}`.replace('#include <map_fragment>', `#include <map_fragment>
       {
         vec3 m = texture2D(tMask, vMapUv).rgb;
         vec3 c = diffuseColor.rgb;
         ${head
     ? 'c = mix(c, uHair * clamp(pow(dot(c, vec3(0.2126, 0.7152, 0.0722)) / uHairLum, 0.65), 0.25, 2.6), m.r * uHairK); float skin = m.g;'
     : 'vec3 b0 = c; float cm = clamp(m.r + m.g + m.b, 0.0, 1.0); b0 *= mix(1.0, clamp(0.58 / max(dot(b0, vec3(0.2126, 0.7152, 0.0722)), 0.02), 1.0, 8.0), cm); c = mix(c, b0 * uTop, m.r); c = mix(c, b0 * uBottoms, m.g); c = mix(c, b0 * uSocks, m.b); float skin = texture2D(tSkin, vMapUv).r;'}
+        ${topMode ? TOP_GLSL[topMode] : ''}
         ${head ? '' : 'if (skin < 0.5 && cm < 0.5 && vBy > 0.3 && vBx < 0.22 && dot(c, vec3(0.2126, 0.7152, 0.0722)) < 0.14) c = vec3(0.72) * (vBy > 1.0 ? uTop : uBottoms);   // near-black texels above the knee are hem/seam paint, never real detail'}
         float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
         ${head ? '' : 'if (skin > 0.5) { float fl = 0.55 * uSkinLum; if (l < fl) { c *= clamp(fl / max(l, 0.004), 1.0, 12.0); l = dot(c, vec3(0.2126, 0.7152, 0.0722)); } }   // skin under hems / in joints is painted near-black: lift it'}
@@ -64,7 +83,7 @@ function shaderTint(mat, kind, u) {
       gl_FragColor.rgb = max(gl_FragColor.rgb, diffuseColor.rgb * gFloor);   // cloth never goes black (inner layers, faces turned from the light)
       if (!gl_FrontFacing) gl_FragColor.rgb = diffuseColor.rgb * 0.62;   // inside of cloth hems: flat, matching colour (never black)`);
   };
-  mat.customProgramCacheKey = () => `view3d-${kind}`;
+  mat.customProgramCacheKey = () => (topMode ? `view3d-${kind}-${topMode}` : `view3d-${kind}`);
 }
 
 export class Human {
@@ -156,6 +175,25 @@ export class Human {
   }
 
   _applyRest() { this._writePose(this.restPose, true); }
+
+  /**
+   * Default knee pole for a leg IK solve when the author gave none: the knee points where the TOES point (so it never flares or bows
+   * when the pelvis drops), with the foot yaw limited to +-40 deg of body forward. `footQ` = the world orientation the foot will have.
+   */
+  _kneePole(leg, footQ, out = new THREE.Vector3()) {
+    const bodyF = this._fwdW(new THREE.Vector3()); bodyF.y = 0; bodyF.normalize();
+    const sole = this._sole && this._sole[leg.side];
+    const d = sole ? sole.fwd.clone().applyQuaternion(footQ) : bodyF.clone();
+    d.y = 0;
+    if (d.lengthSq() < 1e-4) d.copy(bodyF); else d.normalize();
+    const ang = Math.atan2(bodyF.x * d.z - bodyF.z * d.x, bodyF.x * d.x + bodyF.z * d.z), lim = 0.7;
+    if (Math.abs(ang) > lim) d.copy(bodyF).applyAxisAngle(new THREE.Vector3(0, 1, 0), Math.sign(ang) * lim);
+    leg.thigh.getWorldPosition(out);
+    return out.addScaledVector(d, 1.0);
+  }
+
+  /** World forward of the avatar (+Z of the root), unit, for bend-direction hints. */
+  _fwdW(out = new THREE.Vector3()) { return out.set(0, 0, 1).applyQuaternion(this.root.getWorldQuaternion(new THREE.Quaternion())); }
 
   // ------------------------------------------------------------ transform
   setPosition(x, y, z) { this.root.position.set(x, y ?? this.root.position.y, z ?? this.root.position.z); return this; }
@@ -577,6 +615,8 @@ export class Human {
     this._groundClamp(dt);
     // 2b) look at: turns neck/head (and a little of the upper spine) BEFORE the IK passes, so hands, bat and ball still land where the sim says
     if (!(this.lod === 2 && this.cheapLight !== false)) this.look.apply(dt);
+    // 2c) scapulohumeral rhythm (opt-in, default on with body:'anatomic'): the clavicle lifts with a raised arm BEFORE the arm IK runs
+    if (this.shoulderRhythm && !(this.lod === 2 && this.cheapLight !== false)) this._shoulderRhythm(dt);
     // 3) authored IK tracks from the current clip
     this._clipIK();
     // 4) foot planting
@@ -584,7 +624,35 @@ export class Human {
     // 5) second hand on a prop
     if (this._hold) this._twoHand();
     root.updateMatrixWorld(true);
+    // 6) anatomy clamp: hyperextended knees, inverted/over-twisted feet, candy-wrapper forearms, broken wrists (see limbs.js)
+    if (this.limbSanityOn !== false && !(this.lod === 2 && this.cheapLight !== false)) limbSanity(this, { update: false });
   }
+
+  // Real shoulders: little girdle motion until the arm is ~30 deg from hanging, then about 1 deg of shoulder-blade/clavicle turn for every
+  // 2 of arm, up to ~30 (anatomy.clavicleLift). The arm direction comes from the reach target when one is set, else from the animated arm.
+  _shoulderRhythm(dt) {
+    const b = this.bones, V = THREE.Vector3;
+    this._clav ||= { L: 0, R: 0 };
+    const up = b.Bip01_Neck.getWorldPosition(new V()).sub(b.Bip01_Spine1.getWorldPosition(new V())).normalize();
+    for (const s of ['L', 'R']) {
+      const clav = b[`Bip01_${s}_Clavicle`], ua = b[`Bip01_${s}_UpperArm`];
+      const sp = ua.getWorldPosition(new V()), cp = clav.getWorldPosition(new V());
+      const r = this._reach[s];
+      const dir = r ? r.p.clone().sub(sp) : b[`Bip01_${s}_Forearm`].getWorldPosition(new V()).sub(sp);
+      if (dir.lengthSq() < 1e-8) continue;
+      const elev = Math.acos(Math.max(-1, Math.min(1, dir.normalize().dot(up.clone().negate())))) * 180 / Math.PI;
+      const want = clavicleLift(elev) * (r ? r.weight : 1);
+      this._clav[s] += (want - this._clav[s]) * (dt > 0 ? Math.min(1, dt / 0.1) : 0);
+      if (this._clav[s] < 0.05) continue;
+      const o = sp.clone().sub(cp), axis = new V().crossVectors(o, up);
+      if (axis.lengthSq() < 1e-10) continue;
+      const q = new THREE.Quaternion().setFromAxisAngle(axis.normalize(), this._clav[s] * Math.PI / 180);
+      setWorldQuat(clav, q.multiply(clav.getWorldQuaternion(new THREE.Quaternion())));
+    }
+  }
+
+  /** Re-run the anatomy clamp (call it yourself if you pose bones AFTER update()). Returns the number of corrections. */
+  limbSanity(opts) { return limbSanity(this, opts); }
 
   _groundClamp(dt) {
     if (this._airborne) { this.model.position.y = 0; return; }
@@ -624,7 +692,8 @@ export class Human {
         let p = null;
         if (t.poleKeys) { const pk = evalKeys(t.poleKeys, tr.time, clip.dur); pole.set(pk[0], pk[1], pk[2]); if (t.space !== 'world') pole.applyMatrix4(this.root.matrixWorld); p = pole; }
         const keepQ = kind === 'foot' ? chain.end.getWorldQuaternion(new THREE.Quaternion()) : null;
-        solveTwoBone(chain.upper, chain.mid, chain.end, v, { weight: w, pole: p });
+        if (kind === 'foot' && !p) p = this._kneePole(this.legs[side === 'L' ? 0 : 1], keepQ, pole);
+        solveTwoBone(chain.upper, chain.mid, chain.end, v, { weight: w, pole: p, bend: kind === 'foot' ? this._fwdW() : this._fwdW().negate() });
         if (keepQ) setWorldQuat(chain.end, keepQ);   // hands keep their local wrist relation (no twisted wrists)
       }
     }
@@ -633,7 +702,7 @@ export class Human {
       const r = this._reach[side];
       if (!r || r.weight <= 0.001) continue;
       const a = this.arms[side];
-      solveTwoBone(a.upper, a.mid, a.end, r.p, { weight: r.weight, pole: r.pole });
+      solveTwoBone(a.upper, a.mid, a.end, r.p, { weight: r.weight, pole: r.pole, bend: this._fwdW().negate() });
       if (r.quat) { const cur = a.end.getWorldQuaternion(new THREE.Quaternion()); this._setHandWorld(side, cur.slerp(r.quat, r.weight)); }
     }
     // authored prop (bat) pose track: grip point + direction + roll in character space, solved with arm IK
@@ -641,7 +710,7 @@ export class Human {
     for (const side of ['L', 'R']) {
       const r = this._reachFoot[side]; if (!r || r.weight <= 0.001) continue;
       const leg = this.legs[side === 'L' ? 0 : 1];
-      solveTwoBone(leg.thigh, leg.calf, leg.foot, r.p, { weight: r.weight });
+      solveTwoBone(leg.thigh, leg.calf, leg.foot, r.p, { weight: r.weight, pole: this._kneePole(leg, r.quat || leg.foot.getWorldQuaternion(new THREE.Quaternion())), bend: this._fwdW() });
       if (r.quat) { const cur = leg.foot.getWorldQuaternion(new THREE.Quaternion()); setWorldQuat(leg.foot, cur.slerp(r.quat, r.weight)); }
     }
     // prop sweet-spot target: shift the gripping hand so a point on the prop meets a world point
@@ -708,7 +777,7 @@ export class Human {
     let tl = tiltQ(tl0.rx, tl0.rz);
     if (auto) {
       const h0 = handFor(this._autoRoll ?? 0, tl);
-      solveTwoBone(arm.upper, arm.mid, arm.end, h0.handPos, { weight: 1 });
+      solveTwoBone(arm.upper, arm.mid, arm.end, h0.handPos, { weight: 1, bend: this._fwdW().negate() });
       arm.mid.updateWorldMatrix(true, false);
       const fq = arm.mid.getWorldQuaternion(new THREE.Quaternion()).invert();
       const prev = this._autoRoll ?? 0;
@@ -733,7 +802,7 @@ export class Human {
       tl = tiltQ(tl0.rx, tl0.rz);
     }
     const hf = handFor(rollDeg, tl);
-    solveTwoBone(arm.upper, arm.mid, arm.end, hf.handPos, { weight: 1 });
+    solveTwoBone(arm.upper, arm.mid, arm.end, hf.handPos, { weight: 1, bend: this._fwdW().negate() });
     this._setHandWorld(side, hf.handQ);
   }
 
@@ -778,7 +847,7 @@ export class Human {
       const keepQ = leg.foot.getWorldQuaternion(new THREE.Quaternion());
       const target = leg.lock.clone();
       target.y = rootY + this._ankleRest;
-      solveTwoBone(leg.thigh, leg.calf, leg.foot, target, { weight: leg.w });
+      solveTwoBone(leg.thigh, leg.calf, leg.foot, target, { weight: leg.w, pole: this._kneePole(leg, keepQ), bend: this._fwdW() });
       // keep the foot orientation it had in the animation, blended flat on the ground
       const flat = keepQ.clone();
       setWorldQuat(leg.foot, flat);
@@ -963,6 +1032,30 @@ export async function loadHuman(spec = {}) {
   const model = clone(gltf.scene);
   const bones = {};
   model.traverse((o) => { if (o.isBone) bones[o.name] = o; });
+  // 1.12.0 opt-ins (all default off, so a game that passes nothing renders exactly as before):
+  //   body: 'anatomic'  subdivided body with a sculpted shoulder girdle + diffused girdle weights (see anatomy.js), shared per character
+  //   top: 'bare' | 'long'  bare torso, or long sleeves to the wrist (the default 'tank' is the shipped vest)
+  const top = spec.top === 'bare' || spec.top === 'long' ? spec.top : 'tank';
+  // the girdle model is a male one (athlete_f got "shoulder pads" from it): athlete_f keeps its own body; use top:'long' for her instead
+  const anatomic = spec.body === 'anatomic' && info.sex !== 'f';
+  if (anatomic || top === 'long') {
+    model.updateMatrixWorld(true);
+    const bodyMesh = []; model.traverse((o) => { if (o.isSkinnedMesh && !/head/i.test([].concat(o.material)[0].name)) bodyMesh.push(o); });
+    for (const o of bodyMesh) {
+      const names = o.skeleton.bones.map((b) => b.name);
+      const geo = await cached(`bodygeo:${base}${id}:${anatomic ? 'anat' : 'orig'}:${top === 'long' ? 'cover' : ''}`, async () => {
+        let g;
+        if (anatomic) {
+          const J = {};
+          for (const n of ['Neck', 'Spine2', 'L_Clavicle', 'R_Clavicle', 'L_UpperArm', 'R_UpperArm', 'L_Forearm', 'R_Forearm']) J[n] = bones[`Bip01_${n}`].getWorldPosition(new THREE.Vector3());
+          g = buildAnatomicGeometry(o, J);
+        } else g = o.geometry.clone();
+        if (top === 'long') addCoverAttribute(g, names);
+        return g;
+      });
+      o.geometry = geo;
+    }
+  }
   const mats = [];
   const clothRef = info.clothRef || 0.8; // albedo compensation 1/clothRef = 1.25 (matches the baked cloth grey)
   model.traverse((o) => {
@@ -981,7 +1074,8 @@ export async function loadHuman(spec = {}) {
         uSkin: { value: new THREE.Color(1, 1, 1) }, uSkinK: { value: 0 }, uSkinLum: { value: (typeof info.skinLum === 'number' ? info.skinLum : info.skinLum && info.skinLum[kind]) || 0.3 },
         uHair: { value: new THREE.Color(1, 1, 1) }, uHairK: { value: 0 }, uHairLum: { value: info.hairLum || 0.12 },
       };
-      shaderTint(m, kind, u);
+      if (top !== 'tank') { const sl = u.uSkinLum.value, bc = new THREE.Color('#cf9877'); u.uBare = { value: bc.multiplyScalar(sl / (0.2126 * bc.r + 0.7152 * bc.g + 0.0722 * bc.b)) }; }
+      shaderTint(m, kind, u, top);
       m.userData.kind = kind;
       mats.push(m);
       return m;
@@ -994,6 +1088,7 @@ export async function loadHuman(spec = {}) {
     const fulls = []; model.traverse((o) => { if (o.isSkinnedMesh) fulls.push(o); });
     fulls.forEach((o, i) => {
       lodSets.full.push(o);
+      if (top === 'long') addCoverAttribute(lodSet.medium[i].geo, o.skeleton.bones.map((b) => b.name));   // sleeves at medium too
       const med = new THREE.SkinnedMesh(lodSet.medium[i].geo, o.material);
       med.bind(o.skeleton, o.bindMatrix); med.frustumCulled = false; med.castShadow = o.castShadow; med.receiveShadow = true; med.visible = false;
       o.parent.add(med); lodSets.medium.push(med);
@@ -1015,6 +1110,8 @@ export async function loadHuman(spec = {}) {
   root.add(model); root.updateMatrixWorld(true);
   const h = new Human({ root, model, bones, info: { ...info, clothRef }, clips: Object.defineProperty({ ...clipSet }, '__meta', { value: clipSet.__meta, enumerable: false }), mats, lodSets, lod: 0, scale: sc });
   h.info.height = (info.height || 1.8) * sc;
+  h.info.top = top; h.info.body = anatomic ? 'anatomic' : 'default';
+  h.shoulderRhythm = spec.shoulderRhythm !== undefined ? !!spec.shoulderRhythm : anatomic;
   const kit = spec.kit || info.kit || {};
   h.setKit(kit);
   if (spec.skin) h.setSkin(spec.skin);

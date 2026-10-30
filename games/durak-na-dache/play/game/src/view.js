@@ -7,6 +7,7 @@ import { LESSONS } from './lessons.js';
 import { ABOUT } from './about.js';
 import { RULES } from './rulesText.js';
 import { drawLockup, drawMoreLine } from './brand.js';
+import { v3, covers, flatAlpha } from './v3.js';
 
 const SUIT_WORD = { spades: 'Spades', hearts: 'Hearts', diamonds: 'Diamonds', clubs: 'Clubs' };
 const ease = (t) => 1 - Math.pow(1 - Math.min(1, Math.max(0, t)), 3);
@@ -14,7 +15,10 @@ const lerp = (a, b, t) => a + (b - a) * t;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 // The veranda behind every screen, sized to the live layout. `wall` = height of the wall strip, `mat` = the stitched play mat (play screens).
-const scene = (ctx, state, L, wall, mat, band = true) => drawScene(ctx, state.t, { calm: state.calm, w: L.w, h: L.h, wall, mat, band });
+const scene = (ctx, state, L, wall, mat, band = true) => {
+  const a = flatAlpha(state.scene); if (a <= 0) return;     // the 3D veranda replaces it
+  ctx.save(); ctx.globalAlpha = a; drawScene(ctx, state.t, { calm: state.calm, w: L.w, h: L.h, wall, mat, band }); ctx.restore();
+};
 const playScene = (ctx, state, L) => scene(ctx, state, L, L.wallPlay, L.sceneMat, !L.land);
 // the title keeps the stitched band; the other menu-type screens in landscape are full of controls, so they get a bare wall strip
 const menuScene = (ctx, state, L, hero) => (L.land && !hero ? scene(ctx, state, L, L.wallBare, null, false) : scene(ctx, state, L, L.wallMenu, null, true));
@@ -48,24 +52,31 @@ function seatPlaque(ctx, x, y, o) {
 }
 
 function drawTableCards(ctx, g, L, o) {
+  if (flatAlpha(o.scene) <= 0) return;      // the 3D table draws the pairs
   const P = L.tablePairs, sc = P.scale;
+  ctx.save(); ctx.globalAlpha = flatAlpha(o.scene);
   g.table.forEach((pair, i) => {
     const s = L.pair(i);
     drawCard(ctx, { id: pair.a }, s.x - P.off.x / 2, s.y - P.off.y / 2, { scale: sc, rot: -0.05, four: o.four, big: o.big, backTheme: o.backTheme, glow: o.beatable && o.beatable.has(i) ? '#ffe27a' : null });
     if (pair.d >= 0) drawCard(ctx, { id: pair.d }, s.x + P.off.x / 2, s.y + P.off.y / 2, { scale: sc, rot: 0.09, four: o.four, big: o.big, backTheme: o.backTheme });
   });
+  ctx.restore();
 }
 
 function drawStockAndTrump(ctx, g, L, o) {
   if (!L.stock) return;
-  const n = g.stock.length, S = L.stock, T = L.trump, k = S.scale / 0.7;
-  for (let i = 0; i < Math.min(n, 6); i++) drawCard(ctx, {}, S.x - i * 1.4, S.y - i * 1.4, { scale: S.scale, rot: 0, back: true, backTheme: o.backTheme });
-  if (n > 0) drawCard(ctx, { id: g.trumpCard }, T.x, T.y, { scale: S.scale, rot: Math.PI / 2 - 0.06, four: o.four });
-  else drawCard(ctx, { id: g.trumpCard }, T.x - 16 * k, T.y - 10 * k, { scale: S.scale, rot: -0.06, four: o.four });
+  const n = g.stock.length, S = L.stock, T = L.trump, k = S.scale / 0.7, fa = flatAlpha(o.scene);
+  ctx.save(); ctx.globalAlpha = fa;
+  if (fa > 0) {
+    for (let i = 0; i < Math.min(n, 6); i++) drawCard(ctx, {}, S.x - i * 1.4, S.y - i * 1.4, { scale: S.scale, rot: 0, back: true, backTheme: o.backTheme });
+    if (n > 0) drawCard(ctx, { id: g.trumpCard }, T.x, T.y, { scale: S.scale, rot: Math.PI / 2 - 0.06, four: o.four });
+    else drawCard(ctx, { id: g.trumpCard }, T.x - 16 * k, T.y - 10 * k, { scale: S.scale, rot: -0.06, four: o.four });
+  }
+  ctx.restore();
   txt(ctx, `${n}`, L.stockCount.x, L.stockCount.y, { size: 22, color: GOLD, weight: 700, shadow: 'rgba(0,0,0,0.6)' });
   drawSuit(ctx, g.trump, L.suitIcon.x, L.suitIcon.y, L.suitIcon.size, suitColor(g.trump, o.four));
   const D = L.discard;
-  if (g.discard.length) { for (let i = 0; i < Math.min(g.discard.length, 5); i++) drawCard(ctx, {}, D.x + i * 1.2, D.y - i * 1.2, { scale: D.scale, rot: 0.5, back: true, backTheme: o.backTheme }); }
+  if (fa > 0 && g.discard.length) { ctx.save(); ctx.globalAlpha = fa; for (let i = 0; i < Math.min(g.discard.length, 5); i++) drawCard(ctx, {}, D.x + i * 1.2, D.y - i * 1.2, { scale: D.scale, rot: 0.5, back: true, backTheme: o.backTheme }); ctx.restore(); }
 }
 
 function drawOpponent(ctx, g, L, seat, o) {
@@ -74,7 +85,7 @@ function drawOpponent(ctx, g, L, seat, o) {
   const active = g.actor === seat;
   const cw = CARD.w * sp.scale;
   const step = Math.min(0.42 * cw, (sp.maxW - cw) / Math.max(1, n - 1));
-  for (let i = 0; i < n; i++) { const cx = sp.x + (i - (n - 1) / 2) * step; drawCard(ctx, {}, cx, sp.y, { scale: sp.scale, rot: (i - (n - 1) / 2) * 0.05, back: true, backTheme: o.backTheme }); }
+  if (flatAlpha(o.scene) > 0) { ctx.save(); ctx.globalAlpha = flatAlpha(o.scene); for (let i = 0; i < n; i++) { const cx = sp.x + (i - (n - 1) / 2) * step; drawCard(ctx, {}, cx, sp.y, { scale: sp.scale, rot: (i - (n - 1) / 2) * 0.05, back: true, backTheme: o.backTheme }); } ctx.restore(); }
   const fan = cw + step * Math.max(0, n - 1);
   seatPlaque(ctx, sp.x, sp.plaqueY, { w: Math.min(sp.maxW, Math.max(140, fan * 0.8)), name: o.names[seat], sub: `${n} card${n === 1 ? '' : 's'}${g.out[seat] ? ' · safe' : ''}`, active });
   if (o.thinking && active) { ctx.save(); ctx.globalAlpha = 0.6 + 0.3 * Math.sin(o.t * 6); txt(ctx, '…', sp.x, sp.y - CARD.h * sp.scale / 2 + 6, { size: 34, color: GOLD }); ctx.restore(); }
@@ -140,12 +151,25 @@ function drawTitle(ctx, state, L) {
   const items = state.saved ? ['Continue', 'New Game', 'Learn', 'Daily Deal', 'About', 'Settings', 'Rules', 'Auto Play'] : ['New Game', 'Learn', 'Daily Deal', 'About', 'Settings', 'Rules', 'Auto Play'];
   const T = L.title(items.length);
   const bob = state.calm ? 0 : Math.sin(state.t * 1.1) * 4;
+  if (covers(state.scene)) {      // a soft dark pool so the lettering reads over the lit veranda
+    ctx.save(); const pw = Math.min(L.w * 0.9, T.word.size * 6.2), g = ctx.createRadialGradient(T.word.x, T.word.y + 20, 10, T.word.x, T.word.y + 20, pw * 0.62);
+    g.addColorStop(0, 'rgba(16,7,3,0.66)'); g.addColorStop(0.65, 'rgba(16,7,3,0.34)'); g.addColorStop(1, 'rgba(16,7,3,0)'); ctx.fillStyle = g; ctx.fillRect(T.word.x - pw, T.word.y - pw * 0.55, pw * 2, pw * 1.1); ctx.restore();
+  }
   txt(ctx, 'ДУРАК', T.word.x, T.word.y + bob, { size: T.word.size, color: CREAM, weight: 700, shadow: 'rgba(0,0,0,0.6)' });
   txt(ctx, 'Durak · the card game of the fool', T.tag.x, T.tag.y + bob, { size: T.tag.size, color: GOLD, weight: 600 });
   const rot = state.calm ? -0.08 : -0.1 + Math.sin(state.t * 0.8) * 0.03, cs = T.cards.scale;
+  if (flatAlpha(state.scene) > 0) { ctx.save(); ctx.globalAlpha = flatAlpha(state.scene);
   drawCard(ctx, { id: 15 }, T.cards.x - 72 * cs, T.cards.y + bob * 0.6, { scale: cs, rot: rot - 0.12, four: state.four });
   drawCard(ctx, { id: 8 }, T.cards.x + 62 * cs, T.cards.y + 2 + bob * 0.6, { scale: cs, rot: -rot + 0.1, four: state.four });
-  items.forEach((label, i) => { const r = T.btn(i); lacquer(ctx, r, { kind: i === 0 ? 'gold' : 'wood', label, size: Math.min(30, r.h * 0.46) }); });
+  ctx.restore(); }
+  // one dominant Play button: the first entry is full width and gold, the others are narrower and quieter (same hit areas)
+  const single = items.length <= 1 || Math.abs(T.btn(0).x - T.btn(1).x) < 2;
+  items.forEach((label, i) => {
+    let r = T.btn(i);
+    if (i === 0) { lacquer(ctx, r, { kind: 'gold', label, size: Math.min(36, r.h * 0.52) }); return; }
+    if (single) { const k = Math.round(r.w * 0.09); r = { x: r.x + k, y: r.y + Math.round(r.h * 0.04), w: r.w - 2 * k, h: Math.round(r.h * 0.92) }; }
+    lacquer(ctx, r, { kind: 'wood', label, size: Math.min(27, r.h * 0.44) });
+  });
   lacquer(ctx, T.sound, { label: state.sound ? '♪' : '×' });
   panel(ctx, T.statsL.x, T.statsL.y, T.statsL.w, T.statsL.h, {});
   txt(ctx, `Played ${state.stats.played} · Won ${state.stats.wins}`, T.statsL.x + T.statsL.w / 2, T.statsL.y + T.statsL.h / 2, { size: 19, color: CREAM, weight: 600 });
@@ -158,7 +182,7 @@ function drawTitle(ctx, state, L) {
 }
 
 export function drawPlay(ctx, state, L) {
-  const g = state.game, o = { four: state.four, big: state.big, backTheme: state.back, names: state.names, thinking: state.thinking, t: state.t };
+  const g = state.game, o = { four: state.four, big: state.big, backTheme: state.back, names: state.names, thinking: state.thinking, t: state.t, scene: state.scene };
   const isAuto = state.scene === 'auto', teach = state.scene === 'lesson' || state.scene === 'daily';
   playScene(ctx, state, L);
   drawTopBar(ctx, state, L, teach);
@@ -170,7 +194,7 @@ export function drawPlay(ctx, state, L) {
   if (isAuto) drawAutoActions(ctx, state, L);
   else ACTIONS.forEach((k) => actionBtn(ctx, k, L, { enabled: state.actionEnabled }));
   if (state.seenOpen) drawSeenPanel(ctx, state, L);
-  drawHand(ctx, g.hands[0], L, { ...o, sel: state.sel, legal: state.legalCards, drag: state.drag });
+  if (!v3.dealing) drawHand(ctx, g.hands[0], L, { ...o, sel: state.sel, legal: state.legalCards, drag: state.drag });
   if (state.drag) { const s = state.drag; drawCard(ctx, { id: s.c }, s.x, s.y, { scale: L.hs * 1.12, four: state.four, lift: true, glow: '#ffe27a' }); }
   if (state.hint) drawHintBanner(ctx, state, L);
   if (isAuto && !g.over) drawAutoBar(ctx, state, L);
@@ -232,6 +256,7 @@ function drawPickupFx(ctx, p, L, o) {
   const hs = L.hand.slot(0, 1);
   const target = p.seat === 0 ? { x: L.w / 2 + (L.land ? (L.table.x + L.table.w / 2 - L.w / 2) : 0), y: hs.y - 40 } : spTo;
   const sc = L.tablePairs.scale;
+  if (flatAlpha(o.scene) <= 0) return;      // the 3D table carries the cards
   p.cards.forEach((c, i) => {
     const from = L.pair(Math.min(5, i));
     const x = lerp(from.x, target.x, t), y = lerp(from.y, target.y, t);
@@ -403,6 +428,7 @@ export function drawDemoLimit(ctx, state, L) {
 // maxLines (optional) stops drawing after that many lines; `tight` shrinks nothing, it only exists for call-site readability.
 // Reader layout cache (wrapped lines + total height). readerStats.layouts counts rebuilds (tests read it).
 const readerCache = { key: '', list: null, items: [], endY: 0 };
+export function aboutChanged() { readerCache.list = null; }
 export const readerStats = { layouts: 0 };
 function wrapLinesC(ctx, text, maxW, o) {
   const words = text.split(' '); const lines = []; let line = '';
@@ -421,7 +447,11 @@ function wrapCentered(ctx, text, cx, y, maxW, lh, o, maxLines = 99) {
 }
 
 export function render(ctx, state, L) {
-  ctx.fillStyle = '#0a0603'; ctx.fillRect(0, 0, L.w, L.h);
+  if (covers(state.scene)) ctx.clearRect(0, 0, L.w, L.h); else { ctx.fillStyle = '#0a0603'; ctx.fillRect(0, 0, L.w, L.h); }
+  if (covers(state.scene)) {      // soft vignette over the lit veranda (the flat art has its own)
+    const big = Math.max(L.w, L.h), v = ctx.createRadialGradient(L.w / 2, L.h / 2, big * 0.22, L.w / 2, L.h / 2, big * 0.68);
+    v.addColorStop(0, 'rgba(10,5,2,0)'); v.addColorStop(1, 'rgba(10,5,2,0.5)'); ctx.fillStyle = v; ctx.fillRect(0, 0, L.w, L.h);
+  }
   if (state.scene === 'title') drawTitle(ctx, state, L);
   else if (state.scene === 'setup') drawSetup(ctx, state, L);
   else if (state.scene === 'play') drawPlay(ctx, state, L);

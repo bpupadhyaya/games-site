@@ -167,8 +167,8 @@ export function buildPerson(h, rig, spec) {
       const T = bi(`${s}_Thigh`), C = bi(`${s}_Calf`), F = bi(`${s}_Foot`), P = bi('Pelvis');
       const mid1 = hip.clone().lerp(knee, 0.5), mid2 = knee.clone().lerp(ank, 0.5);
       const pts = [
-        { p: hip.clone().add(new V(0.0, 0.07, 0)), rx: 0.108, rz: 0.115, w: [[P, 0.6], [T, 0.4]] },
-        { p: hip.clone().add(new V(0, -0.02, 0)), rx: 0.104, rz: 0.108, w: [[T, 0.9], [P, 0.1]] },
+        { p: hip.clone().add(new V(0.0, 0.10, 0)), rx: 0.122, rz: 0.130, w: [[P, 0.6], [T, 0.4]] },
+        { p: hip.clone().add(new V(0, -0.02, 0)), rx: 0.112, rz: 0.118, w: [[T, 0.9], [P, 0.1]] },
         { p: mid1, rx: 0.104, rz: 0.106, w: [[T, 1]] },
         { p: knee.clone().add(new V(0, 0.09, 0)), rx: 0.104, rz: 0.110, w: [[T, 0.85], [C, 0.15]] },
         { p: knee.clone(), rx: 0.106, rz: 0.114, w: [[T, 0.5], [C, 0.5]] },
@@ -182,8 +182,8 @@ export function buildPerson(h, rig, spec) {
     // waist band
     const pel = R('Pelvis');
     gb.tube(cloth, [
-      { p: pel.clone().add(new V(0, 0.08, -0.004)), rx: 0.172, rz: 0.12, w: [[bi('Pelvis'), 1]] },
-      { p: pel.clone().add(new V(0, 0.145, -0.006)), rx: 0.166, rz: 0.118, w: [[bi('Pelvis'), 0.6], [bi('Spine'), 0.4]] },
+      { p: pel.clone().add(new V(0, 0.02, -0.004)), rx: 0.184, rz: 0.134, w: [[bi('Pelvis'), 1]] },
+      { p: pel.clone().add(new V(0, 0.145, -0.006)), rx: 0.172, rz: 0.124, w: [[bi('Pelvis'), 0.6], [bi('Spine'), 0.4]] },
     ], { nu: 20, color: col.trousers });
   }
   // ---- sleeves ------------------------------------------------------------------------------------------------------------
@@ -194,8 +194,9 @@ export function buildPerson(h, rig, spec) {
       const long = spec.sleeves === 'long';
       const sx = s === 'L' ? 1 : -1;
       const pts = [
-        { p: sh.clone().add(new V(-0.012 * sx, 0.012, -0.004)), rx: 0.074, rz: 0.076, w: [[Cl, 0.35], [U, 0.65]] },
-        { p: sh.clone().lerp(el, 0.35), rx: 0.066, rz: 0.068, w: [[U, 1]] },
+        { p: sh.clone().add(new V(-0.020 * sx, 0.052, -0.004)), rx: 0.066, rz: 0.070, w: [[Cl, 0.8], [U, 0.2]] },
+        { p: sh.clone().add(new V(-0.012 * sx, 0.012, -0.004)), rx: 0.082, rz: 0.082, w: [[Cl, 0.35], [U, 0.65]] },
+        { p: sh.clone().lerp(el, 0.35), rx: 0.072, rz: 0.074, w: [[U, 1]] },
         { p: sh.clone().lerp(el, 0.75), rx: 0.060, rz: 0.062, w: [[U, 1]] },
       ];
       if (long) { pts.push({ p: el.clone(), rx: 0.056, rz: 0.058, w: [[U, 0.5], [Fo, 0.5]] }); pts.push({ p: el.clone().lerp(wr, 0.55), rx: 0.050, rz: 0.052, w: [[Fo, 1]] }); pts.push({ p: el.clone().lerp(wr, 0.88), rx: 0.044, rz: 0.046, w: [[Fo, 1]] }); }

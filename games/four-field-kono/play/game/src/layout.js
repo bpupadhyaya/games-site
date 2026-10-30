@@ -51,9 +51,9 @@ function build(w, h, ins, flip, N) {
   // ---------------------------------------------------------------- play layout
   let cell, board;
   if (!land) {
-    const pad = 12, backRes = ins.back ? 62 : 0, cellW = (U.w - 2 * pad) / OUTER;
+    const pad = 6, backRes = ins.back ? 62 : 0, cellW = (U.w - 2 * pad) / OUTER;
     const fixedFor = (mp, mh, rows) => BH + rows * mp + mh + (rows + 3) * G + Math.max(0, ins.b - 8) + Math.max(ins.t, 8) + (backRes && rows === 1 ? 0 : 0);
-    let minPlate = 124, msgH = 64, rows = 2, cellH = (h - fixedFor(minPlate, msgH, 2)) / (OUTER + THICK);
+    let minPlate = 104, msgH = 54, rows = 2, cellH = (h - fixedFor(minPlate, msgH, 2)) / (OUTER + THICK);
     if (cellH < cellW * 0.95) { minPlate = 86; msgH = 46; cellH = (h - fixedFor(minPlate, msgH, 2)) / (OUTER + THICK); }
     if (cellH < cellW * 0.95) { rows = 1; minPlate = 100; msgH = 46; cellH = (h - fixedFor(minPlate, msgH, 1)) / (OUTER + THICK); }   // squat screen: both plates side by side above the board
     cell = clampCell(Math.min(cellW, cellH));
@@ -61,7 +61,7 @@ function build(w, h, ins, flip, N) {
     const top0 = Math.max(ins.t + 6, backRes ? ins.t + backRes : 0);
     const free = barY - G - top0 - bh - msgH - rows * minPlate - (rows + 1) * G;
     // spare height first makes the plates roomier (bigger type and tray), what is left becomes even breathing room around the board
-    const plateH = minPlate + (rows === 2 && free > 0 ? Math.min(free * 0.5, 120) : 0);
+    const plateH = minPlate + (rows === 2 && free > 0 ? Math.min(free * 0.5, 40) : 0);
     const air = Math.max(0, free - (rows === 2 ? 2 * (plateH - minPlate) : 0));
     const gA = air / 5;
     let y = top0 + gA;
@@ -154,8 +154,8 @@ function buildTitle(L, hasSave) {
   const names = [hasSave ? ['resume'] : null, ['play'], ['two', 'learn'], ['auto'], ['rules', 'how'], ['about', 'settings']].filter(Boolean);
   const n = names.length;
   const place = (x0, aw, y0, pitch, bh) => names.forEach((row, i) => {
-    const y = y0 + i * pitch;
-    if (row.length === 1) T.rows[row[0]] = R(x0, y, aw, bh);
+    const y = y0 + i * pitch - (row[0] === 'play' ? 0 : 0), big = row[0] === 'play' ? 12 : 0;
+    if (row.length === 1) T.rows[row[0]] = R(x0 - big, y - big / 2, aw + 2 * big, bh + big);
     else { const cw = (aw - 12) / 2; T.rows[row[0]] = R(x0, y, cw, bh); T.rows[row[1]] = R(x0 + cw + 12, y, cw, bh); }
   });
   if (!L.land) {

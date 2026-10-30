@@ -29,7 +29,7 @@ const minFs = () => (host.px > 0 ? Math.ceil(11 / host.px) : 0);
 export const PULL = { min: 22, max: 200 };         // pull length in screen units: below min nothing happens, at max full power
 export const TEXT_SCALES = [1, 1.5, 2, 2.5, 3];
 export const THINK_STEPS = [2, 5, 8, 10];
-const EXT_W = 2 * (HW + 46) + 14, EXT_H = 2 * (HH + 46) + 14;     // the pond with its snowbanks, world units
+const EXT_W = 2 * HW + 44, EXT_H = 2 * (HH + 46) + 14;     // the ice with a thin edge of snowbank (width) and the goal nets (length), world units: the ice fills ~92% of a phone's width
 
 const cache = new Map();
 export function playLayout(z = 1, watch = false) {
@@ -56,9 +56,9 @@ function portrait(z, watch) {
   // below the kit's preview pill (about 27 css px tall incl. its gap), whatever the phone's scale
   const pill = host.px > 0 ? Math.max(16, 11.5 / host.px) * 1.7 + 6 / host.px + 4 : 40;
   const top = Math.max(36, Math.round(pill)) + Math.max(host.t, T);
-  const sbH = Math.round(Math.max(sq ? 80 : 96, fs.score * 1.4 + fs.name * 1.3 + (sq ? 8 : 22)));
+  const sbH = Math.round(Math.max(sq ? 80 : 90, fs.score * 1.4 + fs.name * 1.3 + (sq ? 8 : 6)));
   const sb = R(M, top, W - 2 * M, sbH);
-  const toastH = Math.round(fs.toast * (sq ? 1.8 : 2.5) + (sq ? 2 : 8));
+  const toastH = Math.round(fs.toast * (sq ? 1.8 : 1.8) + (sq ? 2 : 6));
   const toast = R(M, sb.y + sb.h + 6, W - 2 * M, toastH);
   const bb = Math.max(0, host.b - 6);
   const btnH = tap(Math.round(fs.btn * 1.1 + 26)), dBtnH = tap(Math.round(fs.demoBtn * 1.1 + 24));
@@ -82,7 +82,7 @@ function portrait(z, watch) {
     hint = R(M, y, half, btnH); menu = R(M + half + gap, y, half, btnH);
   }
   const y0 = toast.y + toast.h + (sq ? 0 : 4), y1 = ctrl.y - (sq ? 4 : 8);
-  const s = clamp(Math.min((y1 - y0) / EXT_H, (W - 2 * 8) / EXT_W), 0.3, 1.06);
+  const s = clamp(Math.min((y1 - y0) / EXT_H, (W - 2 * 8) / EXT_W), 0.3, 1.36);
   return { land: false, rot: 0, s, cx: W / 2, cy: (y0 + y1) / 2, sb, toast, ctrl, hint, menu, demo, fs, panel: false, M };
 }
 
@@ -110,12 +110,12 @@ function landscape(z, watch) {
     }
     const toast = R(sb.x, sb.y + sb.h + 2, sb.w, Math.round(fs.toast * 1.5));
     const y0 = toast.y + toast.h, y1 = ctrl.y - 6;
-    const s = clamp(Math.min((y1 - y0) / EXT_W, (U.x1 - U.x0 - 12) / EXT_H), 0.3, 1.06);
+    const s = clamp(Math.min((y1 - y0) / EXT_W, (U.x1 - U.x0 - 12) / EXT_H), 0.3, 1.36);
     return { land: true, rot: Math.PI / 2, s, cx: (U.x0 + U.x1) / 2, cy: (y0 + y1) / 2, sb, toast, ctrl, hint, menu, demo, fs, panel: false, M: 14, backBox };
   })();
   // wide: the pond as big as the height (and a panel's width each side) allows, a panel on each side
   const minSide = 214 + (z > 1.2 ? 60 : 0);
-  const sh = clamp(Math.min((U.y1 - U.y0 - 16) / EXT_W, (U.x1 - U.x0 - 2 * minSide) / EXT_H), 0.3, 1.06);
+  const sh = clamp(Math.min((U.y1 - U.y0 - 16) / EXT_W, (U.x1 - U.x0 - 2 * minSide) / EXT_H), 0.3, 1.36);
   const bw = EXT_H * sh, side = (U.x1 - U.x0 - bw) / 2;
   if (side >= minSide - 0.5 && sh >= tight.s * 0.98) {
     const pw = Math.min(side - 12, 380 + (z - 1) * 60);

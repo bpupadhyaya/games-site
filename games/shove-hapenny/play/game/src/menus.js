@@ -148,16 +148,16 @@ export function heroScaleFor(state) {
 export function titleWidgets(state, wide = false, hs = 1) {
   const sound = state.settings.sound;
   const wd = wide ? [] : [heroArt(hs), { t: 'gap', h: 40 * hs }];
-  wd.push({ t: 'btn', id: 'play', label: 'Play vs Computer', primary: true, h: 92 });
-  wd.push({ t: 'btn', id: 'two', label: 'Two Players', row: 1 });
-  wd.push({ t: 'btn', id: 'solo', label: 'Solo Run', row: 1 });
-  wd.push({ t: 'btn', id: 'watch', label: 'Watch & Learn', h: 84 });
-  wd.push({ t: 'btn', id: 'howto', label: 'How to Play', row: 2 });
-  wd.push({ t: 'btn', id: 'rules', label: 'Rules', row: 2 });
-  wd.push({ t: 'btn', id: 'about', label: 'About', row: 2 });
-  wd.push({ t: 'btn', id: 'records', label: 'Records', row: 3 });
-  wd.push({ t: 'btn', id: 'settings', label: 'Settings', row: 3 });
-  if (!wide) wd.push({ t: 'btn', id: 'sound', label: sound ? 'Sound: On' : 'Sound: Off', row: 3 });
+  wd.push({ t: 'btn', id: 'play', label: 'Play vs Computer', primary: true, h: 112, ico: 'play' });
+  wd.push({ t: 'btn', id: 'two', label: 'Two Players', row: 1, h: 98, ico: 'two', fs0: 21 });
+  wd.push({ t: 'btn', id: 'solo', label: 'Solo Run', row: 1, h: 98, ico: 'solo', fs0: 21 });
+  wd.push({ t: 'btn', id: 'watch', label: 'Watch & Learn', row: 1, h: 98, ico: 'watch', fs0: 21 });
+  wd.push({ t: 'btn', id: 'howto', label: 'How to Play', row: 2, h: 84, ico: 'howto', fs0: 17 });
+  wd.push({ t: 'btn', id: 'rules', label: 'Rules', row: 2, h: 84, ico: 'rules', fs0: 17 });
+  wd.push({ t: 'btn', id: 'about', label: 'About', row: 2, h: 84, ico: 'about', fs0: 17 });
+  wd.push({ t: 'btn', id: 'records', label: 'Records', row: 2, h: 84, ico: 'records', fs0: 17 });
+  wd.push({ t: 'btn', id: 'settings', label: 'Settings', row: 2, h: 84, ico: 'settings', fs0: 17 });
+  if (!wide) wd.push({ t: 'btn', id: 'sound', label: sound ? 'Sound' : 'Muted', row: 2, h: 84, ico: sound ? 'sound' : 'mute', fs0: 17 });
   return wd;
 }
 

@@ -8,6 +8,7 @@ import { LEVELS } from './engine.js';
 import { LESSONS } from './lessons.js';
 import { ABOUT, HOWTO, ABOUT_DOC, HOWTO_DOC, RULES_DOC } from './about.js';
 import { drawMoreLine, drawLockup, drawCredit } from './brand.js';
+import { v3 } from './v3.js';
 
 const FONT = '"Cormorant Garamond", Georgia, "Times New Roman", serif', UI = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 const TAU = Math.PI * 2, CREAM = '#fbe8bf', GOLD = '#f3cf7a';
@@ -19,6 +20,7 @@ export const MATCHES = { single: 'One round', short: 'Three rounds', full: 'Full
 export function render(ctx, state, L) {
   const scene = state.scene, big = state.big, g = state.game, A = state.anim, calm = state.calm, t = state.t;
   const boardScene = scene === 'play' || scene === 'over' || scene === 'lesson' || scene === 'puzzle' || scene === 'round' || scene === 'auto';
+  const three = v3.on;                        // the 3D presenter draws the ground, board, shells and glows behind this canvas
   const sw = L.w, sh = L.h, U = L.U, cx0 = (U.x0 + U.x1) / 2, Bs = L.board.s;
   // text drawn on the (possibly shrunk) board is enlarged a little so it stays readable
   const bz = (v) => Math.round(v * Math.min(1.35, Math.max(1, 0.82 / Bs)));
@@ -43,7 +45,9 @@ export function render(ctx, state, L) {
   const button = (r, label, o = {}) => {
     ctx.save();
     // The pill's own background/border is always drawn at full strength, even when `dim` (disabled): only the label dims.
-    ctx.fillStyle = 'rgba(8,4,16,0.5)'; ctx.beginPath(); ctx.roundRect(r.x + 2, r.y + 7, r.w, r.h, 24); ctx.fill();
+    const rad = Math.min(24, r.h / 2);
+    ctx.fillStyle = 'rgba(8,4,16,0.42)'; ctx.beginPath(); ctx.roundRect(r.x + 2, r.y + 9, r.w, r.h, rad); ctx.fill();          // soft drop shadow
+    ctx.fillStyle = o.primary ? '#7a4410' : '#1a0b03'; ctx.beginPath(); ctx.roundRect(r.x, r.y + 5, r.w, r.h, rad); ctx.fill();   // the plaque's thickness
     const gr = ctx.createLinearGradient(0, r.y, 0, r.y + r.h);
     if (o.primary) { gr.addColorStop(0, '#ffe4a0'); gr.addColorStop(0.55, '#e2a842'); gr.addColorStop(1, '#a86a1c'); } else { gr.addColorStop(0, '#6a3f22'); gr.addColorStop(0.5, '#47260f'); gr.addColorStop(1, '#2c1408'); }
     ctx.fillStyle = gr; ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, Math.min(24, r.h / 2)); ctx.fill();
@@ -52,12 +56,24 @@ export function render(ctx, state, L) {
     let sz = o.size ?? 30; ctx.font = `700 ${sz}px ${UI}`;
     while (sz > 14 && ctx.measureText(label).width > r.w - 28) { sz -= 1; ctx.font = `700 ${sz}px ${UI}`; }
     ctx.textAlign = 'center';
-    ctx.fillStyle = o.primary ? 'rgba(255,240,200,0.5)' : 'rgba(0,0,0,0.5)'; ctx.fillText(label, r.x + r.w / 2, r.y + r.h / 2 + sz * 0.36 + 1.5);
-    ctx.fillStyle = o.primary ? '#2a1606' : CREAM; ctx.fillText(label, r.x + r.w / 2, r.y + r.h / 2 + sz * 0.36);
+    let ly = r.y + r.h / 2 + sz * 0.36;
+    if (o.icon && r.h >= 70) { glyph(o.icon, r.x + r.w / 2, r.y + r.h * 0.34, Math.min(13, r.h * 0.16), o.primary ? '#2a1606' : GOLD); ly = r.y + r.h * 0.78; }
+    ctx.fillStyle = o.primary ? 'rgba(255,240,200,0.5)' : 'rgba(0,0,0,0.5)'; ctx.fillText(label, r.x + r.w / 2, ly + 1.5);
+    ctx.fillStyle = o.primary ? '#2a1606' : CREAM; ctx.fillText(label, r.x + r.w / 2, ly);
     ctx.restore();
   };
+  // small line icons for the menu's secondary grid
+  function glyph(kind, x, y, r, col) {
+    ctx.save(); ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = 2.4; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath();
+    if (kind === 'about') { ctx.arc(x, y, r, 0, TAU); ctx.stroke(); ctx.fillRect(x - 1.4, y - 1, 2.8, r * 0.75); ctx.beginPath(); ctx.arc(x, y - r * 0.48, 1.8, 0, TAU); ctx.fill(); }
+    else if (kind === 'how') { ctx.arc(x, y + 1, r * 0.55, 0, TAU); ctx.stroke(); ctx.beginPath(); ctx.arc(x, y + 1, r, -2.6, -0.5); ctx.stroke(); ctx.beginPath(); ctx.arc(x, y + 1, 2.4, 0, TAU); ctx.fill(); }
+    else if (kind === 'rules') { ctx.moveTo(x, y - r * 0.7); ctx.lineTo(x, y + r * 0.8); ctx.moveTo(x, y - r * 0.7); ctx.quadraticCurveTo(x - r * 0.6, y - r, x - r * 1.15, y - r * 0.7); ctx.lineTo(x - r * 1.15, y + r * 0.8); ctx.quadraticCurveTo(x - r * 0.6, y + r * 0.5, x, y + r * 0.8); ctx.quadraticCurveTo(x + r * 0.6, y + r * 0.5, x + r * 1.15, y + r * 0.8); ctx.lineTo(x + r * 1.15, y - r * 0.7); ctx.quadraticCurveTo(x + r * 0.6, y - r, x, y - r * 0.7); ctx.stroke(); }
+    else if (kind === 'settings') { for (let k = 0; k < 8; k++) { const a = (k / 8) * TAU; ctx.moveTo(x + Math.cos(a) * r * 0.62, y + Math.sin(a) * r * 0.62); ctx.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r); } ctx.stroke(); ctx.beginPath(); ctx.arc(x, y, r * 0.55, 0, TAU); ctx.stroke(); ctx.beginPath(); ctx.arc(x, y, 2.2, 0, TAU); ctx.fill(); }
+    else if (kind === 'auto') { ctx.arc(x, y, r, 0, TAU); ctx.stroke(); ctx.beginPath(); ctx.moveTo(x - r * 0.3, y - r * 0.45); ctx.lineTo(x + r * 0.5, y); ctx.lineTo(x - r * 0.3, y + r * 0.45); ctx.closePath(); ctx.fill(); }
+    ctx.restore();
+  }
   const panel = (x, y, w, h, alpha = 0.88) => {
-    ctx.save(); ctx.fillStyle = `rgba(20,12,34,${alpha})`; ctx.beginPath(); ctx.roundRect(x, y, w, h, 26); ctx.fill();
+    ctx.save(); ctx.fillStyle = v3.on ? `rgba(26,13,7,${alpha})` : `rgba(20,12,34,${alpha})`; ctx.beginPath(); ctx.roundRect(x, y, w, h, 26); ctx.fill();
     ctx.strokeStyle = 'rgba(243,207,122,0.8)'; ctx.lineWidth = 2.5; ctx.stroke();
     ctx.strokeStyle = 'rgba(243,207,122,0.25)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.roundRect(x + 7, y + 7, w - 14, h - 14, 20); ctx.stroke(); ctx.restore();
   };
@@ -85,6 +101,11 @@ export function render(ctx, state, L) {
         if (ld !== undefined && k === n - 1 && A.tt - ld < 0.14 && !calm) oy = -10 * (1 - (A.tt - ld) / 0.14);
         drawSeed(ctx, set, s.v, p.x + s.x + dx, p.y + s.y + oy, s.rot, 1.42);
       }
+      if (ld !== undefined && !calm && A.tt - ld < 0.42) {   // a shell lands: a ring ripples out across the carved bowl and a glint pops
+        const f = (A.tt - ld) / 0.42, rad = PIT_R * (0.35 + 0.6 * f);
+        ctx.strokeStyle = `rgba(255,236,190,${0.5 * (1 - f)})`; ctx.lineWidth = 3 * (1 - f) + 0.6; ctx.beginPath(); ctx.arc(p.x, p.y, rad, 0, TAU); ctx.stroke();
+        if (f < 0.5) star(p.x + 10, p.y - 12, 11 * (1 - f * 2) + 2, 0.85 * (1 - f * 2));
+      }
     }
     if (state.ref && !A) { const p = posXY(state.ref.pit); ctx.strokeStyle = `rgba(255,120,90,${0.9 * (1 - state.ref.t / 0.6)})`; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(p.x, p.y, PIT_R + 4, 0, TAU); ctx.stroke(); }
     if (opts.counts !== false) for (let i = 0; i < 15; i++) {
@@ -104,6 +125,33 @@ export function render(ctx, state, L) {
       }
     }
   }
+  // 3D board: glows become marks the presenter lights on the board; counts and labels are drawn here at the projected points.
+  function contents3d(sb, opts = {}) {
+    const pulse = calm ? 0.6 : 0.5 + 0.5 * Math.sin(t * 5), burnt = opts.burnt || g.burnt, M = [];
+    for (const i of opts.legal || []) M.push({ pos: i, rgb: '255,214,110', a: 0.55 + pulse * 0.45 });
+    if (state.hint && !A) M.push({ pos: state.hint.pit, rgb: '120,255,170', a: 0.7 + pulse * 0.3 });
+    if (opts.picks) for (const pl of [0, 1]) if (opts.picks[pl] != null && (state.two || pl === 0)) M.push({ pos: opts.picks[pl], rgb: '130,210,255', a: 1 });
+    if (A && A.cap) for (const pos of [A.cap.e.pos, A.cap.e.from]) M.push({ pos, rgb: '255,180,70', a: 0.5 + Math.abs(Math.sin(A.cap.t * 14)) * 0.5 });
+    if (state.ref && !A) M.push({ pos: state.ref.pit, rgb: '255,110,80', a: 1 - state.ref.t / 0.6 });
+    v3.marks = M;
+    const P = (x, y, h = 0) => v3.toScreen(x, y, h);
+    const ks = Math.min(1.3, Math.max(0.85, (v3.unit || 1) / 1));              // board units -> screen units at the board centre
+    if (opts.counts !== false) for (let i = 0; i < 15; i++) {
+      if (i === 7 || burnt[i]) continue; const n = sb[i]; if (n <= 0) continue; const p = posXY(i), left = i > 7;
+      const q = P(p.x + (left ? -1 : 1) * (PIT_R + 30), p.y, 0), sz = Math.round((big ? 33 : 28) * ks);
+      ctx.textAlign = 'center'; ctx.font = `800 ${sz}px ${UI}`; ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(30,10,2,0.9)'; ctx.lineJoin = 'round';
+      ctx.strokeText(String(n), q.x, q.y + sz * 0.36); ctx.fillStyle = '#ffecc0'; ctx.fillText(String(n), q.x, q.y + sz * 0.36);
+    }
+    if (opts.counts !== false) for (const pl of [0, 1]) {                         // storehouse plaques: who + how many, beside the trough
+      const S = STORE_BOX[pl], n = sb[STORE[pl]], label = opts.labels ? opts.labels[pl] : pl === 0 ? 'You' : 'Computer';
+      const a = P(S.x - 4, S.y + S.h / 2, 0), b = P(S.x + S.w + 4, S.y + S.h / 2, 0), lsz = Math.round((big ? 22 : 20) * ks), nsz = Math.round((big ? 50 : 44) * ks);
+      const plaque = (x, y, w, h) => { ctx.fillStyle = 'rgba(22,10,4,0.74)'; ctx.beginPath(); ctx.roundRect(x, y, w, h, h / 2); ctx.fill(); ctx.strokeStyle = 'rgba(243,207,122,0.55)'; ctx.lineWidth = 1.6; ctx.stroke(); };
+      ctx.font = `700 ${lsz}px ${UI}`; const lw = ctx.measureText(label).width;
+      plaque(a.x - 26 - lw, a.y - lsz * 0.75, lw + 22, lsz * 1.5); text(label, a.x - 15, a.y + lsz * 0.36, lsz, CREAM, UI, 700, 'right');
+      ctx.font = `700 ${nsz}px ${FONT}`; const nw = ctx.measureText(String(n)).width;
+      plaque(b.x + 6, b.y - nsz * 0.55, nw + 24, nsz * 1.0); text(String(n), b.x + 18, b.y + nsz * 0.3, nsz, GOLD, FONT, 700, 'left');
+    }
+  }
   function plug(x, y) {                                     // a burnt house: a charred plug pressed into the hole
     const r = PIT_R - 2, gr = ctx.createRadialGradient(x - 8, y - 10, 3, x, y, r); gr.addColorStop(0, '#4a3226'); gr.addColorStop(0.6, '#1e1310'); gr.addColorStop(1, '#0a0605');
     ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();
@@ -113,8 +161,8 @@ export function render(ctx, state, L) {
   }
 
   // ---- the ground, and the boat ------------------------------------------------------------------------------------------
-  drawGround(ctx, sw, sh);
-  if (!calm) { // a slow band of tropical light drifting over the ground
+  if (three) ctx.clearRect(0, 0, sw, sh); else drawGround(ctx, sw, sh);
+  if (!calm && !three) { // a slow band of tropical light drifting over the ground
     const f = ((t * 0.045) % 1) * (sw + 900) - 450; const gr = ctx.createLinearGradient(f - 260, 0, f + 260, sh * 0.5); gr.addColorStop(0, 'rgba(255,214,140,0)'); gr.addColorStop(0.5, 'rgba(255,214,140,0.085)'); gr.addColorStop(1, 'rgba(255,214,140,0)'); ctx.fillStyle = gr; ctx.fillRect(0, 100, sw, sh - 200);
   }
   const chev = () => {
@@ -126,10 +174,7 @@ export function render(ctx, state, L) {
 
   if (boardScene) {
     // landscape: two cards flank the board
-    if (L.wide) { panel(L.leftCard.x, L.leftCard.y, L.leftCard.w, L.leftCard.h, 0.5); panel(L.rightCard.x, L.rightCard.y, L.rightCard.w, L.rightCard.h, 0.5); }
-    // ---- the board, through one transform (translate + uniform scale) ----
-    ctx.save(); ctx.translate(L.board.cx, L.board.cy); ctx.scale(Bs, Bs); ctx.translate(-360, -798);
-    drawBoard(ctx, state.wood);
+    if (L.wide) { panel(L.leftCard.x, L.leftCard.y, L.leftCard.w, L.leftCard.h, three ? 0.62 : 0.5); panel(L.rightCard.x, L.rightCard.y, L.rightCard.w, L.rightCard.h, three ? 0.62 : 0.5); }
     // glows for whichever houses can be played now
     let legal = [];
     const human = !A && g.phase === 'play' && (scene === 'play' ? (state.two || g.turn === 0 || g.opening) : scene === 'lesson' ? !state.lesson.done : scene === 'puzzle' ? (state.pz.status !== 'solved' && state.pz.wrong <= 0) : false);
@@ -137,6 +182,23 @@ export function render(ctx, state, L) {
       if (g.opening) legal = [...legalMoves(g, 0).filter((h) => !state.pick || state.pick[0] == null), ...(state.two ? legalMoves(g, 1).filter((h) => !state.pick || state.pick[1] == null) : [])];
       else legal = scene === 'lesson' ? LESSONS[state.lesson.i].steps[state.lesson.step].want.filter((p) => legalMoves(g).includes(p)) : legalMoves(g);
     }
+    const labels = scene === 'lesson' || scene === 'puzzle' ? ['You', 'Opponent'] : state.two ? ['Player 1', 'Player 2'] : ['You', 'Computer'];
+    v3.kb = state.kb && human ? (g.opening || g.turn === 0 ? state.cursor : 14 - state.cursor) : -1;
+    if (three) {
+      contents3d(state.shown, { legal, picks: g.opening ? state.pick : null, labels, counts: !(scene === 'over' || scene === 'round' || (scene === 'auto' && state.auto && (state.auto.sub === 'over' || state.auto.sub === 'roundover'))) });
+      if (A) {
+        for (const pl of [0, 1]) {                                                // the count still in the sowing hand
+          const h = A.hands[pl]; if (!h || h.n <= 0) continue;
+          const q = v3.toScreen(h.x, h.y, 75);
+          ctx.fillStyle = 'rgba(20,10,30,0.9)'; ctx.beginPath(); ctx.arc(q.x + 34, q.y - 22, 19, 0, TAU); ctx.fill(); ctx.strokeStyle = pl === 0 ? GOLD : '#9fd4ff'; ctx.lineWidth = 2.5; ctx.stroke();
+          text(String(h.n), q.x + 34, q.y - 13, 24, '#ffe9b0', UI, 800, 'center', false);
+        }
+        if (A.cap) { const e = A.cap.e, f = Math.min(1, A.cap.t / Math.max(0.01, A.cap.dur)), p = posXY(e.from), q = v3.toScreen(p.x, p.y, 60 + f * 40); text(`+${e.n}`, q.x, q.y, 44, `rgba(255,224,130,${1 - f * 0.6})`, FONT, 700); }
+      }
+    } else {
+    // ---- the board, through one transform (translate + uniform scale) ----
+    ctx.save(); ctx.translate(L.board.cx, L.board.cy); ctx.scale(Bs, Bs); ctx.translate(-360, -798);
+    drawBoard(ctx, state.wood);
     chev();
     contents(state.shown, { legal, picks: g.opening ? state.pick : null, labels: scene === 'lesson' || scene === 'puzzle' ? ['You', 'Opponent'] : state.two ? ['Player 1', 'Player 2'] : ['You', 'Computer'] });
     if (state.kb && human) { const pos = g.opening || g.turn === 0 ? state.cursor : 14 - state.cursor; const p = posXY(pos); ctx.strokeStyle = '#7dff9a'; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(p.x, p.y, PIT_R + 8, 0, TAU); ctx.stroke(); }
@@ -154,7 +216,7 @@ export function render(ctx, state, L) {
         const e = A.cap.e, T = posXY(STORE[e.p]), f = Math.min(1, A.cap.t / Math.max(0.01, A.cap.dur)), ez = f * f * (3 - 2 * f);
         for (const pos of [e.from, e.pos]) {
           const p = posXY(pos), cnt = state.shown[pos];
-          for (let k = 0; k < cnt; k++) { const s = slot(pos, k), x = p.x + s.x + (T.x - p.x - s.x) * ez, y = p.y + s.y + (T.y - p.y - s.y) * ez - Math.sin(Math.PI * ez) * 60; drawSeed(ctx, state.seeds, s.v, x, y, s.rot + ez * 6, 1.18 + 0.15 * Math.sin(Math.PI * ez)); }
+          for (let k = 0; k < cnt; k++) { const s = slot(pos, k), x = p.x + s.x + (T.x - p.x - s.x) * ez, gy = p.y + s.y + (T.y - p.y - s.y) * ez, y = gy - Math.sin(Math.PI * ez) * 60; if (!calm) { ctx.fillStyle = `rgba(10,4,0,${0.28 - 0.12 * Math.sin(Math.PI * ez)})`; ctx.beginPath(); ctx.ellipse(x + 3 + Math.sin(Math.PI * ez) * 10, gy + 5 + Math.sin(Math.PI * ez) * 14, 12 - Math.sin(Math.PI * ez) * 3, 7, 0, 0, TAU); ctx.fill(); } drawSeed(ctx, state.seeds, s.v, x, y, s.rot + ez * 6, 1.18 + 0.15 * Math.sin(Math.PI * ez)); }
         }
         const p = posXY(e.from);
         if (!calm) { ctx.strokeStyle = `rgba(255,214,120,${0.85 * (1 - f)})`; ctx.lineWidth = 7 * (1 - f) + 1; ctx.beginPath(); ctx.arc(p.x, p.y, PIT_R * (0.8 + 0.9 * f), 0, TAU); ctx.stroke(); }
@@ -162,6 +224,7 @@ export function render(ctx, state, L) {
       }
     }
     ctx.restore();
+    }
 
     // ---- header (status lines) ----
     const H0 = L.hdr, hx = H0.x + H0.w / 2, hy = H0.y;
@@ -232,8 +295,18 @@ export function render(ctx, state, L) {
       ctx.beginPath(); for (let x = lx; x <= rx; x += 12) { const y = base + Math.sin(x / 70 + t * (calm ? 0 : k) + ph) * amp + Math.sin(x / 31 + t * (calm ? 0 : k * 1.7)) * amp * 0.3; x > lx ? ctx.lineTo(x, y) : ctx.moveTo(x, y); } ctx.strokeStyle = crest; ctx.lineWidth = 3; ctx.stroke();
     };
     ctx.save(); ctx.translate(hx, hy); ctx.scale(kh, kh); ctx.translate(-360, -96);
+    if (!three) {
     wave(690, 9, 0.9, ['rgba(20,90,110,0.85)', 'rgba(10,40,70,0)'], 'rgba(200,240,235,0.5)', 0);
-    ctx.save(); ctx.translate(360, 520 + bob); ctx.rotate(-Math.PI / 2 + sway); ctx.scale(0.6, 0.6); ctx.translate(-360, -HULL.cy);
+    { // low tropical sun glow behind the boat, and its soft shadow + wake rings on the water
+      const sg = ctx.createRadialGradient(250, 470, 20, 300, 520, 560); sg.addColorStop(0, 'rgba(255,214,130,0.55)'); sg.addColorStop(0.45, 'rgba(255,160,80,0.16)'); sg.addColorStop(1, 'rgba(255,160,80,0)');
+      ctx.fillStyle = sg; ctx.fillRect(lx, 120, rx - lx, 700);
+      { const sx = 590, sy = 318, sd = ctx.createRadialGradient(sx, sy, 4, sx, sy, 170); sd.addColorStop(0, 'rgba(255,240,190,0.95)'); sd.addColorStop(0.18, 'rgba(255,205,110,0.75)'); sd.addColorStop(0.5, 'rgba(255,150,70,0.22)'); sd.addColorStop(1, 'rgba(255,150,70,0)');
+        ctx.fillStyle = sd; ctx.beginPath(); ctx.arc(sx, sy, 170, 0, TAU); ctx.fill();
+        for (let k = 0; k < 9; k++) { const gy = 640 + k * 11, gw = (60 - k * 4) * (0.8 + 0.2 * Math.sin(t * 1.4 + k * 1.7 * (calm ? 0 : 1))); ctx.fillStyle = `rgba(255,226,160,${0.5 - k * 0.04})`; ctx.fillRect(sx - gw / 2 + Math.sin(k * 2.1) * 8, gy, gw, 2.6); } }
+      ctx.save(); ctx.translate(372, 548 + bob * 0.4); ctx.fillStyle = 'rgba(4,20,40,0.42)'; ctx.beginPath(); ctx.ellipse(0, 0, 330, 46, 0, 0, TAU); ctx.fill(); ctx.restore();
+      if (!calm) for (let k = 0; k < 3; k++) { const ph = (t * 0.25 + k / 3) % 1; ctx.strokeStyle = `rgba(215,245,240,${0.34 * (1 - ph)})`; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.ellipse(360, 556, 330 + 120 * ph, 44 + 22 * ph, 0, 0, TAU); ctx.stroke(); }
+    }
+    ctx.save(); ctx.translate(360, 520 + bob); ctx.rotate(-Math.PI / 2 + sway); ctx.scale(0.68, 0.68); ctx.translate(-360, -HULL.cy);
     drawBoard(ctx, state.wood);
     const full = new Array(16).fill(7); full[7] = 0; full[15] = 0;
     contents(full, { counts: false, burnt: new Array(16).fill(false) });
@@ -241,6 +314,7 @@ export function render(ctx, state, L) {
     if (!calm) for (let k = 0; k < 4; k++) { const ph = (t * 0.35 + k * 0.27) % 1; star(190 + k * 110 + Math.sin(k * 5) * 30, 430 + ((k * 53) % 200), 9 * Math.sin(Math.PI * ph) + 1, Math.sin(Math.PI * ph)); }
     wave(668, 12, 1.2, ['rgba(30,120,140,0.55)', 'rgba(14,60,90,0)'], 'rgba(220,250,245,0.7)', 2);
     wave(716, 10, 1.6, ['rgba(20,100,125,0.9)', 'rgba(8,36,66,0)'], 'rgba(200,240,235,0.55)', 4);
+    }
     if (withTitle) {
       let fs = 130;
       const I = L.ins || {}, u = (I.back || 0) / 56;
@@ -248,7 +322,14 @@ export function render(ctx, state, L) {
         ctx.save(); ctx.font = `400 130px ${FONT}`; const w130 = ctx.measureText('Congklak').width; ctx.restore();
         const room = 2 * (hx - ((I.l || 0) + 8 * u + I.back + 10)) / kh; if (room > 0 && w130 > room) fs = Math.max(60, Math.floor(130 * room / w130));
       }
-      text('Congklak', 360, 196, fs, CREAM, FONT);
+      // carved-gold title: a dark extruded body, a warm glow, a gold face lit from above and a fine bright edge
+      ctx.save(); ctx.textAlign = 'center'; ctx.font = `700 ${fs}px ${FONT}`;
+      ctx.shadowColor = 'rgba(255,170,60,0.45)'; ctx.shadowBlur = 34; ctx.fillStyle = '#3a1a06'; ctx.fillText('Congklak', 360, 202); ctx.shadowColor = 'transparent';
+      for (let k = 6; k >= 1; k--) { ctx.fillStyle = k > 3 ? '#2a1204' : '#6a3a12'; ctx.fillText('Congklak', 360 + k * 0.5, 196 + k); }
+      const tg = ctx.createLinearGradient(0, 196 - fs * 0.72, 0, 196 + fs * 0.1);
+      tg.addColorStop(0, '#fff6d8'); tg.addColorStop(0.42, '#f6d27c'); tg.addColorStop(0.62, '#d79a3c'); tg.addColorStop(1, '#ffe7a8');
+      ctx.fillStyle = tg; ctx.fillText('Congklak', 360, 196);
+      ctx.lineWidth = 1.4; ctx.strokeStyle = 'rgba(255,248,225,0.55)'; ctx.strokeText('Congklak', 360, 196); ctx.restore();
       text('The shell game of Southeast Asia', 360, 250, 28, 'rgba(251,232,191,0.95)', FONT, 700);
     }
     ctx.restore();
@@ -264,7 +345,7 @@ export function render(ctx, state, L) {
     button(T.play, 'Play the computer', { primary: state.learned && !T.resume, size: 32 });
     button(T.two, 'Two players, one phone', { size: 30 });
     button(T.daily, solved ? `Daily puzzle: solved · streak ${state.daily.streak}` : state.daily.streak ? `Daily puzzle · streak ${state.daily.streak}` : 'Daily puzzle', { size: 30 });
-    button(T.about, 'About', { size: 21 }); button(T.how, 'Controls', { size: 21 }); button(T.rules, 'Rules', { size: 21 }); button(T.settings, 'Settings', { size: 21 }); button(T.auto, 'Auto', { size: 21 });
+    button(T.about, 'About', { size: 19, icon: 'about' }); button(T.how, 'Controls', { size: 19, icon: 'how' }); button(T.rules, 'Rules', { size: 19, icon: 'rules' }); button(T.settings, 'Settings', { size: 19, icon: 'settings' }); button(T.auto, 'Auto', { size: 19, icon: 'auto' });
     text(`Games played: ${state.stats.games} · won: ${state.stats.wins}`, T.stats.x, T.stats.y, 22, 'rgba(251,232,191,0.9)', UI, 500);
     let stars = ''; for (let l = 0; l < LEVELS.length; l++) stars += state.stats.badges['L' + l] ? '★ ' : '☆ ';
     text(stars.trim(), T.stats.x, T.stats.y + 40, 30, GOLD, UI, 700);
@@ -373,7 +454,7 @@ export function render(ctx, state, L) {
     button(RD.back, 'Back', { size: 30 });
     button(RD.next, scroll >= state.readerMax - 1 ? 'Done' : 'Next', { primary: true, size: 30 });
   } else if (scene === 'round' || (scene === 'auto' && state.auto && state.auto.sub === 'roundover')) {
-    ctx.fillStyle = L.wide || L.res.k < 1 ? 'rgba(12,6,24,0.96)' : 'rgba(12,6,24,0.72)'; ctx.fillRect(0, 0, sw, sh);
+    ctx.fillStyle = three ? 'rgba(12,6,24,0.9)' : L.wide || L.res.k < 1 ? 'rgba(12,6,24,0.96)' : 'rgba(12,6,24,0.72)'; ctx.fillRect(0, 0, sw, sh);
     const Rs = L.res, ry = Rs.y, cx = Rs.cx, tw = Math.min(590, (L.wide ? U.w * 0.5 : U.w) - 70);
     const rr = g.roundResult, mine = rr.a, theirs = rr.b, won = mine > theirs ? 0 : mine < theirs ? 1 : -1;
     const who = (pl) => (state.two ? (pl === 0 ? 'Player one' : 'Player two') : pl === 0 ? 'You' : 'The computer');
@@ -389,7 +470,7 @@ export function render(ctx, state, L) {
     wrap(lost[0] + lost[1] === 0 ? 'Nobody loses a house this time.' : `${lost[0] ? `${who(0)}: ${lost[0]} house${lost[0] === 1 ? '' : 's'} burnt shut. ` : ''}${lost[1] ? `${who(1)}: ${lost[1]} house${lost[1] === 1 ? '' : 's'} burnt shut.` : ''}`, cx, ry(900) + (L.wide ? 14 : 0), 26, tw, '#ffd7a0');
     button(L.BTN.cont, 'Next round', { primary: true, size: 36 });
   } else if (scene === 'over' || (scene === 'auto' && state.auto && state.auto.sub === 'over')) {
-    ctx.fillStyle = L.wide || L.res.k < 1 ? 'rgba(12,6,24,0.96)' : 'rgba(12,6,24,0.74)'; ctx.fillRect(0, 0, sw, sh);
+    ctx.fillStyle = three ? 'rgba(12,6,24,0.9)' : L.wide || L.res.k < 1 ? 'rgba(12,6,24,0.96)' : 'rgba(12,6,24,0.74)'; ctx.fillRect(0, 0, sw, sh);
     const Rs = L.res, ry = Rs.y, cx = Rs.cx;
     const won = g.winner === 'draw' ? 'A draw' : state.two ? (g.winner === 0 ? 'Player one wins' : 'Player two wins') : g.winner === 0 ? 'You win!' : 'The computer wins';
     text(won, cx, ry(470), fitTitle(won, 96, (L.wide ? U.w * 0.5 : U.w) - 40, FONT, 700, 44), CREAM, FONT);

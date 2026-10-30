@@ -8,6 +8,7 @@ import {
 } from './art.js';
 import { RULES } from './content.js';
 import { drawCredit, drawLockup } from './brand.js';
+import { v3 } from './v3.js';
 
 const SUIT_ORDER = ['S', 'H', 'D', 'C'];
 const HERO_CARDS = [null, { suit: 'C', rank: 11 }, { suit: 'D', rank: 12 }, { suit: 'S', rank: 13 }, { suit: 'H', rank: 1 }];
@@ -27,8 +28,9 @@ const withBlock = (ctx, b, fn) => { ctx.save(); ctx.translate(b.ox, b.oy); ctx.s
 
 export function render(ctx, env, state, L, fx, { hintMoves, demoLimit }) {
   checkWrapFonts(ctx);
-  drawTable(ctx, state.table, L.w, L.h);
   const theme = THEMES.find((t) => t.id === state.activeTheme) || THEMES[0];
+  v3.cards.length = 0; v3.emblem = null; v3.table = state.table; v3.four = state.fourColorDeck; v3.theme = theme;
+  if (!v3.on) drawTable(ctx, state.table, L.w, L.h);
   const calm = state.reducedMotion;
   const time = fx.time();
 
@@ -56,9 +58,11 @@ function drawPlay(ctx, state, L, fx, theme, hintMoves, pulse) {
   const S = (x, y, fn) => { ctx.save(); ctx.translate(x, y); ctx.scale(k, k); fn(); ctx.restore(); };
   const ring = (x, y, strength, h = ch) => S(x, y, () => drawRing(ctx, 0, 0, strength, h / k));
 
-  drawEmblem(ctx, L.emblem.cx, L.emblem.cy, L.emblem.k);
-
-  const paint = (card, x, y, flip) => {
+  const T = v3.on;   // 3D room: the cards, their shadows and the table are drawn by the presenter from what is pushed here; wells, rings, buttons stay 2D
+  if (T) v3.emblem = { cx: L.emblem.cx, cy: L.emblem.cy, k: L.emblem.k }; else drawEmblem(ctx, L.emblem.cx, L.emblem.cy, L.emblem.k);
+  const push = (card, x, y, flip, elev = 0) => { const up = flip >= 0.5 ? card.faceUp : !card.faceUp; v3.cards.push({ cx: x + cw / 2, cy: y + ch / 2, w: cw, h: ch, rot: 0, sx: flip >= 1 ? 1 : Math.max(0.03, Math.abs(1 - 2 * flip)), elev, card: up ? card : null }); };
+  const paint = (card, x, y, flip, elev = 0) => {
+    if (T) return push(card, x, y, flip, elev);
     if (flip >= 1) return S(x, y, () => (card.faceUp ? drawFace(ctx, 0, 0, card, four) : drawBack(ctx, 0, 0, theme)));
     const showFace = flip >= 0.5 ? card.faceUp : !card.faceUp;
     ctx.save();
@@ -71,7 +75,7 @@ function drawPlay(ctx, state, L, fx, theme, hintMoves, pulse) {
     const v = fx.look(card, x, y);
     if (v.waiting) return false;
     if (v.moving > 0) { flying.push({ card, v }); return false; }
-    paint(card, v.x, v.y - lift, v.flip);
+    paint(card, v.x, v.y - lift, v.flip, lift);
     if (rg) ring(v.x, v.y - lift, rg);
     return true;
   };
@@ -93,7 +97,7 @@ function drawPlay(ctx, state, L, fx, theme, hintMoves, pulse) {
 
   SUIT_ORDER.forEach((suit, i) => {
     const pos = L.foundationPos(i);
-    S(pos.x, pos.y, () => drawWell(ctx, 0, 0, suit));
+    if (!T || board.foundations[suit].length === 0) S(pos.x, pos.y, () => drawWell(ctx, 0, 0, suit));
     placeTop(board.foundations[suit], pos.x, pos.y, 0);
     if (hintSuits.has(suit)) ring(pos.x, pos.y, pulse);
   });
@@ -118,16 +122,17 @@ function drawPlay(ctx, state, L, fx, theme, hintMoves, pulse) {
   for (const [x, y, strength, h] of rings) ring(x, y, strength, h);
 
   const sp = L.stockPos, wp = L.wastePos;
-  S(sp.x, sp.y, () => drawWell(ctx, 0, 0, 'recycle'));
   const resting = board.stock.filter((c) => { const v = fx.look(c, sp.x, sp.y); if (v.moving > 0) flying.push({ card: c, v }); return !(v.moving > 0); }).length;
+  if (!T || resting === 0) S(sp.x, sp.y, () => drawWell(ctx, 0, 0, 'recycle'));
   if (hintMoves.length > 0 && hintMoves.every((m) => m.kind === 'draw')) hintStock = true;
   if (resting > 0) {
-    if (resting > 12) S(sp.x - 4 * k, sp.y - 5 * k, () => drawBack(ctx, 0, 0, theme));
-    if (resting > 2) S(sp.x - 2 * k, sp.y - 2.5 * k, () => drawBack(ctx, 0, 0, theme));
-    S(sp.x, sp.y, () => drawBack(ctx, 0, 0, theme));
+    const back = (x, y) => (T ? v3.cards.push({ cx: x + cw / 2, cy: y + ch / 2, w: cw, h: ch, rot: 0, sx: 1, elev: 0, card: null }) : S(x, y, () => drawBack(ctx, 0, 0, theme)));
+    if (resting > 12) back(sp.x - 4 * k, sp.y - 5 * k);
+    if (resting > 2) back(sp.x - 2 * k, sp.y - 2.5 * k);
+    back(sp.x, sp.y);
   }
   if (hintStock && (board.stock.length > 0 || board.waste.length > 0)) ring(sp.x, sp.y, pulse);
-  S(wp.x, wp.y, () => drawWell(ctx, 0, 0, ''));
+  if (!T || board.waste.length === 0) S(wp.x, wp.y, () => drawWell(ctx, 0, 0, ''));
   const wastePicked = state.selected && state.selected.pile === 'waste';
   placeTop(board.waste, wp.x, wp.y, wastePicked ? 1 : hintSource('waste') ? pulse : 0, wastePicked ? 10 * k : 0);
 
@@ -144,8 +149,8 @@ function drawPlay(ctx, state, L, fx, theme, hintMoves, pulse) {
   }
 
   for (const { card, v } of flying) {
-    S(v.x, v.y, () => drawLiftShadow(ctx, 0, 0, v.moving));
-    paint(card, v.x, v.y - 6 * k * v.moving, v.flip);
+    if (!T) S(v.x, v.y, () => drawLiftShadow(ctx, 0, 0, v.moving));
+    paint(card, v.x, v.y - 6 * k * v.moving, v.flip, 6 * k * v.moving + 14 * k * v.moving);
   }
 
   if (!state.dealVerified && state.message) {
@@ -209,6 +214,11 @@ function drawTitle(ctx, env, state, theme, time, demoLimit, L) {
     const scale = 1.6;
     HERO_CARDS.forEach((card, i) => {
       const sway = Math.sin(time * 0.55 + i * 0.9) * 0.006;
+      if (v3.on) {   // the same fan, as thick lit 3D cards (block units -> screen units through the title block)
+        const a = ((-13.6 + i * 6.8) * Math.PI) / 180 + sway, ch2 = CARD_H * scale, b = t.left, ly = -1150 + ch2 / 2;
+        v3.cards.push({ cx: b.ox + (360 - Math.sin(a) * ly) * b.s, cy: b.oy + (1510 + Math.cos(a) * ly) * b.s, w: CARD_W * scale * b.s, h: ch2 * b.s, rot: a, sx: 1, elev: 6 * b.s, card: card ? { ...card, faceUp: true } : null });
+        return;
+      }
       ctx.save();
       ctx.translate(360, 1510);
       ctx.rotate(((-13.6 + i * 6.8) * Math.PI) / 180 + sway);

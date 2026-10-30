@@ -4,7 +4,7 @@
   "tagline": "Huge cards, tap to play, every deal winnable",
   "genre": "solitaire",
   "orientation": "any",
-  "version": "0.2.4",
+  "version": "0.3.0",
   "monetization": {
     "model": "free",
     "previewSeconds": 90

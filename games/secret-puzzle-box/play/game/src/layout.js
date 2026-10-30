@@ -152,7 +152,7 @@ export function titleLayout(w, h) {
     } else {
       const cw = Math.min(U.w - 2 * m, 640), top = U.y0 + 6;
       const need = prim.length * 92 + 16 + 2 * 70 + 10 + 80;
-      const heroH = clamp(U.h - need - 70, 190, 640);
+      const heroH = clamp(Math.max(U.h - need - 70, U.h * 0.36), 190, 800);
       T.hero = R(U.x0 + m, top + (F.ins.back ? 40 : 0), U.w - 2 * m, heroH - (F.ins.back ? 40 : 0));
       col = R(U.x0 + (U.w - cw) / 2, top + heroH, cw, U.h - heroH - 70);
       T.brand = { x: U.x0 + U.w / 2, y: U.y1 - 26 };

@@ -512,7 +512,7 @@ export function createGame(env) {
     if (sc === 'lesson' && state.lesson.done && (k.has('Enter') || k.has('Space'))) return at(LY.BTN.next);
     if (k.has('ArrowUp')) { state.kb = true; state.cursor = Math.min(6, state.cursor + 1); return null; }
     if (k.has('ArrowDown')) { state.kb = true; state.cursor = Math.max(0, state.cursor - 1); return null; }
-    if (k.has('Enter') || k.has('Space')) { state.kb = true; const g = state.game; const pos = g.opening || g.turn === 0 ? state.cursor : 14 - state.cursor; const q = posXY(pos), p = LY.toScreen(q.x, q.y); return { x: p.x, y: p.y }; }
+    if (k.has('Enter') || k.has('Space')) { state.kb = true; const g = state.game; const pos = g.opening || g.turn === 0 ? state.cursor : 14 - state.cursor; const q = posXY(pos), p = LY.screenAt(q.x, q.y); return { x: p.x, y: p.y }; }
     return null;
   }
 

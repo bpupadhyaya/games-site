@@ -31,8 +31,8 @@ export const THEMES = [
     p: { base: '#efe4cb', hi: '#fffaf0', lo: '#8f8062', glow: '255,240,200', grain: 'rgba(120,98,60,0.20)' },
     d: { base: '#16232b', hi: '#8cc6d6', lo: '#04080b', glow: '120,200,230', rim: '#5fa6b8' },
     accent: '#e7c06c', ink: '#f6efe0', win: '#ffd877',
-    panel: ['rgba(34,42,54,0.97)', 'rgba(18,23,31,0.98)'], stroke: 'rgba(231,192,108,0.55)',
-    btn: ['#3b485a', '#2a3544'], btnOn: ['#3f8f78', '#296a58'], primary: ['#efcc7c', '#d4a444'], primaryInk: '#2a2110',
+    panel: ['rgba(38,31,27,0.97)', 'rgba(20,16,14,0.98)'], stroke: 'rgba(231,192,108,0.55)',
+    btn: ['#3e332b', '#2c241f'], btnOn: ['#3f8f78', '#296a58'], primary: ['#efcc7c', '#d4a444'], primaryInk: '#2a2110',
   },
   {
     id: 'nero', name: 'Nero and Gold', kind: 'dark',
@@ -114,6 +114,34 @@ export function panel(ctx, th, x, y, w, h, o = {}) {
   ctx.strokeStyle = th.stroke; ctx.lineWidth = 2; rr(ctx, x, y, w, h, o.r ?? 26); ctx.stroke();
 }
 
+// HUD plaques in the game's world: a dark polished-stone tablet in a thin bronze frame with four rivets. `active` lights the
+// frame with the accent (the side to move); `faint` is the big landscape card behind the plaques.
+export function plaque(ctx, th, r, o = {}) {
+  const rad = o.faint ? 24 : 18, x = r.x, y = r.y, w = r.w, h = r.h;
+  ctx.save();
+  if (!o.faint) { ctx.shadowColor = 'rgba(0,0,0,0.55)'; ctx.shadowBlur = 18; ctx.shadowOffsetY = 6; }
+  const g = ctx.createLinearGradient(x, y, x, y + h);
+  g.addColorStop(0, o.faint ? 'rgba(22,17,15,0.42)' : 'rgba(30,24,21,0.86)'); g.addColorStop(1, o.faint ? 'rgba(10,8,8,0.5)' : 'rgba(12,10,10,0.92)');
+  ctx.fillStyle = g; rr(ctx, x, y, w, h, rad); ctx.fill();
+  ctx.restore();
+  ctx.save();
+  const bz = ctx.createLinearGradient(x, y, x + w * 0.3, y + h);
+  const hot = o.active ? th.accent : '#c99a58';
+  bz.addColorStop(0, hot); bz.addColorStop(0.5, o.active ? th.accent : '#7d5730'); bz.addColorStop(1, o.active ? '#a8792e' : '#a37640');
+  if (o.active) { ctx.shadowColor = alpha(th.accent.length === 7 ? th.accent : '#e8c46a', 0.65); ctx.shadowBlur = 16; }
+  ctx.strokeStyle = bz; ctx.lineWidth = o.active ? 3.5 : o.faint ? 1.5 : 2.5; ctx.globalAlpha = o.faint ? 0.55 : 1;
+  rr(ctx, x + 1, y + 1, w - 2, h - 2, rad); ctx.stroke();
+  ctx.shadowBlur = 0; ctx.shadowColor = 'transparent';
+  if (!o.faint) {
+    ctx.strokeStyle = 'rgba(255,224,170,0.16)'; ctx.lineWidth = 1; rr(ctx, x + 6, y + 6, w - 12, h - 12, Math.max(4, rad - 6)); ctx.stroke();
+    if (w > 120 && h > 60) for (const [px, py] of [[x + 12, y + 12], [x + w - 12, y + 12], [x + 12, y + h - 12], [x + w - 12, y + h - 12]]) {
+      const rg = ctx.createRadialGradient(px - 1, py - 1, 0.5, px, py, 4); rg.addColorStop(0, '#f6d9a0'); rg.addColorStop(1, '#6a4a26');
+      ctx.fillStyle = rg; ctx.beginPath(); ctx.arc(px, py, 3.6, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+
 // Flat buttons: one solid fill, a hairline border, a darker underside strip when at rest. No gloss shape.
 export function button(ctx, th, r, lines, kind = 'normal', o = {}) {
   ctx.save();
@@ -165,6 +193,28 @@ export function icon(ctx, name, x, y, s, color = '#fff') {
   } else if (name === 'lock') {
     ctx.beginPath(); ctx.arc(0, -r * 0.2, r * 0.38, Math.PI, 0); ctx.stroke();
     rr(ctx, -r * 0.6, -r * 0.2, r * 1.2, r * 0.95, 5); ctx.fill();
+  } else if (name === 'book') {
+    ctx.beginPath(); ctx.moveTo(0, -r * 0.45); ctx.quadraticCurveTo(-r * 0.45, -r * 0.72, -r * 0.9, -r * 0.5); ctx.lineTo(-r * 0.9, r * 0.6); ctx.quadraticCurveTo(-r * 0.45, r * 0.38, 0, r * 0.62);
+    ctx.quadraticCurveTo(r * 0.45, r * 0.38, r * 0.9, r * 0.6); ctx.lineTo(r * 0.9, -r * 0.5); ctx.quadraticCurveTo(r * 0.45, -r * 0.72, 0, -r * 0.45); ctx.lineTo(0, r * 0.62); ctx.stroke();
+  } else if (name === 'eye') {
+    ctx.beginPath(); ctx.moveTo(-r * 0.9, 0); ctx.quadraticCurveTo(0, -r * 0.85, r * 0.9, 0); ctx.quadraticCurveTo(0, r * 0.85, -r * 0.9, 0); ctx.stroke();
+    ctx.beginPath(); ctx.arc(0, 0, r * 0.26, 0, Math.PI * 2); ctx.fill();
+  } else if (name === 'scroll') {
+    ctx.beginPath(); ctx.moveTo(-r * 0.5, -r * 0.75); ctx.lineTo(r * 0.55, -r * 0.75); ctx.moveTo(-r * 0.5, -r * 0.75); ctx.lineTo(-r * 0.5, r * 0.55); ctx.quadraticCurveTo(-r * 0.5, r * 0.8, -r * 0.75, r * 0.8); ctx.lineTo(r * 0.35, r * 0.8);
+    ctx.quadraticCurveTo(r * 0.55, r * 0.8, r * 0.55, r * 0.55); ctx.lineTo(r * 0.55, -r * 0.75); ctx.stroke();
+    ctx.lineWidth = Math.max(2, s * 0.07); ctx.beginPath(); ctx.moveTo(-r * 0.22, -r * 0.35); ctx.lineTo(r * 0.3, -r * 0.35); ctx.moveTo(-r * 0.22, 0); ctx.lineTo(r * 0.3, 0); ctx.moveTo(-r * 0.22, r * 0.35); ctx.lineTo(r * 0.12, r * 0.35); ctx.stroke();
+  } else if (name === 'tablet') {
+    rr(ctx, -r * 0.75, -r * 0.75, r * 1.5, r * 1.5, r * 0.18); ctx.stroke();
+    ctx.lineWidth = Math.max(1.5, s * 0.05); ctx.beginPath();
+    for (let k = 1; k < 3; k++) { const p = -r * 0.75 + k * r * 0.5; ctx.moveTo(p, -r * 0.75); ctx.lineTo(p, r * 0.75); ctx.moveTo(-r * 0.75, p); ctx.lineTo(r * 0.75, p); }
+    ctx.stroke(); ctx.beginPath(); ctx.arc(0, 0, r * 0.16, 0, Math.PI * 2); ctx.fill();
+  } else if (name === 'info') {
+    ctx.beginPath(); ctx.arc(0, 0, r * 0.8, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, -r * 0.05); ctx.lineTo(0, r * 0.42); ctx.stroke(); ctx.beginPath(); ctx.arc(0, -r * 0.38, r * 0.09, 0, Math.PI * 2); ctx.fill();
+  } else if (name === 'gear') {
+    ctx.beginPath(); ctx.arc(0, 0, r * 0.42, 0, Math.PI * 2); ctx.stroke();
+    for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4; ctx.beginPath(); ctx.moveTo(Math.cos(a) * r * 0.55, Math.sin(a) * r * 0.55); ctx.lineTo(Math.cos(a) * r * 0.85, Math.sin(a) * r * 0.85); ctx.stroke(); }
+    ctx.beginPath(); ctx.arc(0, 0, r * 0.14, 0, Math.PI * 2); ctx.fill();
   } else if (name === 'check') {
     ctx.beginPath(); ctx.moveTo(-r * 0.6, 0); ctx.lineTo(-r * 0.15, r * 0.45); ctx.lineTo(r * 0.65, -r * 0.5); ctx.stroke();
   }

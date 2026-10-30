@@ -13,6 +13,7 @@ import {
 } from './rules.js';
 import { cardGeom, cellAtCard, cellRectOf, THEME_IDS } from './art.js';
 import { render } from './view.js';
+import { v3 } from './v3.js';
 
 export const meta = { width: 720, height: 1560, fluid: { short: 720 } };
 const DEMO_ROUNDS = 3;
@@ -98,6 +99,12 @@ export function createGame(env) {
   // ---- screen positions of cells (for floating text and sparks) ------------------------------------------------------------------
   function cellCenter(r, pi, ci, cell) {
     const L = lay(); let rect, q;
+    const pr = v3.on ? v3.cards.get(`p${pi}c${ci}`) : null;
+    if (pr && v3.base) {   // 3D table: where the cell is really seen (device px -> virtual units)
+      rect = r.mode === 'duo' ? L.duo.cards.rects[ci] : (r.mode === 'auto' ? L.auto : L.play).cards.rects[ci];
+      const c = cellRectOf(cardGeom(rect), cell), d = pr((c.x + c.w / 2 - rect.x) / rect.w, (c.y + c.h / 2 - rect.y) / rect.h);
+      return { x: (d.x - v3.base.e) / v3.base.a, y: (d.y - v3.base.f) / v3.base.d };
+    }
     if (r.mode === 'duo') { rect = L.duo.cards.rects[ci]; const c = cellRectOf(cardGeom(rect), cell); q = { x: c.x + c.w / 2, y: c.y + c.h / 2 }; return pi === 1 ? L.duo.rot(q.x, q.y) : q; }
     rect = (r.mode === 'auto' ? L.auto : L.play).cards.rects[ci]; const c = cellRectOf(cardGeom(rect), cell);
     return { x: c.x + c.w / 2, y: c.y + c.h / 2 };
@@ -401,6 +408,14 @@ export function createGame(env) {
     return false;
   }
   function cardTap(r, pi, rects, x, y) {
+    // 3D table: the cards are seen in perspective, so the tap goes through the presenter's ray pick (x, y back in screen space first)
+    if (v3.on && v3.pick) {
+      const q = r.mode === 'duo' && pi === 1 ? lay().duo.rot(x, y) : { x, y }, h = v3.pick(q.x, q.y);
+      if (!h || h.pi !== pi || !rects[h.ci]) return false;
+      const rc = rects[h.ci], c = cellAtCard(cardGeom(rc), rc.x + h.u * rc.w, rc.y + h.v * rc.h);
+      if (c >= 0) { tapCell(r, pi, h.ci, c); return true; }
+      return false;
+    }
     for (let ci = 0; ci < rects.length; ci++) { const g = cardGeom(rects[ci]), c = cellAtCard(g, x, y); if (c >= 0) { tapCell(r, pi, ci, c); return true; } }
     return false;
   }

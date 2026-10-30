@@ -298,7 +298,7 @@ export async function createPresenter({ kitCanvas, quality = 'high' }) {
       const p = (pd * Math.PI) / 180; let d = 24;
       for (let it = 0; it < 5; it++) {
         placeCam(d, p, yaw, lookY);
-        const a = tmpV.set(-HALF, Y.deck, 0).project(camera).x, b = tmpW.set(HALF, Y.deck, 0).project(camera).x;
+        const a = tmpV.set(-(o.half ?? HALF), Y.deck, 0).project(camera).x, b = tmpW.set(o.half ?? HALF, Y.deck, 0).project(camera).x;
         d *= (((b - a) / 2) * W_) / targetW;
       }
       placeCam(d, p, yaw, lookY);
@@ -311,6 +311,26 @@ export async function createPresenter({ kitCanvas, quality = 'high' }) {
     const c = tmpV.set(0, Y.deck, 0).project(camera);
     const px0 = ((c.x + 1) / 2) * W_, py0 = ((1 - c.y) / 2) * H_, cxp = (rect.x + rect.w / 2) * k, cyp = (rect.y + rect.h / 2) * k;
     camera.setViewOffset(W_, H_, px0 - cxp, py0 - cyp, W_, H_);
+    camera.updateProjectionMatrix(); camera.updateMatrixWorld();
+  }
+  // The boat standing up the screen (portrait): the camera looks along the board's long axis (quarter turn), the board's box is fitted
+  // into the rectangle, the steepest pitch that still gives the biggest board wins.
+  function fitCameraUp(rect, o = {}) {
+    const k = W_ / L_.w, lookY = 0.45, yaw = (o.yaw ?? -90) * Math.PI / 180, hx = o.half ?? 5.5, hz = 1.95;
+    camera.fov = o.fov ?? 30; camera.clearViewOffset(); camera.aspect = W_ / H_; camera.updateProjectionMatrix();
+    const tw = rect.w * k * (o.fill ?? 0.98), th = rect.h * k * (o.fill ?? 0.98), cs = [];
+    for (const x of [-hx, hx]) for (const y of [Y.deck - 0.4, Y.deck + 0.5]) for (const z of [-hz, hz]) cs.push([x, y, z]);
+    const box = () => { let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9; for (const [x, y, z] of cs) { tmpV.set(x, y, z).project(camera); const px = ((tmpV.x + 1) / 2) * W_, py = ((1 - tmpV.y) / 2) * H_; x0 = Math.min(x0, px); x1 = Math.max(x1, px); y0 = Math.min(y0, py); y1 = Math.max(y1, py); } return { x0, x1, y0, y1 }; };
+    const cands = [];
+    for (const pd of o.pitches ?? [74, 68, 62, 56, 50]) {
+      const p = (pd * Math.PI) / 180; let d = 24;
+      for (let it = 0; it < 8; it++) { placeCam(d, p, yaw, lookY); const b = box(); d *= Math.max((b.x1 - b.x0) / tw, (b.y1 - b.y0) / th); }
+      placeCam(d, p, yaw, lookY); cands.push({ d, p });
+    }
+    const near = Math.min(...cands.map((c) => c.d)), best = cands.find((c) => c.d <= near * 1.03);
+    placeCam(best.d, best.p, yaw, lookY);
+    const b = box(), cxp = (rect.x + rect.w / 2) * k, cyp = (rect.y + rect.h / 2) * k;
+    camera.setViewOffset(W_, H_, (b.x0 + b.x1) / 2 - cxp, (b.y0 + b.y1) / 2 - cyp, W_, H_);
     camera.updateProjectionMatrix(); camera.updateMatrixWorld();
   }
   // a free camera for the text screens: the siida, slowly drifting
@@ -490,11 +510,11 @@ export async function createPresenter({ kitCanvas, quality = 'high' }) {
     ringN = glowN = 0;
     if (sc3 === 'play' || sc3 === 'over') {
       boardRoot.visible = true;
-      const b = L.board; fitCamera({ x: b.x, y: b.y, w: b.w, h: b.h }, { fill: 0.97, pitches: L.land ? [60, 54, 48, 42] : [62, 57, 52, 46, 40, 36], fov: 32 });
+      const b = L.board; if (L.vertical) fitCameraUp({ x: b.x, y: b.y, w: b.w, h: b.h }); else fitCamera({ x: b.x, y: b.y, w: b.w, h: b.h }, { fill: 0.97, pitches: L.land ? [60, 54, 48, 42] : [62, 57, 52, 46, 40, 36], fov: 32, half: L.land ? undefined : 5.2 });
       playScene(state);
     } else if ((sc3 === 'title' || sc3 === 'demo-limit') && v3.heroRect) {
       boardRoot.visible = true;
-      const hr = v3.heroRect; fitCamera({ x: hr.x, y: hr.y + hr.h * 0.3, w: hr.w, h: hr.h * 0.7 }, { fill: 0.94, pitches: [30, 26], yaw: state.calm ? 0 : Math.sin(clock * 0.2) * 7, fov: 34 });
+      const hr = v3.heroRect; fitCamera({ x: hr.x, y: hr.y + hr.h * 0.16, w: hr.w, h: hr.h * 0.84 }, { fill: 0.98, pitches: [34, 30, 26], half: L_.land ? undefined : 5.2, yaw: state.calm ? 0 : Math.sin(clock * 0.2) * 7, fov: 34 });
       heroScene(state);
     } else {
       boardRoot.visible = false; hideAll(); sticksWorld.visible = false; sceneCamera(clock, state.calm);

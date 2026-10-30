@@ -1,12 +1,13 @@
 // Oware: state and flow. Drawing is view.js; the rule book is rules.js; the computer is engine.js; lessons.js and puzzles.js are
 // content. The rule book applies a move to `state.game` at once; `state.anim` then PLAYS it (lift, sow pit by pit, capture)
 // while `state.shown` (the pit counts the player sees) catches up. Input is ignored while an animation runs.
-import { layoutFor, creditHit, inRect, TEXT_SCALES, AP_THINK_STEPS } from './layout.js';
+import { layoutFor, pitPos, creditHit, inRect, TEXT_SCALES, AP_THINK_STEPS } from './layout.js';
 import { newGame, clone, applyMove, tryMove, legalMoves, sow, sideOf } from './rules.js';
 import { LEVELS, createThinker } from './engine.js';
 import { LESSONS } from './lessons.js';
 import { puzzleFor, puzzleGame, gains, isWeekend } from './puzzles.js';
 import { render, readerMetrics } from './view.js';
+import { v3 } from './v3.js';
 
 // `meta.width/height` are updated live by the kit on every resize; every position comes from layoutFor(meta.width, meta.height).
 export const meta = { width: 720, height: 1560, fluid: { short: 720 } };
@@ -24,6 +25,8 @@ const AP_LEVEL = 1, AP_REVEAL_TIME = 2;
 export function createGame(env) {
   const { rng, storage, audio, monetization, config } = env;
   const lay = () => layoutFor(meta.width, meta.height);
+  // a tap on a pit: through the tilted 3D board when it is showing (the presenter unprojects), else the flat layout
+  const pitAt = (x, y) => (v3.on && v3.frame && v3.pitNear ? v3.pitNear(x, y) : lay().pitNear(x, y));
   const state = {
     scene: 'title', t: 0, game: newGame(), shown: null, two: false, level: 1, sound: true, calm: false, big: false, seeds: 'nuts', wood: 'iroko',
     cursor: 2, kb: false, anim: null, msg: null, think: 0, thinking: false, undo: [], hintsLeft: HINTS, hint: null,
@@ -279,7 +282,7 @@ export function createGame(env) {
       return;
     }
     if (!tap) return;
-    const i = lay().pitNear(tap.x, tap.y); if (i < 0) return;
+    const i = pitAt(tap.x, tap.y); if (i < 0) return;
     const m = tapPit(i);
     if (m !== null) { state.undo.push(clone(state.game)); play(m); }
   }
@@ -297,7 +300,7 @@ export function createGame(env) {
       return;
     }
     if (!tap) return;
-    const i = lay().pitNear(tap.x, tap.y); if (i < 0) return;
+    const i = pitAt(tap.x, tap.y); if (i < 0) return;
     const m = tapPit(i); if (m === null) return;
     if (l.want.includes(m)) { play(m); } else say(l.hint ?? 'That is a real move, but not the one this lesson teaches. TAP the glowing pit.', 6);
   }
@@ -318,7 +321,7 @@ export function createGame(env) {
     if (P.wrong > 0) { P.wrong -= dt; if (P.wrong <= 0) { state.game = puzzleGame(P.puzzle); syncShown(); P.wrong = 0; say('Set up again. Count where each pit’s last seed lands.'); } return; }
     if (P.status === 'solved') { if (tap && inRect(BTN.share, tap.x, tap.y)) env.share(`Oware daily puzzle: solved${P.tries ? ' after ' + P.tries + ' wrong tr' + (P.tries === 1 ? 'y' : 'ies') : ' first try'}. Streak ${state.daily.streak}.`); return; }
     if (!tap) return;
-    const i = lay().pitNear(tap.x, tap.y); if (i < 0) return;
+    const i = pitAt(tap.x, tap.y); if (i < 0) return;
     const m = tapPit(i); if (m === null) return;
     if (m === P.puzzle.best) play(m);
     else {
@@ -346,7 +349,7 @@ export function createGame(env) {
     if (sc === 'lesson' && state.lesson.done && (k.has('Enter') || k.has('Space'))) return at(BTN.next);
     if (k.has('ArrowLeft')) { state.kb = true; state.cursor = Math.max(0, state.cursor - 1); return null; }
     if (k.has('ArrowRight')) { state.kb = true; state.cursor = Math.min(5, state.cursor + 1); return null; }
-    if (k.has('Enter') || k.has('Space')) { state.kb = true; const p = L.pitScreen(state.game.turn === 0 ? state.cursor : 11 - state.cursor); return { x: p.x, y: p.y }; }
+    if (k.has('Enter') || k.has('Space')) { state.kb = true; const pi = state.game.turn === 0 ? state.cursor : 11 - state.cursor, pp = pitPos(pi), p = v3.on && v3.frame && v3.toScreen ? v3.toScreen(pp.x, pp.y) : L.pitScreen(pi); return { x: p.x, y: p.y }; }
     return null;
   }
 

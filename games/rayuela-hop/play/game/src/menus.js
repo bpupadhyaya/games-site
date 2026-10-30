@@ -1,7 +1,7 @@
 // Every screen that is not the play screen. Pure drawing; game.js owns state. All text follows the 100-300% text size.
 import { W, H, scr, host, readerGeom, setupPins } from './layout.js';
 import { drawLockup, drawMoreLine } from './brand.js';
-import { FONT, DISPLAY, C, roundPath, drawButton, panel, wrapLines, flowLayout, drawFlow, flowHit } from './ui.js';
+import { FONT, DISPLAY, C, roundPath, drawButton, panel, wrapLines, flowLayout, drawFlow, flowHit, woodPlaque } from './ui.js';
 import { LEVELS, GAME_LENGTHS, TEXT_SCALES, THINK_STEPS } from './consts.js';
 import { LESSONS } from './content.js';
 import { COURSES, COURSE_LIST } from './courses.js';
@@ -42,7 +42,9 @@ const heroArt = (compact) => ({
     ctx.font = `italic 700 ${Math.round(138 * k)}px ${DISPLAY}`; ctx.fillStyle = '#fff6e4'; ctx.shadowBlur = 14; ctx.shadowOffsetY = 4;
     ctx.fillText('Rayuela', cx, 186 * k + o + (compact ? 4 : 0));
     ctx.font = `400 ${Math.round(28 * (compact ? 0.9 : 1))}px ${FONT}`; ctx.shadowBlur = 6; ctx.fillStyle = '#fff1d2';
-    ctx.fillText('Toss the tejo. Hop the beat. Reach the sky.', cx, 236 * k + o + (compact ? 12 : 0));
+    const tg = 'Toss the tejo. Hop the beat. Reach the sky.', ty = 236 * k + o + (compact ? 12 : 0), tw = ctx.measureText(tg).width + 36, th = Math.round(40 * (compact ? 0.9 : 1));
+    ctx.shadowColor = 'transparent'; woodPlaque(ctx, cx - tw / 2, ty - th * 0.72, tw, th, th / 2, { grain: false }); ctx.shadowColor = 'rgba(14,26,40,0.8)'; ctx.fillStyle = '#fff1d2';
+    ctx.fillText(tg, cx, ty);
     ctx.restore();
   },
 });
@@ -51,11 +53,11 @@ const heroArt = (compact) => ({
 // on the left of the screen and the menu is a column on the right. The gap between the heading and the buttons is whatever the screen has to spare.
 let titleLockTap = null;
 export const getLockTap = () => titleLockTap;
-let titleGap = 372, titlePad = 0;
-export const titleBand = () => ({ top: topOf() + titlePad + 290 + 14, gap: titleGap });
+let titleGap = 372, titlePad = 0, titleHero = 290;
+export const titleBand = () => ({ top: topOf() + titlePad + titleHero + 14, gap: titleGap });
 export function titleWidgets(state) {
   const sv = state.saved, big = TEXT_SCALES[state.settings.textIdx] > 1.5, land = scr.land, three = W >= 640;
-  const tight = !land && H < 1200, bh = land ? 68 : tight ? 66 : 86, rh = land ? 62 : tight ? 60 : 76;
+  const tight = !land && H < 1200, bh = land ? 68 : tight ? 58 : 86, rh = land ? 62 : tight ? 52 : 76;
   const buttons = [
     ...(sv ? [{ t: 'btn', id: 'continue', label: 'Continue match', sub: `${sv.course} · ${sv.names[0]} ${sv.done[0]} · ${sv.names[1]} ${sv.done[1]} · to ${sv.target}`, primary: true, h: bh }] : []),
     { t: 'btn', id: 'play', label: 'Play vs computer', primary: !sv, h: bh },
@@ -71,11 +73,12 @@ export function titleWidgets(state) {
   ];
   if (land) { titleGap = 0; titlePad = 0; return [heroArt(true), { t: 'gap', h: 4 }, ...buttons]; }
   const sc = TEXT_SCALES[state.settings.textIdx];
-  const h0 = flowLayout(estCtx, [heroArt(false), ...buttons], sc, flowOpts('title')).contentH;
+  const h0 = flowLayout(estCtx, [heroArt(tight), ...buttons], sc, flowOpts('title')).contentH;
   const spare = extentOf("title")[1] - topOf() - h0 - 54;                  // the foot of the screen keeps room for the brand lockup
+  titleHero = tight ? 190 : 290;
   titleGap = big ? 10 : clamp(spare, 0, 440);
   titlePad = big ? 0 : Math.max(0, Math.round((spare - 440) * 0.45));
-  return [{ t: 'gap', h: titlePad }, heroArt(false), { t: 'gap', h: titleGap }, ...buttons];
+  return [{ t: 'gap', h: titlePad }, heroArt(tight), { t: 'gap', h: titleGap }, ...buttons];
 }
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 

@@ -22,12 +22,31 @@ export const pxScale = (ctx) => { const m = ctx.getTransform?.(); return m && m.
 // deterministic 0..1 noise
 const hash = (a, b = 0) => { let h = (Math.imul(a | 0, 374761393) + Math.imul(b | 0, 668265263)) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967295; };
 
-// ---- table background (drawn straight, cheap: a vignette) ----------------------------------------------------------------
+// ---- table background: a dark linen-topped table under a lamp, painted once per size at half resolution and cached ---------------
+const tables = new Map();
+function paintTable(c, w, h, W) {
+  let g = c.createLinearGradient(0, 0, w, h); g.addColorStop(0, W.bg0); g.addColorStop(1, W.bg1); c.fillStyle = g; c.fillRect(0, 0, w, h);
+  // woven linen: fine horizontal and vertical threads of uneven strength
+  c.lineWidth = 1;
+  for (let y = 0; y < h; y += 3) { c.strokeStyle = `rgba(255,255,255,${0.012 + hash(y, 7) * 0.03})`; c.beginPath(); c.moveTo(0, y + 0.5); c.lineTo(w, y + 0.5); c.stroke(); }
+  for (let x = 0; x < w; x += 3) { c.strokeStyle = `rgba(0,0,0,${0.02 + hash(x, 9) * 0.05})`; c.beginPath(); c.moveTo(x + 0.5, 0); c.lineTo(x + 0.5, h); c.stroke(); }
+  // lamp: a warm pool of light over the playing area, a cool falloff beyond it
+  const m = Math.min(w, h);
+  g = c.createRadialGradient(w * 0.46, h * 0.4, m * 0.05, w * 0.5, h * 0.46, Math.max(w, h) * 0.7);
+  g.addColorStop(0, 'rgba(255,214,150,0.22)'); g.addColorStop(0.4, 'rgba(255,200,130,0.07)'); g.addColorStop(1, 'rgba(0,0,0,0)'); c.fillStyle = g; c.fillRect(0, 0, w, h);
+  g = c.createRadialGradient(w * 0.5, h * 0.5, m * 0.45, w * 0.5, h * 0.5, Math.max(w, h) * 0.78);
+  g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,0.6)'); c.fillStyle = g; c.fillRect(0, 0, w, h);
+}
 export function drawTable(ctx, w, h, wood) {
-  const W = WOODS[wood] ?? WOODS.kaya;
-  const g = ctx.createRadialGradient(w * 0.5, h * 0.42, Math.min(w, h) * 0.1, w * 0.5, h * 0.5, Math.max(w, h) * 0.75);
-  g.addColorStop(0, W.bg0); g.addColorStop(1, W.bg1);
-  ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+  const W = WOODS[wood] ?? WOODS.kaya, k = 0.5, key = `${Math.round(w)}x${Math.round(h)}|${wood}`;
+  let cv = tables.get(key);
+  if (cv === undefined) {
+    const o = canvasOf(w * k, h * k);
+    if (o) { const c = o.getContext('2d'); c.scale(k, k); paintTable(c, w, h, W); cv = o; } else cv = null;
+    tables.set(key, cv); if (tables.size > 6) tables.delete(tables.keys().next().value);
+  }
+  if (cv) ctx.drawImage(cv, 0, 0, w, h);
+  else { const g = ctx.createRadialGradient(w * 0.5, h * 0.42, Math.min(w, h) * 0.1, w * 0.5, h * 0.5, Math.max(w, h) * 0.75); g.addColorStop(0, W.bg0); g.addColorStop(1, W.bg1); ctx.fillStyle = g; ctx.fillRect(0, 0, w, h); }
 }
 
 // ---- the board layer -------------------------------------------------------------------------------------------------------------
@@ -53,6 +72,9 @@ function paintBoard(c, S, n, wood, coords) {
   // soft light from the top left, shade at the bottom right
   const lg = c.createRadialGradient(S * 0.2, S * 0.15, 0, S * 0.3, S * 0.3, S * 0.95); lg.addColorStop(0, 'rgba(255,248,225,0.30)'); lg.addColorStop(0.5, 'rgba(255,248,225,0)'); lg.addColorStop(1, 'rgba(20,8,0,0.22)');
   c.fillStyle = lg; c.fillRect(0, 0, S, S);
+  // lacquer sheen: a soft diagonal band where the lamp reflects in the varnish
+  const sh = c.createLinearGradient(S * 0.05, S * 0.55, S * 0.75, S * 0.0); sh.addColorStop(0, 'rgba(255,250,235,0)'); sh.addColorStop(0.45, 'rgba(255,250,235,0.0)'); sh.addColorStop(0.62, 'rgba(255,250,235,0.11)'); sh.addColorStop(0.78, 'rgba(255,250,235,0)');
+  c.fillStyle = sh; c.fillRect(0, 0, S, S);
   c.restore();
   // bevel: bright top-left edge, dark bottom-right edge
   c.save(); c.beginPath(); c.roundRect(S * 0.003, S * 0.003, S * 0.994, S * 0.994, r); c.lineWidth = S * 0.006;
@@ -73,7 +95,7 @@ function paintBoard(c, S, n, wood, coords) {
   for (const [sx, sy] of starPoints(n)) { c.beginPath(); c.arc(x0 + sx * cell, x0 + sy * cell, cell * 0.105, 0, TAU); c.fill(); }
   // coordinates, engraved
   if (coords) {
-    const fs = Math.max(cell * 0.3, 7), letters = 'ABCDEFGHJKLMNOPQRS';
+    const fs = Math.max(cell * 0.3, 7), letters = 'ABCDEFGHJKLMNOPQRST';
     c.font = `600 ${fs}px "Cormorant Garamond", Georgia, serif`; c.textAlign = 'center'; c.textBaseline = 'middle';
     c.fillStyle = `rgba(${W.grain},0.62)`;
     for (let i = 0; i < n; i++) {
@@ -97,10 +119,11 @@ export function drawBoard(ctx, x, y, S, n, wood, coords = true) {
   // soft contact shadow under the slab
   ctx.save();
   const Wd = WOODS[wood] ?? WOODS.kaya;
-  ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.beginPath(); ctx.roundRect(x - S * 0.014, y + S * 0.034, S * 1.028, S * 1.0, S * 0.042); ctx.fill();
-  ctx.fillStyle = 'rgba(0,0,0,0.30)'; ctx.beginPath(); ctx.roundRect(x - S * 0.004, y + S * 0.016, S * 1.008, S * 1.0, S * 0.03); ctx.fill();
-  const th = ctx.createLinearGradient(0, y + S * 0.9, 0, y + S * 1.02); th.addColorStop(0, Wd.lo); th.addColorStop(1, Wd.bevel);      // the slab's thickness, seen as a dark edge below
-  ctx.fillStyle = th; ctx.beginPath(); ctx.roundRect(x + S * 0.002, y + S * 0.013, S * 0.996, S * 1.0, S * 0.026); ctx.fill();
+  for (let i = 0; i < 5; i++) { const e = i / 4; ctx.fillStyle = `rgba(0,0,0,${0.075 - e * 0.03})`; ctx.beginPath(); ctx.roundRect(x - S * (0.012 + e * 0.02), y + S * (0.03 + e * 0.02), S * (1.024 + e * 0.04), S * 1.0, S * (0.04 + e * 0.02)); ctx.fill(); }   // ambient occlusion on the table
+  ctx.fillStyle = 'rgba(0,0,0,0.34)'; ctx.beginPath(); ctx.roundRect(x - S * 0.004, y + S * 0.02, S * 1.008, S * 1.0, S * 0.03); ctx.fill();
+  const th = ctx.createLinearGradient(0, y + S * 0.9, 0, y + S * 1.026); th.addColorStop(0, Wd.lo); th.addColorStop(0.35, Wd.bevel); th.addColorStop(1, '#120a04');      // the slab's thickness, seen as a dark edge below
+  ctx.fillStyle = th; ctx.beginPath(); ctx.roundRect(x + S * 0.001, y + S * 0.018, S * 0.998, S * 1.0, S * 0.026); ctx.fill();
+  ctx.strokeStyle = 'rgba(255,230,180,0.28)'; ctx.lineWidth = Math.max(1, S * 0.0018); ctx.beginPath(); ctx.roundRect(x + S * 0.004, y + S * 0.02, S * 0.992, S * 1.0, S * 0.026); ctx.stroke();   // lit lower lip
   ctx.restore();
   if (cv) ctx.drawImage(cv, x, y, S, S);
   else { ctx.save(); ctx.translate(x, y); paintBoard(ctx, S, n, wood, coords); ctx.restore(); }
@@ -176,4 +199,38 @@ export function drawStone(ctx, black, cx, cy, r, set = 'slate', { alpha = 1, lif
 export function glow(ctx, x, y, r, rgb, a) {
   const g = ctx.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, `rgba(${rgb},${a})`); g.addColorStop(1, `rgba(${rgb},0)`);
   ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();
+}
+
+// ---- a turned wooden stone bowl with a heap of stones, centred at (cx, cy) with outer radius R (units) ---------------------------
+// Seen from above at a slant: the rim is a ring, the heap is a handful of stones at fixed jittered spots (deterministic).
+const bowls = new Map();
+function paintBowl(c, R, black, wood, set) {
+  const W = WOODS[wood] ?? WOODS.kaya, cx = R * 1.25, cy = R * 1.2, r = R;
+  let g = c.createRadialGradient(cx + r * 0.12, cy + r * 0.18, r * 0.2, cx + r * 0.1, cy + r * 0.16, r * 1.45);   // soft shadow on the table
+  g.addColorStop(0, 'rgba(0,0,0,0.5)'); g.addColorStop(0.6, 'rgba(0,0,0,0.22)'); g.addColorStop(1, 'rgba(0,0,0,0)'); c.fillStyle = g; c.fillRect(0, 0, R * 2.5, R * 2.5);
+  g = c.createLinearGradient(cx - r, cy - r, cx + r, cy + r); g.addColorStop(0, W.hi); g.addColorStop(0.5, W.mid); g.addColorStop(1, W.bevel);   // the rim
+  c.fillStyle = g; c.beginPath(); c.arc(cx, cy, r, 0, TAU); c.fill();
+  c.strokeStyle = 'rgba(0,0,0,0.5)'; c.lineWidth = r * 0.025; c.beginPath(); c.arc(cx, cy, r * 0.985, 0, TAU); c.stroke();
+  g = c.createRadialGradient(cx - r * 0.3, cy - r * 0.35, r * 0.1, cx, cy, r * 0.84); g.addColorStop(0, '#2a1a0c'); g.addColorStop(1, '#0a0502');   // the dark inside
+  c.fillStyle = g; c.beginPath(); c.arc(cx, cy, r * 0.8, 0, TAU); c.fill();
+  c.strokeStyle = 'rgba(255,236,190,0.35)'; c.lineWidth = r * 0.02; c.beginPath(); c.arc(cx, cy, r * 0.8, Math.PI * 0.95, Math.PI * 1.65); c.stroke();
+  const sr = r * 0.2, spots = [[-0.42, 0.12], [0.4, 0.2], [-0.12, 0.38], [0.14, -0.4], [-0.44, -0.24], [0.5, -0.12], [0, 0.02], [-0.26, -0.5], [0.3, 0.46], [-0.02, -0.18], [0.22, 0.1], [-0.2, 0.14]];
+  const P = STONES[set] ?? STONES.slate;
+  spots.forEach(([dx, dy], i) => {
+    const sx = cx + dx * r * 0.95, sy = cy + dy * r * 0.95 - (i > 6 ? r * 0.05 : 0);
+    c.save(); c.translate(sx - sr, sy - sr); c.fillStyle = 'rgba(0,0,0,0.45)'; c.beginPath(); c.arc(sr * 1.12, sr * 1.18, sr * 1.02, 0, TAU); c.fill(); paintStone(c, black, sr, set); c.restore();
+  });
+  g = c.createRadialGradient(cx, cy, r * 0.5, cx, cy, r * 0.82); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,0.4)'); c.fillStyle = g; c.beginPath(); c.arc(cx, cy, r * 0.8, 0, TAU); c.fill();   // the rim shades the stones
+  c.strokeStyle = 'rgba(255,240,200,0.5)'; c.lineWidth = r * 0.03; c.beginPath(); c.arc(cx, cy, r * 0.975, Math.PI * 1.05, Math.PI * 1.55); c.stroke();   // specular on the lip
+}
+export function drawBowl(ctx, cx, cy, R, black, wood, set) {
+  const k = pxScale(ctx), px = Math.max(32, Math.round(R * 2.5 * k)), key = `${black ? 1 : 0}|${px}|${wood}|${set}`;
+  let cv = bowls.get(key);
+  if (cv === undefined) {
+    const o = canvasOf(px, px);
+    if (o) { const c = o.getContext('2d'); c.scale(px / (R * 2.5), px / (R * 2.5)); paintBowl(c, R, black, wood, set); cv = o; } else cv = null;
+    bowls.set(key, cv); if (bowls.size > 6) bowls.delete(bowls.keys().next().value);
+  }
+  if (cv) ctx.drawImage(cv, cx - R * 1.25, cy - R * 1.2, R * 2.5, R * 2.5);
+  else { ctx.save(); ctx.translate(cx - R * 1.25, cy - R * 1.2); paintBowl(ctx, R, black, wood, set); ctx.restore(); }
 }

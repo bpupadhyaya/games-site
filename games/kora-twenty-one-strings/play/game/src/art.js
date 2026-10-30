@@ -2,6 +2,7 @@
 // shimmer when plucked, glowing notes, fingers. Pure canvas 2D; no DOM. Everything is a function of its arguments (and the clock the
 // caller passes), so it is deterministic.
 import { STRING_COUNT, handOf } from './music.js';
+import { glowOp } from './v3.js';
 
 export const PAL = {
   ink: '#120c20', night: '#1d1233', dusk: '#4b2140', plum: '#6a2c43', clay: '#9a4d33', ember: '#e8743b', emberHi: '#ffc9a0', ice: '#5fd6c8', iceHi: '#d8fbf5',
@@ -94,7 +95,7 @@ function drawLamps(ctx, w, h, t, pulse) {
   const n = Math.max(7, Math.round(w / 90)), y0 = h * 0.012 + 8, sag = Math.min(70, w * 0.07);
   ctx.strokeStyle = 'rgba(40,18,12,0.8)'; ctx.lineWidth = 2; ctx.beginPath();
   for (let i = 0; i <= 40; i++) { const k = i / 40, x = k * w, y = y0 + Math.sin(k * Math.PI) * sag; i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); } ctx.stroke();
-  ctx.globalCompositeOperation = 'lighter';
+  ctx.globalCompositeOperation = glowOp();
   for (let i = 0; i < n; i++) {
     const k = (i + 0.5) / n, x = k * w, y = y0 + Math.sin(k * Math.PI) * sag + 8 + Math.sin(t * 0.8 + i) * 1.5;
     const a = 0.55 + 0.2 * Math.sin(t * 2.1 + i * 1.9) + 0.15 * pulse;
@@ -105,7 +106,7 @@ function drawLamps(ctx, w, h, t, pulse) {
 }
 
 export function drawFireflies(ctx, w, h, t, n = 18) {
-  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  ctx.save(); ctx.globalCompositeOperation = glowOp();
   for (let i = 0; i < n; i++) {
     const bx = ((i * 211.3) % w), by = h * (0.3 + 0.55 * ((i * 0.37) % 1));
     const x = bx + Math.sin(t * 0.35 + i * 2.1) * 46 + Math.sin(t * 0.9 + i) * 10, y = by + Math.cos(t * 0.3 + i * 1.3) * 34;
@@ -184,7 +185,7 @@ export function drawCalabash(ctx, cx, cy, rx, ry, glow = 0) {
   ctx.fillStyle = sg; ctx.beginPath(); ctx.ellipse(cx, cy + ry * 1.0, rx * 1.2, ry * 0.5, 0, 0, TAU); ctx.fill();
   if (c) ctx.drawImage(c, cx - rx - 20, cy - ry - 20, rx * 2 + 40, ry * 2 + 40);
   else { ctx.fillStyle = '#c27a35'; ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, 0, 0, TAU); ctx.fill(); ctx.fillStyle = PAL.skin; ctx.beginPath(); ctx.ellipse(cx, cy, rx * 0.92, ry * 0.92, 0, 0, TAU); ctx.fill(); }
-  if (glow > 0.01) { ctx.globalCompositeOperation = 'lighter'; const gg = ctx.createRadialGradient(cx, cy - ry * 0.3, 4, cx, cy - ry * 0.3, rx * 0.95); gg.addColorStop(0, `rgba(255,190,100,${0.3 * glow})`); gg.addColorStop(1, 'rgba(255,190,100,0)'); ctx.fillStyle = gg; ctx.beginPath(); ctx.ellipse(cx, cy, rx * 0.92, ry * 0.92, 0, 0, TAU); ctx.fill(); }
+  if (glow > 0.01) { ctx.globalCompositeOperation = glowOp(); const gg = ctx.createRadialGradient(cx, cy - ry * 0.3, 4, cx, cy - ry * 0.3, rx * 0.95); gg.addColorStop(0, `rgba(255,190,100,${0.3 * glow})`); gg.addColorStop(1, 'rgba(255,190,100,0)'); ctx.fillStyle = gg; ctx.beginPath(); ctx.ellipse(cx, cy, rx * 0.92, ry * 0.92, 0, 0, TAU); ctx.fill(); }
   ctx.restore();
 }
 
@@ -197,7 +198,7 @@ export function drawBridge(ctx, x0, x1, y, h, glow = 0) {
   g.addColorStop(0, '#e2a76a'); g.addColorStop(0.3, '#a8622d'); g.addColorStop(1, '#4d230e');
   ctx.fillStyle = g; ctx.beginPath(); ctx.roundRect(x0 - 8, y - h * 0.5, w + 16, h, h * 0.4); ctx.fill();
   ctx.strokeStyle = 'rgba(255,230,190,0.5)'; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(x0 + 6, y - h * 0.5 + 2); ctx.lineTo(x1 - 6, y - h * 0.5 + 2); ctx.stroke();
-  if (glow > 0.01) { ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = `rgba(255,190,100,${0.35 * glow})`; ctx.beginPath(); ctx.roundRect(x0 - 8, y - h * 0.5, w + 16, h, h * 0.4); ctx.fill(); }
+  if (glow > 0.01) { ctx.globalCompositeOperation = glowOp(); ctx.fillStyle = `rgba(255,190,100,${0.35 * glow})`; ctx.beginPath(); ctx.roundRect(x0 - 8, y - h * 0.5, w + 16, h, h * 0.4); ctx.fill(); }
   ctx.restore();
 }
 
@@ -222,7 +223,7 @@ export function drawString(ctx, x0, y0, x1, y1, idx, amp, t, o = {}) {
   fade.addColorStop(0, `rgba(246,236,208,0)`); fade.addColorStop(0.35, `rgba(246,236,208,${0.5 * dim})`); fade.addColorStop(1, `rgba(255,248,226,${0.92 * dim})`);
   if (amp > 0.02) {
     const col = handRGB(handOf(idx)), segs = 14;
-    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalCompositeOperation = glowOp();
     ctx.strokeStyle = `rgba(${col},${(dim < 1 ? 0.22 : 0.5) * amp})`; ctx.lineWidth = thick * (dim < 1 ? 3 : 5.5); ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
     ctx.globalCompositeOperation = 'source-over';
     const dx = x1 - x0, dy = y1 - y0, len = Math.hypot(dx, dy) || 1, nx = -dy / len, ny = dx / len;
@@ -248,7 +249,7 @@ export function drawNote(ctx, x, y, r, hand, soft = false, label = null, alpha =
     ctx.strokeStyle = `rgba(${rgb},0.8)`; ctx.lineWidth = Math.max(2.5, rr * 0.2); ctx.beginPath(); ctx.arc(x, y, rr * 0.9, 0, TAU); ctx.stroke();
     ctx.fillStyle = `rgba(${rgb},0.16)`; ctx.beginPath(); ctx.arc(x, y, rr * 0.9, 0, TAU); ctx.fill();
   } else {
-    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalCompositeOperation = glowOp();
     const hg = ctx.createRadialGradient(x, y, rr * 0.4, x, y, rr * 1.9); hg.addColorStop(0, `rgba(${rgb},${soft ? 0.3 : 0.5})`); hg.addColorStop(1, `rgba(${rgb},0)`);
     ctx.fillStyle = hg; ctx.beginPath(); ctx.arc(x, y, rr * 1.9, 0, TAU); ctx.fill();
     ctx.globalCompositeOperation = 'source-over';
@@ -296,7 +297,7 @@ export function drawFinger(ctx, x, tipY, size, kind, hand, bottomY, glow = 0) {
   const fade = ctx.createLinearGradient(0, bottomY - len * 0.5, 0, bottomY); fade.addColorStop(0, 'rgba(26,10,12,0)'); fade.addColorStop(1, 'rgba(26,10,12,0.92)');
   ctx.fillStyle = fade; ctx.fillRect(x - w2, bottomY - len * 0.5, w2 * 2, len * 0.5);
   ctx.restore();
-  if (glow > 0.01) { ctx.globalCompositeOperation = 'lighter'; const gg = ctx.createRadialGradient(x, tipY + w * 0.3, 2, x, tipY + w * 0.3, w * 1.7); gg.addColorStop(0, `rgba(${handRGB(hand)},${0.75 * glow})`); gg.addColorStop(1, `rgba(${handRGB(hand)},0)`); ctx.fillStyle = gg; ctx.beginPath(); ctx.arc(x, tipY + w * 0.3, w * 1.7, 0, TAU); ctx.fill(); }
+  if (glow > 0.01) { ctx.globalCompositeOperation = glowOp(); const gg = ctx.createRadialGradient(x, tipY + w * 0.3, 2, x, tipY + w * 0.3, w * 1.7); gg.addColorStop(0, `rgba(${handRGB(hand)},${0.75 * glow})`); gg.addColorStop(1, `rgba(${handRGB(hand)},0)`); ctx.fillStyle = gg; ctx.beginPath(); ctx.arc(x, tipY + w * 0.3, w * 1.7, 0, TAU); ctx.fill(); }
   ctx.restore();
 }
 
@@ -312,7 +313,7 @@ export function drawPopup(ctx, p) {
 
 // ---- particles ---------------------------------------------------------------------------------------------------------------------------------------------------
 export function drawParticles(ctx, list) {
-  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  ctx.save(); ctx.globalCompositeOperation = glowOp();
   for (const p of list) {
     const k = p.life / p.max, a = Math.max(0, k), r = p.size * (0.4 + 0.6 * k);
     const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r * 2.2);

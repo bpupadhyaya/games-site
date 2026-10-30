@@ -252,6 +252,16 @@ export async function createPresenter({ kitCanvas, quality = 'high' }) {
   v3.pick = (vx, vy) => {
     if (!L_ || !boardGrp) return -1;
     let best = -1, bd = 1e9;
+    // the square whose centre is under the finger wins over pieces on squares behind it (the tilt makes front pieces overlap the squares behind)
+    {
+      const nx = (vx / L_.w) * 2 - 1, ny = 1 - (vy / L_.h) * 2; orig.copy(camera.position); ray.set(nx, ny, 0.5).unproject(camera).sub(orig).normalize();
+      const t0 = Math.abs(ray.y) < 1e-5 ? -1 : (TILE_TOP - orig.y) / ray.y;
+      if (t0 > 0) {
+        hitV.copy(orig).addScaledVector(ray, t0); boardRoot.worldToLocal(hitV);
+        const c0 = Math.floor(hitV.x + 3.5), r0 = Math.floor(hitV.z + 3.5);
+        if (c0 >= 0 && c0 <= 6 && r0 >= 0 && r0 <= 6 && Math.hypot(hitV.x - (c0 - 3), hitV.z - (r0 - 3)) < 0.3) return r0 * 7 + c0;
+      }
+    }
     const unit = Math.abs(toVirt(1, TILE_TOP, 0).x - toVirt(0, TILE_TOP, 0).x) || 50;
     for (const i of occupied) {
       const base = toVirt(cellX(i), TILE_TOP + 0.04, cellZ(i)), top = toVirt(cellX(i), TILE_TOP + 0.95, cellZ(i));
@@ -435,7 +445,7 @@ export async function createPresenter({ kitCanvas, quality = 'high' }) {
       fitCamera({ x: L.w * 0.06, y: L.h * 0.3, w: L.w * 0.88, h: L.w * 0.88 }, L, 34, 34, state.calm ? 0 : Math.sin(clock * 0.15) * 7);
       heroState(state);
     } else {
-      fitCamera({ x: L.board.x, y: L.board.y, w: L.board.S, h: L.board.S }, L, L.land ? 50 : 47, 30, 0);
+      fitCamera({ x: L.board.x, y: L.board.y, w: L.board.S, h: L.board.S }, L, L.land ? 50 : 42, 32, 0);
       boardState(state);
     }
   }

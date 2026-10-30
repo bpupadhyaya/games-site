@@ -2,6 +2,7 @@
 //
 // How a move is made: marked squares show where a disc may go; tap one. The disc drops, then every trapped enemy disc turns over in a ripple
 // away from it. A refused tap says why. If a side has no legal move it passes automatically and the screen says so.
+import { v3 } from './v3.js';
 import { layoutFor, TEXT_SCALES, THINK_STEPS, inRect } from './layout.js';
 import { newGame, clone, applyMove, tryMove, legalMoves, flipsAt, normalizeTurn, describeMove, isLegal, discs, VARIANTS } from './rules.js';
 import { LEVELS, createThinker, chooseMove } from './ai.js';
@@ -13,6 +14,8 @@ import { render, ui, docMetrics } from './view.js';
 // Fluid viewport (kit 1.7.0): the short side is always 720 units and the long side follows the screen, in portrait and landscape.
 export const meta = { width: 720, height: 1560, fluid: { short: 720 } };
 // Mouse-wheel travel (virtual units) collected by main.js and consumed by the document screens; empty in headless runs.
+// the cell under a finger: through the tilted 3D board when it is on screen, else the flat layout
+const sqAt = (L, x, y) => (v3.on && v3.hit ? v3.hit(x, y) : L.squareAt(x, y));
 export const wheelInput = { dy: 0 };
 const DEMO_GAMES = 2, HINTS_PER_GAME = 3, AUTO_REVEAL_SECS = 2;
 const PLACE = 0.2, FLIP = 0.46, STAGGER = 0.1;
@@ -247,7 +250,7 @@ export function createGame(env) {
       return;
     }
     const L = lay(); let m = null;
-    if (p.pressed) m = pressSquare(L.squareAt(p.x, p.y));
+    if (p.pressed) m = pressSquare(sqAt(L, p.x, p.y));
     if (!m) { const k = keyMove(input); if (k) m = k; }
     if (m) { state.undo.push({ game: clone(state.game) }); play(m); }
   }
@@ -273,7 +276,7 @@ export function createGame(env) {
       return;
     }
     if (!p.pressed) return;
-    const m = pressSquare(lay().squareAt(p.x, p.y)); if (!m) return;
+    const m = pressSquare(sqAt(lay(), p.x, p.y)); if (!m) return;
     const g = state.game, goal = l.goal, flips = flippedBy(g, m.to);
     let ok = false;
     if (goal.type === 'to') ok = m.to === goal.to;

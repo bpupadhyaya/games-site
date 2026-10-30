@@ -119,14 +119,14 @@ function build(w, h, ins) {
 
 // ---- the throwing rug: where the six cowries (or the die) rest, and the hint / result pill -----------------------------------
 // Everything is a fraction of the live rug, so the rug can be any size. At the tall phone size these are the original numbers.
-export function throwGeo() {
-  const { x, y, w, h } = MAT, rows = L.rows || 2, cols = rows === 2 ? 3 : 6, zoneH = h - 76, cx = x + w / 2;
+export function throwGeo(mat = MAT, rows0 = L.rows || 2) {
+  const { x, y, w, h } = mat, rows = rows0, cols = rows === 2 ? 3 : 6, zoneH = h - 76, cx = x + w / 2;
   const sx = rows === 2 ? Math.min(170, (w - 140) / 2) : Math.min(110, (w - 110) / 5), sy = rows === 2 ? Math.min(96, zoneH * 0.4) : 0;
   const mid = y + 41 * (h / 322) + zoneH / 2, spots = [];
   for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) spots.push([cx + (c - (cols - 1) / 2) * sx, rows === 2 ? mid + (r - 0.5) * sy : mid]);
   const k = rows === 2 ? 1.3 * Math.min(1, sx / 150, (sy || 96) / 80) : 1.2 * Math.min(1, sx / 100);
   const pillY = y + h - 38, pw = Math.min(500, w - 40), mw = Math.min(420, w - 40);
-  return { spots, k, cx, dieXY: [cx, mid + (rows === 2 ? 0 : 0)], dieK: rows === 2 ? 1.2 : 1.0, arrowY: rows === 2 ? spots[0][1] - 26 : null, pillY, pill: R4(cx - pw / 2, pillY - 34, pw, 62), medal: R4(cx - mw / 2, pillY - 34, mw, 62), glow: { cx, cy: mid, rx: Math.min(300, w / 2 - 20), ry: Math.max(60, zoneH * 0.5) }, zone: R4(x, y - 20, w, h + 40) };
+  return { below: y + h + 140, spots, k, cx, dieXY: [cx, mid + (rows === 2 ? 0 : 0)], dieK: rows === 2 ? 1.2 : 1.0, arrowY: rows === 2 ? spots[0][1] - 26 : null, pillY, pill: R4(cx - pw / 2, pillY - 34, pw, 62), medal: R4(cx - mw / 2, pillY - 34, mw, 62), glow: { cx, cy: mid, rx: Math.min(300, w / 2 - 20), ry: Math.max(60, zoneH * 0.5) }, zone: R4(x, y - 20, w, h + 40) };
 }
 
 // The row / grid of n buttons in the control area (play screens). 1 row across the bar, or 2 columns in a narrow side column.

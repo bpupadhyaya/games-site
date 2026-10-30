@@ -5,6 +5,7 @@
 //   wide    landscape: a card on the left (status, goats), the board in the middle, a card on the right (buttons).
 // The board is a plane seen in perspective: board coordinates (u, v), u in -2..2 (columns) and v in 0..4 (rows, 0 = far side).
 // A true projective map, so straight lines stay straight. The whole board scales uniformly with `board.s`.
+import { v3 } from './v3.js';
 export const THINK_STEPS = [2, 5, 8, 10];
 export const TEXT_SCALES = [1, 1.5, 2, 2.5, 3];
 export const inRect = (r, x, y) => !!r && x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
@@ -56,12 +57,11 @@ function build(w, h, ins) {
   const sizeFor = (kind, freeW, freeH) => { const k = KINDS[kind], s = Math.min(1, freeW / k.bbW, freeH / k.bbH); return { kind, s, size: s * Math.sqrt(k.bbW * k.bbH) }; };
   const pick = (freeW, freeH) => { if (ins.kind === 'flat' || ins.kind === 'tilt') return sizeFor(ins.kind, freeW, freeH); const f = sizeFor('flat', freeW, freeH), t = sizeFor('tilt', freeW, freeH); return f.size >= 0.92 * t.size ? f : t; };
   let choice, cx, top, Lw = 0, Rw = 0;                 // top = screen y of the canonical bbox top
-  if (tall) { choice = sizeFor('tilt', w, 9999); cx = w / 2; top = barY - 127 - KINDS.tilt.top; }
-  else if (!land) {
+  if (!land) {            // portrait (tall phones too): the compact header strip, the board as wide as the screen allows (flat grid preferred)
     // +30 on top: the head icon rises above its row
-    L.top = Math.max(14, ins.t + 6) + 30; L.dy = ins.back ? Math.max(0, L.backBox.y + L.backBox.h + 6 - (L.top + 66)) : 0; L.HB = L.top + 278 + L.dy;
+    L.top = Math.max(tall ? 40 : 14, ins.t + 6) + 30; L.dy = ins.back ? Math.max(0, L.backBox.y + L.backBox.h + 6 - (L.top + 66)) : 0; L.HB = L.top + 278 + L.dy;
     const freeH = barY - 6 - L.HB; choice = pick(w - 16, freeH);
-    cx = w / 2; top = L.HB + (freeH - KINDS[choice.kind].bbH * choice.s) / 2;
+    cx = w / 2; top = L.HB + (freeH - KINDS[choice.kind].bbH * choice.s) * (tall ? 0.62 : 0.5);
   } else {
     choice = pick(U.w - Lmin - Rmin - 2 * g, U.h - 24);
     const bw = KINDS[choice.kind].bbW * choice.s, sym = (U.w - bw) / 2 - g;
@@ -79,11 +79,13 @@ function build(w, h, ins) {
     box: { x0: cx - kd.halfW * bs, x1: cx + kd.halfW * bs, y0: yNear - kd.boxTop * bs, y1: yNear + kd.bottom * bs },
     head: { x0: cx - kd.halfW * bs, x1: cx + kd.halfW * bs, y0: yNear - kd.top * bs, y1: yNear + kd.bottom * bs },
   };
-  L.pointAt = (i) => pts[i];
+  L.pointAt = (i) => (v3.on && v3.pts ? v3.pts[i] : pts[i]);
   L.pointNear = (x, y) => {
+    // with the 3D scene live, the points are where the tilted board really is on screen (v3.pts); a piece stands above its point
+    const P = v3.on && v3.pts, sc = P ? 1 : bs;
     let best = -1, bd = Infinity;
-    for (let i = 0; i < 25; i++) { const p = pts[i], d = Math.min(Math.hypot(p.x - x, p.y - y), Math.hypot(p.x - x, p.y - 26 * bs * p.s - y)); if (d < bd) { bd = d; best = i; } }
-    return bd < Math.max(46, 62 * bs) ? best : -1;
+    for (let i = 0; i < 25; i++) { const p = P ? P[i] : pts[i], up = P ? v3.d * 0.5 : 26 * bs * p.s, d = Math.min(Math.hypot(p.x - x, p.y - y), Math.hypot(p.x - x, p.y - up - y)); if (d < bd) { bd = d; best = i; } }
+    return bd < (P ? Math.max(30, v3.d * 0.6) : Math.max(46, 62 * sc)) ? best : -1;
   };
 
   // ---- buttons while playing / lessons / puzzles / results -------------------------------------------------------------
@@ -120,16 +122,7 @@ function build(w, h, ins) {
   // ---- the header furniture around the board ---------------------------------------------------------------------------
   const handN = 20;
   const hud = L.hud = { handScale: 0.95, capScale: 0.5 };
-  if (tall) {
-    Object.assign(hud, {
-      title: { x: 410, y: 166, size: 40 }, icon: { x: 110, y: 404 }, turn: { x: 180, y: 384, size: 36, align: 'left', maxW: 500 },
-      mode: { x: 180, y: 422, size: 23, align: 'left', maxW: 500 }, handLabel: { x: 64, y: 456, size: 26, align: 'left' }, capLabel: { x: 64, y: 654, size: 26, align: 'left' },
-      hand: (k) => ({ x: 94 + (k % 10) * 59, y: 524 + Math.floor(k / 10) * 62, s: 1 }), cap: (k) => ({ x: 92 + k * 30, y: 704, s: 1 }),
-      msg: { fixed: false, topY: ins.back ? Math.max(168, L.backBox.y + L.backBox.h + 8) : 168, x: 40, w: 640, maxW: 590, aboveY: 748 },
-      lesson: { label: { x: 410, y: 130, size: 26, align: 'center' }, title: { x: 360, y: 250, size: 46, maxW: 640 }, body: { x: 50, y: 305, w: 620, h: 360, size: 29, bigSize: 34, lh: 40, align: 'center' } },
-      puzzle: { label: { x: 410, y: 130, size: 26, align: 'center' }, icon: { x: 110, y: 300 }, title: { x: 180, y: 270, size: 40, maxW: 500 }, body: { x: 64, y: 337, w: 600, h: 112, size: 27, bigSize: 32, lh: 36, align: 'left' }, streak: { x: 64, y: 470, size: 26, align: 'left' }, cap: { x: 64, y: 520, size: 24, align: 'left' } },
-    });
-  } else if (!land) {
+  if (!land) {
     const top = L.top, dy = L.dy, ix = Math.max(60, L.backBox.x + L.backBox.w + 36), rowA = top + 28;
     Object.assign(hud, {
       title: null, icon: { x: ix, y: rowA + 14 }, turn: { x: ix + 50, y: rowA + 6, size: 32, align: 'left', maxW: w - ix - 80 }, mode: { x: ix + 50, y: rowA + 38, size: 24, align: 'left', maxW: w - ix - 80 },

@@ -160,4 +160,39 @@ export function drawDiagram(ctx, rect, o) {
   }
   ctx.restore();
 }
+// the same teaching lines as drawDiagram, drawn ON the 3D field: pt(u, v) -> {x, y, s} is the screen point of a ground spot and s the pixels per yard there
+export function drawRoutes3d(ctx, o, pt) {
+  const { offId, defId, showOff = true, showDef = true } = o;
+  const play = offPlay(offId || 'quick'), call = defCall(defId || 'zone');
+  const st = (u, v) => pt(u, v);
+  const line = (pts, col, wid, dash) => { ctx.save(); ctx.strokeStyle = col; ctx.lineWidth = wid; ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.setLineDash(dash || []); ctx.shadowColor = 'rgba(0,0,0,0.55)'; ctx.shadowBlur = 4; ctx.beginPath(); pts.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y))); ctx.stroke(); ctx.restore(); };
+  const head = (a, b, col, sz) => arrowHead(ctx, a.x, a.y, b.x, b.y, col, sz);
+  const ref = st(10, 0), s0 = ref.s;
+  if (showDef) {
+    const f = defFormation(call);
+    for (const slot of DEF_SLOTS) {
+      const [u, v] = f[slot], t = call.tasks[slot], a = st(u, v), col = '#ffb0a8';
+      if (t.k === 'rush') { const b = st(-4.2, t.lane * 0.3); line([a, b], col, Math.max(3, s0 * 0.2), [8, 6]); head(a, b, col, Math.max(10, s0 * 0.6)); }
+      else if (t.k === 'man') { const fo = offFormation(play)[t.on], b = st(fo[0], fo[1]); line([a, b], col, Math.max(3, s0 * 0.2), [8, 6]); }
+      else if (t.k === 'zone' || t.k === 'deep') {
+        const rr = t.r || 4.2, ring = []; for (let k = 0; k <= 24; k++) { const an = (k / 24) * TAU; ring.push(st(t.u + Math.sin(an) * rr * 0.75, t.v + Math.cos(an) * rr)); }
+        ctx.save(); ctx.fillStyle = 'rgba(255,176,168,0.22)'; ctx.beginPath(); ring.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y))); ctx.fill(); ctx.restore(); line(ring, col, Math.max(2.5, s0 * 0.16), [7, 5]);
+      } else if (t.k === 'fill') { const b = st(t.u, t.v); line([a, b], col, Math.max(3, s0 * 0.2), [8, 6]); head(a, b, col, Math.max(10, s0 * 0.6)); }
+    }
+  }
+  if (showOff) {
+    const f = offFormation(play), colors = { WA: '#ffe27a', WB: '#9fe8ff', TE: '#b9f2a1', RB: '#ffb86a', QB: '#ffffff' };
+    for (const slot of OFF_SLOTS) {
+      const r = play.routes && play.routes[slot];
+      let pts = [f[slot]]; if (r && r.length) pts = pts.concat(r);
+      if (pts.length > 1 && slot !== 'C' && slot !== 'G') {
+        const sp = pts.map(([u, v]) => st(u, v)), col = colors[slot] || '#fff';
+        line(sp, col, Math.max(4, s0 * 0.3)); head(sp[sp.length - 2], sp[sp.length - 1], col, Math.max(12, s0 * 0.85));
+      }
+    }
+    if (play.carrier && play.hole) { const c = play.carrier, last = (play.routes && play.routes[c] && play.routes[c].length) ? play.routes[c][play.routes[c].length - 1] : f[c]; const a = st(last[0], last[1]), b = st(play.hole[0], play.hole[1]); line([a, b], '#ffb86a', Math.max(5, s0 * 0.36)); head(a, b, '#ffb86a', Math.max(13, s0 * 0.9)); }
+    if (play.handoff) { const q = f.QB, a = st(q[0], q[1]), b = st(play.handoff.at[0], play.handoff.at[1]); line([a, b], '#ffffff', 3, [6, 6]); }
+    if (play.draw) { const q = f.QB; line([st(q[0], q[1]), st(play.draw.u, 0), st(play.hole[0], play.hole[1])], '#ffffff', Math.max(4, s0 * 0.3), [8, 8]); }
+  }
+}
 export { OFF_SLOT_OF_P, DEF_SLOT_OF_P };

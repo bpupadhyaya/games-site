@@ -270,6 +270,7 @@ export async function createPresenter({ kitCanvas, quality = 'high' }) {
       // fit the RESTING box (the new face has the same footprint class) into the layout's area; the plane mapping follows the layout face box
       const G0 = PL.face, rest = faceFor(specOf(P, P.face), look, `${look}|${Bx.n}|${Bx.goal.join('')}|${specKey(specOf(P, P.face))}`);
       fitCamera(PL.area, boxPts(rest.dims.cw, rest.dims.ch, FRAME_TOP + 0.1, BODY_BOTTOM), PL.land ? 58 : 60, 28, 0);
+      desk.arrange(rest.dims.cw / 2, rest.dims.ch / 2, !PL.land);
       setPlaneMapping(G0.box.x + G0.box.w / 2, G0.box.y + G0.box.h / 2, G0.S);
       if (turn) { const a = k < 0.5 ? -ease(k * 2) : ease((1 - k) * 2); pivot.rotation.x = a; boxRig.position.y = 0.55 + Math.sin(k * Math.PI) * 0.5; }
       f.update(facePanels(state, faceNow), clock, { win: P.done ? 1 : 0, dt: frameDt });
@@ -280,13 +281,13 @@ export async function createPresenter({ kitCanvas, quality = 'high' }) {
     } else if (sc === 'over' && state.result) {
       for (const o of faces.values()) o.group.visible = false;
       if (!openBox) { openBox = buildOpenBox(LOOKS[look], look); sceneRoot.add(openBox.group); }
-      openBox.group.visible = true;
+      openBox.group.visible = true; desk.arrange(0, 0, false);
       const O = overLayout(L.w, L.h), d = openBox.dims;
       fitCamera(O.field, boxPts(d.W + 1.2, d.D + 1.4, d.H + 3.1, 0), 36, 30, Math.sin(clock * 0.3) * 7, d.H * 0.75);
       openBox.update(clamp(state.sceneT / 1.6, 0, 1), state.result.keep, clock, camera);
     } else {
       // menus and pages: the hero box (three lanes sliding) behind the plaques
-      const f = faceFor(heroSpec, look, `${look}|hero`); showOnly(f);
+      const f = faceFor(heroSpec, look, `${look}|hero`); showOnly(f); desk.arrange(0, 0, false);
       let rect, pitch = 50;
       const yaw = Math.sin(clock * 0.18) * (calm ? 0 : 8);
       if (sc === 'title' || sc === 'demo-limit') rect = titleHero(L.w, L.h).fr;

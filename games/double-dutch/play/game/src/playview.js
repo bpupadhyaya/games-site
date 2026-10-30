@@ -22,7 +22,7 @@ export function pulseOf(r) {
 
 // The rope strip: every pass as a mark sliding towards the NOW line. Marks fade out with the colour of their judgement.
 function renderStrip(ctx, st, r, T) {
-  panel(ctx, T, { fill: 'rgba(22,11,44,0.86)', rad: 18 });
+  panel(ctx, T, { wood: true, fill: 'rgba(26,15,51,0.9)', rad: 18 });
   ctx.save(); rrect(ctx, T, 18); ctx.clip();
   const beat = r.rt.beat, nowX = T.x + T.w * 0.17, ahead = 3.1 * beat * 2.2 / 2.2;
   const pps = (T.x + T.w - 14 - nowX) / (ahead + 0.5), cy = T.y + T.h * 0.5;
@@ -89,7 +89,7 @@ function renderHud(ctx, st, r, L) {
   const tw = Math.min(ctx.measureText(label).width, sw);
   if (r.mode !== 'play') chip(ctx, lx + tw + 14, P.strip.y + P.strip.h / 2, r.mode === 'auto' ? 'WATCH' : 'PRACTICE', 20, { fill: r.mode === 'auto' ? 'rgba(62,232,181,0.95)' : 'rgba(255,200,61,0.95)', color: '#1a0f33' });
   const H = P.hud, cy = H.y + H.h / 2;
-  if (wide) panel(ctx, H, { fill: 'rgba(22,11,44,0.72)', rad: 18 });
+  if (wide) panel(ctx, H, { wood: true, fill: 'rgba(26,15,51,0.9)', rad: 18 });
   const m = comboMult(r.combo);
   if (wide) {
     txt(ctx, String(r.score), H.x + H.w / 2, H.y + 50, 74, PAL.gold, { align: 'center', weight: 800, stroke: 8 });
@@ -142,7 +142,7 @@ function renderRoutine(ctx, st, r, L) {
   const W = Math.min(stg.w - 24, 760), rows = Math.ceil(rt.beats / 8), cell = Math.min((W - 40) / 8, 84);
   const pw = cell * 8 + 40, ph = rows * cell + 130;
   const x = stg.x + (stg.w - pw) / 2, y = stg.y + Math.max(8, (stg.h - ph) * 0.15);
-  panel(ctx, { x, y, w: pw, h: ph }, { fill: 'rgba(22,11,44,0.9)', rad: 22 });
+  panel(ctx, { x, y, w: pw, h: ph }, { wood: true, fill: 'rgba(22,11,44,0.9)', rad: 22 });
   const left = r.phase === 'think' ? Math.max(0, st.prefs.thinkSec - r.phaseT) : Math.max(0, THINK.reveal - r.phaseT);
   txt(ctx, r.phase === 'think' ? 'THINK: READ THE ROUTINE' : 'REVEAL: HERE IT COMES', x + pw / 2, y + 36, 36, PAL.gold, { align: 'center', weight: 800, maxW: pw - 30 });
   txt(ctx, `${r.level.name}  -  ${rt.beats} beats  -  ${rt.calls} calls  -  ${Math.ceil(left)} s`, x + pw / 2, y + 74, 24, PAL.dim, { align: 'center', weight: 700, maxW: pw - 30 });
@@ -232,7 +232,7 @@ export function renderPlay(ctx, st, L, view, meta, pauseItems) {
   if (r.paused) {
     ctx.fillStyle = 'rgba(8,3,20,0.64)'; ctx.fillRect(0, 0, L.w, L.h);
     const items = pauseItems(r), M = menuRects(L, items.length);
-    panel(ctx, M.panel, { fill: 'rgba(26,15,51,0.96)' });
+    panel(ctx, M.panel, { wood: true, fill: 'rgba(26,15,51,0.9)' });
     txt(ctx, 'PAUSED', M.panel.x + M.panel.w / 2, M.panel.y + 64, 60, PAL.gold, { align: 'center', weight: 800, stroke: 8 });
     const names = { resume: 'Resume', restart: 'Restart', quit: 'Leave', replay: 'Watch again', next: 'Next block' };
     items.forEach((it, i) => button(ctx, M.btns[i], names[it], { kind: it === 'resume' ? 'primary' : 'quiet', size: 36, icon: it === 'resume' ? 'play' : it === 'restart' || it === 'replay' ? 'restart' : undefined }));

@@ -1,5 +1,6 @@
 // UI drawing helpers: the washi desk, flat clean buttons (no inner gloss), panels, icons, stars, particles. Palette is light and warm:
 // linen desk, cream cards, ink text, vermilion and indigo accents.
+import { v3 } from './v3.js';
 export const UI = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 export const DISPLAY = '"Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", "Songti SC", Georgia, "Times New Roman", serif';
 export const INK = '#2b2530';
@@ -56,6 +57,7 @@ function linenTile() {
 
 // The table: warm linen under window light. `lx, ly` = where the light falls.
 export function desk(ctx, w, h, t = 0, lx = 0.3, ly = 0.15) {
+  if (v3.on) return;   // the 3D desk is behind this canvas
   const g = ctx.createLinearGradient(0, 0, w, h);
   g.addColorStop(0, '#efe5cf'); g.addColorStop(1, '#ddd0b3');
   ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);

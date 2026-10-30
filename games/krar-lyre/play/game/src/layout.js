@@ -52,7 +52,7 @@ function build(w, h) {
       P.left = R(S.x + 16, S.y + 16 + dy, pw, S.h - 32 - dy);
       P.right = R(S.x + S.w - 16 - pw, S.y + 16, pw, S.h - 32);
       const sx = P.left.x + pw + 18, sw = P.right.x - 18 - sx;
-      P.stage = lyreFor(sx, S.y + 66, sw, S.h - 74);
+      P.stage = lyreFor(sx, S.y + 52, sw, S.h - 56);
       P.stageCap = P.stage;
       P.pause = R(P.right.x + 14, P.right.y + P.right.h - 14 - bw, pw - 28, bw);
       P.hint = R(P.right.x + 14, P.pause.y - 14 - bw, pw - 28, bw);
@@ -111,7 +111,7 @@ function build(w, h) {
   // ---- TITLE ------------------------------------------------------------------------------------------------------------------
   {
     const T = {};
-    const bh = Math.max(S.h < 1200 && mode !== 'wide' ? 70 : 80, mb);
+    const bh0 = Math.max(S.h < 1200 && mode !== 'wide' ? 70 : 80, mb), bh = bh0;
     if (mode === 'wide') {
       const colW = clamp(w * 0.3, 300, 460), colX = S.x + S.w - 32 - colW, sh = Math.max(64, mb);
       const total = (bh + 14) + (bh + 12) * 3 + (sh + 12) * 2 - 12;
@@ -131,20 +131,22 @@ function build(w, h) {
       T.credit = { x: T.hero.cx, y: S.y + S.h - 16 };
       T.col = R(colX, y0, colW, y + sh - y0);
     } else {
-      const bw = Math.min(S.w - 64, 560), bx = S.x + (S.w - bw) / 2, sh = Math.max(S.h < 1200 ? 58 : 64, mb);
-      const total = (bh + 14) + (bh + 12) * 3 + (sh + 12) * 2 - 12;
+      const bw = Math.min(S.w - 64, 560), bx = S.x + (S.w - bw) / 2, sh = Math.max(mb, Math.round((S.h < 1200 ? 58 : 64) * 0.86));
+      const bh = Math.max(mb, Math.round(bh0 * 0.8));   // slimmer rows give the lyre hero the room (owner rule: the instrument dominates)
+      const total = (bh + 14) + (bh + 10) * 3 + (sh + 10) * 2 - 10;
       const bottom = S.y + S.h - 92;
       let y = bottom - total;
-      T.size = Math.min(120, (S.w - 60) / 4.6);
-      T.titleY = S.y + Math.max(70, (y - S.y) * 0.1);
-      const lt = T.titleY + T.size * 1.45 + 24;
+      const squat = S.h < 1100;   // tablet portrait: short title block so the lyre hero keeps the room
+      T.size = Math.min(squat ? 80 : 120, (S.w - 60) / 4.6);
+      T.titleY = S.y + Math.max(squat ? 54 : 70, (y - S.y) * (squat ? 0.04 : 0.1));
+      const lt = T.titleY + T.size * (squat ? 1.2 : 1.45) + (squat ? 14 : 24);
       T.hero = lyreFor(S.x, lt, S.w, y - 10 - lt);
-      T.play = R(bx, y, bw, bh + 14); y += bh + 14 + 12;
-      T.duel = R(bx, y, bw, bh); y += bh + 12;
-      T.free = R(bx, y, bw, bh); y += bh + 12;
-      T.auto = R(bx, y, bw, bh); y += bh + 12;
+      T.play = R(bx, y, bw, bh + 14); y += bh + 14 + 10;
+      T.duel = R(bx, y, bw, bh); y += bh + 10;
+      T.free = R(bx, y, bw, bh); y += bh + 10;
+      T.auto = R(bx, y, bw, bh); y += bh + 10;
       const hw = (bw - 12) / 2;
-      T.how = R(bx, y, hw, sh); T.rules = R(bx + hw + 12, y, hw, sh); y += sh + 12;
+      T.how = R(bx, y, hw, sh); T.rules = R(bx + hw + 12, y, hw, sh); y += sh + 10;
       T.about = R(bx, y, hw, sh); T.settings = R(bx + hw + 12, y, hw, sh);
       T.credit = { x: S.x + S.w / 2, y: S.y + S.h - 14 };
       T.col = R(bx, bottom - total, bw, total);

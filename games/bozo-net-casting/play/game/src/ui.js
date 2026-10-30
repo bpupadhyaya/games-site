@@ -56,7 +56,7 @@ function brassEdge(ctx, x, y, w, h, r, lw) {
 }
 const BTN_FILL = {
   disabled: ['#8d8579', '#6f6860', '#3c352c'],
-  primary: ['#f0a04a', '#b4521a', '#6a2a08'],
+  primary: ['#ffdc78', '#e3a62f', '#7a4a06'],
   active: ['#46b88f', '#237a5c', '#0f3f30'],
   dark: ['#5a3f2c', '#3a2616', '#1c0f06'],
   plain: ['#fbf3de', '#e4d3ab', '#9a7a42'],
@@ -85,7 +85,7 @@ export function paintButton(ctx, r, o = {}) {
   if (disabled) { roundPath(ctx, r.x, r.y + dy, r.w, r.h, rad); ctx.lineWidth = 1.5; ctx.strokeStyle = edge; ctx.stroke(); }
   else brassEdge(ctx, r.x + 1, r.y + dy + 1, r.w - 2, r.h - 2, rad - 1, 2.6);
   ctx.restore();
-  return { dy, light: primary || active || dark };
+  return { dy, light: active || dark };
 }
 
 // A parchment pill. opts: primary (terracotta), active (olive), disabled, sub (small second line), size (font px)

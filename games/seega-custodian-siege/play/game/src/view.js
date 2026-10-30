@@ -13,6 +13,48 @@ import { BACK_BTN, PAUSE_BTN, TOOLBAR_IDS, autoLayout, DOC_PANEL, NAV_PREV, NAV_
 import { drawCredit, drawMoreLine, drawLockup } from './brand.js';
 import { THINK_STEPS } from './screens.js';
 import { DROP_T, SLIDE_T, CAP_AT, CAP_T, targetsOf, previewCaps, humanTurn } from './match.js';
+import { v3, flatAlpha } from './v3.js';
+import { AREA, MENU_REGION } from './layout.js';
+
+// css colour ('#rrggbb' or 'rgba(r,g,b,a)') -> 'r,g,b' for the 3D marks
+const rgbOf = (c) => { if (c[0] === '#') return `${parseInt(c.slice(1, 3), 16)},${parseInt(c.slice(3, 5), 16)},${parseInt(c.slice(5, 7), 16)}`; const m = c.match(/\d+(\.\d+)?/g); return m ? m.slice(0, 3).join(',') : '255,255,255'; };
+// The flat backdrop. With the 3D scene on it fades out (crossfade) and a scrim keeps text screens readable over the lit camp.
+function backdrop(ctx, th, t, glowY, dunes, scrim = 0) {
+  const fa = flatAlpha();
+  if (fa > 0) { ctx.save(); ctx.globalAlpha = fa; background(ctx, th, t, glowY, dunes); ctx.restore(); }
+  if (v3.on && scrim > 0) { ctx.fillStyle = `rgba(14,8,6,${scrim * v3.fade})`; ctx.fillRect(0, 0, SCREEN.width, SCREEN.height); }
+}
+// A soft lens vignette over the 3D scene keeps the eye on the board and the plaques readable.
+function vignette3d(ctx, a = 0.55) {
+  if (!v3.on) return;
+  const W = SCREEN.width, Hh = SCREEN.height, r = Math.hypot(W, Hh) / 2, g = ctx.createRadialGradient(W / 2, Hh / 2, r * 0.45, W / 2, Hh / 2, r * 1.05);
+  g.addColorStop(0, 'rgba(10,6,12,0)'); g.addColorStop(1, `rgba(10,6,12,${a * v3.fade})`); ctx.fillStyle = g; ctx.fillRect(0, 0, W, Hh);
+}
+// In-world HUD plaque: dark oiled wood with a brass rim and corner studs (also used by the flat art).
+export function plaque(ctx, r, o = {}) {
+  const rad = o.r ?? 20, acc = o.accent ?? '#f0c46a';
+  ctx.save();
+  ctx.shadowColor = 'rgba(0,0,0,0.55)'; ctx.shadowBlur = 18; ctx.shadowOffsetY = 6;
+  const g = ctx.createLinearGradient(r.x, r.y, r.x, r.y + r.h);
+  g.addColorStop(0, `rgba(62,38,22,${o.a ?? 0.9})`); g.addColorStop(1, `rgba(28,16,9,${(o.a ?? 0.9) + 0.04})`);
+  ctx.fillStyle = g; rr(ctx, r.x, r.y, r.w, r.h, rad); ctx.fill();
+  ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+  ctx.save(); rr(ctx, r.x, r.y, r.w, r.h, rad); ctx.clip();
+  ctx.strokeStyle = 'rgba(255,220,170,0.035)'; ctx.lineWidth = 2;
+  for (let i = 0; i < 9; i++) { const yy = r.y + (i + 0.5) * r.h / 9; ctx.beginPath(); ctx.moveTo(r.x, yy); ctx.bezierCurveTo(r.x + r.w * 0.3, yy + Math.sin(i * 1.7) * 6, r.x + r.w * 0.7, yy - Math.cos(i * 2.3) * 6, r.x + r.w, yy + Math.sin(i) * 4); ctx.stroke(); }
+  const sh = ctx.createLinearGradient(0, r.y, 0, r.y + r.h * 0.5); sh.addColorStop(0, 'rgba(255,230,190,0.10)'); sh.addColorStop(1, 'rgba(255,230,190,0)'); ctx.fillStyle = sh; ctx.fillRect(r.x, r.y, r.w, r.h * 0.5);
+  ctx.restore();
+  const bg = ctx.createLinearGradient(r.x, r.y, r.x, r.y + r.h); bg.addColorStop(0, '#f2d38e'); bg.addColorStop(0.5, '#b88a3e'); bg.addColorStop(1, '#7a5622');
+  if (o.active) { ctx.shadowColor = alpha(acc.length === 7 ? acc : '#e8c46a', 0.8); ctx.shadowBlur = 18; }
+  ctx.strokeStyle = o.active ? acc : bg; ctx.lineWidth = o.active ? 3.5 : 2.5; rr(ctx, r.x, r.y, r.w, r.h, rad); ctx.stroke();
+  ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
+  ctx.strokeStyle = 'rgba(255,232,186,0.16)'; ctx.lineWidth = 1.2; rr(ctx, r.x + 6, r.y + 6, r.w - 12, r.h - 12, Math.max(4, rad - 5)); ctx.stroke();
+  for (const [sx, sy] of [[r.x + 11, r.y + 11], [r.x + r.w - 11, r.y + 11], [r.x + 11, r.y + r.h - 11], [r.x + r.w - 11, r.y + r.h - 11]]) {
+    const sg = ctx.createRadialGradient(sx - 1, sy - 1, 0.5, sx, sy, 4); sg.addColorStop(0, '#fff2c8'); sg.addColorStop(0.5, '#c99a4a'); sg.addColorStop(1, '#5e3e14');
+    ctx.fillStyle = sg; ctx.beginPath(); ctx.arc(sx, sy, 3.6, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.restore();
+}
 
 const theme = (S) => themeById(S.themeId);
 
@@ -51,12 +93,17 @@ function drawDocBlocks(ctx, S, ui, scroll) {
     } else if (b.t === 'img') {
       drawArt(ctx, S, b.name, ox, top, it.w, b.h, b);
     } else if (b.t === 'btn') {
-      const bt = it.btns[0];
-      button(ctx, th, { x: ox + bt.x, y: oy + bt.y, w: bt.w, h: bt.h }, it.lines, b.kind ?? 'normal', { size: it.size, line: it.line, sub: it.sub, disabled: bt.disabled, pressed: S.press && S.press.id === bt.id && S.press.active });
+      const bt = it.btns[0], r = { x: ox + bt.x, y: oy + bt.y, w: bt.w, h: bt.h }, pressed = S.press && S.press.id === bt.id && S.press.active;
+      if (b.icon && it.lines.length === 1 && !(it.sub && it.sub.length)) iconButton(ctx, th, r, it.lines[0], b.icon, b.kind ?? 'normal', it.size, { disabled: bt.disabled, pressed });
+      else button(ctx, th, r, it.lines, b.kind ?? 'normal', { size: it.size, line: it.line, sub: it.sub, disabled: bt.disabled, pressed });
     } else if (b.t === 'row') {
       for (const bt of it.btns) {
-        if (bt.id == null) text(ctx, bt.label, ox + bt.x + bt.w / 2, oy + bt.y + bt.h / 2 + it.size * 0.34, it.size, th.ink, { weight: 700 });
-        else button(ctx, th, { x: ox + bt.x, y: oy + bt.y, w: bt.w, h: bt.h }, bt.lines, bt.kind ?? 'normal', { size: it.size, line: it.line, disabled: bt.disabled, pressed: S.press && S.press.id === bt.id && S.press.active });
+        if (bt.id == null) { text(ctx, bt.label, ox + bt.x + bt.w / 2, oy + bt.y + bt.h / 2 + it.size * 0.34, it.size, th.ink, { weight: 700 }); continue; }
+        const q = b.items.find((x) => x.id === bt.id) ?? {}, r = { x: ox + bt.x, y: oy + bt.y, w: bt.w, h: bt.h }, pressed = S.press && S.press.id === bt.id && S.press.active;
+        const stacked = b.items.length > 1 && bt.w > 0.9 * (ui.region ? ui.region.w : 9999);
+        if (q.icon && b.tiles && !stacked && bt.lines.length === 1) tileButton(ctx, th, r, bt.lines[0], q.icon, it.size, { disabled: bt.disabled, pressed });
+        else if (q.icon && bt.lines.length === 1) iconButton(ctx, th, r, bt.lines[0], q.icon, bt.kind ?? 'normal', it.size, { disabled: bt.disabled, pressed, note: q.note });
+        else button(ctx, th, r, bt.lines, bt.kind ?? 'normal', { size: it.size, line: it.line, disabled: bt.disabled, pressed });
       }
     }
   }
@@ -69,6 +116,27 @@ function drawDocBlocks(ctx, S, ui, scroll) {
     ctx.fillStyle = alpha(th.accent.length === 7 ? th.accent : '#e8c46a', 0.75);
     rr(ctx, region.x + region.w + 8, ty, 6, tH, 3); ctx.fill();
   }
+}
+
+// A menu button with a line icon before its label (and an optional small note under it).
+function iconButton(ctx, th, r, label, ic, kind, size, o = {}) {
+  button(ctx, th, r, [], kind, { disabled: o.disabled, pressed: o.pressed });
+  ctx.save(); if (o.disabled) ctx.globalAlpha = 0.38;
+  const ink = kind === 'primary' ? th.primaryInk : th.ink, dy = o.pressed ? 2 : 0, is = Math.min(r.h * 0.5, size * 1.05), gap = size * 0.45;
+  const fs = fitOne(label, r.w - is - gap - 28, size, 16), wT = tw(label, fs), x0 = r.x + r.w / 2 - (is + gap + wT) / 2, cy = r.y + r.h / 2 + dy - (o.note ? fs * 0.32 : 0);
+  icon(ctx, ic, x0 + is / 2, cy, is, ink);
+  text(ctx, label, x0 + is + gap, cy + fs * 0.35, fs, ink, { weight: kind === 'primary' ? 800 : 700, align: hasArabic(label) ? 'right' : 'left' });
+  if (o.note) text(ctx, o.note, x0 + is + gap + wT / 2, cy + fs * 1.2, fs * 0.68, kind === 'primary' ? alpha(th.primaryInk, 0.75) : 'rgba(246,236,214,0.66)', { weight: 600 });
+  ctx.restore();
+}
+// A small square tile: icon above a short label.
+function tileButton(ctx, th, r, label, ic, size, o = {}) {
+  button(ctx, th, r, [], 'normal', { disabled: o.disabled, pressed: o.pressed, radius: 16 });
+  ctx.save(); if (o.disabled) ctx.globalAlpha = 0.38;
+  const dy = o.pressed ? 2 : 0, fs = fitOne(label, r.w - 10, size, 18), is = Math.min(r.h * 0.42, 40), tot = is + 8 + fs;
+  icon(ctx, ic, r.x + r.w / 2, r.y + (r.h - tot) / 2 + is / 2 + dy, is, th.accent);
+  text(ctx, label, r.x + r.w / 2, r.y + (r.h - tot) / 2 + is + 8 + fs * 0.82 + dy, fs, th.ink, { weight: 700 });
+  ctx.restore();
 }
 
 function drawFixed(ctx, S, list) {
@@ -236,11 +304,16 @@ function drawAttract(ctx, S) {
   const cycle = ATTRACT.length * ATTRACT_STEP + 1.4;
   const tt = t % cycle;
   const geo = boardGeo(bx, by, side);
-  const glow = ctx.createRadialGradient(W / 2, by + side / 2, 30, W / 2, by + side / 2, 340);
-  glow.addColorStop(0, th.glow); glow.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.fillStyle = glow; ctx.fillRect(0, by - 140, W, side + 280);
-  drawSlab(ctx, th, bx, by, side);
-  drawPits(ctx, th, geo);
+  const fa = flatAlpha();
+  if (fa > 0) {
+    ctx.save(); ctx.globalAlpha = fa;
+    const glow = ctx.createRadialGradient(W / 2, by + side / 2, 30, W / 2, by + side / 2, 340);
+    glow.addColorStop(0, th.glow); glow.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = glow; ctx.fillRect(0, by - 140, W, side + 280);
+    drawSlab(ctx, th, bx, by, side);
+    drawPits(ctx, th, geo);
+    ctx.restore();
+  }
   const cells = ATTRACT_START.replace(/[\s/]/g, '').split('').map((c) => (c === 'X' ? 1 : c === 'O' ? 2 : 0));
   const k = Math.min(ATTRACT.length, Math.floor(tt / ATTRACT_STEP));
   const age = tt - k * ATTRACT_STEP;
@@ -256,7 +329,13 @@ function drawAttract(ctx, S) {
     cells[f] = 0;
     if (slideK >= 0.85) for (const c of caps) { cells[c] = 0; ghosts.push({ cell: c, who: who === 1 ? 2 : 1, k: clamp01((age - 0.25 - SLIDE_T * 0.85) / CAP_T) }); }
   }
-  const alphaAll = fadeOut * fadeIn;
+  const alphaAll = fadeOut * fadeIn * fa;
+  if (v3.on) {
+    // the 3D board plays the same short game; captured stones are lifted off to their heap beside the board
+    const c3 = cells.slice(), anim = {};
+    if (moving) { c3[moving.to] = moving.who; anim[moving.to] = { kind: 'slide', from: moving.from, t: moving.k * SLIDE_T }; }
+    v3.frame = { mode: 'title', cells: c3, anim, sel: -1, ghosts: ghosts.map((g) => ({ cell: g.cell, who: g.who, k: g.k })), win: null };
+  }
   for (let i = 0; i < NN; i++) {
     if (!cells[i]) continue;
     const [cx, cy] = geo.centers[i];
@@ -278,14 +357,27 @@ function drawAttract(ctx, S) {
   ctx.font = `800 64px ${DISPLAY}`;
   ctx.fillText(tr('desertSiege'), 360, 262);
   ctx.restore();
-  text(ctx, tr('fromEgypt'), 360, 316, 26, 'rgba(250,238,214,0.84)', { weight: 600 });
-  text(ctx, tr('tagline'), 360, 352, 25, 'rgba(250,238,214,0.62)', { weight: 500 });
+  const tsh = v3.on ? { shadow: 'rgba(0,0,0,0.9)', blur: 12, dy: 2 } : {};
+  text(ctx, tr('fromEgypt'), 360, 316, 26, 'rgba(250,238,214,0.9)', { weight: 600, ...tsh });
+  text(ctx, tr('tagline'), 360, 352, 25, v3.on ? 'rgba(250,238,214,0.8)' : 'rgba(250,238,214,0.62)', { weight: 500, ...tsh });
   ctx.restore();
 }
 const light2 = (c) => (c.length === 7 ? `rgb(${Math.min(255, parseInt(c.slice(1, 3), 16) + 70)},${Math.min(255, parseInt(c.slice(3, 5), 16) + 70)},${Math.min(255, parseInt(c.slice(5, 7), 16) + 70)})` : '#fff3c4');
 
 function drawTitle(ctx, S, ui) {
-  background(ctx, theme(S), S.t, 560, true);
+  backdrop(ctx, theme(S), S.t, 560, true);
+  if (v3.on) {
+    // the 3D hero: the board on its kilim gets the room between the title lettering and the menu
+    const U = AREA, menuTop = MENU_REGION.y + (ui.offY || 0);
+    v3.hero = TITLE.land ? { x: U.x0 + 8, y: TITLE.top + 250 * TITLE.s, w: MENU_REGION.x - 24 - U.x0, h: U.y1 - 6 - (TITLE.top + 250 * TITLE.s) }
+      : { x: U.x0 + 10, y: TITLE.top + 300 * TITLE.s, w: U.w - 20, h: menuTop - 14 - (TITLE.top + 300 * TITLE.s) };
+    // dusk shade under the lettering and the menu, so both read over the sky and the sand
+    const W = SCREEN.width, Hh = SCREEN.height, g = ctx.createLinearGradient(0, 0, 0, Hh);
+    g.addColorStop(0, `rgba(8,6,16,${0.6 * v3.fade})`); g.addColorStop(TITLE.land ? 0.34 : 0.22, 'rgba(8,6,16,0)'); g.addColorStop(TITLE.land ? 0.8 : 0.62, 'rgba(10,6,4,0)'); g.addColorStop(1, `rgba(10,6,4,${0.72 * v3.fade})`);
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, Hh);
+    if (TITLE.land) { const gx = ctx.createLinearGradient(MENU_REGION.x - 80, 0, W, 0); gx.addColorStop(0, 'rgba(10,6,4,0)'); gx.addColorStop(0.3, `rgba(10,6,4,${0.5 * v3.fade})`); gx.addColorStop(1, `rgba(10,6,4,${0.6 * v3.fade})`); ctx.fillStyle = gx; ctx.fillRect(MENU_REGION.x - 80, 0, W, Hh); }
+    vignette3d(ctx, 0.45);
+  }
   drawAttract(ctx, S);
   drawDocBlocks(ctx, S, ui, S.scroll[ui.scrollKey] ?? 0);
   drawFixed(ctx, S, ui.fixed);
@@ -294,7 +386,7 @@ function drawTitle(ctx, S, ui) {
 
 function drawDocScreen(ctx, S, ui) {
   const th = theme(S);
-  background(ctx, th, S.t);
+  backdrop(ctx, th, S.t, 700, false, 0.6);
   if (ui.panel) panel(ctx, th, ui.panel.x, ui.panel.y, ui.panel.w, ui.panel.h, {});
   drawDocBlocks(ctx, S, ui, S.scroll[ui.scrollKey] ?? 0);
   drawFixed(ctx, S, ui.fixed);
@@ -352,12 +444,7 @@ function drawHud(ctx, S, title, sub, showPause) {
 
 function drawPlate(ctx, S, r, who, name, sub, active) {
   const th = theme(S), z = TEXT_SCALES[S.textIdx];
-  ctx.save();
-  ctx.fillStyle = 'rgba(10,6,4,0.55)'; rr(ctx, r.x, r.y, r.w, r.h, 20); ctx.fill();
-  ctx.strokeStyle = active ? th.accent : 'rgba(255,255,255,0.14)'; ctx.lineWidth = active ? 3 : 1.5;
-  if (active) { ctx.shadowColor = alpha(th.accent.length === 7 ? th.accent : '#e8c46a', 0.7); ctx.shadowBlur = 16; }
-  rr(ctx, r.x, r.y, r.w, r.h, 20); ctx.stroke();
-  ctx.restore();
+  plaque(ctx, r, { active, accent: th.accent });
   const md = Math.min(r.h - 28, 74);
   drawStone(ctx, th, who, r.x + 14 + md / 2, r.y + r.h / 2, md * 0.85, { noShadow: true, glow: active ? 0.4 : 0, cell: 3 });
   const tx = r.x + 24 + md, avail = r.w - md - 40;
@@ -370,10 +457,7 @@ function drawPlate(ctx, S, r, who, name, sub, active) {
 
 function drawStatus(ctx, S, r, head, body, col) {
   const th = theme(S), z = TEXT_SCALES[S.textIdx];
-  ctx.save();
-  ctx.fillStyle = 'rgba(10,6,4,0.6)'; rr(ctx, r.x, r.y, r.w, r.h, 22); ctx.fill();
-  ctx.strokeStyle = th.stroke; ctx.lineWidth = 1.5; rr(ctx, r.x, r.y, r.w, r.h, 22); ctx.stroke();
-  ctx.restore();
+  plaque(ctx, r, { r: 22, accent: th.accent });
   const pad = 22, w = r.w - pad * 2;
   const full = body ? `${head}\n${body}` : head;
   const f = fitText(full, w, r.h - 24, 32 * (1 + (z - 1) * 0.6), 20);
@@ -390,18 +474,22 @@ const sq = (ctx, geo, i, grow = 0.9) => { const [cx, cy] = geo.centers[i], s = g
 
 // Draws the board and its stones for a match. `auto` carries Watch & Learn's reveal info.
 function drawBoardScene(ctx, S, M, geo, auto) {
-  const th = theme(S);
+  const th = theme(S), fa = flatAlpha(), three = v3.on;
   ctx.save();
+  ctx.globalAlpha = fa;
   const glow = ctx.createRadialGradient(geo.x + geo.side / 2, geo.y + geo.side / 2, 40, geo.x + geo.side / 2, geo.y + geo.side / 2, geo.side * 0.85);
   glow.addColorStop(0, th.glow); glow.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.fillStyle = glow; ctx.fillRect(geo.x - 160, geo.y - 160, geo.side + 320, geo.side + 320);
-  drawSlab(ctx, th, geo.x, geo.y, geo.side);
-  drawPits(ctx, th, geo);
+  if (fa > 0) { drawSlab(ctx, th, geo.x, geo.y, geo.side); drawPits(ctx, th, geo); }
+  ctx.globalAlpha = 1;
   const pl = pulse(S);
   const st = M.st;
   const acc = th.accent.length === 7 ? th.accent : '#e8c46a';
-  const ring = (i, col, lw = 4, a = 1, grow = 0.92) => { ctx.save(); ctx.strokeStyle = col; ctx.globalAlpha = a; ctx.lineWidth = lw; sq(ctx, geo, i, grow); ctx.stroke(); ctx.restore(); };
-  const fillSq = (i, col, a, grow = 0.9) => { ctx.save(); ctx.fillStyle = col; ctx.globalAlpha = a; sq(ctx, geo, i, grow); ctx.fill(); ctx.restore(); };
+  // every mark goes to both layers: the flat board (fading out) and the 3D pockets (as light)
+  const ring = (i, col, lw = 4, a = 1, grow = 0.92) => { if (three) v3.marks.push({ sq: i, rgb: rgbOf(col), a: Math.min(1, a * (lw >= 4 ? 1 : lw >= 3 ? 0.7 : 0.45)), ring: true, grow: 1.02 + grow * 0.18 }); if (fa > 0) { ctx.save(); ctx.strokeStyle = col; ctx.globalAlpha = a * fa; ctx.lineWidth = lw; sq(ctx, geo, i, grow); ctx.stroke(); ctx.restore(); } };
+  const fillSq = (i, col, a, grow = 0.9) => { if (three) v3.marks.push({ sq: i, rgb: rgbOf(col), a: Math.min(1, a * 2.2), fill: true }); if (fa > 0) { ctx.save(); ctx.fillStyle = col; ctx.globalAlpha = a * fa; sq(ctx, geo, i, grow); ctx.fill(); ctx.restore(); } };
+  const P3 = (i, lift = 1.6) => { if (three && v3.pt) { const p = v3.pt(i, lift); return [p.x, p.y]; } return geo.centers[i]; };
+  const cellPx = three && v3.pt ? v3.pt(CENTRE, 0).cell : geo.cell;
   // the last move: a soft outline on where it left and where it landed
   if (M.last && !M.over && M.last.to >= 0) {
     ring(M.last.to, acc, 3, 0.35 + 0.2 * pl);
@@ -419,17 +507,18 @@ function drawBoardScene(ctx, S, M, geo, auto) {
       const [cx, cy] = geo.centers[m.to];
       if (caps.length) { fillSq(m.to, '#ff6a54', 0.2 + 0.1 * pl); ring(m.to, '#ff8a70', 3.5, 0.9); for (const c of caps) capMarks.push(c); }
       else fillSq(m.to, acc, 0.15 + 0.1 * pl);
-      ctx.fillStyle = caps.length ? '#ff8a70' : acc; ctx.beginPath(); ctx.arc(cx, cy, geo.cell * 0.07, 0, Math.PI * 2); ctx.fill();
+      if (fa > 0) { ctx.save(); ctx.globalAlpha = fa; ctx.fillStyle = caps.length ? '#ff8a70' : acc; ctx.beginPath(); ctx.arc(cx, cy, geo.cell * 0.07, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
     }
   }
   if (S.kbd && humanTurn(M) && !M.over) ring(M.cur, '#ffffff', 3, 0.75, 0.96);
+  if (selected >= 0 && !M.over && three) ring(selected, acc, 4, 0.9, 0.96);
   if (M.flash >= 0) fillSq(M.flash, '#ff6a5a', 0.45 * clamp01(M.flashT / 0.3));
   // Think
   if (M.hint && !M.over) {
     const mv = M.hint.mv;
     if (mv.from === -2) { if (st.chain >= 0) ring(st.chain, acc, 5, 0.7 + 0.3 * pl); } else {
       fillSq(mv.to, acc, 0.25 + 0.25 * pl); ring(mv.to, acc, 5, 0.6 + 0.4 * pl);
-      if (mv.from >= 0) { ring(mv.from, acc, 4, 0.7); arrow(ctx, acc, ...nudge(geo.centers[mv.from], geo.centers[mv.to], geo.cell * 0.3)); }
+      if (mv.from >= 0) { ring(mv.from, acc, 4, 0.7); arrow(ctx, acc, ...nudge(P3(mv.from), P3(mv.to), cellPx * 0.3)); }
     }
   }
   // Watch & Learn: every option, then the chosen one(s)
@@ -440,13 +529,23 @@ function drawBoardScene(ctx, S, M, geo, auto) {
     for (const mv of chosen) {
       if (mv.from === -2) { if (st.chain >= 0) ring(st.chain, acc, 5, 0.8); continue; }
       fillSq(mv.to, acc, 0.3 + 0.2 * pl); ring(mv.to, acc, 5, 0.7 + 0.3 * pl);
-      if (mv.from >= 0) { ring(mv.from, acc, 4, 0.8); arrow(ctx, acc, ...nudge(geo.centers[mv.from], geo.centers[mv.to], geo.cell * 0.3)); }
+      if (mv.from >= 0) { ring(mv.from, acc, 4, 0.8); arrow(ctx, acc, ...nudge(P3(mv.from), P3(mv.to), cellPx * 0.3)); }
     }
   }
   if (auto && auto.phase === 'think' && auto.scan != null) fillSq(auto.scan, 'rgba(255,255,255,0.8)', 0.08 + 0.08 * pl);
   // stones
   const over = M.over;
-  for (let i = 0; i < NN; i++) {
+  ctx.globalAlpha = fa;
+  if (three) {
+    const frozen = (auto && auto.paused) || S.overlay === 'pause';
+    v3.frame = {
+      mode: 'board', cells: st.cells, anim: M.anim, sel: selected >= 0 && !M.over ? selected : -1, frozen,
+      ghosts: M.ghosts.map((g) => ({ cell: g.cell, who: g.who, k: g.t < CAP_AT ? 0 : (g.t - CAP_AT) / CAP_T, pre: g.t / CAP_AT })),
+      win: over && over.winner ? { who: over.winner, t: M.winT } : null,
+    };
+    if (over && over.winner) for (let i = 0; i < NN; i++) if (st.cells[i] === over.winner) v3.marks.push({ sq: i, rgb: rgbOf(acc), a: 0.35 + 0.25 * Math.sin(M.winT * 4 - i * 0.5), ring: true, grow: 1.08 });
+  }
+  for (let i = 0; i < NN && fa > 0; i++) {
     const who = st.cells[i];
     if (!who) continue;
     const [cx, cy] = geo.centers[i];
@@ -457,19 +556,25 @@ function drawBoardScene(ctx, S, M, geo, auto) {
     } else if (M.hint && M.hint.mv.from === i) o = { cell: i, glow: 0.6 };
     else if (selected === i) o = { cell: i, glow: 0.5 + 0.3 * pl, lift: 0.6 };
     else if (auto && auto.phase === 'reveal' && auto.plan && auto.plan.mvs.some((m) => m.from === i)) o = { cell: i, glow: 0.5 + 0.4 * pl };
+    o.alpha = (o.alpha ?? 1) * fa;
     animStone(ctx, th, who, cx, cy, geo.d, a ? { ...a, from: a.from >= 0 ? geo.centers[a.from] : null } : null, o);
   }
-  for (const c of capMarks) { const [cx, cy] = geo.centers[c]; drawCross(ctx, cx, cy, geo.cell * 0.2); }
+  ctx.globalAlpha = 1;
+  for (const c of capMarks) { const [cx, cy] = P3(c, 3); drawCross(ctx, cx, cy, cellPx * 0.2); }
+  ctx.globalAlpha = fa;
   // captured stones shrink and fade
-  for (const g of M.ghosts) {
+  for (const g of fa > 0 ? M.ghosts : []) {
     const [cx, cy] = geo.centers[g.cell];
-    if (g.t < CAP_AT) drawStone(ctx, th, g.who, cx, cy, geo.d, { cell: g.cell });
-    else { const k = clamp01((g.t - CAP_AT) / CAP_T); drawStone(ctx, th, g.who, cx, cy, geo.d, { cell: g.cell, alpha: 1 - k, scale: 1 - 0.45 * k, rot: k * 1.4, noShadow: true }); }
+    if (g.t < CAP_AT) drawStone(ctx, th, g.who, cx, cy, geo.d, { cell: g.cell, alpha: fa });
+    else { const k = clamp01((g.t - CAP_AT) / CAP_T); drawStone(ctx, th, g.who, cx, cy, geo.d, { cell: g.cell, alpha: (1 - k) * fa, scale: 1 - 0.45 * k, rot: k * 1.4, noShadow: true }); }
   }
   // ghost preview under the finger (placement)
-  if (S.ghost >= 0 && S.ghostWho && !M.over) { const [gx, gy] = geo.centers[S.ghost]; drawStone(ctx, th, S.ghostWho, gx, gy, geo.d, { ghost: true, cell: S.ghost }); }
+  if (S.ghost >= 0 && S.ghostWho && !M.over) {
+    if (three) v3.marks.push({ sq: S.ghost, rgb: S.ghostWho === 1 ? '255,246,220' : '255,170,110', a: 0.9, fill: true, ring: true, grow: 1.1 });
+    if (fa > 0) { const [gx, gy] = geo.centers[S.ghost]; drawStone(ctx, th, S.ghostWho, gx, gy, geo.d, { ghost: true, cell: S.ghost }); }
+  }
   ctx.restore();
-  drawParticles(ctx, M.parts);
+  if (fa > 0) { ctx.save(); ctx.globalAlpha = fa; drawParticles(ctx, M.parts); ctx.restore(); }
 }
 const nudge = (a, b, pad) => {
   const dx = b[0] - a[0], dy = b[1] - a[1], len = Math.hypot(dx, dy) || 1;
@@ -575,7 +680,13 @@ function statusText(S, M, auto) {
 
 function drawPlay(ctx, S) {
   const th = theme(S), M = S.match, z = TEXT_SCALES[S.textIdx];
-  background(ctx, th, S.t, 800);
+  backdrop(ctx, th, S.t, 800);
+  vignette3d(ctx, 0.6);
+  if (v3.on) {          // dusk shade behind the header so the title line reads over the kilim and sand
+    const y1 = HUD.sub.y + 26, g = ctx.createLinearGradient(0, 0, 0, y1 + 40);
+    g.addColorStop(0, `rgba(10,6,4,${0.75 * v3.fade})`); g.addColorStop(0.7, `rgba(10,6,4,${0.55 * v3.fade})`); g.addColorStop(1, 'rgba(10,6,4,0)');
+    ctx.fillStyle = g; if (SCREEN.land) { const L = playLayout(z).chips[0]; ctx.fillRect(L.x - 24, 0, L.w + 48, y1 + 40); } else ctx.fillRect(0, 0, SCREEN.width, y1 + 40);
+  }
   const auto = S.scene === 'auto' ? S.auto : null;
   const chain = Boolean(M.st.chain >= 0 && humanTurn(M) && !M.over && !auto);
   const lay = playLayout(z, chain);
@@ -610,16 +721,16 @@ export function render(ctx, S, ui) {
     case 'title': drawTitle(ctx, S, ui); break;
     case 'setup': case 'learn': case 'howto': case 'rules': case 'about': case 'settings': drawDocScreen(ctx, S, ui); break;
     case 'demo-limit':
-      background(ctx, theme(S), S.t);
+      backdrop(ctx, theme(S), S.t, 700, false, 0.6);
       panel(ctx, theme(S), ui.panel.x, ui.panel.y, ui.panel.w, ui.panel.h, {});
       drawDocBlocks(ctx, S, ui, S.scroll[ui.scrollKey] ?? 0);
       drawFixed(ctx, S, ui.fixed);
       break;
     case 'play': case 'auto':
-      if (!S.match) { background(ctx, theme(S), S.t); break; }
+      if (!S.match) { backdrop(ctx, theme(S), S.t, 700, false, 0.5); break; }
       drawPlay(ctx, S);
       break;
-    default: background(ctx, theme(S), S.t);
+    default: backdrop(ctx, theme(S), S.t, 700, false, 0.5);
   }
   if (S.overlay) drawOverlay(ctx, S, ui);
 }

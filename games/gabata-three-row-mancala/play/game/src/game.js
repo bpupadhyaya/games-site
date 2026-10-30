@@ -12,11 +12,12 @@ import { RULE_COUNT, HOWTO_COUNT, tr, setLang, levelName, hintText, notBestText,
 import { CAL_EN } from './calibration.js';
 import { THEMES, boardGeo, cellAt, CELLS } from './art.js';
 import { render, plateIcons } from './view.js';
+import { v3 } from './v3.js';
 
 // `meta` is the live size the kit keeps current (fluid layout); layout.js owns it.
 export { meta };
 
-const VERSION = '1.1.2';
+const VERSION = '1.2.1';
 const WIN_NOTES = [523, 659, 784, 1047, 1319];
 const AUTO_GAMES = [{ lv: ['master', 'master'] }, { lv: ['master', 'expert'] }];
 const KEY = 'gb';
@@ -93,10 +94,12 @@ export async function createGame(env) {
 
   // ------------------------------------------------------------------------------ geometry
   const layNow = () => { const L = layoutNow(TEXT_SCALES[S.textIdx]); return S.scene === 'auto' ? L.auto : L.play; };
-  const geoNow = () => { const lay = layNow(); return boardGeo(lay.board.x, lay.board.y, lay.board.w); };
+  // The hole under a finger: through the tilted 3D board when it is live (nearest pit), else the flat board.
+  const holeAt = (x, y) => (v3.on && v3.pick ? v3.pick(x, y) : cellAt(geoNow(), x, y));
+  const geoNow = () => { const lay = layNow(); return boardGeo(lay.board.x, lay.board.y, lay.board.w, lay.board.rot); };
   // Where captured stones fly to: the stone icon of each player's plate, in board units.
   const setTargets = (M) => {
-    const lay = layNow(), geo = boardGeo(lay.board.x, lay.board.y, lay.board.w);
+    const lay = layNow(), geo = boardGeo(lay.board.x, lay.board.y, lay.board.w, lay.board.rot);
     const t = (r) => geo.toLocal(...plateIcons(r).dan);
     M.pileTo = [t(lay.chips[1]), t(lay.chips[0])];
   };
@@ -479,7 +482,7 @@ export async function createGame(env) {
     const pr = S.press;
     if (!pr) return;
     if (pr.kind === 'cell') {
-      const c = S.match ? cellAt(geoNow(), x, y) : -1;
+      const c = S.match ? holeAt(x, y) : -1;
       pr.active = c === pr.id;
       return;
     }
@@ -498,7 +501,7 @@ export async function createGame(env) {
   function cellRelease(pr, x, y) {
     const M = S.match;
     if (!M || S.scene !== 'play' || S.overlay) return;
-    if (cellAt(geoNow(), x, y) === pr.id) { S.kbd = false; M.cur = pr.id; play(M, pr.id); }
+    if (holeAt(x, y) === pr.id) { S.kbd = false; M.cur = pr.id; play(M, pr.id); }
   }
 
   function onUp(x, y) {
@@ -526,7 +529,7 @@ export async function createGame(env) {
     for (let i = 0; i < TOOLBAR_IDS.length; i++) {
       if (inRect(x, y, lay.tool[i])) { S.press = { id: `tool:${TOOLBAR_IDS[i]}`, active: true, kind: 'tool', rect: lay.tool[i] }; return; }
     }
-    const c = cellAt(geoNow(), x, y);
+    const c = holeAt(x, y);
     if (c >= 0) S.press = { id: c, active: true, kind: 'cell', x0: x, y0: y };
   }
   function hudAction(id) {
@@ -682,6 +685,8 @@ export async function createGame(env) {
 
     // The preview clock counts real play only. Menus, setup, Learn, Rules / How to Play / About, Settings, every overlay (pause, result,
     // lesson, Watch & Learn summary), the demo card, the lessons and Watch & Learn are all free time.
+    devState: config?.dev ? S : undefined,   // developer tools only (QA scripts under dev/)
+
     isPreviewExempt: () => S.shot || S.scene !== 'play' || Boolean(S.overlay) || Boolean(S.match && S.match.lesson),
   };
 }

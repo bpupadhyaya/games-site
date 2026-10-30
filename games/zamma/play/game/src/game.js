@@ -407,7 +407,7 @@ export function createGame(env) {
       const L = layoutFor(view?.width ?? meta.width, view?.height ?? meta.height, state.flip, nOf(state.game.variant));
       // the kit's "Preview 1:23" pill: top centre in portrait; in landscape it moves into the right-hand card, clear of the board
       const pb = L.layoutKind === 'portrait-duo' ? L.plateBot : L.plateTop;     // portrait: top-right corner of the opponent plate, off the title and the board
-      meta.previewBadge = L.land && L.rightCard ? { x: L.rightCard.x + L.rightCard.w / 2, y: L.rightCard.y + 74, align: 'center' } : pb ? { x: pb.x + pb.w - 14, y: pb.y + 12, align: 'right' } : undefined;
+      meta.previewBadge = L.land && L.rightCard && L.leftCard ? { x: L.rightCard.x + L.rightCard.w / 2, y: L.rightCard.y + 74, align: 'center' } : pb ? { x: pb.x + pb.w - 14, y: pb.y + 12, align: 'right' } : undefined;
       render(ctx, state, L);
     },
     getState: () => state,

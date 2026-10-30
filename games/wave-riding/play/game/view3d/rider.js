@@ -20,20 +20,9 @@ const BOARD_M = [{ len: 2.25, wid: 0.56 }, { len: 1.78, wid: 0.5 }, { len: 1.55,
 const DECK_Y = 0.045;                                    // top of the deck above the board centre line
 
 // ------------------------------------------------------------------------------------------------------------------------------------
-// bare feet: the shipped athlete wears trainers; a surfer is barefoot. Drops the shoe triangles (degenerate, so draw groups stay valid) and paints
-// the shoe region of this person's copy of the body texture with skin; real feet are added by addFeet().
+// surf boots: the shipped athlete wears trainers and socks. The athlete's own skinned legs and feet are kept (one continuous mesh, so the ankle never
+// kinks or shows a seam); the shoe and sock-cuff region of this person's private copy of the body texture is repainted as dark neoprene booties.
 function bareFeet(human) {
-  human.root.traverse((o) => {
-    if (!o.isSkinnedMesh || o.geometry.userData.barefoot) return;
-    const geo = o.geometry, ix = geo.index, si = geo.attributes.skinIndex, sw = geo.attributes.skinWeight;
-    if (!ix || !si) return;
-    const foot = new Set(o.skeleton.bones.map((bn, i) => (/_(Foot|Toe0)$/.test(bn.name) ? i : -1)).filter((i) => i >= 0));
-    const w = new Float32Array(geo.attributes.position.count);
-    for (let i = 0; i < w.length; i++) for (let k = 0; k < 4; k++) if (foot.has(si.getComponent(i, k))) w[i] += sw.getComponent(i, k);
-    const a = ix.array;
-    for (let t = 0; t < a.length; t += 3) if (w[a[t]] > 0.5 || w[a[t + 1]] > 0.5 || w[a[t + 2]] > 0.5) { a[t + 1] = a[t]; a[t + 2] = a[t]; }
-    ix.needsUpdate = true; geo.userData.barefoot = true;
-  });
   const N = 1024;
   const cv = () => { const c = globalThis.document.createElement('canvas'); c.width = c.height = N; return c; };
   const read = (img) => { const c = cv(); const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(img, 0, 0, N, N); return { c, g, d: g.getImageData(0, 0, N, N) }; };
@@ -51,8 +40,8 @@ function bareFeet(human) {
         if (test && !test(i)) continue;
         const L = 0.299 * a[i] + 0.587 * a[i + 1] + 0.114 * a[i + 2];
         const sh = Math.pow(clamp(L / 215, 0.55, 1.12), 0.55);
-        a[i] = clamp(r * sh, 0, 255); a[i + 1] = clamp(g * sh, 0, 255); a[i + 2] = clamp(b * sh, 0, 255); a[i + 3] = 255;
-        sk[i] = 255; mk[i] = 0; mk[i + 1] = 0; mk[i + 2] = 0;
+        a[i] = clamp(34 * sh, 0, 255); a[i + 1] = clamp(37 * sh, 0, 255); a[i + 2] = clamp(44 * sh, 0, 255); a[i + 3] = 255;
+        sk[i] = 0; mk[i] = 0; mk[i + 1] = 0; mk[i + 2] = 0;
       }
     };
     paint(225, 868, 400, 1024); paint(630, 868, 805, 1024);
@@ -65,63 +54,6 @@ function bareFeet(human) {
     return new THREE.Color(r / 255, g / 255, b / 255).convertSRGBToLinear();
   }
   return new THREE.Color('#c88f68');
-}
-
-// One lofted, flat-soled foot with five toes and ankle bones in the person's skin colour, parented to the foot bone, plus an ankle cuff on the calf
-// that hides the raw edge where the trainers were removed.
-function footGeometry() {
-  const S = [
-    [-0.0785, -0.084, 0.0015, 0.0015], [-0.074, -0.082, 0.009, 0.011], [-0.068, -0.078, 0.018, 0.02], [-0.058, -0.072, 0.026, 0.028], [-0.045, -0.068, 0.03, 0.031], [-0.03, -0.063, 0.035, 0.037], [0.0, -0.06, 0.037, 0.04],
-    [0.035, -0.063, 0.0375, 0.0345], [0.07, -0.069, 0.041, 0.0285], [0.105, -0.081, 0.0465, 0.0205], [0.135, -0.0865, 0.0465, 0.0145], [0.16, -0.0905, 0.0425, 0.0105], [0.178, -0.093, 0.034, 0.0075], [0.186, -0.0945, 0.02, 0.005], [0.19, -0.095, 0.0015, 0.0015],
-  ];
-  const K = 18, pos = [], idx = [], ex = 2.6;
-  for (let i = 0; i < S.length; i++) {
-    const [z, cy, hw, hh] = S[i];
-    for (let k = 0; k < K; k++) {
-      const ph = k / K * Math.PI * 2, c = Math.cos(ph), sn = Math.sin(ph);
-      const sx = Math.sign(c) * Math.pow(Math.abs(c), 2 / ex), sy = Math.sign(sn) * Math.pow(Math.abs(sn), 2 / ex);
-      const arch = (sy < 0 && c > 0.2 ? 0.006 * Math.exp(-Math.pow((z - 0.04) / 0.05, 2)) : 0);
-      pos.push(sx * hw, cy + sy * hh + (sy < 0 ? arch : 0), z);
-    }
-  }
-  for (let i = 0; i < S.length - 1; i++) for (let k = 0; k < K; k++) {
-    const a = i * K + k, b = i * K + (k + 1) % K, c = a + K, d = b + K;
-    idx.push(a, b, c, b, d, c);
-  }
-  const g = new THREE.BufferGeometry();
-  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
-  return g;
-}
-function addFeet(human, color) {
-  human._applyRest(); human.root.updateMatrixWorld(true);
-  const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.7, metalness: 0, side: THREE.DoubleSide });
-  const toeMat = new THREE.MeshStandardMaterial({ color: color.clone().multiplyScalar(0.97), roughness: 0.7, metalness: 0 });
-  const nailMat = new THREE.MeshStandardMaterial({ color: color.clone().lerp(new THREE.Color('#ffe3d2'), 0.35), roughness: 0.4, metalness: 0 });
-  const sph = new THREE.SphereGeometry(1, 14, 10), geo = footGeometry(), UP = new Vector3(0, 1, 0);
-  for (const side of ['L', 'R']) {
-    const fb = human.bones[`Bip01_${side}_Foot`], fr = human._sole[side];
-    const upV = fr.up.clone().normalize(), fwdV = fr.fwd.clone().normalize();
-    fwdV.addScaledVector(upV, -fwdV.dot(upV)).normalize();
-    const leftV = upV.clone().cross(fwdV).normalize();
-    const g = new Group(); g.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(leftV, upV, fwdV));
-    g.add(new THREE.Mesh(geo, mat));
-    const add = (m, p, sc) => { const o = new THREE.Mesh(sph, m); o.position.set(p[0], p[1], p[2]); o.scale.set(sc[0], sc[1], sc[2]); g.add(o); };
-    add(mat, [0.034, -0.043, -0.006], [0.012, 0.014, 0.014]); add(mat, [-0.034, -0.049, -0.006], [0.012, 0.014, 0.014]); add(mat, [0, -0.045, 0.004], [0.036, 0.044, 0.04]);
-    const medial = side === 'L' ? -1 : 1;
-    const T = [[0.0245, 0.178, 0.0155, 0.0105, 0.0225], [0.0075, 0.176, 0.0105, 0.0088, 0.0195], [-0.0075, 0.17, 0.0098, 0.0082, 0.0175], [-0.0215, 0.162, 0.0092, 0.0078, 0.0155], [-0.0335, 0.15, 0.0085, 0.0072, 0.0135]];
-    for (const [x, z, rx, ry, rz] of T) { add(toeMat, [medial * x, -0.0905, z + 0.004], [rx, ry, rz]); add(nailMat, [medial * x, -0.0905 + ry * 0.62, z + rz * 0.55], [rx * 0.62, ry * 0.5, rz * 0.5]); }
-    fb.add(g);
-  }
-  for (const side of ['L', 'R']) {
-    const cb = human.bones[`Bip01_${side}_Calf`], fb = human.bones[`Bip01_${side}_Foot`];
-    const a0 = fb.getWorldPosition(new Vector3()), k0 = cb.getWorldPosition(new Vector3());
-    const dir = k0.clone().sub(a0).normalize();
-    const m = new THREE.Mesh(new THREE.CylinderGeometry(0.0335, 0.0315, 0.06, 16, 1, true), mat);
-    const inv = cb.getWorldQuaternion(new Quaternion()).invert();
-    m.quaternion.copy(inv.clone().multiply(new Quaternion().setFromUnitVectors(UP, dir)));
-    m.position.copy(a0.clone().addScaledVector(dir, 0.03).sub(k0).applyQuaternion(inv));
-    cb.add(m);
-  }
 }
 
 // ------------------------------------------------------------------------------------------------------------------------------------
@@ -244,8 +176,7 @@ export async function createRider({ quality = 'medium', base } = {}) {
   if (!stage.supported) return null;
   stage.setSky(null, null);
   const human = await loadHuman({ character: 'athlete_m', base, kit: { top: '#14305f', bottoms: '#e5603f', socks: '#ffffff' }, skin: '#c98f66', hair: 'black' });
-  const skin = bareFeet(human);
-  addFeet(human, skin);
+  bareFeet(human);
   // wet look: skin, hair and cloth are a little glossier and the cloth darker where it clings
   for (const m of human.mats || []) { if (m && m.roughness !== undefined) m.roughness = Math.max(0.28, m.roughness * 0.72); }
   const P = new Pose(human);

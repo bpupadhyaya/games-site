@@ -5,6 +5,7 @@
 // The BOARD is always drawn in its canonical 720 x 1560 coordinates (the boat stands upright, your houses are the right-hand column) and is only
 // translated + scaled into place, so the rules text ("your column on the right", "your storehouse at the bottom") is true at every size.
 // `L.toBoard(x, y)` / `L.toScreen(x, y)` convert between screen and board coordinates.
+import { v3 } from './v3.js';
 export const W = 720, H = 1560;                       // canonical board canvas (art.js paints the board once at this size)
 export const PIT_R = 44, PITCH = 86, COL_X = [478, 242], Y_BOT = 1056;
 export const STORE_BOX = [{ x: 255, y: 1110, w: 210, h: 86 }, { x: 255, y: 400, w: 210, h: 86 }];   // [own (bottom), opponent's (top)]
@@ -63,6 +64,7 @@ function build(w, h, ins) {
     L.sub = R(U.x0 + 30, top + hdrH, U.w - 60, subH);
     const bTop = top + hdrH + subH, bBot = msgY - 8, s = Math.min(1, (bBot - bTop) / BB.h, (U.w - 16) / BB.w);
     L.board = { s, cx: cxScreen, cy: (bTop + bBot) / 2 };
+    L.boardRect = R(U.x0 + 6, bTop - 8, U.w - 12, bBot - bTop + 16);            // where the 3D board is fitted
     L.msg = R(U.x0 + 40, msgY, U.w - 80, 94);
     Object.assign(BTN, { menu: R(bx(0), btnY, bw, 74), undo: R(bx(1), btnY, bw, 74), hint: R(bx(2), btnY, bw, 74), next: R(bx(1) - 15, btnY, bw * 2 + 30 - 0, 74) });
     BTN.share = BTN.next;
@@ -89,13 +91,17 @@ function build(w, h, ins) {
     const bx0 = rc.x + (rc.w - bw) / 2, y0 = rc.y + (rc.h - (3 * bh + 2 * gap)) / 2;
     const slot = (i) => R(bx0, y0 + i * (bh + gap), bw, bh);
     Object.assign(BTN, { menu: slot(0), undo: slot(1), hint: slot(2), next: slot(1), share: slot(1) });
+    L.boardRect = R(lc.x + lc.w + 6, top - 4, rc.x - (lc.x + lc.w) - 12, B1 - top + 4);
   }
   const bs = L.board.s;
   L.toBoard = (x, y) => ({ x: BB.cx + (x - L.board.cx) / bs, y: BB.cy + (y - L.board.cy) / bs });
   L.toScreen = (x, y) => ({ x: L.board.cx + (x - BB.cx) * bs, y: L.board.cy + (y - BB.cy) * bs });
+  // With the 3D board on screen, taps and labels go through its camera instead of the flat transform (v3.js).
+  L.boardAt = (x, y) => (v3.on && v3.toBoard ? v3.toBoard(x, y) : L.toBoard(x, y));
+  L.screenAt = (x, y) => (v3.on && v3.toScreen ? v3.toScreen(x, y, 0) : L.toScreen(x, y));
   // the house nearest a tap (screen coordinates), or -1 (generous: the whole column band counts)
   L.houseNear = (sx, sy) => {
-    const q = L.toBoard(sx, sy); let best = -1, bd = 1e9;
+    const q = L.boardAt(sx, sy); let best = -1, bd = 1e9;
     for (let i = 0; i < 16; i++) {
       if (i === 7 || i === 15) continue;
       const p = posXY(i), dx = Math.abs(q.x - p.x), dy = Math.abs(q.y - p.y);

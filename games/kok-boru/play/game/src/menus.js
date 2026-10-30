@@ -65,13 +65,13 @@ export function titleWidgets(state) {
     ...(split ? [] : [heroArt()]),
     ...(sv ? [{ t: 'btn', id: 'continue', label: 'Continue match', sub: `Period ${sv.period} · ${sv.score[0]}-${sv.score[1]}`, primary: true, h: 88 }] : []),
     { t: 'btn', id: 'ladder', label: 'Steppe Ladder', sub: lad >= LADDER.length ? 'Champion! Replay any rung' : `Next: ${LADDER[lad].name}`, primary: !sv, h: !live.land && live.h < 1200 ? 76 : 90 },
-    { t: 'btn', id: 'play', label: 'Friendly match', sub: 'Choose your team size, tactic and rivals' },
-    { t: 'btn', id: 'watch', label: 'Watch & Learn', sub: 'Computer teams play while you learn why' },
-    { t: 'btn', id: 'howto', label: 'How to Play', row: 2 },
-    { t: 'btn', id: 'rules', label: 'Rules', row: 2 },
-    { t: 'btn', id: 'about', label: 'About', row: 2 },
-    { t: 'btn', id: 'settings', label: 'Settings', row: 3 },
-    { t: 'btn', id: 'sound', label: state.settings.sound ? 'Sound: On' : 'Sound: Off', row: 3 },
+    { t: 'btn', id: 'play', label: 'Friendly match', sub: 'Choose your team size, tactic and rivals', night: true },
+    { t: 'btn', id: 'watch', label: 'Watch & Learn', sub: 'Computer teams play while you learn why', night: true },
+    { t: 'btn', id: 'howto', label: 'How to Play', row: 2, night: true, icon: 'howto' },
+    { t: 'btn', id: 'rules', label: 'Rules', row: 2, night: true, icon: 'rules' },
+    { t: 'btn', id: 'about', label: 'About', row: 2, night: true, icon: 'about' },
+    { t: 'btn', id: 'settings', label: 'Settings', row: 3, night: true, icon: 'settings' },
+    { t: 'btn', id: 'sound', label: state.settings.sound ? 'Sound: On' : 'Sound: Off', row: 3, night: true, icon: 'sound' },
     lockupArt(),
   ];
 }
@@ -143,13 +143,25 @@ export function resultWidgets(state) {
   const title = watch ? (s.winner < 0 ? 'A draw' : `${TEAMS[s.winner === 0 ? state.homeTeam : state.awayTeam].name} win`) : s.winner < 0 ? 'A draw' : youWin ? 'You win the match!' : `${TEAMS[state.awayTeam].name} win`;
   const st = s.stats[0], ot = s.stats[1];
   const wd = [{ t: 'gap', h: big ? 24 : 40 }, { t: 'h', label: title, size: 54, cap: big ? 1.15 : 1.4 }];
-  wd.push({ t: 'h', label: `${s.score[0]} – ${s.score[1]}`, size: 84, cap: big ? 1.1 : 1.3, color: '#ffd97a' });
+  // the score between the two team pennants, on a felt band
+  wd.push({ t: 'art', h: 132, draw(ctx, w) {
+    const cx = w / 2, cy = 66, pw = 92, ph = 62, bw = Math.min(w - 10, 520);
+    ctx.save();
+    roundPath(ctx, cx - bw / 2, cy - 54, bw, 108, 54); ctx.fillStyle = 'rgba(16,28,62,0.78)'; ctx.fill();
+    ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(244,196,96,0.7)'; ctx.stroke();
+    drawPennant(ctx, cx - bw / 2 + 34, cy - ph / 2, pw, ph, state.homeTeam);
+    drawPennant(ctx, cx + bw / 2 - 34 - pw, cy - ph / 2, pw, ph, state.awayTeam);
+    ctx.font = `900 84px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#ffd97a';
+    ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 10; ctx.shadowOffsetY = 3;
+    ctx.fillText(`${s.score[0]} – ${s.score[1]}`, cx, cy + 4);
+    ctx.restore();
+  } });
   wd.push({ t: 'p', label: `${TEAMS[state.homeTeam].name}: ${st.goals} goals, ${st.grabs} grabs, ${st.passes} passes, ${st.tugs} tugs.  ${TEAMS[state.awayTeam].name}: ${ot.goals} goals, ${ot.grabs} grabs, ${ot.passes} passes, ${ot.tugs} tugs.`, size: 24, cap: big ? 2 : 3 });
   if (state.lastLadder) wd.push({ t: 'p', label: state.lastLadder, bold: true, color: '#ffe9a0', size: 28 });
   wd.push({ t: 'gap', h: 24 });
   if (state.lastLadderNext) wd.push({ t: 'btn', id: 'nextrung', label: 'Next rung', primary: true, h: 92 });
   wd.push({ t: 'btn', id: 'again', label: state.mode === 'ladder' && !youWin ? 'Try again' : 'Rematch', primary: !state.lastLadderNext, h: 92 });
-  wd.push({ t: 'btn', id: 'new', label: state.mode === 'ladder' ? 'Ladder' : 'New match', row: 6 });
+  wd.push({ t: 'btn', id: 'new', label: state.mode === 'ladder' ? 'Ladder' : 'New match', row: 6, night: true });
   wd.push({ t: 'btn', id: 'menu', label: 'Main menu', row: 6, dark: true });
   wd.push({ t: 'gap', h: 16 });
   wd.push({ t: 'art', h: 52, draw(ctx, w) { drawMoreLine(ctx, w / 2, 26, 22); } });
@@ -161,11 +173,11 @@ export function pauseWidgets(state) {
   return [
     { t: 'h', label: 'Paused', size: 52 },
     { t: 'btn', id: 'resume', label: 'Resume', primary: true, h: 88 },
-    { t: 'btn', id: 'p-rules', label: 'Rules', row: 7 },
-    { t: 'btn', id: 'p-howto', label: 'How to Play', row: 7 },
-    { t: 'btn', id: 'p-sound', label: st.sound ? 'Sound: On' : 'Sound: Off', row: 10 },
-    { t: 'btn', id: 'p-txt-dec', label: 'A−', row: 10, disabled: st.textIdx === 0 },
-    { t: 'btn', id: 'p-txt-inc', label: 'A+', row: 10, disabled: st.textIdx === TEXT_SCALES.length - 1 },
+    { t: 'btn', id: 'p-rules', label: 'Rules', row: 7, night: true, icon: 'rules' },
+    { t: 'btn', id: 'p-howto', label: 'How to Play', row: 7, night: true, icon: 'howto' },
+    { t: 'btn', id: 'p-sound', label: st.sound ? 'Sound: On' : 'Sound: Off', row: 10, night: true, icon: 'sound' },
+    { t: 'btn', id: 'p-txt-dec', label: 'A−', row: 10, night: true, disabled: st.textIdx === 0 },
+    { t: 'btn', id: 'p-txt-inc', label: 'A+', row: 10, night: true, disabled: st.textIdx === TEXT_SCALES.length - 1 },
     { t: 'p', label: `Text size: ${Math.round(TEXT_SCALES[st.textIdx] * 100)}%`, bold: true, color: '#ffe9a0', size: 24 },
     { t: 'btn', id: 'quit', label: state.mode === 'match' || state.mode === 'ladder' ? 'Save and quit to menu' : 'Quit to menu', dark: true },
   ];
@@ -221,7 +233,7 @@ const bg = (ctx, a) => scrim(ctx, a);
 
 export function renderTitle(ctx, state) {
   const w = live.w, h = live.h;
-  const g = ctx.createLinearGradient(0, 0, 0, h); g.addColorStop(0, 'rgba(10,18,44,0.15)'); g.addColorStop(0.35, 'rgba(10,18,44,0.45)'); g.addColorStop(1, 'rgba(10,18,44,0.9)');
+  const g = ctx.createLinearGradient(0, 0, 0, h); g.addColorStop(0, 'rgba(10,18,44,0.12)'); g.addColorStop(0.35, 'rgba(10,18,44,0.32)'); g.addColorStop(1, 'rgba(10,18,44,0.82)');
   ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
   const c = colFor('title');
   if (c.hero) {

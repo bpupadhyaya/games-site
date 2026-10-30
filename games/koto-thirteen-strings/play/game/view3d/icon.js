@@ -1,0 +1,23 @@
+// Store icon rendered offline from the game's own 3D koto: one bold subject on dark lacquer cloth, warm lamp pool. No text.
+import * as THREE from '../vendor3d/three.js';
+import { renderIcon } from '../vendor3d/board3d.js';
+import { materials, buildKoto, poseString } from './world.js';
+import { HERO } from './presenter.js';
+const size = Number(new URLSearchParams(location.search).get('size') || 2048);
+const scene = new THREE.Scene();
+const renderer = new THREE.WebGLRenderer({ canvas: document.createElement('canvas'), antialias: true, alpha: true, preserveDrawingBuffer: true });
+const pm = new THREE.PMREMGenerator(renderer); scene.environment = pm.fromScene(new THREE.RoomEnvironment(), 0.04).texture; scene.environmentIntensity = 0.25;
+const M = materials();
+const cloth = new THREE.Mesh(new THREE.PlaneGeometry(900, 900), new THREE.MeshStandardMaterial({ color: 0x1a1230, roughness: 0.95 }));
+cloth.rotation.x = -Math.PI / 2; cloth.position.y = -20; cloth.receiveShadow = true; scene.add(cloth);
+const K = buildKoto({ ...HERO, sp: 4.2, m: 4, hS: 4.6, bodyH: 12 }, M); const root = new THREE.Group(); root.add(K.group); scene.add(root);
+const bu = [0.80, 0.755, 0.71, 0.665, 0.62, 0.575, 0.53, 0.485, 0.44, 0.395, 0.35, 0.305, 0.26];
+bu.forEach((u, s) => { K.placeBridge(s, u); poseString(K, s, u, 0, 0, 0); });
+K.group.position.set(-HERO.len * 0.5, -20 - K.footBottom, 4.2 * 6.5);
+root.rotation.y = -0.62; K.group.traverse((o) => { if (o.isMesh) { o.castShadow = true; } });
+scene.add(new THREE.HemisphereLight(0xb8a8ff, 0x140804, 0.4));
+const key = new THREE.SpotLight(0xffd29a, 2.2, 0, 0.7, 0.9, 0); key.position.set(-60, 190, 120); key.target.position.set(0, 0, 0);
+key.castShadow = true; key.shadow.mapSize.set(4096, 4096); key.shadow.bias = -0.0004; key.shadow.normalBias = 0.05; scene.add(key, key.target);
+const rim = new THREE.DirectionalLight(0xff9a70, 0.9); rim.position.set(140, 60, -140); scene.add(rim);
+const cam = new THREE.PerspectiveCamera(36, 1, 2, 3000); cam.position.set(14, 215, 128); cam.lookAt(new THREE.Vector3(0, -12, 0));
+renderIcon({ scene, camera: cam, size, renderer, background: '#0d0a1c', bloom: 0.2, vignette: 0.6, exposure: 1.0 });

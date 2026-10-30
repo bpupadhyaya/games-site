@@ -2,7 +2,7 @@
 // Three shapes: tall (portrait phones), compact (portrait tablets / windows) and wide (landscape, w >= 1.2 h).
 export const host = { t: 0, r: 0, b: 0, l: 0, back: 0, px: 1 };      // safe insets and the host's floating back button, in virtual units
 export const TEXT_SCALES = [1, 1.25, 1.5, 2, 2.5, 3];
-export const CUE_OUT = 1.34;       // dots start this many drum radii out and drop onto the rim track
+export const CUE_OUT = 1.14;       // dots start this many drum radii out and drop onto the rim track
 export const TRACK = 0.74;         // radius of the rim track, in drum radii
 
 export const inRect = (r, x, y) => !!r && x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
@@ -113,7 +113,7 @@ export function layoutFor(w, h) {
     } else {
       const hudB = top + 160, padH = 150;
       const availH = bot - hudB - padH;
-      const dR = Math.max(110, Math.min(W / 2 / CUE_OUT, (availH - 170) / 2 / CUE_OUT));
+      const dR = Math.max(110, Math.min((w - 14) / 2 / CUE_OUT, (availH - 170) / 2 / CUE_OUT));
       const cx = w / 2, cy = Math.min(bot - padH - dR * 0.9 - 6, hudB + availH * 0.62 + dR * 0.1);
       const py = bot - padH / 2 + 4, padR = Math.min(66, W * 0.1);
       L.play = {

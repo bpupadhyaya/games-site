@@ -2,6 +2,8 @@ import { boot } from './kit/index.js';
 import { createGame, meta, wheelInput } from './src/game.js';
 import { host } from './src/layout.js';
 import { setLogo, setLockup } from './src/brand.js';
+import { v3 } from './src/v3.js';
+import { addAboutCredits } from './src/content.js';
 
 // Store screenshots (`?shot=1&seed=<showcase seed>`) show real mid-race positions. Seeds 9001..9007 pick a position; the
 // scene then ignores the random shot-mode "monkey" input so it stays put. Every other URL and every real player is unaffected.
@@ -31,5 +33,39 @@ const create = showcase
   ? async (env) => { env.config.showcase = showcase; const game = await createGame(env); return { ...game, update: (dt) => game.update(dt, idle), isPreviewExempt: () => true }; }
   : createGame;
 
-const devCreate = async (env) => { const game = await create(env); if (env.config.dev) window.__game = game; return game; };
-boot({ createGame: devCreate, meta, canvas: document.getElementById('game'), background: '#1a1206' });
+// 3D presenter (felt trail on the steppe + the ankle bones on a rug, behind the kit canvas). The game boots at once on the flat 2D
+// art (styled title in the first frame); three.js is fetched and the scene built after that, then crossfades in. No WebGL or a lost
+// context: the flat art stays. The presenter only reads game state.
+let presenter = null, inner = null, devOn = false;
+const bg = { toString: () => (v3.on ? 'rgba(0,0,0,0)' : '#1a1206') };     // read by the kit every frame, so the switch is instant
+const wrap = (g) => Object.assign(Object.create(g), g, {
+  render(ctx, view) {
+    if (v3.on && presenter) {
+      // the kit fills its background each frame; a transparent fill erases nothing, so clear the 2D layer here
+      ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height); ctx.restore();
+      presenter.pre();
+    }
+    g.render(ctx, view);
+    if (v3.on && presenter) presenter.post();
+  },
+});
+const devCreate = async (env) => {
+  const game = wrap(await create(env)); inner = game; devOn = Boolean(env.config.dev);
+  if (devOn) { window.__game = game; window.__v3 = v3; Object.defineProperty(window, '__p3', { get: () => presenter }); }
+  return game;
+};
+boot({ createGame: devCreate, meta, canvas: document.getElementById('game'), background: bg });
+{
+  const start = () => import('./view3d/presenter.js').then((m) => m.createPresenter({ kitCanvas: cv, dev: devOn })).then((p) => {
+    if (!p.ok) return;
+    const go = () => { if (!inner) return setTimeout(go, 30); presenter = p; p.attach(inner); };
+    go();
+  }).catch((e) => console.warn('3D presenter unavailable; flat art stays', e));
+  // let the flat title paint and become interactive first
+  requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(start, 30)));
+}
+// Credits for the 3D layer (three.js, view3d), shown at the end of About.
+fetch('./vendor3d/LICENSES.md').then((r) => (r.ok ? r.text() : '')).then((md) => {
+  if (!md) return;
+  addAboutCredits(md.split(/\n\s*\n/).map((t) => t.trim()).filter((t) => t && !t.startsWith('#')).map((t) => t.replace(/\s*\n\s*/g, ' ').replace(/[`*]/g, '')).join(' '));
+}).catch(() => {});

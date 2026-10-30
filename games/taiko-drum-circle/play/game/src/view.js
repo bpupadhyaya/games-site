@@ -1,5 +1,6 @@
 // Drawing for every screen. render() is the single entry point; playing screens live in playview.js, text screens in docview.js.
-import { PAL, UI, DISPLAY, rgba, drawBackdrop, drawLantern, drawDrum, drawStick, drawStars, drawEmbers, drawFloor } from './art.js';
+import { PAL, UI, DISPLAY, rgba, drawBackdrop, drawLantern, drawDrum, drawDrumFx, drawStick, drawStars, drawEmbers, drawFloor } from './art.js';
+import { v3, flatAlpha } from './v3.js';
 import { txt, headerTitle, button, panel, rrect, chip, icon, wrap } from './ui.js';
 import { renderDoc } from './docview.js';
 import { renderPlay, renderFree, renderCalib } from './playview.js';
@@ -23,13 +24,21 @@ function titleText(ctx, cx, y, size, label, sub) {
 
 // The big drum with crossed sticks, used on the title and piece screens.
 function hero(ctx, st, x, y, r, kind = 3) {
-  const t = st.t, beat = Math.max(0, Math.sin(t * 2.4)) ** 6;
-  const g = ctx.createRadialGradient(x, y - r * 0.2, r * 0.2, x, y, r * 2.2);
-  g.addColorStop(0, `rgba(255,170,90,${0.35 + 0.15 * beat})`); g.addColorStop(1, 'rgba(255,170,90,0)');
-  ctx.fillStyle = g; ctx.fillRect(x - r * 2.4, y - r * 2.2, r * 4.8, r * 4.4);
-  drawDrum(ctx, x, y, r, kind, { flash: beat * 0.35, zone: 'D', lift: beat * 2 });
-  const ry = r * 0.62;
-  for (const s of [-1, 1]) drawStick(ctx, x + s * r * 0.95, y - ry * 2.3 - beat * 8, x - s * r * 0.06, y - ry * 0.45 + beat * 6, Math.max(5, r * 0.07));
+  const t = st.t, beat = Math.max(0, Math.sin(t * 2.4)) ** 6, fa = flatAlpha(), ry = r * 0.62;
+  const raw = [-1, 1].map((s) => ({ gx: x + s * r * 0.95, gy: y - ry * 2.3 - beat * 8, tx: x - s * r * 0.06, ty: y - ry * 0.45 + beat * 6 }));
+  v3.drums.push({ kind, cx: x, cy: y, rx: r, flash: beat * 0.35, zone: 'D', dim: 0, lift: beat * 2, hero: true, raw });
+  v3.pulse = beat;
+  const st2 = { flash: beat * 0.35, zone: 'D', lift: beat * 2 };
+  if (fa > 0.01) {
+    ctx.save(); ctx.globalAlpha *= fa;
+    const g = ctx.createRadialGradient(x, y - r * 0.2, r * 0.2, x, y, r * 2.2);
+    g.addColorStop(0, `rgba(255,170,90,${0.35 + 0.15 * beat})`); g.addColorStop(1, 'rgba(255,170,90,0)');
+    ctx.fillStyle = g; ctx.fillRect(x - r * 2.4, y - r * 2.2, r * 4.8, r * 4.4);
+    drawDrum(ctx, x, y, r, kind, st2);
+    for (const q of raw) drawStick(ctx, q.gx, q.gy, q.tx, q.ty, Math.max(5, r * 0.07));
+    ctx.restore();
+  }
+  if (v3.on) drawDrumFx(ctx, x, y, r, st2);
 }
 
 export function render(ctx, st, L, view, meta, pauseItems) {
@@ -38,7 +47,8 @@ export function render(ctx, st, L, view, meta, pauseItems) {
   if (sc === 'free') { renderFree(ctx, st, L, meta); drawToast(ctx, st, L); return; }
   if (sc === 'calib') { renderCalib(ctx, st, L); return; }
   meta.previewBadge = null;
-  drawBackdrop(ctx, w + 20, h + 20, st.t, 0);
+  v3.mode = sc === 'title' ? 'title' : 'env'; v3.t = st.t; v3.floorTop = h * 0.72; v3.pulse = 0;
+  if (flatAlpha() > 0.01) { ctx.save(); ctx.globalAlpha *= flatAlpha(); drawBackdrop(ctx, w + 20, h + 20, st.t, 0); ctx.restore(); }
   if (sc === 'title') renderTitle(ctx, st, L);
   else if (sc === 'songs') renderSongs(ctx, st, L);
   else if (sc === 'piece') renderPiece(ctx, st, L);
@@ -82,10 +92,15 @@ function settingsBlocks(st) {
 function renderTitle(ctx, st, L) {
   const T = L.title, S = L.S, t = st.t;
   const wide = L.mode === 'wide';
-  drawFloor(ctx, L.w, L.h, T.hero.y + T.hero.r * 0.55, T.hero.x, 0.3);
-  const lanternR = wide ? 38 : 34;
-  drawLantern(ctx, S.x + (wide ? 70 : 48), T.hero.y - T.hero.r * 0.9, lanternR, t, 0.5);
-  drawLantern(ctx, wide ? T.col.x - 60 : S.x + S.w - 48, T.hero.y - T.hero.r * 0.8, lanternR * 0.9, t + 1.7, 0.5);
+  v3.floorTop = T.hero.y + T.hero.r * 0.55;
+  if (flatAlpha() > 0.01) {
+    ctx.save(); ctx.globalAlpha *= flatAlpha();
+    drawFloor(ctx, L.w, L.h, T.hero.y + T.hero.r * 0.55, T.hero.x, 0.3);
+    const lanternR = wide ? 38 : 34;
+    drawLantern(ctx, S.x + (wide ? 70 : 48), T.hero.y - T.hero.r * 0.9, lanternR, t, 0.5);
+    drawLantern(ctx, wide ? T.col.x - 60 : S.x + S.w - 48, T.hero.y - T.hero.r * 0.8, lanternR * 0.9, t + 1.7, 0.5);
+    ctx.restore();
+  } else if (v3.on) drawEmbers(ctx, L.w, L.h, t, 12);
   hero(ctx, st, T.hero.x, T.hero.y, T.hero.r);
   const tcx = wide ? T.hero.x : S.x + S.w / 2, size = T.size;
   titleText(ctx, tcx, T.titleY, size, 'TAIKO', null);

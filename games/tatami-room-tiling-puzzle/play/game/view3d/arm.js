@@ -1,14 +1,33 @@
-// One arm: a real human hand + forearm (view3d athlete rig through hand3d.js) inside a kimono sleeve. Used by the in-game hands and by the
-// icon render so both look identical. The rest of the body is clipped away with a box of clipping planes around the wrist.
-import * as V3D from '../vendor3d/index.js';
-import { createHand } from './hand3d.js';
+// One arm: a modelled woman's hand + forearm (handmesh.js, one surface meshed once and shared by both arms; the left is the right
+// mirrored) inside a kimono sleeve. Used by the in-game hands and by the icon render so both look identical.
+// The hand is rigid in its laid-flat pose; it is placed by its palm contact point (the middle of the palm's underside) so the palm and
+// finger pads rest ON the mat, and a pat tips the fingers up from the wrist. The sleeve runs along the modelled forearm from a cuff
+// a few centimetres above the wrist, with the hanging tamoto panel swinging against the wrist's motion.
+import { buildHandGeometry, skinMaterial, nailMaterial } from './handmesh.js';
 import * as B from '../vendor3d/board3d.js';
 
 export const HAND_SCALE = 1.3 / 0.9;           // world units per metre (a cell is ~0.9 m) with hands drawn 1.3x for readability
+const CUFF_S = 0.062;                            // the sleeve's cuff sits this far up the forearm from the wrist centre (m)
+
+let shared = null;
+function sharedHand(opts) {
+  if (!shared) {
+    shared = buildHandGeometry(opts).then((H) => {
+      // the palm contact point: the middle of the palm at the lowest point of the palm + finger pads (hand frame, m)
+      const P = H.geometry.attributes.position.array;
+      let yMin = Infinity;
+      for (let i = 0; i < P.length; i += 3) if (P[i] > 0.02 && P[i] < 0.19 && P[i + 1] < yMin) yMin = P[i + 1];
+      H.contact = [0.06, yMin, 0.002];
+      H.skinMat = skinMaterial(); H.nailMat = nailMaterial();
+      return H;
+    });
+  }
+  return shared;
+}
 
 export function furisodeTexture(THREE, base = '#8c1f3f') {
   const S = 256, c = document.createElement('canvas'); c.width = c.height = S; const x = c.getContext('2d');
-  const g = x.createLinearGradient(0, 0, 0, S); g.addColorStop(0, base); g.addColorStop(1, base); x.fillStyle = g; x.fillRect(0, 0, S, S);
+  x.fillStyle = base; x.fillRect(0, 0, S, S);
   x.fillStyle = 'rgba(255,255,255,0.07)'; for (let i = 0; i < S; i += 4) x.fillRect(i, 0, 2, S);       // silk twill
   let seed = 7; const r = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
   for (let k = 0; k < 16; k++) {                                                             // little cherry blossoms
@@ -25,94 +44,102 @@ export function furisodeTexture(THREE, base = '#8c1f3f') {
   return t;
 }
 
-export async function createArm(THREE, side, { skin = 'light', cloth = '#9a2a4a' } = {}) {
-  const hand = await createHand(V3D, { side, skin, character: 'athlete_f', preset: 'flat' });
-  hand.object.scale.setScalar(HAND_SCALE);
-  const planes = [0, 1, 2, 3, 4, 5].map(() => new THREE.Plane(new THREE.Vector3(1, 0, 0), 0));
-  hand.human.root.traverse((o) => {
-    if (!o.isMesh) return;
-    // the loader caches materials across humans: give this arm its own so its clipping planes are its own
-    o.material = Array.isArray(o.material) ? o.material.map((m) => m.clone()) : o.material.clone();
-    (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => { m.clippingPlanes = planes; });
-    o.frustumCulled = false;
-  });
+export async function createArm(THREE, side, { cloth = '#9a2a4a', voxel } = {}) {
+  const H = await sharedHand(voxel ? { voxel } : {});
+  const S = HAND_SCALE, mir = side === 'L' ? -1 : 1;
+  // hand: own materials (fade per arm), shared geometry; the left hand mirrors the little-finger axis
+  const skin = H.skinMat.clone(), nailM = H.nailMat.clone();
+  skin.onBeforeCompile = H.skinMat.onBeforeCompile; skin.customProgramCacheKey = H.skinMat.customProgramCacheKey;
+  const hand = new THREE.Group();
+  const mesh = new THREE.Mesh(H.geometry, skin), nails = new THREE.Mesh(H.nailGeometry, nailM);
+  mesh.castShadow = true; mesh.receiveShadow = true; mesh.frustumCulled = nails.frustumCulled = false;
+  hand.add(mesh, nails); hand.scale.set(S, S, S * mir);
 
-  // sleeve: a tube from the wrist toward the elbow that closes in a soft dome, plus the hanging tamoto panel
+  // sleeve: a tube from the cuff toward the elbow that closes in a soft dome, plus the hanging tamoto panel
   const clothTex = furisodeTexture(THREE, cloth);
   const silk = new THREE.MeshStandardMaterial({ map: clothTex, roughness: 0.62, metalness: 0, side: THREE.DoubleSide });
   const prof = [];
-  for (let i = 0; i <= 12; i++) { const u = i / 12; prof.push([0.086 + u * 0.03 + u * u * 0.035, -0.035 + u * 1.05]); }
-  prof.push([0.152, 1.02], [0.125, 1.07], [0.075, 1.1], [0.0, 1.115]);
+  // long enough that its far end (toward the shoulder) stays out of the play view; a soft taper closes it
+  for (let i = 0; i <= 16; i++) { const u = i / 16; prof.push([0.068 + u * 0.05 + u * u * 0.02, -0.035 + u * 1.6]); }
+  prof.push([0.13, 1.62], [0.1, 1.68], [0.05, 1.71], [0.0, 1.72]);
   const group = new THREE.Group();
   const tube = new THREE.Mesh(B.lathe(prof, 28), silk); tube.castShadow = true; tube.receiveShadow = true; group.add(tube);
-  const cuff = new THREE.Mesh(new THREE.TorusGeometry(0.084, 0.015, 8, 28), new THREE.MeshStandardMaterial({ color: 0xf6efe0, roughness: 0.55 }));
-  cuff.rotation.x = Math.PI / 2; cuff.position.y = -0.035; group.add(cuff);
+  // the white under-kimono cuff, fitted round the oval forearm
+  const r0 = H.armRadii(CUFF_S);
+  const cuffMat = new THREE.MeshStandardMaterial({ color: 0xf6efe0, roughness: 0.55, side: THREE.DoubleSide });
+  const cuff = new THREE.Mesh(new THREE.TorusGeometry(1, 0.2, 8, 28), cuffMat);
+  cuff.rotation.x = Math.PI / 2; cuff.position.y = -0.03; cuff.scale.set((r0.rz + 0.008) * S, (r0.ry + 0.008) * S, 0.06); group.add(cuff);
+  const under = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 24, 1, true), cuffMat);   // the inner sleeve between cuff and silk
+  under.scale.set((r0.rz + 0.006) * S, 0.04, (r0.ry + 0.006) * S); under.position.y = -0.01; group.add(under);
   const tamoto = new THREE.Group();
   const panel = new THREE.Mesh(B.roundedBox(0.34, 0.5, 0.06, 0.025, 4), silk); panel.castShadow = true; panel.receiveShadow = true; panel.position.set(0, -0.22, 0);
   tamoto.add(panel);
   const hemEdge = new THREE.Mesh(B.roundedBox(0.343, 0.045, 0.063, 0.018, 3), new THREE.MeshStandardMaterial({ color: 0xe0b850, roughness: 0.5, metalness: 0.4 }));
   hemEdge.position.set(0, -0.45, 0); tamoto.add(hemEdge);
-  const root = new THREE.Group(); root.add(group, tamoto);
+  // soft contact shadow under the palm and fingers (the shadow map is too coarse at hand size to ground the pads on the rush)
+  const shCan = document.createElement('canvas'); shCan.width = shCan.height = 64; {
+    const x = shCan.getContext('2d'), g = x.createRadialGradient(32, 32, 1, 32, 32, 31);
+    g.addColorStop(0, 'rgba(0,0,0,0.85)'); g.addColorStop(0.45, 'rgba(0,0,0,0.5)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+    x.fillStyle = g; x.fillRect(0, 0, 64, 64);
+  }
+  const shTex = new THREE.CanvasTexture(shCan);
+  const shadow = new THREE.Mesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: shTex, color: 0x1e0e04, transparent: true, opacity: 0.7, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
+  shadow.scale.set(0.27 * S, 1, 0.12 * S); shadow.renderOrder = 1;
+  const root = new THREE.Group(); root.add(group, tamoto, shadow);
 
-  const st = { wrist: new THREE.Vector3(), prev: new THREE.Vector3(), swing: [0, 0, 0, 0], a: new THREE.Vector3(0, 1, 0), pole: new THREE.Vector3() };
-  const tmpA = new THREE.Vector3(), tmpB = new THREE.Vector3(), tmpC = new THREE.Vector3(), tmpQ = new THREE.Quaternion(), swQ = new THREE.Quaternion(), swE = new THREE.Euler();
-  const UP = new THREE.Vector3(0, 1, 0), NEG_UP = new THREE.Vector3(0, -1, 0);
+  const st = { wrist: new THREE.Vector3(), prev: new THREE.Vector3(), swing: [0, 0, 0, 0], a: new THREE.Vector3(0, 1, 0) };
+  const UP = new THREE.Vector3(0, 1, 0), C = new THREE.Vector3(H.contact[0], H.contact[1], H.contact[2] * mir).multiplyScalar(S);
+  const q = new THREE.Quaternion(), qt = new THREE.Quaternion(), m4 = new THREE.Matrix4(), F = new THREE.Vector3(), Bk = new THREE.Vector3(), Zs = new THREE.Vector3();
+  const O = new THREE.Vector3(), tmp = new THREE.Vector3(), swQ = new THREE.Quaternion(), swE = new THREE.Euler(), sw = new THREE.Quaternion(), swE2 = new THREE.Euler();
   const sd = side === 'L' ? -1 : 1;
 
-  // Pose the arm: wrist target (world units), palm down, fingers pointing along dirF. press 0..1 flattens the fingers. iterations: IK passes.
-  function pose(wrist, { dirF = new THREE.Vector3(sd * 0.08, -0.12, -1), press = 0, pat = 0, dt = 1 / 60, iters = 3, clock = 0, shoulder = null } = {}) {
-    const hum = hand.human;
-    st.wrist.copy(wrist);
-    const sh0 = hum.bonePosition(`${side}_UpperArm`, tmpA).clone();
-    const so = shoulder || tmpC.set(sd * 0.16, 0.42, 0.5);
-    const want = tmpB.set(wrist.x + so.x, wrist.y + so.y, wrist.z + so.z);
-    hand.object.position.add(want.sub(sh0));
-    hand.object.updateMatrixWorld(true);
-    dirF = dirF.clone().normalize();
-    const q = V3D.handQuat(hum, side, NEG_UP, dirF);
-    st.pole.set(wrist.x + so.x * 2.2, wrist.y + so.y * 0.6, wrist.z + so.z * 0.9);
-    hum.setReach(side, wrist, { weight: 1, pole: st.pole, quat: q });
-    const curl = 0.28 * (1 - press) + 0.1 * pat;
-    hand.setPose({ thumb: 0.18 + 0.2 * (1 - press), index: curl * 0.7, middle: curl * 0.8, ring: curl * 0.95, pinky: curl * 1.1, spread: 0.18 + 0.12 * (1 - press), thumbOut: 0.35 });
-    for (let k = 0; k < iters; k++) hum.update(dt / iters);
-    hum.root.updateMatrixWorld(true);
-    const w = hum.bonePosition(`${side}_Hand`, tmpA).clone(), el = hum.bonePosition(`${side}_Forearm`, tmpB).clone();
-    const a = el.sub(w).normalize();
-    st.a.copy(a);
-    // keep a box of the wrist's neighbourhood (fingers forward, a short bit of forearm back), cut everything else of the body away
-    const u = new THREE.Vector3().crossVectors(a, UP); if (u.lengthSq() < 1e-4) u.set(1, 0, 0); u.normalize();
-    const v = new THREE.Vector3().crossVectors(a, u).normalize();
-    const set = (i, n, d) => { planes[i].normal.copy(n); planes[i].constant = d; };       // visible where n.p + d >= 0
-    set(0, a.clone().negate(), a.dot(w) + 0.12);   // beyond the cuff toward the elbow
-    set(1, a.clone(), -a.dot(w) + 0.42);            // far beyond the fingertips
-    set(2, u.clone(), -u.dot(w) + 0.2); set(3, u.clone().negate(), u.dot(w) + 0.2);
-    set(4, v.clone(), -v.dot(w) + 0.2); set(5, v.clone().negate(), v.dot(w) + 0.2);
-    group.position.copy(w).addScaledVector(a, 0.0);
+  // Pose the arm: contact = world point under the middle of the palm (on the mat's top), fingers pointing along dirF (horizontal part),
+  // tilt = radians the fingers tip up from the wrist (a pat), lift = world units the hand is raised.
+  function pose(contact, { dirF = new THREE.Vector3(sd * 0.08, 0, -1), tilt = 0, lift = 0, dt = 1 / 60, clock = 0, surface = null } = {}) {
+    F.set(dirF.x, 0, dirF.z).normalize(); Bk.copy(UP); Zs.crossVectors(F, Bk);
+    m4.makeBasis(F, Bk, Zs); q.setFromRotationMatrix(m4);
+    O.copy(C).applyQuaternion(q).negate().add(contact); O.y += lift;
+    // the pat: the hand turns about the wrist's side-to-side axis, fingers up
+    qt.setFromAxisAngle(Zs, tilt); q.premultiply(qt);
+    hand.position.copy(O); hand.quaternion.copy(q);
+    st.wrist.copy(O);
+    // the forearm in the world (the modelled forearm is rigid with the hand); mirror its little-finger component for the left hand
+    const a = st.a.set(H.forearm.axis.x, H.forearm.axis.y, H.forearm.axis.z * mir).applyQuaternion(q);
+    group.position.copy(O).addScaledVector(a, CUFF_S * S);
     group.quaternion.setFromUnitVectors(UP, a);
     // tamoto hangs from the sleeve's middle, always toward world down, swinging with the wrist's motion
-    const mid = w.clone().addScaledVector(a, 0.62);
-    tamoto.position.copy(mid);
-    const vx = (wrist.x - st.prev.x) / Math.max(dt, 1e-3), vz = (wrist.z - st.prev.z) / Math.max(dt, 1e-3);
+    tamoto.position.copy(O).addScaledVector(a, 0.66);
+    const vx = (O.x - st.prev.x) / Math.max(dt, 1e-3), vz = (O.z - st.prev.z) / Math.max(dt, 1e-3);
     st.swing[1] += (-(vx * 0.4) - st.swing[0] * 30 - st.swing[1] * 5) * dt; st.swing[0] += st.swing[1] * dt;
     st.swing[3] += (-(vz * 0.4) - st.swing[2] * 30 - st.swing[3] * 5) * dt; st.swing[2] += st.swing[3] * dt;
-    // the hanging panel is aligned with the arm's horizontal direction and always hangs toward world down, swinging sideways and along
-    const yaw = Math.atan2(-a.z, a.x) * 1 + 0, hq = swQ.setFromEuler(swE.set(0, Math.atan2(a.x, a.z) - Math.PI / 2, 0));
-    const sw = new THREE.Quaternion().setFromEuler(new THREE.Euler(Math.max(-0.6, Math.min(0.6, -st.swing[2])) + 0.03 * Math.sin(clock * 1.3), 0, Math.max(-0.6, Math.min(0.6, st.swing[0])) + 0.02 * Math.sin(clock * 1.7)));
-    tamoto.quaternion.copy(hq).multiply(sw);
-    st.prev.copy(wrist);
-    return { wrist: w, a };
+    swQ.setFromEuler(swE.set(0, Math.atan2(a.x, a.z) - Math.PI / 2, 0));
+    sw.setFromEuler(swE2.set(Math.max(-0.6, Math.min(0.6, -st.swing[2])) + 0.03 * Math.sin(clock * 1.3), 0, Math.max(-0.6, Math.min(0.6, st.swing[0])) + 0.02 * Math.sin(clock * 1.7)));
+    tamoto.quaternion.copy(swQ).multiply(sw);
+    // the contact shadow lies on the surface under the palm + fingers, fading as the hand rises
+    const sy = surface == null ? contact.y : surface, h = Math.max(0, contact.y + lift - sy);
+    shadow.position.copy(contact).addScaledVector(F, 0.035 * S); shadow.position.y = sy + 0.002;
+    shadow.rotation.set(0, Math.atan2(-F.z, F.x), 0);
+    shadow.material.opacity = shOp * Math.max(0, 1 - h / 0.14) * (1 - 0.35 * Math.min(1, Math.abs(tilt) / 0.3));
+    st.prev.copy(O);
+    return { wrist: O, a };
+  }
+  // world positions for measurement: wrist centre, a point 26 cm up the forearm (elbow), middle finger tip
+  function joints() {
+    const tip = tmp.set(H.tip.x * S, H.tip.y * S, H.tip.z * S * mir).applyQuaternion(hand.quaternion).add(hand.position).toArray();
+    return { wrist: hand.position.toArray(), elbow: hand.position.clone().addScaledVector(st.a, 0.26 * S).toArray(), tip };
   }
   // fade the whole arm (skin + cloth) in or out: k 0..1
-  const fadeMats = [];
-  hand.human.root.traverse((o) => { if (o.isMesh) (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => fadeMats.push(m)); });
-  root.traverse((o) => { if (o.isMesh) fadeMats.push(o.material); });
+  const fadeMats = [skin, nailM];
+  let shOp = 0.7;
+  root.traverse((o) => { if (o.isMesh && !fadeMats.includes(o.material)) fadeMats.push(o.material); });
   let lastK = 1;
   function fade(k) {
     k = Math.max(0, Math.min(1, k));
     if (Math.abs(k - lastK) < 0.004) return;
     lastK = k;
-    for (const m of fadeMats) { m.transparent = k < 0.999; m.opacity = k; m.depthWrite = k > 0.5; }
+    for (const m of fadeMats) { if (m === shadow.material) continue; m.transparent = k < 0.999; m.opacity = k; m.depthWrite = k > 0.5; }
+    shOp = 0.7 * k;
   }
-  function setVisible(v) { hand.object.visible = v; root.visible = v; }
-  return { hand, root, object: hand.object, pose, setVisible, fade, state: st, silk };
+  function setVisible(v) { hand.visible = v; root.visible = v; }
+  return { hand, root, object: hand, pose, joints, setVisible, fade, state: st, silk, stats: H.stats };
 }

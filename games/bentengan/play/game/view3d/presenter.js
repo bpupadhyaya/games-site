@@ -18,7 +18,7 @@ function pickQuality() {
   return weak ? 'low' : touch ? 'medium' : 'high';
 }
 
-const FIG_SCALE = 1.55;   // players are drawn a little larger than life so they read on a phone-sized field
+const FIG_SCALE = 1.85;   // players are drawn a little larger than life so they read on a phone-sized field
 // who is who: two teams of four, each a different build and look (all real skeletons, kit in the team colour)
 const LOOKS = {
   H: [{ c: 'athlete_f', skin: 'tan', hair: 'black', s: 0.98 }, { c: 'athlete_m', skin: 'brown', hair: 'black', s: 1.0 }, { c: 'athlete_f', skin: 'light', hair: 'brown', s: 0.96 }, { c: 'athlete_m', skin: 'tan', hair: 'brown', s: 1.03 }],
@@ -52,7 +52,7 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
   async function build() {
     for (const team of ['H', 'C']) {
       const T = TEAM_COL[team];
-      const hs = await Promise.all(LOOKS[team].map((lk) => loadHuman({ character: lk.c, scale: lk.s * FIG_SCALE, kit: { top: T.main, bottoms: T.short, socks: '#f2f2f2' }, skin: lk.skin, hair: lk.hair })));
+      const hs = await Promise.all(LOOKS[team].map((lk) => loadHuman({ character: lk.c, top: 'long', scale: lk.s * FIG_SCALE, kit: { top: T.main, bottoms: T.short, socks: '#f2f2f2' }, skin: lk.skin, hair: lk.hair })));
       hs.forEach((h, k) => {
         stage.add(h);
         const f = new Figure(h, (team === 'H' ? 0 : 4) + k, LOOKS[team][k].s * FIG_SCALE);
@@ -71,7 +71,7 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
   ];
   P.spec = [];
   async function buildSpectators() {
-    const hs = await Promise.all(SPEC.map((q) => loadHuman({ character: q[3], scale: q[2], lod: 2, kit: { top: q[4], bottoms: '#3a4a6a', socks: '#f2f2f2' }, skin: q[5], hair: q[6] })));
+    const hs = await Promise.all(SPEC.map((q) => loadHuman({ character: q[3], top: 'long', scale: q[2], lod: 2, kit: { top: q[4], bottoms: '#3a4a6a', socks: '#f2f2f2' }, skin: q[5], hair: q[6] })));
     hs.forEach((h, i) => {
       const q = SPEC[i];
       h.groundClamp = 'auto'; h.footPlanting = false; h.setPosition(q[0], 0, q[1]); h.setFacing(Math.atan2(-q[0], -q[1]));
@@ -149,6 +149,30 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
     c.setViewOffset(map.cw, map.ch, (b.x0 + b.x1) / 2 - wantX, (b.y0 + b.y1) / 2 - wantY, map.cw, map.ch); c.updateProjectionMatrix(); c.updateMatrixWorld(true);
   }
 
+  // ---- title hero: a slow low orbit around the pink team (the demo round plays on), subject centred in the band between the lettering and the buttons
+  const heroFocus = V(wx(POLE.H.x), 0, wz(POLE.H.y)); let heroAz = 0.6;
+  const HERO_PTS = [[-2.3, 0, -1.8], [2.3, 0, -1.8], [-2.3, 0, 1.8], [2.3, 0, 1.8], [-1.5, 3.0, 0], [1.5, 3.0, 0]];
+  function placeHero(region, dt, w) {
+    const c = stage.camera, bw = region.bw * map.k, bh = region.bh * map.k;
+    const wantX = map.left + region.cx * map.k, wantY = map.top + region.cy * map.k;
+    let sx = 0, sz = 0, n = 0; for (const p of w.players) if (p.team === 'H') { sx += wx(p.x); sz += wz(p.y); n++; }
+    if (n) { const k = 1 - Math.exp(-dt * 1.6); heroFocus.x += (sx / n - heroFocus.x) * k; heroFocus.z += (sz / n - heroFocus.z) * k; }
+    heroAz += dt * 0.07;
+    const az = 0.5 + Math.sin(heroAz) * 0.3, pitch = 0.24;
+    c.fov = 30; c.aspect = map.cw / map.ch; c.clearViewOffset(); c.updateProjectionMatrix();
+    let d = 14;
+    const place = () => {
+      c.position.set(heroFocus.x + Math.sin(az) * d * Math.cos(pitch), d * Math.sin(pitch) + 0.9, heroFocus.z - Math.cos(az) * d * Math.cos(pitch));
+      c.lookAt(heroFocus.x, 1.0, heroFocus.z); c.near = 1; c.far = d + 220; c.updateProjectionMatrix(); c.updateMatrixWorld(true);
+    };
+    const bbox = () => { let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9; for (const q of HERO_PTS) { const p = toPx(V(heroFocus.x + q[0], q[1], heroFocus.z + q[2])); x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x); y0 = Math.min(y0, p.y); y1 = Math.max(y1, p.y); } return { x0, x1, y0, y1 }; };
+    for (let i = 0; i < 4; i++) { place(); const b = bbox(); d = clamp(d * Math.max((b.x1 - b.x0) / bw, (b.y1 - b.y0) / bh), 6, 40); }
+    place(); const b = bbox();
+    if (stage.scene.fog) { stage.scene.fog.near = d * 1.4; stage.scene.fog.far = d * 4.5; }
+    c.setViewOffset(map.cw, map.ch, (b.x0 + b.x1) / 2 - wantX, (b.y0 + b.y1) / 2 - wantY, map.cw, map.ch); c.updateProjectionMatrix(); c.updateMatrixWorld(true);
+    stage.setShadowTarget(heroFocus.x, 0, heroFocus.z);
+  }
+
   // ---- per-frame
   let lastT = null, lastW = null, lastNow = 0, cheerUntil = 0, wasRes = false, settle = false;
   const figOf = (p) => P.figs[p.team][p.k];
@@ -181,12 +205,12 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
     dt = clamp(dt, 0, 0.1); lastT = G.t;
     if (w !== lastW) { lastW = w; settle = true; for (const t of ['H', 'C']) for (const f of P.figs[t]) { f.yaw = null; f.yawCur = null; f.disp = null; f._lastYaw = undefined; f.gait = null; f.act = null; f.prevSt = 'fort'; f.reach = 0; } }
 
-    placeCamera(region, G.shake);
+    if (region.kind === 'title') placeHero(region, dt || 0.016, w); else placeCamera(region, G.shake);
     if (P.focusId >= 0 && w.players[P.focusId]) {   // dev: a close look at one player (?focus=<id>&fd=<metres>&pitch=<deg>)
       const q = w.players[P.focusId], c = stage.camera, pt = (pitchOverride || 22) * Math.PI / 180;
       c.clearViewOffset(); c.near = 0.3; c.far = 300; c.position.set(wx(q.x) + focusD * 0.35, 1.0 + focusD * Math.sin(pt), wz(q.y) + focusD * Math.cos(pt)); c.lookAt(wx(q.x), 0.9, wz(q.y)); c.updateProjectionMatrix(); c.updateMatrixWorld(true);
     }
-    stage.setShadowTarget(0, 0, 0);
+    if (region.kind !== 'title') stage.setShadowTarget(0, 0, 0);
     world.update(G.t);
 
     // ---- figures

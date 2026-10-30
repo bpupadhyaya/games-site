@@ -1,7 +1,7 @@
 // The thrower: a real athlete_m (view3d / Rocketbox) dressed as a Boyacá villager: a felt-and-straw sombrero, a striped wool ruana over
 // the shoulders, plain linen shirt, dark trousers rolled at the calf and rope-soled alpargatas. He pitches an underarm throw with the
 // weight carried onto the front foot. Cloth (the ruana hem) lags the body with a damped spring. Everything is simple shapes.
-import { loadHuman, buildClip, addThrowClips, THREE, board3d as B } from '../vendor3d/index.js';
+import { loadHuman, buildClip, addThrowClips, limbCapsuleGeometry, THREE, board3d as B } from '../vendor3d/index.js';
 
 const along = (geo) => { geo.rotateZ(-Math.PI / 2); return geo; };           // cylinder axis Y -> +X (bone-local limb axis)
 const mat = (c, r = 0.85, m = 0) => new THREE.MeshStandardMaterial({ color: c, roughness: r, metalness: m });
@@ -28,9 +28,9 @@ export async function createThrower({ lod = 0 } = {}) {
   for (const s of ['L', 'R']) {
     const tl = len(`Bip01_${s}_Calf`), th = len(`Bip01_${s}_Foot`) || 0.42;
     const thighLen = tl;                                                       // child of Thigh is Calf: its offset is the thigh length
-    const trouser = new THREE.Mesh(along(new THREE.CylinderGeometry(0.09, 0.118, thighLen * 1.1, 16, 1)), mat('#2d2a26', 0.9)); trouser.position.x = thighLen * 0.5 - 0.02; add(`Bip01_${s}_Thigh`, trouser);
-    const calf = new THREE.Mesh(along(new THREE.CylinderGeometry(0.06, 0.088, th * 1.0, 16, 1)), mat('#2d2a26', 0.9)); calf.position.x = th * 0.5 - 0.02; add(`Bip01_${s}_Calf`, calf);
-    const knee = new THREE.Mesh(new THREE.SphereGeometry(0.095, 14, 10), mat('#2d2a26', 0.9)); add(`Bip01_${s}_Calf`, knee);
+    const trouser = new THREE.Mesh(along(limbCapsuleGeometry(0.117, 0.094, thighLen)), mat('#2d2a26', 0.9)); add(`Bip01_${s}_Thigh`, trouser);
+    const calf = new THREE.Mesh(along(limbCapsuleGeometry(0.094, 0.074, th * 0.97)), mat('#2d2a26', 0.9)); add(`Bip01_${s}_Calf`, calf);
+    const knee = new THREE.Mesh(new THREE.SphereGeometry(0.096, 14, 10), mat('#2d2a26', 0.9)); add(`Bip01_${s}_Calf`, knee);
   }
   // ruana: a short wool cape over both shoulders, open at the front, with a cut-out neck; attached to the upper spine
   const ruanaTex = stripeTexture('#7a2a1e', '#d9c9a0', '#2a2a30');

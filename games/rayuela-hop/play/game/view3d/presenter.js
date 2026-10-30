@@ -16,8 +16,8 @@ const KIT = [
   { top: '#1f9d8f', bottoms: '#f2c14e', socks: '#fff3d6', trim: '#ffd98a', shoes: '#fff3d6' },
 ];
 const LOOKS = {
-  f: { character: 'mannequin_m', scale: 0.8, skin: '#aeb8c6', hair: '#aeb8c6', label: 'girl' },
-  m: { character: 'mannequin_m', scale: 0.9, skin: '#aeb8c6', hair: '#aeb8c6', label: 'boy' },
+  f: { character: 'athlete_f', scale: 0.8, skin: '#c98f6b', hair: '#2a1a12', label: 'girl' },
+  m: { character: 'athlete_m', scale: 0.9, skin: '#8d5a3b', hair: '#17110e', label: 'boy' },
 };
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const lerp = (a, b, u) => a + (b - a) * u;
@@ -80,8 +80,7 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
     const l0 = look0 === 'm' ? 'm' : 'f', l1 = l0 === 'm' ? 'f' : 'm';
     for (let i = 0; i < 2; i++) {
       const L = LOOKS[i === 0 ? l0 : l1];
-      const h = await loadHuman({ character: L.character, kit: KIT[i], skin: L.skin, hair: L.hair, scale: L.scale, legs: 'shorts', lod: 'auto' });
-      h.root.traverse((o) => { if (o.isMesh) for (const m of [].concat(o.material)) { if (m && 'metalness' in m) { m.metalness = 0.45; m.roughness = 0.38; m.envMapIntensity = 1.3; } } });   // steel robot players
+      const h = await loadHuman({ character: L.character, kit: KIT[i], skin: L.skin, hair: L.hair, scale: L.scale, legs: 'shorts', top: 'long', lod: 'auto' });
       h.groundClamp = 'off'; h.footPlanting = false;
       h.play('idle_relaxed', { fade: 0 });
       if (quality === 'low') h.model.traverse((o) => { if (o.isMesh || o.isSkinnedMesh) o.castShadow = false; });

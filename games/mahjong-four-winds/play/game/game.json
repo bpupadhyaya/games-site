@@ -4,7 +4,7 @@
   "tagline": "The game of the four winds",
   "genre": "tile game",
   "orientation": "any",
-  "version": "1.1.8",
+  "version": "1.2.0",
   "monetization": {
     "model": "premium",
     "priceUsd": 2.99,

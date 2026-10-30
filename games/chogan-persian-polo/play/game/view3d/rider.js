@@ -39,7 +39,8 @@ export async function createRider(o = {}) {
   const h = await loadHuman({ character: o.female ? 'mannequin_f' : 'mannequin_m', kit: { top: o.top, bottoms: o.bottoms || '#efe9dc', socks: o.socks || '#2b1d15', shoes: '#2a1a12', trim: o.trim || '#f6f1e6' }, skin: o.skin || 'tan', hair: o.helmet || o.top, legs: 'long' });
   h.groundClamp = 'off'; h.footPlanting = false;
   h.root.scale.setScalar(FIG);
-  if (o.lod) h.setLOD(o.lod);
+  h.limbSanityOpts = { wrists: false, forearms: false };   // the mallet hand is solved onto the stick: keep the wrist exactly where the stroke IK put it
+  h.lodAuto = false; if (o.lod) h.setLOD(o.lod);
   const mallet = makeMallet();
   h.attach(mallet, 'R', 'bat');
   authorClips(h);

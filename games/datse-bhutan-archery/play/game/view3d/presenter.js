@@ -13,6 +13,7 @@ const LIB = '../vendor3d/index.js';
 const nowMs = () => globalThis.performance.now();
 const QP = (k, d) => { try { const m = new RegExp('[?&]' + k + '=([-0-9.]+)').exec(globalThis.location.search); return m ? Number(m[1]) : d; } catch { return d; } };
 const SKINS = ['tan', 'light', 'clay', 'wood', 'brown'];
+const DEV_CAM = (() => { try { const m = /[?&]cam=([-0-9.,]+)/.exec(globalThis.location.search); const a = m ? m[1].split(',').map(Number) : null; return a && a.length === 7 && a.every(Number.isFinite) ? a : null; } catch { return null; } })();
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const yawOfDir = (dir) => (dir > 0 ? 0 : Math.PI);
 const DEFAULT_ROSTER = [['m', 'f', 'm'], ['f', 'm', 'f']];
@@ -43,9 +44,10 @@ export async function createPresenter({ kitCanvas, quality }) {
   stage.onContextLost(() => { lost = true; });
   stage.onContextRestored(() => { lost = false; sizeKey = ''; stage.invalidate(); });
   camera.far = 6500; camera.near = 0.25; camera.updateProjectionMatrix();
-  stage.setLighting('day', { sky: 0xb7cfe6, fog: 0xb7cfe6, key: 0xfff1d6, keyI: 2.5, hemi: 0.85, rim: 0xcfe0ff, rimI: 0.9, exposure: 0.92 });
-  stage.setSky(0xb7cfe6, 0xb7cfe6, { near: 450, far: 6800 });
+  stage.setLighting('day', { sky: 0xc4d4e4, fog: 0xc4d4e4, key: 0xffdcae, keyI: 3.0, hemi: 0.62, rim: 0xd8e6ff, rimI: 1.1, exposure: 0.92 });   // a warm mountain sun with more shape (less flat fill)
+  stage.setSky(0xc4d4e4, 0xc4d4e4, { near: 450, far: 6800 });
   stage._shadowOffset.set(-7, 11, 5);
+  if (DEV_CAM) { stage.setLighting('day', { sky: 0xf0d2ae, fog: 0xe9c9a6, key: 0xffc98a, keyI: 3.1, hemi: 0.7, rim: 0xffe2b8, rimI: 1.4, exposure: 0.95 }); stage.setSky(0x5f8fc4, 0xf3d3ae, { near: 380, far: 5200 }); }   // golden-hour grade for the store art only
   const TIER = { high: { trees: 600, tufts: 600, grow: 1.08, clouds: 7, spectators: 16 }, medium: { trees: 340, tufts: 340, grow: 1.095, clouds: 4, spectators: 10 }, low: { trees: 150, tufts: 0, grow: 1.12, clouds: 2, spectators: 4 } }[quality] || { trees: 600, tufts: 600, grow: 1.08, clouds: 7, spectators: 16 };
   const world = buildWorld(THREE, { ...TIER }); stage.add(world.root);
   stage.setAutoLOD(true);
@@ -148,7 +150,8 @@ export async function createPresenter({ kitCanvas, quality }) {
   const cam = { pos: V3(0, 3, -6), look: V3(0, 1.4, 30), fov: 46, init: false };
   let lastPhase = '', lastEnd = -1, camK = 6;
   function applyMain(spec, region, dt, snap) {
-    const k = snap || !cam.init ? 1 : 1 - Math.exp(-dt * camK);
+    const far = cam.init && Math.hypot(spec.pos.x - cam.pos.x, spec.pos.y - cam.pos.y, spec.pos.z - cam.pos.z) > 40;   // back from the far board to the line: a clean cut, not a smeared whip-pan
+    const k = snap || far || !cam.init ? 1 : 1 - Math.exp(-dt * camK);
     cam.pos = lerp3(cam.pos, spec.pos, k); cam.look = lerp3(cam.look, spec.look, k); cam.fov = lerp(cam.fov, spec.fov, k); cam.init = true;
     const cw = cssW, ch = cssH;
     camera.clearViewOffset?.();
@@ -169,7 +172,7 @@ export async function createPresenter({ kitCanvas, quality }) {
   };
   function moveTo(a, want, yaw, dt, snap) {
     const h = a.h, dx = want.x - a.pos.x, dz = want.z - a.pos.z, d = Math.hypot(dx, dz);
-    if (snap || d > 60) { a.pos.copy(want); a.yaw = yaw; h.setPosition(a.pos.x, 0, a.pos.z); h.setFacing(a.yaw); a.walking = false; return 0; }
+    if (snap || d > 60) { if (d > 0.3) a.spr = { fresh: true }; a.pos.copy(want); a.yaw = yaw; h.setPosition(a.pos.x, 0, a.pos.z); h.setFacing(a.yaw); a.walking = false; return 0; }   // a cut: the hand springs restart at their targets
     if (d > 0.05) {
       const sp = clamp(1.1 + d * 0.9, 1.3, 3.6), step = Math.min(d, sp * dt);
       a.pos.x += (dx / d) * step; a.pos.z += (dz / d) * step; a.walking = true;
@@ -214,6 +217,7 @@ export async function createPresenter({ kitCanvas, quality }) {
           if (winner < 0) mode = 'show';
         } else {   // title and menus: the first team stands in a row at the line, the second further back
           want = V(S.x + R.x * ((m - 1) * 1.9), 0, S.z + F.z * (t === 0 ? 0 : 5)); mode = 'show'; yaw = yawOfDir(dir);
+          if (s.scene === 'title' && t === 1 && m === 1) { mode = 'hero'; yaw = -dir * Math.PI / 2; }   // the title's archer slowly raises, draws, holds and lets down
         }
       } else if (isCur) { want = V(S.x, 0, S.z); yaw = -dir * Math.PI / 2; mode = 'shoot'; }
       else if (dance && last && last.team === t) { const c = dance.c; want = V(c.x + R.x * (m - 1) * 1.55, 0, c.z + R.z * (m - 1) * 1.55); yaw = yawOfDir(dir); mode = 'dance'; }
@@ -222,28 +226,35 @@ export async function createPresenter({ kitCanvas, quality }) {
       const sp = moveTo(a, want, yaw, dt, snapAll || a.snap || (E && E.end !== a.lastEnd && phase === 'endintro'));
       a.snap = false; a.lastEnd = E ? E.end : -1;
       // clips and poses
-      if (a.walking) { h.locomote(sp, { fade: 0.2 }); a.clip = 'loco'; putAway(a); a.bow.visible = true; carryBow(a, F, R); }
+      if (a.walking) { h.locomote(sp, { fade: 0.2 }); a.clip = 'loco'; putAway(a); fadeIK(a, dt); a.bow.visible = true; carryBow(a, F, R); }
       else if (mode === 'shoot') {
         play(a, 'ar_stance');
         let p = 0, pull = 0, upk = 0, lowerTo = 0;
         if (phase === 'aim' || phase === 'nock') { p = 0; if (phase === 'nock') lowerTo = 0.6; }
-        if (phase === 'draw' && E.draw) p = drawFrac(E.draw.t);
-        if (phase === 'flight') { const k = (E.t - E.arrow.t0); p = 0; pull = Math.max(0, 0.22 * Math.exp(-k * 7)); upk = 0; }
-        if (phase === 'result') { lowerTo = clamp((E.pt - 0.7) / 0.9, 0, 1); }
+        let follow = null;
+        if (phase === 'draw' && E.draw) { const x = drawFrac(E.draw.t); p = 1 - Math.pow(1 - x, 2.2); }   // a strong start that slows into the anchor (the sim's draw fraction is linear)
+        if (phase === 'flight') { const k = (E.t - E.arrow.t0); p = 1; follow = k; pull = Math.max(0, 0.22 * Math.exp(-k * 7)); upk = 0; }
+        if (phase === 'result') { p = 1; follow = 0.6 + E.pt; lowerTo = clamp((E.pt - 0.7) / 0.9, 0, 1); }
         if (phase === 'endscore') lowerTo = 1;
         a.lower = a.lowerT === undefined ? lowerTo : a.lower; a.lower += (lowerTo - a.lower) * Math.min(1, dt * 4);
         let sway = null;
         if (phase === 'draw' && E.draw && !E.draw.auto) { const w = swayAt(E.draw.ph, E.draw.t); sway = { dr: w.u * 0.004, dy: w.h * 0.004 }; }
-        poseShooter(a, F, p, { sway, pull, lower: a.lower });
+        a.spr = a.spr || {}; a.ikOut = 1;
+        poseShooter(a, F, p, { sway, pull, lower: a.lower, follow, spr: { st: a.spr, dt, w: 10, wR: phase === 'draw' ? 22 : phase === 'flight' ? 24 : 10 } });
         a.arrow.visible = (phase === 'aim' || phase === 'draw' || phase === 'nock') && E.phase !== 'flight';
         if (phase === 'flight' || phase === 'result') a.arrow.visible = false;
         const nock = (phase === 'aim' || phase === 'draw');
         a.arrow.visible = nock;
         a.mode = mode;
+      } else if (mode === 'hero') {
+        play(a, 'ar_stance');
+        const { p, lower, sway } = heroDraw(s.shot ? 4.6 : animT);
+        a.lower = lower; a.spr = a.spr || {}; a.ikOut = 1; poseShooter(a, F, p, { lower, sway, spr: { st: a.spr, dt, w: 12, wR: 16 } });
+        a.arrow.visible = lower < 0.4; a.mode = mode;
       } else if (mode === 'cheer') {
-        putAway(a); a.bow.visible = false; a.arrow.visible = false; play(a, m % 2 ? 'clap' : 'cheer', { startTime: m * 0.4 });
+        putAway(a); fadeIK(a, dt); a.bow.visible = false; a.arrow.visible = false; play(a, m % 2 ? 'clap' : 'cheer', { startTime: m * 0.4 });
       } else if (mode === 'dance') {
-        putAway(a); a.bow.visible = false; a.arrow.visible = false;
+        putAway(a); fadeIK(a, dt); a.bow.visible = false; a.arrow.visible = false;
         const dn = ['dz_a', 'dz_b', 'dz_c', 'dz_d'][(m + (E ? E.end | 0 : 0)) % 4];
         play(a, dn, { startTime: m * 0.31 });
         const TAU = Math.PI * 2;   // the step carries the dancer: a side step for (a), a swing of the body for (d), a small circle for (c)
@@ -254,8 +265,8 @@ export async function createPresenter({ kitCanvas, quality }) {
         // waiting / watching
         a.arrow.visible = false;
         const react = reaction(E, a, phase, last);
-        if (react) { putAway(a); a.bow.visible = false; play(a, react); }
-        else { play(a, 'ar_ready', { startTime: (i * 0.7) % 3 }); a.lower = a.lower ?? 1; a.lower += (1 - a.lower) * Math.min(1, dt * 4); poseShooter(a, F, 0, { lower: 1 }); }
+        if (react) { putAway(a); fadeIK(a, dt); a.bow.visible = false; play(a, react); }
+        else { play(a, 'ar_ready', { startTime: (i * 0.7) % 3 }); a.lower = a.lower ?? 1; a.lower += (1 - a.lower) * Math.min(1, dt * 4); a.ikOut = 1; a.spr = a.spr || {}; poseShooter(a, F, 0, { lower: 1, spr: { st: a.spr, dt, w: 9 } }); }
       }
     }
     // the crew at the far board
@@ -267,6 +278,22 @@ export async function createPresenter({ kitCanvas, quality }) {
       const want = hit ? 'wave' : 'idle_relaxed';
       if (sp.clip !== want) { h.play(want, { fade: 0.3, loop: want !== 'wave' }); sp.clip = want; }
     }
+  }
+  // the title archer's 10 s cycle: raise the bow, draw slowly, hold with a breathing sway, let down (no release), lower, rest. Every edge eased.
+  function heroDraw(t) {
+    const c = ((t % 10) + 10) % 10, e = (x) => smooth(clamp(x, 0, 1));
+    const lower = c < 1.4 ? 1 - e(c / 1.4) : c < 7 ? 0 : e((c - 7) / 1.4);
+    const p = c < 1.6 ? 0 : c < 3.8 ? e((c - 1.6) / 2.2) : c < 5.6 ? 1 : c < 6.9 ? 1 - e((c - 5.6) / 1.3) : 0;
+    const hold = c >= 3.4 && c < 6.2 ? Math.sin(Math.PI * clamp((c - 3.4) / 2.8, 0, 1)) : 0;
+    const sway = hold ? { dr: 0.006 * hold * Math.sin(c * 2.1), dy: 0.005 * hold * Math.sin(c * 1.3 + 0.7) } : null;
+    return { p, lower, sway };
+  }
+  // leaving a held pose (to walk, cheer or dance): the arms ease out of the IK over 0.3 s instead of snapping to the clip; the next pose starts from the clip again
+  function fadeIK(a, dt) {
+    if (!a.spr || !a.spr.L || !(a.ikOut > 0)) { a.spr = null; a.ikOut = 0; return; }
+    a.ikOut = Math.max(0, a.ikOut - dt / 0.3);
+    if (a.ikOut <= 0) { a.spr = null; return; }
+    const w = smooth(a.ikOut); a.h.setReach('L', a.spr.L.x, { weight: w }); a.h.setReach('R', a.spr.R.x, { weight: w });
   }
   function reaction(E, a, phase, last) {
     if (!E || !last || (phase !== 'result' && phase !== 'dance')) return null;
@@ -328,6 +355,7 @@ export async function createPresenter({ kitCanvas, quality }) {
     if (E && E !== lastE) { lastE = E; applyRoster(E); }
     else if (!E && lastE) { lastE = null; applyRoster(null); }
     if (!E && s.scene !== 'play') applyRoster(null);
+    game.setHas3d?.(!lost);   // a lost WebGL context shows the painted flat valley (not a blank) until the context is restored
     const active = ready && !lost && !s.hide3d && !(s.scene === 'rules' || s.scene === 'about' || s.scene === 'howto');
     if (!active) { if (shown) { canvas.style.visibility = 'hidden'; shown = false; game.setView3d?.(false); } simPrev = null; return; }
     if (!shown) { canvas.style.visibility = 'visible'; shown = true; game.setView3d?.(true); stage.invalidate(); }
@@ -347,12 +375,14 @@ export async function createPresenter({ kitCanvas, quality }) {
     const snap = !!E && (E.end !== lastEnd || (E.phase === 'endintro' && lastPhase !== 'endintro'));
     if (E) { lastEnd = E.end; } 
     let spec;
-    if (play_) { spec = mainCam(E, aspectR); camK = E.phase === 'flight' ? 16 : E.phase === 'dance' || E.phase === 'result' ? 4 : E.phase === 'endintro' ? 30 : 5; }
+    if (play_) { spec = mainCam(E, aspectR); camK = E.phase === 'flight' ? 2 + 14 * smooth((E.t - E.arrow.t0) / 0.4) : E.phase === 'dance' || E.phase === 'result' ? 4 : E.phase === 'endintro' ? 30 : 5; }   // the chase eases in after the release
     else if (s.scene === 'result' && s.over && s.over.winner >= 0) { const ds = danceSpot(1); spec = { pos: ds.cam, look: ds.look, fov: aspectR < 1 ? 50 : 36 }; }
     else spec = showCam(animT, aspectR);
     if (play_ && E.phase !== lastPhase && (E.phase === 'walk')) cam.init = false;
     lastPhase = play_ ? E.phase : '';
-    applyMain(spec, s.viewRect, dt, snap || !play_ && false);
+    let region = s.viewRect, snapCam = snap || !play_ && false;
+    if (DEV_CAM && s.shot) { spec = { pos: V3(DEV_CAM[0], DEV_CAM[1], DEV_CAM[2]), look: V3(DEV_CAM[3], DEV_CAM[4], DEV_CAM[5]), fov: DEV_CAM[6] }; region = { x: 0, y: 0, w: vw, h: vh }; snapCam = true; }   // store-art camera (?cam=px,py,pz,lx,ly,lz,fov with ?shot=1): never used in play
+    applyMain(spec, region, dt, snapCam);
     peopleFrame(s, play_ ? E : null, dt, snap);
     arrowsFrame(E, play_);
     // reactions to what happened on the range
@@ -378,7 +408,7 @@ export async function createPresenter({ kitCanvas, quality }) {
     for (const sp of spotters) if (sp) followRobe(sp.h, sp.robe);
     stage.setShadowTarget(play_ ? standX(E.dir) : -3, 0, play_ ? standZ(E.dir) : 0);
     // lens first (into the corner of the canvas), then the whole picture over it
-    const lensRect = play_ && s.lensRect && s.lensOn ? s.lensRect : null;
+    const lensRect = play_ && !DEV_CAM && s.lensRect && s.lensOn ? s.lensRect : null;
     renderer.setViewport(0, 0, cssW, cssH);
     renderer.render(scene, camera);
     perf.mainCalls = renderer.info.render.calls; perf.mainTris = renderer.info.render.triangles;
@@ -391,7 +421,8 @@ export async function createPresenter({ kitCanvas, quality }) {
   function showCam(t, aspect) {
     const tall = aspect < 1, S = stand(1);
     const a = t * 0.05;
-    return { pos: V3(S.x + 6.5 + Math.sin(a) * 2.2, 1.35 + 0.25 * Math.sin(a * 1.7), S.z + 10 + Math.cos(a) * 1.2), look: V3(S.x - 0.4, 1.35, S.z - 0.4), fov: tall ? 54 : 38 };
+    // in front of the drawing archer's chest (she shoots down the range, chest to her right), the line and the far valley behind; a slow drift keeps it alive
+    return { pos: V3(S.x - 3.9 + Math.sin(a) * 0.8, 1.45 + 0.12 * Math.sin(a * 1.7), S.z + 9.6 + Math.cos(a) * 0.5), look: V3(S.x + 0.9, 1.2, S.z + 3.6), fov: tall ? 50 : 36 };
   }
 
   return {

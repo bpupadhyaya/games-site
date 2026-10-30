@@ -56,7 +56,7 @@ function build(w, h, ins, flip) {
   if (!land) {
     const pad = 12, backRes = ins.back ? 62 : 0, cellW = (U.w - 2 * pad) / OUTER;
     const fixedFor = (mp, mh, rows) => BH + rows * mp + mh + (rows + 3) * G + Math.max(0, ins.b - 8) + Math.max(ins.t, 8) + (backRes && rows === 1 ? 0 : 0);
-    let minPlate = 124, msgH = 64, rows = 2, cellH = (h - fixedFor(minPlate, msgH, 2)) / (OUTER + THICK);
+    let minPlate = 112, msgH = 64, rows = 2, cellH = (h - fixedFor(minPlate, msgH, 2)) / (OUTER + THICK);
     if (cellH < cellW * 0.95) { minPlate = 86; msgH = 46; cellH = (h - fixedFor(minPlate, msgH, 2)) / (OUTER + THICK); }
     if (cellH < cellW * 0.95) { rows = 1; minPlate = 100; msgH = 46; cellH = (h - fixedFor(minPlate, msgH, 1)) / (OUTER + THICK); }   // squat screen: both plates side by side above the board
     cell = Math.min(cellW, cellH);
@@ -64,7 +64,7 @@ function build(w, h, ins, flip) {
     const top0 = Math.max(ins.t + 6, backRes ? ins.t + backRes : 0);
     const free = barY - G - top0 - bh - msgH - rows * minPlate - (rows + 1) * G;
     // spare height first makes the plates roomier (bigger type and tray), what is left becomes even breathing room around the board
-    const plateH = minPlate + (rows === 2 && free > 0 ? Math.min(free * 0.5, 120) : 0);
+    const plateH = minPlate + (rows === 2 && free > 0 ? Math.min(free * 0.5, 24) : 0);
     const air = Math.max(0, free - (rows === 2 ? 2 * (plateH - minPlate) : 0));
     const gA = air / 5;
     let y = top0 + gA;
@@ -132,6 +132,9 @@ function build(w, h, ins, flip) {
     }
   }
   L.board = board;
+  // 3D camera zoom for the play screen: the triangle spans 2/3 of the slab, so zoom until it fills ~92% of the screen width (portrait)
+  // or ~88% of the height (landscape); the slab rim then runs off the screen edges (the flat 2D fallback keeps the whole slab).
+  L.playZoom = land ? clamp((0.88 * U.h / 0.93) / (board.S * (2 / 3)), 1.1, 1.5) : clamp((0.84 * w) / (board.S * (2 / 3)), 1, 1.6);
   L.sq = board.sq; L.squareAt = board.squareAt;
   L.cell = board.cell;
   // the result card, centred over the board

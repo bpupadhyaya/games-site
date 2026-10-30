@@ -8,10 +8,27 @@ import { LEVELS } from './ai.js';
 import { LESSONS } from './lessons.js';
 import { RULES, ABOUT, HOWTO } from './rulesContent.js';
 import { drawLockup, drawMoreLine } from './brand.js';
+import { v3 } from './v3.js';
 
 const TAU = Math.PI * 2;
 const NAMES = ['You', 'Right', 'Partner', 'Left'];
 const TEAM = ['Us', 'Them'];
+// Cards that lie on the table (trick, turned-up card, opponents' backs): while the 3D table is live they are handed to the presenter
+// (v3.cards), which lays them on the cloth where this layout put them; otherwise they are drawn flat as always.
+function cardOn(ctx, card, x, y, sc, opts = {}) {
+  if (v3.on) { v3.cards.push({ card, x, y, sc, rot: opts.rot || 0, glow: opts.glow || null }); return; }
+  drawCard(ctx, card, x, y, sc, opts);
+}
+// The room behind the 2D layer when the 3D scene is live: soft scrims where the HUD / lettering / buttons need contrast.
+function backdrop3d(ctx, sc) {
+  const table = sc === 'play' || sc === 'lesson' || sc === 'daily' || sc === 'auto';
+  const sk = (x0, y0, x1, y1, a0, a1) => { const g = ctx.createLinearGradient(x0, y0, x1, y1); g.addColorStop(0, `rgba(4,8,26,${a0})`); g.addColorStop(1, `rgba(4,8,26,${a1})`); ctx.fillStyle = g; ctx.fillRect(0, 0, W, HH); };
+  if (table) { sk(0, 0, 0, 260, 0.6, 0); const g = ctx.createLinearGradient(0, HH * 0.72, 0, HH); g.addColorStop(0, 'rgba(4,8,26,0)'); g.addColorStop(1, 'rgba(4,8,26,0.5)'); ctx.fillStyle = g; ctx.fillRect(0, HH * 0.72, W, HH * 0.28); }
+  else if (sc === 'title') {
+    if (LAY.wide) { const g = ctx.createLinearGradient(W * 0.5, 0, W * 0.72, 0); g.addColorStop(0, 'rgba(4,8,26,0)'); g.addColorStop(1, 'rgba(4,8,26,0.6)'); ctx.fillStyle = g; ctx.fillRect(W * 0.5, 0, W * 0.5, HH); sk(0, 0, 0, HH * 0.4, 0.5, 0); }
+    else { sk(0, 0, 0, HH * 0.3, 0.62, 0); const y0 = titleGeo(false).rows.play.y - 40, g = ctx.createLinearGradient(0, y0, 0, y0 + 90); g.addColorStop(0, 'rgba(4,8,26,0)'); g.addColorStop(1, 'rgba(4,8,26,0.78)'); ctx.fillStyle = g; ctx.fillRect(0, y0, W, HH - y0); }
+  } else { ctx.fillStyle = 'rgba(5,9,26,0.82)'; ctx.fillRect(0, 0, W, HH); }
+}
 const autoThinkLabel = (state) => `${AUTO_THINK_STEPS[state.autoThinkIdx]}s`;
 
 // Wrapped-line cache: a paragraph is measured once per (font, size, width, text) and reused every frame (the reference pages used to re-wrap
@@ -22,7 +39,7 @@ export const readerStats = { wraps: 0 };
 export function render(ctx, state) {
   { ctx.font = `700 40px ${FONT}`; const a = ctx.measureText('Hamburgefonstiv').width; ctx.font = `600 40px ${UI}`; const k = a + '/' + ctx.measureText('Hamburgefonstiv').width; if (k !== wrapFontsKey || wrapMemo.size > 3000) { wrapMemo.clear(); wrapFontsKey = k; } }
   const sc = state.scene, t = state.t, mu = LAY.minU;
-  drawBackground(ctx, t);
+  if (v3.on) backdrop3d(ctx, sc); else drawBackground(ctx, t);
   // Smallest type is ~11 css px (mu units): small captions never fall below it on a landscape phone.
   const text = (str, x, y, size, color = CREAM, font = UI, weight = 700, align = 'center') => { ctx.textAlign = align; ctx.font = `${weight} ${size < mu && font === UI ? mu : size}px ${font}`; ctx.fillStyle = color; ctx.fillText(str, x, y); };
   const shadowText = (str, x, y, size, color = CREAM, font = UI, weight = 700, align = 'center') => { ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.75)'; ctx.shadowBlur = 8; ctx.shadowOffsetY = 2; text(str, x, y, size, color, font, weight, align); ctx.restore(); };
@@ -64,7 +81,7 @@ export function render(ctx, state) {
   if (sc === 'rules') return rulesPage(ctx, state, V);
   if (sc === 'over') return overPage(ctx, state, V);
   if (sc === 'demo-limit') return demoPage(ctx, state, V);
-  if (sc === 'daily' && state.daily.status === 'making') { drawTable(ctx, t); text('Setting today\'s deal...', TG.cx, TG.cy - 50, 44, CREAM, FONT); button(ctx, BTN.menu, 'Menu', { size: 30 }); return; }
+  if (sc === 'daily' && state.daily.status === 'making') { if (!v3.on) drawTable(ctx, t); text('Setting today\'s deal...', TG.cx, TG.cy - 50, 44, CREAM, FONT); button(ctx, BTN.menu, 'Menu', { size: 30 }); return; }
   table(ctx, state, V);
 }
 
@@ -74,14 +91,14 @@ function title(ctx, state, V) {
   const t = state.t, { text, shadowText } = V, G = titleGeo(!!state.saved), R = G.rows;
   // The art (medallion, fan of cards, the word Baloot) is drawn in its design space (720 wide, centred on 360,450) and scaled to fit.
   ctx.save(); ctx.translate(G.art.cx, G.art.cy); ctx.scale(G.art.s, G.art.s); ctx.translate(-360, -450);
-  // big slowly turning medallion behind the title
-  ctx.save(); ctx.translate(360, 420); ctx.rotate(t * 0.05);
+  // big slowly turning medallion behind the title (the 3D room replaces it and the fan of cards)
+  if (!v3.on) { ctx.save(); ctx.translate(360, 420); ctx.rotate(t * 0.05);
   ctx.strokeStyle = 'rgba(232,190,110,0.32)'; ctx.lineWidth = 2.5; rosette(ctx, 0, 0, 330, 'rgba(232,190,110,0.32)', 2.5);
   ctx.rotate(-t * 0.1); rosette(ctx, 0, 0, 240, 'rgba(232,190,110,0.24)', 2);
   ctx.restore();
-  const g = ctx.createRadialGradient(360, 430, 20, 360, 430, 340); g.addColorStop(0, 'rgba(255,214,140,0.28)'); g.addColorStop(1, 'rgba(255,214,140,0)'); ctx.fillStyle = g; ctx.fillRect(0, 100, 720, 660);
+  const g = ctx.createRadialGradient(360, 430, 20, 360, 430, 340); g.addColorStop(0, 'rgba(255,214,140,0.28)'); g.addColorStop(1, 'rgba(255,214,140,0)'); ctx.fillStyle = g; ctx.fillRect(0, 100, 720, 660); }
   // fan of cards
-  const cards = [7 + 0 * 8 + 0, 4 + 8, 2 + 8, 6 + 16, 3 + 24];
+  const cards = v3.on ? [] : [7 + 0 * 8 + 0, 4 + 8, 2 + 8, 6 + 16, 3 + 24];
   cards.forEach((c, i) => {
     const a = (i - 2) * 0.2 + Math.sin(t * 0.8 + i) * 0.015, cx = 360 + (i - 2) * 92, cy = 560 + Math.abs(i - 2) * 22;
     ctx.save(); ctx.translate(cx, cy + 150); ctx.rotate(a); ctx.translate(-CW * 0.5, -CH * 0.9 - 150 + 150); drawCard(ctx, c, 0, -CH * 0.15, 1.0, { big: state.set.big, four: state.set.four }); ctx.restore();
@@ -91,7 +108,7 @@ function title(ctx, state, V) {
   text('Baloot', 360, 250, 170, gr, FONT, 700); ctx.restore();
   ctx.restore();
   ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.75)'; ctx.shadowBlur = 8; ctx.shadowOffsetY = 2; V.fit('The partnership card game of the Gulf', G.art.cx, G.tagY, 28, G.artW, '#f6dfae', 600); ctx.restore();
-  if (G.coffee) drawCoffee(ctx, G.coffee.x, G.coffee.y, t, G.coffee.s);
+  if (G.coffee && !v3.on) drawCoffee(ctx, G.coffee.x, G.coffee.y, t, G.coffee.s);
   if (R.resume) button(ctx, R.resume, 'Resume match', { primary: true, size: 36, sub: `You ${state.saved.match.scores[0]}, Them ${state.saved.match.scores[1]}` });
   button(ctx, R.play, 'Play a match', { primary: !R.resume, size: 36, sub: `Race to ${TARGETS[state.targetIdx]} with Partner` });
   button(ctx, R.learn, 'Learn to play', { size: 34, sub: `${Object.keys(state.learned).length} of ${LESSONS.length} lessons done` });
@@ -338,10 +355,10 @@ function overPage(ctx, state, V) {
 function table(ctx, state, V) {
   const { text, shadowText, wrap, fit, lightSuit } = V, H = state.H, t = state.t, ui = state.ui, sc = state.scene, T = TG, U = LAY.U;
   const big = state.set.big, four = state.set.four, calm = state.set.calm;
-  drawTable(ctx, t);
+  if (!v3.on) drawTable(ctx, t);
   const isAuto = sc === 'auto';
   const study = sc === 'lesson' || sc === 'daily';
-  if (!study && !isAuto && !LAY.wide) drawCoffee(ctx, U.x0 + 84, T.chip.y + 154, t, 0.46);
+  if (!study && !isAuto && !LAY.wide && !v3.on) drawCoffee(ctx, U.x0 + 84, T.chip.y + 154, t, 0.46);
   const ct = H.contract;
   const A = isAuto ? state.auto : null;
   const autoReveal = A && A.phase === 'reveal' && A.chosen ? A : null;
@@ -405,9 +422,9 @@ function table(ctx, state, V) {
     face(3, Sd.left.x - fw / 2, Sd.top, 0, Sd.pitch); face(1, Sd.right.x - fw / 2, Sd.top, 0, Sd.pitch);
   } else {
     const bs = P.backs.sc, bw = CW * bs, tot = bw + P.backs.pitch * 7;
-    for (let k = 0; k < nb(2); k++) drawCard(ctx, -1, P.backs.cx - tot / 2 + k * P.backs.pitch, P.backs.y, bs, {});
-    for (let k = 0; k < nb(3); k++) drawCard(ctx, -1, Sd.left.x - fw / 2, Sd.top + k * Sd.pitch, 0.5, { rot: Math.PI / 2 });
-    for (let k = 0; k < nb(1); k++) drawCard(ctx, -1, Sd.right.x - fw / 2, Sd.top + k * Sd.pitch, 0.5, { rot: -Math.PI / 2 });
+    for (let k = 0; k < nb(2); k++) cardOn(ctx, -1, P.backs.cx - tot / 2 + k * P.backs.pitch, P.backs.y, bs, {});
+    for (let k = 0; k < nb(3); k++) cardOn(ctx, -1, Sd.left.x - fw / 2, Sd.top + k * Sd.pitch, 0.5, { rot: Math.PI / 2 });
+    for (let k = 0; k < nb(1); k++) cardOn(ctx, -1, Sd.right.x - fw / 2, Sd.top + k * Sd.pitch, 0.5, { rot: -Math.PI / 2 });
   }
   const plate = (s, x, y, w) => {
     const turn = H.turn === s && (H.phase === 'bid' || H.phase === 'play' || H.phase === 'double') && !state.show;
@@ -427,7 +444,7 @@ function table(ctx, state, V) {
   // ---- centre: turned-up card during bidding
   if (H.phase === 'bid' && H.floor >= 0) {
     const bob = calm ? 0 : Math.sin(t * 2) * 4, ds = T.deckSc;
-    drawCard(ctx, H.floor, DECK.x - CW * ds / 2, DECK.y - CH * ds / 2 + bob, ds, { big, four });
+    cardOn(ctx, H.floor, DECK.x - CW * ds / 2, DECK.y - CH * ds / 2 + bob, ds, { big, four });
     const lblSize = Math.max(24, LAY.minU);   // the text helper bumps small sizes up to the minimum readable size, so place by that size (cap height ~0.75) below the card, its bob and its shadow
     text('Turned-up card', DECK.x, DECK.y + CH * ds / 2 + 4 + 10 + 0.8 * lblSize + 6, lblSize, 'rgba(255,240,200,0.9)', UI, 700);
   }
@@ -447,7 +464,7 @@ function table(ctx, state, V) {
   hand.forEach((c, i) => { if (c !== ui.sel && !(ui.drag && ui.drag.card === c && ui.drag.moved)) drawHandCard(c, i); });
   const tt = state.show ? state.show.plays : H.trick;
   for (const pl of tt) { const p = state.pos[pl.card]; if (!p) continue; const winner = state.show && state.show.t > 0.15 && state.show.winner === pl.seat && state.show.t < 1.3;
-    drawCard(ctx, pl.card, p.x, p.y, p.sc, { big, four, glow: winner ? '#ffe08a' : null }); }
+    cardOn(ctx, pl.card, p.x, p.y, p.sc, { big, four, glow: winner ? '#ffe08a' : null }); }
   if (ui.sel >= 0 && hand.includes(ui.sel)) drawHandCard(ui.sel, hand.indexOf(ui.sel));
   if (ui.drag && ui.drag.moved) drawHandCard(ui.drag.card, hand.indexOf(ui.drag.card));
   // who won the trick

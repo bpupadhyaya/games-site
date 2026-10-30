@@ -463,3 +463,8 @@ STR.aJump = L('{side}: jump and capture', '{side}: salto y captura', '{side}: ق
 STR.aStep = L('{side}: step', '{side}: paso', '{side}: خطوة');
 STR.cJumpA = L('jump the enemy piece', 'salta la pieza rival', 'اقفز فوق قطعة الخصم');
 STR.cJumpB = L('it is removed', 'se retira', 'تُزال');
+// Credits for the optional 3D layer (three.js and the shared view3d library), added at the end of About by main.js once loaded.
+export const addAboutCredits = (body) => {
+  if (ABOUT_DEF.some((d) => d.credits)) return;
+  ABOUT_DEF.push({ credits: true, en: { title: '3D graphics credits', body }, es: { title: 'Créditos de los gráficos 3D', body }, ar: { title: 'حقوق الرسوم ثلاثية الأبعاد', body } });
+};

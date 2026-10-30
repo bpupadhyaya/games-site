@@ -2,6 +2,7 @@
 // clockwise, the head in the middle. Cell centres, tangent angles and the arc-length table are shared by the drawing code and by the
 // baked relief (bake.js), so a lion always stands exactly on a carved cell. Pure math, no drawing.
 import { TRACK } from './rules.js';
+import { v3 } from './v3.js';
 
 export const SPIRAL = {
   rOut: 0.415,          // radius of the centre line at the tail end
@@ -66,18 +67,40 @@ export const CELL_PTS = (() => {
 })();
 
 const cache = new Map();
-// board geometry in canvas units for a square board at (x, y) of size `side`
-export function trackGeo(x, y, side) {
-  const key = `${Math.round(x * 4)}|${Math.round(y * 4)}|${Math.round(side * 4)}`;
+// board geometry in canvas units for a square board at (x, y) of size `side`. While the 3D scene is on (v3.proj) the points are the
+// projection of the tilted 3D board instead (same fields, so taps, trails and highlights use exactly what is on screen); `flat`
+// forces the plain square (the title's attract art).
+export function trackGeo(x, y, side, flat = false) {
+  const p3 = !flat && v3.on && v3.proj;
+  const key = p3 ? `3d|${v3.key}|${Math.round(side)}` : `${Math.round(x * 4)}|${Math.round(y * 4)}|${Math.round(side * 4)}`;
   let g = cache.get(key);
   if (g) return g;
-  const P = (p) => ({ x: x + p.x * side, y: y + p.y * side, ang: p.ang });
-  g = {
-    x, y, side, cells: CELL_PTS.map(P),
-    cellW: SPIRAL.half * 2 * side, cellL: CELL_LEN * side, lion: Math.min(SPIRAL.half * 2.05, CELL_LEN * 0.8) * side,
-    head: { x: x + 0.5 * side, y: y + 0.5 * side, r: SPIRAL.headR * side },
-    spiral: null,
-  };
+  if (p3) {
+    const pj = v3.proj, E = 0.004;
+    const P = (p) => {
+      const a = pj(p.x, p.y), b = pj(p.x + Math.cos(p.ang) * E, p.y + Math.sin(p.ang) * E);
+      return { x: a[0], y: a[1], ang: Math.atan2(b[1] - a[1], b[0] - a[0]), ux: p.x, uy: p.y, uang: p.ang };
+    };
+    const cells = CELL_PTS.map(P);
+    const dist = (u, w) => Math.hypot(u[0] - w[0], u[1] - w[1]);
+    let cw = 0, cl = 0;
+    for (let i = 1; i < TRACK; i++) {
+      const p = CELL_PTS[i], c = Math.cos(p.ang), s = Math.sin(p.ang), h = SPIRAL.half, l = CELL_LEN / 2;
+      cw += dist(pj(p.x - s * h, p.y + c * h), pj(p.x + s * h, p.y - c * h)); cl += dist(pj(p.x - c * l, p.y - s * l), pj(p.x + c * l, p.y + s * l));
+    }
+    cw /= TRACK - 1; cl /= TRACK - 1;
+    const hc = pj(0.5, 0.5), hr = SPIRAL.headR, hx = dist(pj(0.5 - hr, 0.5), pj(0.5 + hr, 0.5)) / 2, hy = dist(pj(0.5, 0.5 - hr), pj(0.5, 0.5 + hr)) / 2;
+    g = { x, y, side, p3: true, cells, cellW: cw, cellL: cl, lion: cw * 1.05, head: { x: hc[0], y: hc[1], r: (hx + hy) / 2 }, spiral: null, pt: (ux, uy) => pj(ux, uy) };
+    cells[TRACK].ang = cells[CELLS].ang;
+  } else {
+    const P = (p) => ({ x: x + p.x * side, y: y + p.y * side, ang: p.ang, ux: p.x, uy: p.y, uang: p.ang });
+    g = {
+      x, y, side, cells: CELL_PTS.map(P),
+      cellW: SPIRAL.half * 2 * side, cellL: CELL_LEN * side, lion: Math.min(SPIRAL.half * 2.05, CELL_LEN * 0.8) * side,
+      head: { x: x + 0.5 * side, y: y + 0.5 * side, r: SPIRAL.headR * side },
+      spiral: null,
+    };
+  }
   if (cache.size > 24) cache.delete(cache.keys().next().value);
   cache.set(key, g);
   return g;
@@ -91,7 +114,8 @@ export function pathBetween(g, a, b, steps = 6) {
   const n = Math.max(2, Math.ceil(Math.abs(b - a) * steps));
   for (let i = 0; i <= n; i++) {
     const t = t0 + ((t1 - t0) * i) / n, p = pointAt(t);
-    out.push({ x: g.x + p.x * g.side, y: g.y + p.y * g.side, ang: p.ang });
+    if (g.p3) { const q = g.pt(p.x, p.y); out.push({ x: q[0], y: q[1], ang: p.ang, ux: p.x, uy: p.y, uang: p.ang }); }
+    else out.push({ x: g.x + p.x * g.side, y: g.y + p.y * g.side, ang: p.ang, ux: p.x, uy: p.y, uang: p.ang });
   }
   // end exactly on the cell centres
   out[0] = { ...g.cells[Math.max(0, Math.min(TRACK, a))] };

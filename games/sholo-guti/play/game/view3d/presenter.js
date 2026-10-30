@@ -321,7 +321,8 @@ export async function createPresenter({ kitCanvas, quality = 'high' }) {
     } else if (sc === 'doc') {
       fitCamera({ x: L.w * 0.04, y: L.h * 0.14, w: L.w * 0.92, h: L.h * 0.7 }, 38, 30, sway * Math.sin(clock * 0.15) * 7, 0.9, true);
     } else {
-      fitCamera({ x: B_.x, y: B_.y, w: B_.w, h: B_.h + B_.thick }, L.rot ? 48 : 52, 28, 0, 1, L.rot);
+      if (!L.land && !L.rot) fitCamera({ x: L.w * 0.02, y: B_.y - 12, w: L.w * 0.96, h: B_.h + B_.thick + 24 }, 60, 28, 0, 0.98, false);   // portrait: the hexagon fills the width, steeper camera
+      else fitCamera({ x: B_.x, y: B_.y, w: B_.w, h: B_.h + B_.thick }, L.rot ? 40 : 40, 28, 0, 0.96, L.rot);
     }
   }
 

@@ -236,17 +236,19 @@ function drawBuds(ctx, T, pulse, yt) {
     ctx.fillStyle = s === 0 ? 'rgb(176,210,110)' : 'rgb(214,190,150)'; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill(); ctx.strokeStyle = 'rgba(70,44,24,0.8)'; ctx.lineWidth = 0.8; ctx.stroke();
   });
 }
-function drawWires(ctx, T, sp, t) {
+export function drawWires(ctx, T, sp, t, metersOnly = false) {
   for (const L of T.limbs) {
     const w = L.wire; if (!w) continue;
     const a = w.s, b = Math.min(L.segs.length, w.s + 3 + 1);
     ctx.save(); ctx.lineCap = 'round';
     const path = () => { ctx.beginPath(); for (let i = a; i <= b; i++) { const p = L.g.pts[i]; if (!p) break; if (i === a) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); } };
     const thick = Math.max(...L.segs.slice(a, b).map((s) => s.th), 1.5) + 1.6;
+    if (!metersOnly) {
     path(); ctx.strokeStyle = 'rgba(70,32,10,0.9)'; ctx.lineWidth = thick + 1.6; ctx.setLineDash([2.4, 3.6]); ctx.stroke();
     path(); ctx.strokeStyle = w.bite ? 'rgb(200,90,70)' : 'rgb(222,142,70)'; ctx.lineWidth = thick; ctx.setLineDash([2.2, 3.8]); ctx.stroke();
     path(); ctx.strokeStyle = 'rgba(255,224,170,0.85)'; ctx.lineWidth = Math.max(0.8, thick * 0.34); ctx.setLineDash([1.4, 4.6]); ctx.lineDashOffset = -1; ctx.stroke();
     ctx.setLineDash([]);
+    }
     // set meter: amber ring until the bend has set, green when set, red when it is about to bite
     const mid = L.g.pts[Math.min(L.segs.length, a + 1)], frac = Math.min(1, w.age / 6), red = w.age > 11;
     if (!w.end) {

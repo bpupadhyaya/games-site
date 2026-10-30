@@ -152,27 +152,32 @@ function buildTitle(L, hasSave) {
   const memo = titleCache.get(L) || {}; titleCache.set(L, memo);
   if (memo[hasSave]) return memo[hasSave];
   const { w, h, U, ins } = L, T = { rows: {}, hero: null, card: null, lockup: null };
-  const names = [hasSave ? ['resume'] : null, ['play'], ['two', 'learn'], ['auto'], ['rules', 'how'], ['about', 'settings']].filter(Boolean);
-  const n = names.length;
-  const place = (x0, aw, y0, pitch, bh) => names.forEach((row, i) => {
-    const y = y0 + i * pitch;
-    if (row.length === 1) T.rows[row[0]] = R(x0, y, aw, bh);
-    else { const cw = (aw - 12) / 2; T.rows[row[0]] = R(x0, y, cw, bh); T.rows[row[1]] = R(x0 + cw + 12, y, cw, bh); }
-  });
+  const names = [hasSave ? ['resume'] : null, ['play'], ['two', 'learn'], ['auto', 'settings'], ['rules', 'how', 'about']].filter(Boolean);
+  // row weights: the Play button dominates (1.7x), secondary rows are one unit, the Rules/How/About tiles are a little taller (icon over label)
+  const wt = (row) => row[0] === 'play' ? 1.7 : row[0] === 'resume' ? 1.15 : row.length === 3 ? 1.15 : 1;
+  const G = 12;
+  const place = (x0, aw, yTop, totalH) => {
+    const units = names.reduce((a, r) => a + wt(r), 0), u = (totalH - G * (names.length - 1)) / units; let y = yTop;
+    names.forEach((row) => {
+      const bh = u * wt(row), cw = (aw - G * (row.length - 1)) / row.length;
+      row.forEach((k, j) => { T.rows[k] = R(x0 + j * (cw + G), y, cw, bh); });
+      y += bh + G;
+    });
+  };
   if (!L.land) {
     const lock = 64, bottom = h - Math.max(14, ins.b + 6), bw = Math.min(U.w - 56, 560);
-    const minP = clamp(Math.round(46 / (ins.px || 0.6)) + 12, 58, 98);
-    let pitch = clamp((bottom - lock - (U.y0 + 470)) / n, minP, 98), bh = pitch - 12;
-    const y0 = bottom - lock - n * pitch + 12;
-    place(U.x0 + (U.w - bw) / 2, bw, y0, pitch, bh);
+    const minUnit = clamp(Math.round(46 / (ins.px || 0.6)) + 8, 54, 80), units = names.reduce((a, r) => a + wt(r), 0);
+    const totalH = Math.min(units * 80 + G * (names.length - 1), Math.max(units * minUnit + G * (names.length - 1), (bottom - lock) - (U.y0 + 560)));
+    const yTop = bottom - lock - totalH;
+    place(U.x0 + (U.w - bw) / 2, bw, yTop, totalH);
     T.lockup = { x: w / 2, y: bottom - 14 };
-    const zoneTop = Math.max(ins.t + 8, ins.back ? ins.t + 60 : 0), zone = y0 - 12 - zoneTop;
+    const zoneTop = Math.max(ins.t + 8, ins.back ? ins.t + 60 : 0), zone = yTop - 12 - zoneTop;
     T.hero = R(U.x0 + 10, zoneTop, U.w - 20, zone);
   } else {
     const aw = clamp(w * 0.38, 380, 560), ax = U.x1 - aw - 16, lock = 56;
-    const pitch = Math.min(92, (U.h - 40 - lock) / n), bh = pitch - 12, y0 = U.y0 + (U.h - n * pitch - lock) / 2 + 6;
-    place(ax + 24, aw - 48, y0, pitch, bh);
-    T.card = R(ax, y0 - 24, aw, n * pitch + lock + 28);
+    const totalH = Math.min(U.h - 40 - lock, 460), y0 = U.y0 + (U.h - totalH - lock) / 2 + 6;
+    place(ax + 24, aw - 48, y0, totalH);
+    T.card = R(ax, y0 - 24, aw, totalH + lock + 28);
     T.lockup = { x: ax + aw / 2, y: T.card.y + T.card.h - 14 };
     T.hero = R(U.x0 + 10, U.y0 + 10, ax - U.x0 - 30, U.h - 20);
   }

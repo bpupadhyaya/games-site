@@ -24,7 +24,7 @@ const SPEC = [
 export async function makeCast(V, stage) {
   const { loadHuman, addBatClips, addThrowClips, addFieldClips } = V;
   const actors = await Promise.all(SPEC.map(async (s, i) => {
-    const h = await loadHuman({ character: s.ch, kit: { ...KITS[s.team] }, skin: s.skin, hair: s.hair, lod: 'auto', castShadow: true });
+    const h = await loadHuman({ character: s.ch, kit: { ...KITS[s.team] }, skin: s.skin, hair: s.hair, top: 'long', lod: 'auto', castShadow: true });
     h.updated = true;
     if (s.team === 'bat') addBatClips(h); else { addThrowClips(h); addFieldClips(h); }
     stage.add(h); stage.track(h);

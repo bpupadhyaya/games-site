@@ -3,6 +3,7 @@
 import { W, H, FR, RG, TEXT_SCALES, TEXT_DEC, TEXT_INC, REF_BACK, REF_NEXT, THINK_STEPS, SETUP_PINS, setupBottom, titleCol, flowOrigin } from './layout.js';
 import { drawLockupImg, drawMoreLine } from './brand.js';
 import { FONT, NUM, C, roundPath, drawButton, panel, wrapLines, textShadow, flowLayout, drawFlow, flowHit } from './ui.js';
+import { v3, flatAlpha, recordDuel } from './v3.js';
 import { makeCam, drawBackdrop, drawDuel, drawParts, drawConker, drawString, patchArgs, TAU } from './scene.js';
 import { STEADY } from './ai.js';
 import { KINDS, RIVALS, rivalConker, kindOf, countName, countLabel, stageOf, STAGE_NAMES, CUP_ROUNDS, tinLeft, weakFactor, WEAK_FLOOR, WEAK_BONUS } from './engine.js';
@@ -53,9 +54,10 @@ const spaced = (ctx, text, cx, y, gap) => {
 export function drawAttractScene(ctx, state, x, y, w, h) {
   const a = state.att;
   if (!a || !a.sim) return;
-  const cam = makeCam(x, y, w, h, false);
-  drawDuel(ctx, cam, a.sim, a.c, 0, { flash: a.flash > 0 ? a.flash : 0 });
-  drawParts(ctx, cam, a.parts);
+  const cam = makeCam(x, y, w, h, false), o = { flash: a.flash > 0 ? a.flash : 0 }, fa = flatAlpha();
+  if (fa > 0) { ctx.save(); ctx.globalAlpha = fa; drawDuel(ctx, cam, a.sim, a.c, 0, o); ctx.restore(); }
+  recordDuel(ctx, cam, a.sim, a.c, 0, o, a.parts, 'title');
+  drawParts(ctx, cam, v3.on ? a.parts.filter((p) => p.k === 'spark' || p.k === 'ring') : a.parts);
 }
 function drawHero(ctx, cx, top, k = 1) {
   ctx.save(); ctx.translate(cx, top); ctx.scale(k, k);
@@ -93,7 +95,7 @@ export function titleWidgets(state, land = false) {
   if (state.cup && !state.cup.done) {
     wd.push({ t: 'btn', id: 'continue', label: 'Continue the Cup', sub: `Round ${state.cup.round + 1} of ${CUP_ROUNDS}, ${tinLeft(state.cup)} conkers in the tin`, primary: true, h: 92 });
     wd.push({ t: 'btn', id: 'cup', label: 'New Conker Cup', h: 80 });
-  } else wd.push({ t: 'btn', id: 'cup', label: 'Conker Cup', sub: `${CUP_ROUNDS} rivals, one tin of conkers`, primary: true, h: 92 });
+  } else wd.push({ t: 'btn', id: 'cup', label: 'Conker Cup', sub: `${CUP_ROUNDS} rivals, one tin of conkers`, primary: true, h: 112 });
   wd.push({ t: 'btn', id: 'duel', label: 'Quick Duel', row: 1 });
   wd.push({ t: 'btn', id: 'two', label: 'Two Players', row: 1 });
   wd.push({ t: 'btn', id: 'watch', label: 'Watch & Learn', row: 2 });
@@ -410,12 +412,13 @@ function drawReaderPage(ctx, pg, state, y0) {
 }
 
 
+const flatBackdrop = (ctx, t, gy) => { const fa = flatAlpha(); if (fa <= 0) return; ctx.save(); ctx.globalAlpha = fa; drawBackdrop(ctx, FR.sw, H, t, gy); ctx.restore(); };
 function backdrop(ctx, state, a) {
-  drawBackdrop(ctx, FR.sw, H, state.t, H * 0.74);
+  flatBackdrop(ctx, state.t, H * 0.74);
   scrim(ctx, a);
 }
 export function renderTitle(ctx, state) {
-  drawBackdrop(ctx, FR.sw, H, state.t, FR.land ? H * 0.78 : H * 0.66);
+  flatBackdrop(ctx, state.t, FR.land ? H * 0.78 : H * 0.66);
   const sw = FR.sw, ins = FR.ins;
   if (!FR.land) {
     const g = ctx.createLinearGradient(0, H * 0.5, 0, H); g.addColorStop(0, 'rgba(28,15,6,0)'); g.addColorStop(0.3, 'rgba(28,15,6,0.78)'); g.addColorStop(1, 'rgba(28,15,6,0.94)');

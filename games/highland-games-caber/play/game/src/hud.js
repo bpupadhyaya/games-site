@@ -1,7 +1,7 @@
 // The in-play screen on the 2D canvas: top strip, balance pad, action button, the gauges of each event, the choice / result / scoreboard cards, the
 // Watch & Learn panel and the flat fallback picture used when WebGL is missing. Pure drawing from game state; game.js owns state.
 import { SW, H, host, minU, hudLayout, PLAY_M, TEXT_SCALES } from './layout.js';
-import { FONT, DISPLAY, C, roundPath, drawButton, panel, wrapLines, textShadow, fitPx } from './ui.js';
+import { FONT, DISPLAY, C, roundPath, drawButton, panel, wrapLines, textShadow, fitPx, kitFill } from './ui.js';
 import { CABERS, STONES, BAR_HEIGHTS, WT } from './physics.js';
 import { STRIDES, STONE_ANGLE, WIND_FULL, WIND_FOUL, ARC, VB_MAX, SPIN_V0 } from './sim.js';
 import { EVENT_NAME, ATTEMPTS, CABER_MULT, MEDALS, EVENT_SHORT } from './consts.js';
@@ -18,8 +18,8 @@ const ink = '#f6f0e2';
 const gold = '#f0c455', teal = '#7fd6c2', coral = '#ff9a86', moss = '#6fbf7d';
 const font = (px, w = 700) => `${w} ${Math.max(Math.round(px), minU())}px ${FONT}`;
 
-function chip(ctx, x, y, w, h, fill = 'rgba(14,22,20,0.74)', edge = 'rgba(246,240,226,0.22)') {
-  roundPath(ctx, x, y, w, h, Math.min(18, h / 2)); ctx.fillStyle = fill; ctx.fill(); ctx.lineWidth = 1.5; ctx.strokeStyle = edge; ctx.stroke();
+function chip(ctx, x, y, w, h) {
+  kitFill(ctx, x, y, w, h, Math.min(18, h / 2), 'dark', { alpha: 0.9, lift: 3 });
 }
 
 // ---------------------------------------------------------------------------------------------------------------------------------
@@ -46,7 +46,7 @@ export function renderHud(ctx, G, v, hudIn) {
 
 function drawTop(ctx, G, s, L, M) {
   const t = L.top;
-  chip(ctx, t.x, t.y, t.w, t.h);
+  kitFill(ctx, t.x, t.y, t.w, t.h, Math.min(18, t.h / 2), 'dark', { alpha: 0.93, lift: 4 });
   ctx.textBaseline = 'middle';
   const pad = 16, mid = t.y + t.h / 2;
   const fsA = fitPx(ctx, EVENT_NAME[s.event], 700, 30 * Math.min(M, 1.4), t.w * (L.land ? 0.34 : 0.5) - pad, 13);
@@ -86,7 +86,8 @@ function drawPad(ctx, G, s, L, active) {
   ctx.globalAlpha = active ? 1 : 0.45;
   const g = ctx.createRadialGradient(p.x, p.y, p.r * 0.2, p.x, p.y, p.r);
   g.addColorStop(0, 'rgba(24,36,32,0.30)'); g.addColorStop(1, 'rgba(24,36,32,0.74)');
-  ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, TAU); ctx.fillStyle = g; ctx.fill(); ctx.lineWidth = 2.5; ctx.strokeStyle = 'rgba(246,240,226,0.38)'; ctx.stroke();
+  ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, TAU); ctx.fillStyle = g; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(5,10,8,0.7)'; ctx.stroke();
+  ctx.beginPath(); ctx.arc(p.x, p.y, p.r - 5, 0, TAU); ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(226,186,92,0.7)'; ctx.stroke();
   // target ring (the steady zone) and the lean dot
   const sr = p.r * (0.14 / 0.8);
   ctx.beginPath(); ctx.arc(p.x, p.y, sr, 0, TAU); ctx.strokeStyle = 'rgba(111,191,125,0.9)'; ctx.lineWidth = 3; ctx.stroke();
@@ -110,7 +111,7 @@ function drawPad(ctx, G, s, L, active) {
 
 function drawButtonRound(ctx, G, s, L) {
   const b = L.btn;
-  let label = '', sub = '', on = true, col = '#3d7a4c';
+  let label = '', sub = '', on = true, col = '#2f6b40';
   if (s.event === 'caber') {
     if (s.ph === 'run') { label = 'STRIDE'; }
     else if (s.ph === 'heave') { label = 'HEAVE'; col = '#b9892f'; }
@@ -130,7 +131,8 @@ function drawButtonRound(ctx, G, s, L) {
   const g = ctx.createRadialGradient(b.x - b.r * 0.3, b.y - b.r * 0.35, b.r * 0.1, b.x, b.y, b.r);
   g.addColorStop(0, '#ffffff22'); g.addColorStop(1, '#00000022');
   ctx.beginPath(); ctx.arc(b.x, b.y + (down ? 3 : 0), b.r, 0, TAU); ctx.fillStyle = col; ctx.fill();
-  ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(246,240,226,0.55)'; ctx.stroke();
+  ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(5,10,8,0.8)'; ctx.stroke();
+  ctx.beginPath(); ctx.arc(b.x, b.y + (down ? 3 : 0), b.r - 6, 0, TAU); ctx.lineWidth = 2.5; ctx.strokeStyle = 'rgba(236,198,104,0.85)'; ctx.stroke();
   ctx.fillStyle = '#fffaf0'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   const fs = fitPx(ctx, label, 800, b.r * 0.34, b.r * 1.6, 14);
   ctx.font = font(fs, 800); ctx.fillText(label, b.x, b.y + (down ? 3 : 0) - (sub ? fs * 0.25 : 0));

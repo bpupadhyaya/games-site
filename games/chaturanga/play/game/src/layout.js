@@ -342,7 +342,7 @@ function buildTitle(hasSaved, tall) {
     : { gap: 14, resume: 78, play: 108, two: 88, watch: 88, level: 82, small: 78 };
   const rowsH = (k) => {
     let n = 0, s = 0; const add = (v) => { s += v * k; n++; };
-    if (hasSaved) add(base.resume); add(base.play); add(base.two); add(base.watch); add(base.level); add(base.small); if (tall) add(base.small);
+    if (hasSaved) add(base.resume); add(base.play); add(base.two); add(base.watch); add(base.small); if (tall) add(base.small);
     return s + base.gap * k * (n - 1);
   };
   const bkB = ins.back ? Math.max(ins.back, 48) + 14 : 0, heroTop0 = land ? 0 : Math.max(ins.t > 0 ? ins.t + 6 : 0, bkB ? ins.t + bkB - 70 : 0);
@@ -362,7 +362,7 @@ function buildTitle(hasSaved, tall) {
   rows.play = R(colX, y, bw, hh(base.play)); y += hh(base.play) + gap;
   rows.two = R(colX, y, half, hh(base.two)); rows.learn = R(colX + half + gap, y, half, hh(base.two)); y += hh(base.two) + gap;
   rows.watch = R(colX, y, half, hh(base.watch)); rows.history = R(colX + half + gap, y, half, hh(base.watch)); y += hh(base.watch) + gap;
-  rows.level = R(colX, y, half, hh(base.level)); rows.era = R(colX + half + gap, y, half, hh(base.level)); y += hh(base.level) + gap;
+  rows.level = R(0, 0, 0, 0); rows.era = R(0, 0, 0, 0);   // Level and Moves live in Settings; the Play button names them
   if (tall) {
     rows.settings = R(colX, y, half, hh(base.small)); rows.howto = R(colX + half + gap, y, half, hh(base.small)); y += hh(base.small) + gap;
     rows.rules = R(colX, y, half, hh(base.small)); rows.about = R(colX + half + gap, y, half, hh(base.small)); rows.bottom = y + hh(base.small);

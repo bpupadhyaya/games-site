@@ -129,7 +129,7 @@ function stationBar(ctx, st, L) {
     ctx.fillStyle = on ? PAL.terracotta : done ? 'rgba(73,181,164,0.45)' : 'rgba(255,240,220,0.09)';
     rrect(ctx, r, B.h / 2); ctx.fill();
     if (!on && !done) { ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(255,230,200,0.2)'; rrect(ctx, r, B.h / 2); ctx.stroke(); }
-    txt(ctx, STATIONS[i].name, r.x + r.w / 2, r.y + r.h / 2 + 1, Math.min(22, B.h * 0.46), on ? '#fff' : done ? PAL.text : PAL.dim, { align: 'center', weight: on ? 800 : 600, maxW: r.w - 8 });
+    txt(ctx, STATIONS[i].name, r.x + r.w / 2, r.y + r.h / 2 + 1, Math.min(22, B.h * 0.46), on ? '#1d1410' : done ? PAL.text : PAL.dim, { align: 'center', weight: on ? 800 : 600, maxW: r.w - 8 });
   }
 }
 function captionBox(ctx, L, title, body, o = {}) {
@@ -233,7 +233,7 @@ function playPanel(ctx, st, L) {
     G.motifs.forEach((r, i) => {
       const on = T.motifs[i] === T.motifs[s.glaze.motif] && i === s.glaze.motif;
       ctx.fillStyle = on ? PAL.terracotta : 'rgba(255,240,220,0.1)'; rrect(ctx, r, 12); ctx.fill();
-      txt(ctx, MOTIF_NAMES[T.motifs[i]], r.x + r.w / 2, r.y + r.h / 2, 20, on ? '#fff' : PAL.text, { align: 'center', weight: 700, maxW: r.w - 8 });
+      txt(ctx, MOTIF_NAMES[T.motifs[i]], r.x + r.w / 2, r.y + r.h / 2, 20, on ? '#1d1410' : PAL.text, { align: 'center', weight: 700, maxW: r.w - 8 });
     });
   } else {
     const st0 = STATIONS[s.station];
@@ -287,7 +287,7 @@ function renderResult(ctx, st, L, camNow) {
   txt(ctx, r.auto ? 'THE DEMONSTRATION' : 'OUT OF THE KILN', p.x + p.w / 2, p.y + 34, 20, PAL.dim, { align: 'center', weight: 800 });
   txt(ctx, r.name, p.x + p.w / 2, p.y + 76, 44, PAL.gold, { align: 'center', font: DISPLAY, weight: 600, stroke: 6, maxW: p.w - 40 });
   drawStars(ctx, p.x + p.w / 2, p.y + 134, wide ? 44 : 52, r.stars);
-  if (r.newBest) chip(ctx, p.x + p.w / 2, p.y + 186, 'NEW BEST', 20, { align: 'center', fill: PAL.terracotta, color: '#fff' });
+  if (r.newBest) chip(ctx, p.x + p.w / 2, p.y + 186, 'NEW BEST', 20, { align: 'center', fill: PAL.terracotta, color: '#1d1410' });
   const rows = [['Shape', sc.shape], ['Even walls', sc.even], ['Smooth', sc.smooth], ['Centred', sc.centre]].filter((q) => q[1] !== null);
   const top = p.y + 214, avail = K.btns[0].y - 12 - top, rh = clamp(avail / (rows.length + 1), 34, 52);
   const bx = p.x + 28, bw = p.w - 56;

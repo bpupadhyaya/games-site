@@ -70,7 +70,10 @@ export function fitPara(ctx, str, rect, size, color, o = {}) {
 // ---- panels and buttons ------------------------------------------------------------------------------------------------------------
 export function panel(ctx, r, { radius = 22, fill = COL.panel, edge = COL.edge, brand = false } = {}) {
   ctx.save();
+  roundRect(ctx, r.x, r.y + 3, r.w, r.h, radius); ctx.fillStyle = 'rgba(0,0,0,0.28)'; ctx.fill();                 // soft lip shadow on the table
   roundRect(ctx, r.x, r.y, r.w, r.h, radius); ctx.fillStyle = fill; ctx.fill();
+  const sh = ctx.createLinearGradient(0, r.y, 0, r.y + Math.min(r.h, 160)); sh.addColorStop(0, 'rgba(255,236,200,0.07)'); sh.addColorStop(1, 'rgba(255,236,200,0)');   // lamp light on the lacquer
+  ctx.fillStyle = sh; ctx.fill();
   ctx.lineWidth = 1.5; ctx.strokeStyle = edge; ctx.stroke();
   if (brand) {                                       // a brand-gradient hairline along the top edge of the panel
     const g = ctx.createLinearGradient(r.x, 0, r.x + r.w, 0); g.addColorStop(0, 'rgba(150,96,250,0)'); g.addColorStop(0.3, 'rgba(150,96,250,0.55)'); g.addColorStop(0.6, 'rgba(70,132,252,0.55)'); g.addColorStop(1, 'rgba(24,198,252,0)');
@@ -84,7 +87,11 @@ export function button(ctx, r, label, id, { kind = 'normal', disabled = false, s
   const fill = kind === 'primary' ? COL.gold : kind === 'danger' ? '#5a2623' : active ? '#27507a' : kind === 'quiet' ? 'rgba(20,30,40,0.6)' : '#1a2833';
   const fg = kind === 'primary' ? '#241a08' : COL.text;
   if (disabled) ctx.globalAlpha = 0.4;
-  roundRect(ctx, r.x, r.y, r.w, r.h, Math.min(18, r.h * 0.3)); ctx.fillStyle = fill; ctx.fill();
+  const rad = Math.min(18, r.h * 0.3);
+  roundRect(ctx, r.x, r.y + 2.5, r.w, r.h, rad); ctx.fillStyle = kind === 'primary' ? '#8a6a24' : 'rgba(0,0,0,0.35)'; ctx.fill();          // pressed-edge depth
+  roundRect(ctx, r.x, r.y, r.w, r.h, rad); ctx.fillStyle = fill; ctx.fill();
+  const lg = ctx.createLinearGradient(0, r.y, 0, r.y + r.h); lg.addColorStop(0, kind === 'primary' ? 'rgba(255,248,220,0.28)' : 'rgba(255,240,210,0.07)'); lg.addColorStop(1, 'rgba(0,0,0,0.08)');
+  ctx.fillStyle = lg; ctx.fill();
   ctx.lineWidth = active ? 2.5 : 1.5; ctx.strokeStyle = kind === 'primary' ? 'rgba(255,255,255,0.35)' : active ? COL.blue : COL.edge; ctx.stroke();
   const fs = size || Math.min(32, Math.max(minUnits(), r.h * 0.38));
   if (icon) icon(ctx, r.x + r.h * 0.5, r.y + r.h / 2, r.h * 0.5, fg);

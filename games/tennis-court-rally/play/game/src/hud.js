@@ -52,7 +52,7 @@ function scoreboard(ctx, G, s, lay) {
   };
   const pw = Math.min(W - 40 - 2 * Math.max(host.l, host.r), Math.round((lay.wide ? 460 : 620) * Math.min(1.25, 0.8 + m * 0.2))), px = Math.round(lay.cx - pw / 2);
   const rowH = Math.round(54 * m), ph = rowH * 2 + 14, py = y0 + 12 + (lay.wide ? 0 : 6);
-  roundPath(ctx, px, py, pw, ph, 18); ctx.fillStyle = 'rgba(8,18,14,0.78)'; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(244,244,239,0.28)'; ctx.stroke();
+  roundPath(ctx, px, py, pw, ph, 18); ctx.fillStyle = 'rgba(40,26,15,0.9)'; ctx.fill(); ctx.lineWidth = 2.5; ctx.strokeStyle = 'rgba(214,174,86,0.9)'; ctx.stroke();
   const pts = pointText(sc), serving = G.sim.s.serve ? G.sim.s.rally.server : -1;
   const cur = serving >= 0 ? serving : sc.server;
   for (const i of [0, 1]) {
@@ -78,7 +78,7 @@ function banner(ctx, text, big, col, lay, sub) {
   ctx.font = `800 ${big}px ${FONT}`;
   const bw = lay.bannerW, lines = wrapLines(ctx, text, bw - 10);
   const ph = lines.length * big * 1.2 + 26 + (sub ? big * 0.7 : 0), py = Math.round(H * 0.34 - ph / 2);
-  roundPath(ctx, lay.cx - bw / 2, py, bw, ph, 20); ctx.fillStyle = 'rgba(8,18,14,0.84)'; ctx.fill();
+  roundPath(ctx, lay.cx - bw / 2, py, bw, ph, 20); ctx.fillStyle = 'rgba(40,26,15,0.92)'; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(214,174,86,0.85)'; ctx.stroke();
   ctx.lineWidth = 3; ctx.strokeStyle = col; ctx.stroke();
   ctx.fillStyle = '#fbfaf2'; ctx.textAlign = 'center'; lines.forEach((l, i) => ctx.fillText(l, lay.cx, py + 14 + big * (0.95 + i * 1.2)));
   if (sub) { ctx.font = `700 ${Math.round(big * 0.6)}px ${FONT}`; ctx.fillStyle = LIME; ctx.fillText(sub, lay.cx, py + ph - 14); }

@@ -4,7 +4,7 @@
   "tagline": "The spiral race of geese, bridges and wells.",
   "genre": "family race game",
   "orientation": "any",
-  "version": "1.1.3",
+  "version": "1.2.0",
   "monetization": {
     "model": "premium",
     "priceUsd": 2.99,

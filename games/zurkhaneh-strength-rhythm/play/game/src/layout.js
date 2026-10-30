@@ -27,7 +27,7 @@ export function layoutFor(w, h) {
       const bh1 = 96, bh = 72, gap = 12, bw = Math.min(W, 560), bx = (w - bw) / 2, half = (bw - gap) / 2;
       // the pit never grows so tall that the buttons and the lockup fall off the bottom (portrait tablets)
       const fit = (bot - top - 130 - 40 - (bh1 + bh * 3 + gap * 3) - 100) / 2.3;
-      const pitR = Math.max(120, Math.min(W * 0.47, 330, fit));
+      const pitR = Math.max(120, Math.min(W * 0.56, 400, fit));
       const block = 130 + pitR * 2.3 + 40 + (bh1 + bh * 3 + gap * 3) + 100, extra = Math.max(0, h - top - block);
       const cy = top + 130 + extra * 0.3 + pitR * 1.3, by = cy + pitR + 40 + extra * 0.4;
       L.title = {
@@ -93,8 +93,9 @@ export function layoutFor(w, h) {
       const colX = w * 0.5, cw = Math.min(right - colX - 10, 520), x = colX + (right - colX - cw) / 2;
       L.result = { stars: { x: left + (w * 0.5 - left) / 2, y: h * 0.36 }, again: R(x, h * 0.58, cw, 72), songs: R(x, h * 0.58 + 84, cw, 72), menu: R(x, h * 0.58 + 168, cw, 72), more: { x: w / 2, y: bot - 6 }, stats: { x: x, y: top + 60, w: cw } };
     } else {
-      const y0 = Math.max(h * 0.62, top + 730);
-      L.result = { stars: { x: w / 2, y: top + 235 }, again: R(bx, y0, bw, 78), songs: R(bx, y0 + 90, bw, 72), menu: R(bx, y0 + 174, bw, 72), more: { x: w / 2, y: bot - 6 }, stats: { x: bx, y: top + 450, w: bw } };
+      const y0 = Math.min(Math.max(h * 0.62, top + 730), bot - 262 - 34);
+      const cmp = !tall;
+      L.result = { stars: { x: w / 2, y: top + (cmp ? 208 : 235) }, again: R(bx, y0, bw, 78), songs: R(bx, y0 + 90, bw, 72), menu: R(bx, y0 + 174, bw, 72), more: { x: w / 2, y: bot - 6 }, stats: { x: bx, y: top + (cmp ? 358 : 450), w: bw } };
     }
   }
 

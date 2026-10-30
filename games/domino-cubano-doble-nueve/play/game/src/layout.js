@@ -35,7 +35,7 @@ export function layoutLineRows(count, bounds) {
     const perRow = Math.ceil(n / rows);
     const byWidth = (bounds.w - (perRow - 1) * LINE_GAP) / perRow;
     const byHeight = (bounds.h - (rows - 1) * LINE_ROW_GAP) / (rows * 1.5);
-    const w = Math.min(LINE_MAX_W, byWidth, byHeight);
+    const w = Math.min(bounds.maxW || LINE_MAX_W, byWidth, byHeight);
     if (!best || w > best.w) best = { rows, perRow, w };
     if (perRow === 1) break;
   }
@@ -95,7 +95,7 @@ function build(w, h, ins) {
   P.toastSize = Math.max(20, minFont);
   P.wide = land && w >= 940;
 
-  const colW = land ? 124 : 104;
+  const colW = land ? 124 : 64;
   const lf = P.labelSize = Math.max(24, minFont);
   const gapB = 14;
   const bw = P.sideBtnW = clamp(Math.round(w * 0.11), 120, 180);
@@ -118,7 +118,7 @@ function build(w, h, ins) {
   }
   const rackGap = 4, rackAvail = Math.min(rackX1 - rackX0, 1000);
   const rw10 = (rackAvail - rackGap * 9) / 10;
-  const rackMaxW = Math.min(83, Math.max(30, rw10 * 1.2));
+  const rackMaxW = Math.min(100, Math.max(30, rw10 * 1.5));
   const rackMaxH = rackMaxW * (82 / 55);
   if (P.wide) { rackBottom = C.y1; rowTop = C.y1; }
   rackTop = rackBottom - rackMaxH;
@@ -148,9 +148,11 @@ function build(w, h, ins) {
     3: { x: rightEdge - colW / 2, y: colTop + colH / 2, vertical: true, labelX: rightEdge - colW / 2, labelY: mainTop + lf, tw: tw0 * k, th: th0 * k, gap: 3 * k },
   };
   P.ringR = 40;
-  const lineX0 = C.x0 + colW + 10, lineX1 = rightEdge - colW - 10;
+  const lineX0 = C.x0 + colW + (land ? 10 : 8), lineX1 = rightEdge - colW - (land ? 10 : 8);
   P.endNumY = mainTop + 36; P.endNumSize = 36;
-  P.line = R(lineX0, mainTop + 46, lineX1 - lineX0, Math.max(60, mainBottom - (mainTop + 46)));
+  const lineTop = mainTop + 46 + (land ? 0 : 70);
+  P.line = R(lineX0, lineTop, lineX1 - lineX0, Math.max(60, mainBottom - lineTop - (land ? 0 : 20)));
+  P.line.maxW = land ? 112 : 172;   // portrait: tiles as big as the width allows
   const mfs = P.memFont = Math.max(17, minFont);
   P.memPanel = R((P.wide ? rightEdge : C.x1) - 330, P.memory.y + P.memory.h + 8, 330, 4 * (mfs + 18) + 26);
 
@@ -172,7 +174,7 @@ function build(w, h, ins) {
     const m = 44 / px, tw = Math.max(lkw + 20, m), th = Math.max(lkh + 12, m), y0 = Math.max(bottomY - lkh - 6, T.auto.y + T.auto.h + 2);
     T.lockTap = R(cx - tw / 2, y0, tw, Math.max(lkh + 6, Math.min(th, h - y0)));
   };
-  const bFonts = [45, 44, 40, 36], bHs = [135, 130, 120, 120];
+  const bFonts = [52, 36, 34, 32], bHs = [165, 100, 100, 100];
   const names = ['play', 'howto', 'rules', 'auto'];
   if (land) {
     const colL = { x0: C.x0, x1: w / 2 - 10 }, colR = { x0: w / 2 + 10, x1: C.x1 };

@@ -10,7 +10,7 @@
 //   arms       forward kinematics only (no hand IK), so crossfades never pop
 import { THREE, buildClip, CLIP_BONES } from '../vendor3d/index.js';
 
-export const SCALE = 1.0;
+export const SCALE = 1.2;
 export const KITS = {
   runner: { top: '#ffd24a', bottoms: '#27408f', socks: '#f6f1e4', shoes: '#f4efe4', trim: '#fff8dc' },
   walker: { top: '#5a66f0', bottoms: '#f1efe6', socks: '#f6f1e4', shoes: '#f4efe4', trim: '#e8ecff' },

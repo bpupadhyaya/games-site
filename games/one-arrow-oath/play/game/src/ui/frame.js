@@ -13,6 +13,7 @@
 //
 // Safe areas: the shell publishes window.__safeInsets (CSS px); main.js converts them to virtual units into `host`.
 import { W, H } from './theme.js';
+import { v3 } from '../v3.js';
 
 // Safe areas and the host's floating back button in virtual units. main.js keeps this current (browsers: all zero).
 export const host = { t: 0, r: 0, b: 0, l: 0, back: 0, px: 0.6 };
@@ -129,6 +130,11 @@ export function drawBands(ctx, F, draw, { column = false } = {}) {
     }
     ctx.save();
     const c = column ? pc.col : pc.clip;
+    v3.clip = null;   // the 3D hand-off only keeps items whose spot lies inside the piece being drawn (every piece draws the whole scene, clipped)
+    if (c && v3.on && ctx.getTransform) {
+      const m = ctx.getTransform(), k = (ctx.canvas.clientWidth || ctx.canvas.width) / ctx.canvas.width;
+      v3.clip = { x0: (m.a * c.x + m.e) * k, y0: (m.d * c.y + m.f) * k, x1: (m.a * (c.x + c.w) + m.e) * k, y1: (m.d * (c.y + c.h) + m.f) * k };
+    }
     if (c) {
       ctx.beginPath();
       ctx.rect(c.x, c.y, c.w, c.h);
@@ -138,6 +144,7 @@ export function drawBands(ctx, F, draw, { column = false } = {}) {
     ctx.scale(pc.f, pc.f);
     draw(pc);
     ctx.restore();
+    v3.clip = null;
   }
 }
 

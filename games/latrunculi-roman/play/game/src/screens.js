@@ -49,21 +49,23 @@ export function buildUi(S) {
       ui.region = T.menu; ui.title = T;
       const playSub = S.demo ? tr('demoLeft', { n: Math.max(0, DEMO_GAMES - S.demoGames) }) : undefined;
       const full = [];
-      if (S.save) full.push({ t: 'btn', id: 'continue', label: tr('continueBtn'), kind: 'primary', size: 32, sub: S.save.two ? tr('twoPlayers') : `${tr('vsComputer')} · ${lvName(S.save.level)}`, minH: 104 });
-      full.push({ t: 'btn', id: 'play', label: tr('playBtn'), kind: S.save ? 'normal' : 'primary', size: 36, sub: playSub, minH: S.save ? 92 : 118 });
+      if (S.save) full.push({ t: 'btn', id: 'continue', label: tr('continueBtn'), kind: 'primary', icon: 'play', size: 32, sub: S.save.two ? tr('twoPlayers') : `${tr('vsComputer')} · ${lvName(S.save.level)}`, minH: 104 });
+      full.push({ t: 'btn', id: 'play', label: tr('playBtn'), kind: S.save ? 'normal' : 'primary', icon: S.save ? 'plus' : 'play', size: 36, sub: playSub, minH: S.save ? 92 : 118 });
       full.push({ t: 'btn', id: 'learn', label: tr('learnBtn'), size: 30, sub: `${lessonsDone(S)} / ${LESSONS.length}`, minH: 96 });
       full.push({ t: 'btn', id: 'auto', label: tr('autoBtn'), size: 30, minH: 92 });
-      const rowA = { t: 'row', size: 28, minH: 92, items: [{ id: 'howto', label: tr('howtoBtn') }, { id: 'rules', label: tr('rulesBtn') }] };
-      const rowB = { t: 'row', size: 28, minH: 92, items: [{ id: 'about', label: tr('aboutBtn') }, { id: 'settings', label: tr('settingsBtn') }] };
+      const rowA = { t: 'row', size: 28, minH: 92, items: [{ id: 'howto', label: tr('howtoBtn'), icon: 'scroll' }, { id: 'rules', label: tr('rulesBtn'), icon: 'tablet' }] };
+      const rowB = { t: 'row', size: 28, minH: 92, items: [{ id: 'about', label: tr('aboutBtn'), icon: 'info' }, { id: 'settings', label: tr('settingsBtn'), icon: 'gear' }] };
       full.push(rowA, rowB);
       // shorter screens (and landscape) use the compact menu: Learn and Watch & Learn share a row
       const compact = [];
       if (S.save) compact.push(full[0]);
       compact.push({ ...full[S.save ? 1 : 0], minH: S.save ? 84 : 100 });
-      compact.push({ t: 'row', size: 28, minH: 90, items: [{ id: 'learn', label: tr('learnBtn') }, { id: 'auto', label: tr('autoBtn') }] });
+      compact.push({ t: 'row', size: 28, minH: 90, items: [{ id: 'learn', label: tr('learnBtn'), icon: 'book' }, { id: 'auto', label: tr('autoBtn'), icon: 'eye' }] });
       compact.push({ ...rowA, minH: 84 }, { ...rowB, minH: 84 });
-      let b = T.compact ? compact : full;
-      if (!T.compact && layoutDoc(b, scale, T.menu.w).height > T.menu.h) b = compact;
+      // One dominant Play button over a tidy two-column grid; the menu sits low so the 3D hero gets the room above it.
+      const b = compact;
+      const need = layoutDoc(b, scale, T.menu.w).height;
+      if (!T.wide && need < T.menu.h) ui.region = { ...T.menu, y: T.menu.y + (T.menu.h - need), h: need };
       ui.blocks = b;
       break;
     }

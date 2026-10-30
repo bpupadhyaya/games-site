@@ -1,5 +1,6 @@
 // Drawing every screen of Shut the Box from the game state. No game logic here (game.js owns it), no clock: animation values come from S.
 import { DISPLAY, UI, rr, ease, mix, BOXES, drawTable, drawBoxFrame, drawTile, drawDie, drawTray, drawParticles } from './art.js';
+import { v3, flatAlpha } from './v3.js';
 import { drawCredit, drawMoreLine, brandGradient } from './brand.js';
 import { DOCS, DUEL_ROUNDS, LEVELS } from './content.js';
 import { TEXT_SCALES, THINK_STEPS, inRect } from './layout.js';
@@ -64,12 +65,17 @@ function goldText(ctx, str, cx, y, size, maxW) {
 
 // ---- the box and dice ------------------------------------------------------------------------------------------------------------------
 function drawBoxWithTiles(ctx, S, B, n, st) {
+  const fa = flatAlpha();
+  if (v3.on && v3.play) for (let k = 1; k <= n; k++) { const sk = st.shake && st.shake.k === k ? Math.sin(st.shake.t / 0.35 * 40) * (1 - st.shake.t / 0.35) : 0; v3.play.tiles.push({ flip: st.flip[k - 1], lift: st.lift(k), glow: st.glow(k), dim: st.dim(k), dx: sk }); }
+  if (fa <= 0) return;
+  ctx.save(); ctx.globalAlpha = fa;
   drawBoxFrame(ctx, B.box, S.boxKey);
   for (let k = 1; k <= n; k++) {
     let r = B.tiles[k - 1];
     if (st.shake && st.shake.k === k) { const u = st.shake.t / 0.35; r = { ...r, x: r.x + Math.sin(u * 40) * 7 * (1 - u) }; }
     drawTile(ctx, r, k, { flip: st.flip[k - 1], lift: st.lift(k), glow: st.glow(k), dim: st.dim(k), style: S.tileKey, box: S.boxKey, t: S.t });
   }
+  ctx.restore();
 }
 function diceState(S, bx, tray) {
   const lab = bx.phase === 'roll' && !S.autoMode && bx.player === 0;   // 'TAP TO ROLL' is shown: lift the dice clear of it
@@ -78,7 +84,7 @@ function diceState(S, bx, tray) {
   return { size, cy, xs, single };
 }
 function drawDice(ctx, S, bx, tray) {
-  const D = diceState(S, bx, tray), faces = bx.dice || [5, 2], a = S.dAnim, n = D.single ? 1 : 2;
+  const fa = flatAlpha(), D = diceState(S, bx, tray), faces = bx.dice || [5, 2], a = S.dAnim, n = D.single ? 1 : 2;
   for (let i = 0; i < n; i++) {
     const seed = hash32(bx.seed + bx.rollN, i + 3), ang0 = ((seed % 100) / 100 - 0.5) * 0.5, fy = D.cy + (i ? 6 : -4);
     let x = D.xs[i], y = fy, ang = ang0, air = 0, v = faces[i], fade = 1;
@@ -87,9 +93,10 @@ function drawDice(ctx, S, bx, tray) {
       x = mix(tray.x + 10 - D.size, D.xs[i], e) - (i ? 0 : 0); air = Math.abs(Math.sin(u * Math.PI * (3.2 + i * 0.6))) * (1 - u) * 0.9;
       ang = ang0 + (1 - e) * (i ? -1 : 1) * 6.28 * 2.2; v = u < 0.85 ? 1 + (hash32(Math.floor(u * 18) + i * 5, bx.rollN * 7 + 1) % 6) : faces[i];
     } else if (!bx.dice) fade = 0.85;
-    drawDie(ctx, x, y, D.size, v, { ang, air, tint: i ? 'red' : 'ivory', fade });
+    if (v3.on && v3.play) v3.play.dice.push({ xf: (x - tray.x) / tray.w, yf: (y - tray.y) / tray.h, sf: D.size / tray.h, spin: ang - ang0, yaw: ang0, air, v: faces[i], red: i === 1, fade, rolling: Boolean(a) });
+    if (fa > 0) drawDie(ctx, x, y, D.size, v, { ang, air, tint: i ? 'red' : 'ivory', fade: fade * fa });
   }
-  if (D.single) { ctx.save(); ctx.globalAlpha = 0.18; drawDie(ctx, D.xs[0] + D.size * 1.32, D.cy, D.size * 0.82, 6, { ang: 0.2, tint: 'red' }); ctx.restore(); }
+  if (D.single && fa > 0) { ctx.save(); ctx.globalAlpha = 0.18; drawDie(ctx, D.xs[0] + D.size * 1.32, D.cy, D.size * 0.82, 6, { ang: 0.2, tint: 'red' }); ctx.restore(); }
 }
 function odds(ctx, S, g, P) {
   const o = S.odds, bx = g.box; if (!o) return;
@@ -112,11 +119,16 @@ function drawTitle(ctx, S, L) {
   // hero: the box with tiles that flip down one after another
   const B = heroBoard(T), h = S.hero;
   if (!h.f) h.f = new Array(9).fill(0);
-  drawBoxFrame(ctx, B.box, S.boxKey);
-  for (let k = 1; k <= 9; k++) drawTile(ctx, B.tiles[k - 1], k, { flip: h.f[k - 1], style: S.tileKey, box: S.boxKey, t: S.t });
-  const ds = Math.min(B.tw * 0.95, 96);
-  drawDie(ctx, B.box.x + B.box.w - ds * 0.7, B.box.y + B.box.h - ds * 0.05, ds, 4, { ang: 0.28 });
-  drawDie(ctx, B.box.x + B.box.w - ds * 1.75, B.box.y + B.box.h + ds * 0.12, ds, 3, { ang: -0.2, tint: 'red' });
+  if (v3.on) v3.hero = { f: h.f, rect: T.hero, tileKey: S.tileKey, boxKey: S.boxKey, t: S.t, calm: S.calm };
+  if (flatAlpha() > 0) {
+    ctx.save(); ctx.globalAlpha = flatAlpha();
+    drawBoxFrame(ctx, B.box, S.boxKey);
+    for (let k = 1; k <= 9; k++) drawTile(ctx, B.tiles[k - 1], k, { flip: h.f[k - 1], style: S.tileKey, box: S.boxKey, t: S.t });
+    const ds = Math.min(B.tw * 0.95, 96);
+    drawDie(ctx, B.box.x + B.box.w - ds * 0.7, B.box.y + B.box.h - ds * 0.05, ds, 4, { ang: 0.28 });
+    drawDie(ctx, B.box.x + B.box.w - ds * 1.75, B.box.y + B.box.h + ds * 0.12, ds, 3, { ang: -0.2, tint: 'red' });
+    ctx.restore();
+  }
   const best = S.progress.best, dly = S.daily, lv = LEVELS[S.level];
   if (R.resume) button(ctx, R.resume, 'Resume box', { kind: 'primary', sub: 'saved' });
   button(ctx, R.classic, 'Classic Box', { kind: R.resume ? 'plain' : 'primary', sub: best.classic !== undefined ? `tiles 1-9 · best ${best.classic}` : 'tiles 1-9' });
@@ -174,11 +186,13 @@ function drawPlay(ctx, S, L) {
     text(ctx, label, P.msg.x + P.msg.w - 14, P.msg.y + 22, 19, GOLD, 'right', 800, UI, 'middle');
   }
   // tray + dice
-  drawTray(ctx, P.tray); drawDice(ctx, S, bx, P.tray);
+  if (v3.on) v3.play = { n: g.n, cols: B.cols, rows: B.rows, tiles: [], dice: [], region: P.region, tray: P.tray, tileKey: S.tileKey, boxKey: S.boxKey, t: S.t, calm: S.calm, lab: bx.phase === 'roll' && !S.autoMode && bx.player === 0, single: Boolean(bx.single && bx.dice) };
+  if (flatAlpha() > 0) { ctx.save(); ctx.globalAlpha = flatAlpha(); drawTray(ctx, P.tray); ctx.restore(); }
+  drawDice(ctx, S, bx, P.tray);
   const tr = P.tray;
   if (bx.phase === 'roll' && !(S.autoMode || bx.player === 1) && g.phase === 'play') {
     const pulse = 0.7 + 0.3 * Math.sin(S.t * 4);
-    ctx.save(); ctx.globalAlpha = pulse; text(ctx, 'TAP TO ROLL', tr.x + tr.w / 2, tr.y + tr.h * 0.88, fitText(ctx, 'TAP TO ROLL', tr.w * 0.6, Math.min(36, tr.w * 0.06), 800, DISPLAY), '#ffe39a', 'center', 800, DISPLAY, 'middle'); ctx.restore();
+    ctx.save(); ctx.globalAlpha = pulse; text(ctx, 'TAP TO ROLL', tr.x + tr.w / 2, tr.y + tr.h * (v3.on ? 0.8 : 0.88), fitText(ctx, 'TAP TO ROLL', tr.w * 0.6, Math.min(36, tr.w * 0.06), 800, DISPLAY), '#ffe39a', 'center', 800, DISPLAY, 'middle'); ctx.restore();
   } else if (bx.total && bx.phase !== 'rolling') {
     const cx = tr.x + tr.w * 0.8;
     text(ctx, String(bx.total), cx, tr.y + tr.h * 0.58, Math.min(tr.h * 0.5, 96), '#ffe39a', 'center', 800, DISPLAY, 'middle');
@@ -308,7 +322,12 @@ function drawSimple(ctx, S, L) {
 }
 
 export function render(ctx, S, L) {
-  drawTable(ctx, L.w, L.h, S.t, S.calm);
+  v3.play = null; v3.hero = null; if (S.scene !== 'play') v3.tiles = null;
+  if (flatAlpha() > 0) { ctx.save(); ctx.globalAlpha = flatAlpha(); drawTable(ctx, L.w, L.h, S.t, S.calm); ctx.restore(); }
+  if (v3.on) {   // the 3D table shows through: darken the reading screens, add a soft vignette everywhere
+    if (S.scene !== 'title' && S.scene !== 'play') { ctx.fillStyle = 'rgba(14,5,6,0.66)'; ctx.fillRect(0, 0, L.w, L.h); }
+    const vg = ctx.createRadialGradient(L.w / 2, L.h * 0.5, Math.min(L.w, L.h) * 0.35, L.w / 2, L.h * 0.5, Math.max(L.w, L.h) * 0.75); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(6,2,3,0.72)'); ctx.fillStyle = vg; ctx.fillRect(0, 0, L.w, L.h);
+  }
   switch (S.scene) {
     case 'title': drawTitle(ctx, S, L); break;
     case 'play': if (S.g) drawPlay(ctx, S, L); break;

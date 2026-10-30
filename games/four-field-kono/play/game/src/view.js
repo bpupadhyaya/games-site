@@ -53,7 +53,7 @@ export function render(ctx, state, L) {
     ui.buttons.push({ x: r.x, y: r.y, w: r.w, h: r.h, label });
     ctx.save(); if (o.dim) ctx.globalAlpha = 0.5;
     const rad = Math.min(18, r.h / 3);
-    if (v3.on) { v3.buttons.push({ r, rad, label, primary: !!o.primary, on: !!o.on, dim: !!o.dim }); if (o.dim) ctx.globalAlpha = 0.7; }
+    if (v3.on) { v3.buttons.push({ r, rad, label, gold: !!o.gold, primary: !!o.primary, on: !!o.on, dim: !!o.dim }); if (o.dim) ctx.globalAlpha = 0.7; }
     else {
     ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.beginPath(); ctx.roundRect(r.x + 2, r.y + 5, r.w, r.h, rad); ctx.fill();
     const gr = ctx.createLinearGradient(0, r.y, 0, r.y + r.h);
@@ -61,7 +61,7 @@ export function render(ctx, state, L) {
     ctx.fillStyle = gr; ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, rad); ctx.fill();
     ctx.strokeStyle = o.primary ? 'rgba(200,255,232,0.85)' : 'rgba(160,240,214,0.5)'; ctx.lineWidth = 2; ctx.stroke();
     }
-    const size = o.size ?? 28, maxW = r.w - 20, col = o.primary ? '#fffdf2' : '#e6fff6', cy = r.y + r.h / 2;
+    const size = o.size ?? 28, maxW = r.w - 20, col = o.gold ? '#2a1204' : o.primary ? '#fffdf2' : '#e6fff6', cy = r.y + r.h / 2;
     const w1 = (str, s) => { ctx.font = `700 ${s}px ${UI}`; return ctx.measureText(str).width; };
     let s1 = size; while (s1 > minU && w1(label, s1) > maxW) s1 -= 1;
     let best = { s: s1, ls: [label] };
@@ -73,7 +73,7 @@ export function render(ctx, state, L) {
         if (s2 > best.s) best = { s: s2, ls };
       }
     }
-    if (o.sub && best.ls.length === 1) { text(label, r.x + r.w / 2, cy + best.s * 0.1 - 6, best.s, col, UI, 700); fitText(o.sub, r.x + r.w / 2, cy + best.s * 0.1 + Math.max(minU, size * 0.62) + 2, Math.round(size * 0.62), maxW, DIM, UI, 500, 'center', minU); }
+    if (o.sub && best.ls.length === 1) { text(label, r.x + r.w / 2, cy + best.s * 0.1 - 6, best.s, col, UI, 700); fitText(o.sub, r.x + r.w / 2, cy + best.s * 0.1 + Math.max(minU, size * 0.62) + 2, Math.round(size * 0.62), maxW, o.gold ? '#4a2a08' : DIM, UI, 600, 'center', minU); }
     else if (best.ls.length === 1) text(label, r.x + r.w / 2, cy + best.s * 0.35, best.s, col, UI, 700);
     else best.ls.forEach((ln, i) => text(ln, r.x + r.w / 2, cy + best.s * 0.35 + (i - 0.5) * best.s * 1.15, best.s, col, UI, 700));
     ctx.restore();
@@ -105,7 +105,7 @@ export function render(ctx, state, L) {
       wrapBox('Get Four-Field Kono on iPhone and Android for unlimited games, all three boards and every level.', R(r.x + 24, r.y + r.h * 0.42, r.w - 48, r.h * 0.4), 28, 1.3, CREAM);
     } else {
       if (Rr.resume) button(Rr.resume, 'Continue your game', { primary: true, size: 30 });
-      button(Rr.play, 'Play the computer', { primary: !Rr.resume, size: 32, sub: `${VARIANTS[state.variant].name} · ${LEVELS[state.level].name} · as ${NAMES[state.humanSide]}` });
+      button(Rr.play, 'Play the computer', { primary: !Rr.resume, gold: !Rr.resume, size: 36, sub: `${VARIANTS[state.variant].name} · ${LEVELS[state.level].name} · as ${NAMES[state.humanSide]}` });
       button(Rr.two, 'Two players', { size: 26 }); button(Rr.learn, state.learned ? 'Learn' : 'Learn to play', { size: 26 });
       button(Rr.auto, 'Auto Play · Watch & Learn', { size: 26 });
       button(Rr.rules, 'Rules', { size: 26 }); button(Rr.how, 'How to Play', { size: 26 });

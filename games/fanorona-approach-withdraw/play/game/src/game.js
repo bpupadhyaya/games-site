@@ -607,6 +607,7 @@ export function createGame(env) {
     render(ctx, view) { render(ctx, state, layoutFor(view?.width ?? meta.width, view?.height ?? meta.height)); },
     // Watch & Learn, the menus and the reading pages are free; only real play and lessons use up the preview time.
     isPreviewExempt: () => state.scene !== 'play' && state.scene !== 'learn',
+    peek: () => state,       // the live state, read-only by convention: the optional 3D presenter reads animations and marks from it
     getState() {
       const { g, anim, ...rest } = state;
       return { ...rest, anim: anim ? { t: anim.t, from: anim.from, to: anim.to } : null, g: { board: g.board.slice(), turn: g.turn, ply: g.ply, quiet: g.quiet, chain: g.chain ? { pos: g.chain.pos, taken: g.chain.taken } : null, turns: g.log.length, result: g.result } };

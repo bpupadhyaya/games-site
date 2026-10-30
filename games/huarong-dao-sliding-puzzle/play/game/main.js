@@ -1,6 +1,7 @@
 import { boot } from './kit/index.js';
 import { createGame, meta, wheelInput } from './src/game.js';
 import { host } from './src/layout.js';
+import { v3 } from './src/v3.js';
 import { setLogo, setLockup } from './src/brand.js';
 
 const canvas = document.getElementById('game');
@@ -25,4 +26,22 @@ const create = async (env) => { const game = await createGame(env); if (env.conf
 const af = new Image(); af.onload = () => setLogo(af); af.src = './brand/arcforge-af.png';
 const lk = new Image(); lk.onload = () => setLockup(lk); lk.src = './brand/arcforge-lockup.png';
 
-boot({ createGame: create, meta, canvas, background: '#0f0606' });
+// 3D presenter (a torch-lit night pass: carved-lacquer blocks on a stone road in a black-lacquer tray) behind the kit canvas.
+// Boots on the flat 2D art; three.js is fetched and the scene built after the first frames, then crossfades in. No WebGL,
+// ?flat=1 or a lost context: the flat art stays. The presenter only reads state.
+let presenter = null, inner = null;
+const bg = { toString: () => (v3.on ? 'rgba(0,0,0,0)' : '#0f0606') };
+const wrap = (g) => Object.assign(Object.create(g), g, {
+  render(ctx, view) { if (v3.on && presenter) presenter.pre(); g.render(ctx, view); if (v3.on && presenter) presenter.post(); },
+});
+const q = new URLSearchParams(location.search);
+boot({ createGame: async (env) => (inner = wrap(await create(env))), meta, canvas, background: bg });
+if (q.has('dev')) { Object.defineProperty(window, '__p3', { get: () => presenter }); window.__v3 = v3; }
+if (!q.has('flat')) {
+  const start = () => import('./view3d/presenter.js').then((m) => m.createPresenter({ kitCanvas: canvas })).then((p) => {
+    if (!p.ok) return;
+    const go = () => { if (!inner) return setTimeout(go, 30); presenter = p; p.attach(inner); };
+    go();
+  }).catch((e) => console.warn('3D presenter unavailable; flat art stays', e));
+  requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(start, 30)));
+}

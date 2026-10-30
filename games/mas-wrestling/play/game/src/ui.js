@@ -25,7 +25,7 @@ export function setPress(ptr) {
 }
 const BTN_FILL = {
   disabled: ['#2b3d3f', '#2b3d3f', 'rgba(255,255,255,0.12)'],
-  primary: ['#e0663a', '#b9431c', '#f2c14e'],
+  primary: ['#f8dc78', '#d0a02e', '#fff2bd'],
   active: ['#3aa39a', '#1f6f68', '#f2c14e'],
   dark: ['#2a4a50', '#14303a', '#c9a24a'],
   plain: ['#f4ecd8', '#ddd0ae', '#a67a3a'],
@@ -50,7 +50,7 @@ export function paintButton(ctx, r, o = {}) {
   if (pressed) { ctx.fillStyle = 'rgba(2,10,12,0.18)'; ctx.fill(); }
   ctx.lineWidth = 2.2; ctx.strokeStyle = edge; ctx.stroke();
   ctx.restore();
-  return { dy, light: primary || active || dark };
+  return { dy, light: active || dark };
 }
 
 // A parchment pill. opts: primary (terracotta), active (olive), disabled, sub (small second line), size (font px)

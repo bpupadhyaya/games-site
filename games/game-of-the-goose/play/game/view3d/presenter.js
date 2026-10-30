@@ -483,7 +483,7 @@ export async function createPresenter({ kitCanvas, quality = 'high' }) {
     }
     else if (sc === 'title') {
       const hr = v3.heroRect || { x: L.w * 0.05, y: L.h * 0.3, w: L.w * 0.9, h: L.w * 0.9 };
-      fitCamera(hr, L, L.land ? 42 : 52, 34, calm ? 0 : Math.sin(clock * 0.18) * 7);
+      const gx = L.land ? 1 : 1.14, hh = hr.h ?? hr.w; fitCamera({ x: hr.x + hr.w / 2 - (hr.w * gx) / 2, y: hr.y + hh / 2 - (hr.w * gx) / 2, w: hr.w * gx, h: hr.w * gx }, L, L.land ? 42 : 50, 34, calm ? 0 : Math.sin(clock * 0.18) * 7);
     } else fitCamera({ x: L.w * 0.04, y: L.h * 0.28, w: L.w * 0.92, h: L.w * 0.92 }, L, 38, 34, calm ? 0 : Math.sin(clock * 0.12) * 6);
   }
 
@@ -497,6 +497,7 @@ export async function createPresenter({ kitCanvas, quality = 'high' }) {
     startFlag.userData.cloth.rotation.y = Math.sin(clock * 2.3) * 0.35;
     // motes
     { const p = motes.geometry.attributes.position; for (let i = 0; i < p.count; i++) { let y = p.getY(i) + dt * 0.12; if (y > 8) y = 0; p.setY(i, y); p.setX(i, p.getX(i) + Math.sin(clock * 0.3 + i) * dt * 0.05); } p.needsUpdate = true; }
+    { const showProps = sc !== 'play' || L.land; for (const o of [candle, flame, ink, seal, scroll]) o.visible = showProps; }   // no half-hidden props peeking out under the portrait HUD
     resetRings();
     if (sc === 'play' && g) { pawnsFromState(state, dt); }
     else heroPawns(state, dt);

@@ -2,7 +2,7 @@
 // end-of-frame close-up. Pure drawing from `state` and the layout; game.js owns state.
 import { COURT, HALF, R_B, ranking, thePallino, TYPES, spinName } from './sim.js';
 import { getScene, drawBall, drawShadow, drawBallIcon, identityRot, rollRot, canBake, setHost, TEAM } from './art.js';
-import { FONT, DISPLAY, C, roundPath, drawButton, panel, textShadow, wrapLines, ease } from './ui.js';
+import { FONT, DISPLAY, C, roundPath, drawButton, panel, textShadow, wrapLines, ease, v3 } from './ui.js';
 import { TEXT_SCALES, THINK_STEPS, PULL } from './layout.js';
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 import { PROFILES } from './opponents.js';
@@ -21,24 +21,37 @@ function updateRot(b) {
 // ---- the world on its own: used behind every menu and by the play screen ---------------------------------------------------
 export function worldBackdrop(ctx, L, state, world, parts, o = {}) {
   setHost(ctx);
+  v3.vw = L.w;
   const scene = world ? getScene(L, world.surf) : null;
   if (!canBake() || !scene) { ctx.fillStyle = '#18321f'; ctx.fillRect(0, 0, L.w, L.h); return true; }
   // the follow camera: a gentle zoom about the moving ball while a throw is in flight (presentation only)
   const zc = o.follow ? state.zoom : null;
   ctx.save();
   if (zc && zc.z > 1.001) { const a = zc.ax, b = zc.ay; ctx.transform(zc.z, 0, 0, zc.z, a * (1 - zc.z), b * (1 - zc.z)); }
-  ctx.drawImage(scene.back, 0, 0, L.w, L.h);
-  if (world) drawBalls(ctx, L, state, world, o);
+  // 3D court live: it draws the court, balls, shadows and dust behind this canvas; here only the guides and markers
+  // (they share the exact camera, see view3d/presenter.js). While the 3D court fades in, the baked court fades out.
+  const flat = v3.on ? 1 - v3.mix : 1;
+  if (flat > 0.001) {
+    ctx.globalAlpha = flat;
+    ctx.drawImage(scene.back, 0, 0, L.w, L.h);
+    if (world) drawBalls(ctx, L, state, world, o);
+    ctx.globalAlpha = 1;
+  }
+  if (flat < 1 && world) drawBalls(ctx, L, state, world, { ...o, markerOnly: true });
   if (o.extra) o.extra();
-  if (parts && parts.length) drawParts(ctx, L.cam, parts);
-  if (scene.front) ctx.drawImage(scene.front, 0, 0, L.w, L.h);
+  if (flat > 0.001) {
+    ctx.globalAlpha = flat;
+    if (parts && parts.length) drawParts(ctx, L.cam, parts);
+    if (scene.front) ctx.drawImage(scene.front, 0, 0, L.w, L.h);
+    ctx.globalAlpha = 1;
+  }
   ctx.restore();
   return true;
 }
 
 function drawBalls(ctx, L, state, world, o = {}) {
   const cam = L.cam, list = world.balls.filter((b) => !(b.out && b.fade > 1.2));
-  for (const b of list) { if (b.out && !b.dead && b.z < -1) continue; drawShadow(ctx, cam, b, b.dead || b.out ? Math.max(0, 1 - b.fade * 2) : 1); }
+  if (!o.markerOnly) for (const b of list) { if (b.out && !b.dead && b.z < -1) continue; drawShadow(ctx, cam, b, b.dead || b.out ? Math.max(0, 1 - b.fade * 2) : 1); }
   // gold ring under the ball that is "in" (closest)
   if (!o.noMarker && state.m && state.m.phase !== 'pallino') {
     const rk = ranking(world), pal = thePallino(world);
@@ -48,6 +61,7 @@ function drawBalls(ctx, L, state, world, o = {}) {
       ctx.beginPath(); ctx.ellipse(q.x, q.y, rp, rp * 0.42, 0, 0, TAU); ctx.stroke(); ctx.restore();
     }
   }
+  if (o.markerOnly) return;
   list.sort((a, b) => b.y - a.y);
   for (const b of list) {
     if (b.dead || b.out) { drawBall(ctx, cam, b, updateRot(b), { alpha: Math.max(0, 1 - b.fade * 1.6) }); continue; }
@@ -123,8 +137,13 @@ function drawReady(ctx, L, state) {
   const b = { x: rel, y: COURT.startY, z: m.phase === 'pallino' ? 0.045 : R_B, r: m.phase === 'pallino' ? 0.045 : R_B, k: m.phase === 'pallino', team: side, vx: 0, vy: 0 };
   const hover = state.drag || state.aiDrag ? 0 : 0.015 * Math.sin(state.t * 3);
   b.z += hover;
-  drawShadow(ctx, cam, b);
-  drawBall(ctx, cam, b, state.readyRot ?? identityRot());
+  if (!v3.on || v3.mix < 1) {   // with the 3D court live the presenter draws this ball (same place, same hover)
+    const fa = v3.on ? 1 - v3.mix : 1;
+    ctx.save(); ctx.globalAlpha = fa;
+    drawShadow(ctx, cam, b);
+    drawBall(ctx, cam, b, state.readyRot ?? identityRot());
+    ctx.restore();
+  }
   const p = cam.project(b.x, b.y, b.z), rp = b.r * p.s;
   if (state.coach && !state.drag) {
     // a pulsing hint of the gesture: the pull goes away from the throw direction
@@ -157,11 +176,33 @@ function hairline(ctx, x, y, w) {
   g.addColorStop(0, '#6a5cff'); g.addColorStop(0.5, '#3d8bff'); g.addColorStop(1, '#2ee6c8');
   ctx.fillStyle = g; ctx.globalAlpha = 0.85; ctx.fillRect(x + 14, y, w - 28, 2); ctx.globalAlpha = 1;
 }
+// a walnut plaque with a brass edge: the HUD cards are made of the same wood and brass as the court's boards
+export function plaque(ctx, x, y, w, h, rad = 20, lit = false) {
+  ctx.save();
+  roundPath(ctx, x, y + 5, w, h, rad); ctx.fillStyle = 'rgba(10,6,2,0.4)'; ctx.fill();
+  roundPath(ctx, x, y, w, h, rad);
+  const g = ctx.createLinearGradient(0, y, 0, y + h);
+  g.addColorStop(0, 'rgba(98,60,32,0.95)'); g.addColorStop(0.45, 'rgba(66,38,18,0.95)'); g.addColorStop(1, 'rgba(40,22,10,0.96)');
+  ctx.fillStyle = g; ctx.fill();
+  ctx.save(); ctx.clip();
+  ctx.lineWidth = 1;
+  for (let i = 0; i < 9; i++) {   // a few long grain lines (fixed, not random, so the HUD never shimmers)
+    const yy = y + h * (0.08 + i * 0.11), a = 0.05 + (i % 3) * 0.025;
+    ctx.strokeStyle = i % 2 ? `rgba(255,220,170,${a})` : `rgba(20,8,0,${a * 1.6})`;
+    ctx.beginPath(); ctx.moveTo(x, yy); ctx.bezierCurveTo(x + w * 0.3, yy - 3, x + w * 0.6, yy + 4, x + w, yy - 1); ctx.stroke();
+  }
+  const sh = ctx.createLinearGradient(0, y, 0, y + h * 0.5); sh.addColorStop(0, 'rgba(255,236,200,0.16)'); sh.addColorStop(1, 'rgba(255,236,200,0)');
+  ctx.fillStyle = sh; ctx.fillRect(x, y, w, h * 0.5);
+  ctx.restore();
+  const b = ctx.createLinearGradient(x, y, x + w, y + h);
+  b.addColorStop(0, lit ? '#ffe7a0' : '#e9c46a'); b.addColorStop(0.5, lit ? '#d9a63c' : '#9c7230'); b.addColorStop(1, lit ? '#ffe08a' : '#d8b25c');
+  roundPath(ctx, x + 1, y + 1, w - 2, h - 2, rad - 1); ctx.lineWidth = lit ? 3.2 : 2.2; ctx.strokeStyle = b; ctx.stroke();
+  ctx.restore();
+}
 function scoreCard(ctx, r, side, state, compact) {
   const m = state.m, lab = state.labels[side], turn = m.turn === side && (m.phase === 'aim' || m.phase === 'pallino' || m.phase === 'fly' || m.phase === 'pallino-fly');
   const col = TEAM[side];
-  panel(ctx, r.x, r.y, r.w, r.h, { r: 20, fill: 'rgba(10,34,22,0.88)', stroke: turn ? 'rgba(255,224,130,0.9)' : 'rgba(255,255,255,0.18)' });
-  hairline(ctx, r.x, r.y + 2, r.w);
+  plaque(ctx, r.x, r.y, r.w, r.h, 20, turn);
   ctx.fillStyle = col.base; roundPath(ctx, r.x + 8, r.y + 12, 7, r.h - 24, 3); ctx.fill();
   ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left';
   const nm = lab.name;
@@ -250,8 +291,7 @@ function drawControls(ctx, L, state) {
 function drawExplain(ctx, L, state) {
   const P = L.play, R = P.explain, ex = state.explain;
   if (!L.wide || !R || R.w < 260 || !ex || state.m.cfg.mode !== 'watch') return;
-  panel(ctx, R.x, R.y, R.w, R.h, { r: 18, fill: 'rgba(10,34,22,0.88)', stroke: 'rgba(255,224,130,0.35)' });
-  hairline(ctx, R.x, R.y + 2, R.w);
+  plaque(ctx, R.x, R.y, R.w, R.h, 18);
   ctx.save(); ctx.beginPath(); ctx.rect(R.x + 6, R.y + 4, R.w - 12, R.h - 8); ctx.clip();
   ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
   let fs = 19; ctx.font = `700 ${fs}px ${FONT}`; ctx.fillStyle = '#ffd97a';

@@ -16,7 +16,7 @@ export function lookOf(p) {
 }
 
 export async function makeActor(stage, role, look, quality = 'high') {
-  const h = await loadHuman({ character: look.female ? 'athlete_f' : 'athlete_m', kit: look.kit, skin: look.skin, hair: look.hair, lod: 'auto', quality });
+  const h = await loadHuman({ character: look.female ? 'athlete_f' : 'athlete_m', kit: look.kit, top: 'long', skin: look.skin, hair: look.hair, lod: 'auto', quality });
   h.updated = true;
   const rig = new Rig(h);
   stage.add(h);
@@ -37,7 +37,7 @@ export function dress(a, look) {
   a.look = key;
   if (a.gear) { a.gear.removeFromParent(); a.gear.geometry.dispose(); a.gear.material.dispose(); a.gear = null; }
   a.h.setKit(look.kit); a.h.setSkin(look.skin); a.h.setHair(look.hair);
-  const spec = { shirt: look.shirt, sleeve: look.sleeve, trousers: look.trousers, sleeves: 'long', cap: look.cap, belt: look.belt, gloveTrim: look.kit.trim };
+  const spec = { shirt: look.shirt, sleeve: look.sleeve, trousers: look.trousers, cap: look.cap, belt: look.belt, gloveTrim: look.kit.trim };
   const g = buildPerson(a.h, a.rig, spec);
   a.gear = g.cloth; if (a.gear) a.gear.castShadow = a.role === 'striker';
 }

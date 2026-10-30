@@ -3,6 +3,7 @@
 // (drag, mouse wheel, arrow / page keys, or the scroll bar). Pure geometry + drawing; the input lives in game.js.
 import { ELEMENTS } from '../data/cards.js';
 import { HOW_TO_PLAY, ABOUT, CREDITS } from '../data/help.js';
+import { v3 } from '../v3.js';
 import { RULES_REFERENCE } from '../data/rules_reference.js';
 import { C, alpha, font } from './theme.js';
 import { button, diamond, drawCard, drawRing, goldFoil, icon, panel, roundRect, text, tracked, wrap } from './draw.js';
@@ -70,7 +71,7 @@ const RULES = mergedRules();
 const cache = new Map();
 // Blocks with their heights, for one tab at one text step and column width.
 export function contentFor(ctx, tab, scale, cw, version) {
-  const key = `${tab}|${scale}|${Math.round(cw)}|${version}`;
+  const key = `${tab}|${scale}|${Math.round(cw)}|${version}|${v3.credits ? 1 : 0}`;
   let c = cache.get(key);
   if (c) return c;
   const blocks = [];
@@ -99,7 +100,11 @@ export function contentFor(ctx, tab, scale, cw, version) {
       const lines = measure(para.text, size, para.lead ? 700 : 400, !!para.lead, cw);
       blocks.push({ k: 'para', lines, size, lead: !!para.lead, h: lines.length * size * 1.4, gap: para.lead ? 10 * scale : gap });
     });
-    blocks.push({ k: 'foot', lines: [`Version ${version ?? ''}`, CREDITS], h: 74, gap: 0 });
+    blocks.push({ k: 'foot', lines: [`Version ${version ?? ''}`, CREDITS], h: 74, gap: v3.credits ? 18 : 0 });
+    if (v3.credits) {   // licence text of the 3D layer (three.js, view3d)
+      const size = 21 * scale, lines = measure(v3.credits, size, 400, false, cw);
+      blocks.push({ k: 'para', lines, size, lead: false, h: lines.length * size * 1.4, gap: 0 });
+    }
   } else {
     RULES.forEach((sec) => {
       const tSize = 31 * scale;

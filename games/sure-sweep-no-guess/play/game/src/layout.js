@@ -6,6 +6,18 @@
 //   compact  portrait but shorter (tablets, small phones): title row, HUD, a board that shrinks to fit, controls below.
 //   wide     landscape: the board on the left, one side panel (HUD, Reveal/Flag, buttons or the result card) on the right.
 // The playing field is a fixed 9x9 board, so a square cell size is the only thing the layout has to solve for.
+// Hand-off between the 2D screens (render.js, layout.js) and the optional 3D presenter (view3d/presenter.js). The simulation never
+// reads this. `on` is true only while a WebGL scene is alive and drawn; with it off every screen draws exactly as before (the flat 2D
+// art is the fallback for no WebGL, a lost context, ?flat=1 and the headless tests).
+export const v3 = {
+  on: false,
+  fade: 1,      // 0..1 right after the 3D scene takes over: the flat art fades out on top of it (crossfade)
+  pick: null,   // (x, y) -> board cell index or -1 under a virtual-unit point (the tilted 3D tray)
+  pt: null,     // (i) -> { x, y } virtual-unit screen point of cell i's top face
+};
+// Alpha for the flat board/backdrop layers: 1 without 3D, fading to 0 during the crossfade, then 0.
+export const flatAlpha = () => (v3.on ? Math.max(0, 1 - v3.fade) : 1);
+
 export const COLS = 9;
 export const ROWS = 9;
 export const FRAME = 13;
@@ -67,11 +79,13 @@ const RECTS = { HUD, MODE_SWITCH, HINT_BTN, COLOR_BTN, NEW_BTN, MENU_BTN, PAUSE_
 export const chipRect = (i) => CHIPS[i];
 export const cellRect = (index) => ({ x: BOARD.x + (index % COLS) * BOARD.cell, y: BOARD.y + Math.floor(index / COLS) * BOARD.cell });
 export const cellCenter = (index) => {
+  if (v3.on && v3.pt) return v3.pt(index);
   const r = cellRect(index);
   return { x: r.x + BOARD.cell / 2, y: r.y + BOARD.cell / 2 };
 };
 // Which board cell is under a point (or -1).
 export const cellAt = (x, y) => {
+  if (v3.on && v3.pick) return v3.pick(x, y);
   const c = Math.floor((x - BOARD.x) / BOARD.cell);
   const r = Math.floor((y - BOARD.y) / BOARD.cell);
   return c >= 0 && c < COLS && r >= 0 && r < ROWS ? r * COLS + c : -1;

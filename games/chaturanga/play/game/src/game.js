@@ -413,8 +413,6 @@ export function createGame(env) {
         else if (hit(R.watch)) startAuto();
         else if (hit(R.history)) openHistory();
         else if (hit(R.settings)) state.scene = 'settings';
-        else if (hit(R.level)) { state.level = (state.level % LEVEL_COUNT) + 1; savePrefs(); }
-        else if (hit(R.era)) { state.era = state.era === ANCIENT ? MODERN : ANCIENT; savePrefs(); sound('ok'); }
         else if (hit(R.howto)) { state.scene = 'howto'; state.scroll = 0; }
         else if (hit(R.rules)) { state.scene = 'rules'; state.scroll = 0; }
         else if (hit(R.about)) { state.scene = 'about'; state.scroll = 0; }

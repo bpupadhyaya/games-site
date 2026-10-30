@@ -6,6 +6,7 @@ import { FONT, NUM, C, roundPath, drawButton, panel, textShadow, ease, wrapLines
 import { avg3, dartsLeft, targetByLabel } from './engine.js';
 import { steadiness, tired } from './aim.js';
 import { PROFILES } from './ai.js';
+import { v3 } from './v3.js';
 
 export const sideName = (state, side) => {
   const c = state.m.cfg;
@@ -67,6 +68,7 @@ function highlight(ctx, label, kind, t) {
 }
 
 export function drawStuckDart(ctx, d, time) {
+  if (v3.on && v3.fade >= 1) return;                    // darts live in the 3D scene
   const age = d.age;
   if (d.fall) {
     const f = d.fall;
@@ -83,6 +85,7 @@ export function drawStuckDart(ctx, d, time) {
 
 // Dart flying in: from the thrower's end (big, low) to the board (smaller, at the aim).
 function drawFlight(ctx, f) {
+  if (v3.on && v3.fade >= 1) return;
   const k = Math.min(1, f.t / f.dur), e = ease.outCubic(k) * 0.55 + k * 0.45;
   const x = f.sx + (f.ex - f.sx) * e, arc = Math.sin(k * Math.PI) * 60;
   const y = f.sy + (f.ey - f.sy) * e - arc;

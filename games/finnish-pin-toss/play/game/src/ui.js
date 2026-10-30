@@ -23,7 +23,7 @@ export function setPress(ptr) {
 // deterministic hash so a plaque never shimmers between frames.
 const BTN_FILL = {
   disabled: ['#d6d3cb', '#bdb9ae', 'rgba(60,70,90,0.35)', '#a9a498'],
-  primary: ['#d2503a', '#9a2c1e', '#4a120c', '#f08a6a'],
+  primary: ['#f8d468', '#d8a02a', '#6e4208', '#fff3c0'],   // gold plaque with a brass edge (dark ink text)
   active: ['#f4c24a', '#d19a1a', '#7a4a06', '#fff0b0'],
   dark: ['#2f5679', '#1b3350', '#0d1c2e', '#6f9bc4'],
   plain: ['#fbf3dc', '#e3cf9f', '#7a5a2c', '#ffffff'],
@@ -64,7 +64,7 @@ export function paintButton(ctx, r, o = {}) {
   roundPath(ctx, r.x + 1, r.y + dy + 1, r.w - 2, r.h - 2, rad); ctx.lineWidth = 1.5; ctx.strokeStyle = hi; ctx.globalAlpha = 0.55; ctx.stroke(); ctx.globalAlpha = 1;
   roundPath(ctx, r.x, r.y + dy, r.w, r.h, rad); ctx.lineWidth = 1.5; ctx.strokeStyle = edge; ctx.stroke();
   ctx.restore();
-  return { dy, light: primary || dark };
+  return { dy, light: dark };
 }
 
 // A parchment pill. opts: primary (terracotta), active (olive), disabled, sub (small second line), size (font px)

@@ -4,7 +4,7 @@
   "tagline": "Slide it. Nudge it. Fill all nine beds.",
   "genre": "pub slide-and-nudge board game",
   "orientation": "any",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "monetization": {
     "model": "premium",
     "priceUsd": 3.99,

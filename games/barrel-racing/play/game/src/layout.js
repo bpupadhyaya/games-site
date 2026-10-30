@@ -80,31 +80,32 @@ export function playLayout(idx) {
   const xl = I.l, xr = w - I.r, yt = I.t, yb = h - I.b, cx = (xl + xr) / 2;
   const small = Math.round(76 + 14 * (m - 1));
   const L = { idx: i, m, land, xl, xr, yt, yb, cx, small };
-  const clockH = Math.round(58 * Math.min(m, 1.4));
+  const clockH = Math.round(50 * Math.min(m, 1.4));
   if (!land) {
-    const chipH = Math.round(104 * Math.min(m, 1.5)), chipW = Math.min(212, Math.floor((Math.min(xr - xl - 28, 700) - 24) / 3)), chipsW = chipW * 3 + 24;
+    const chipH = Math.round(88 * Math.min(m, 1.5)), chipW = Math.min(212, Math.floor((Math.min(xr - xl - 28, 700) - 24) / 3)), chipsW = chipW * 3 + 24;
     L.chips = [0, 1, 2].map((k) => ({ x: Math.round(cx - chipsW / 2 + k * (chipW + 12)), y: yb - 22 - chipH, w: chipW, h: chipH }));
-    const topH = Math.round(196 + 44 * (m - 1));
+    // compact plaques: the field gets the height (the floating back button only needs the extra offset when the host shows it)
+    const topY = yt + (I.back ? 42 : 14), boardH = Math.round(124 + 30 * (m - 1)), topH = topY - yt + boardH;
     Object.assign(L, {
-      boardH: topH, board: { x: xl + 14 + small + 10, y: yt + 42, w: xr - xl - 28 - 2 * (small + 10), h: topH - 50 },
-      pause: { x: xl + 14, y: yt + 42, w: small, h: small }, think: { x: xr - 14 - small, y: yt + 42, w: small, h: small },
+      boardH, board: { x: xl + 14 + small + 10, y: topY, w: xr - xl - 28 - 2 * (small + 10), h: boardH },
+      pause: { x: xl + 14, y: topY, w: small, h: small }, think: { x: xr - 14 - small, y: topY, w: small, h: small },
       bannerY: yt + topH + 190, noteY: yt + topH + 6,
     });
-    L.clock = { x: Math.round(cx - 150), y: L.board.y + L.board.h + 8, w: 300, h: clockH };
-    L.arena = { x: xl + 4, y: L.clock.y + clockH + 4, w: xr - xl - 8, h: L.chips[0].y - 40 - (L.clock.y + clockH + 4) };
-    const bs = Math.round(150 * Math.min(1.2, m));
-    L.burst = { x: xr - 14 - bs, y: yb - 20 - bs, w: bs, h: bs };
+    L.clock = { x: Math.round(cx - 130), y: L.board.y + L.board.h + 6, w: 260, h: clockH };
+    L.arena = { x: xl + 4, y: L.clock.y + clockH + 2, w: xr - xl - 8, h: L.chips[0].y - 20 - (L.clock.y + clockH + 2) };
+    const bs = Math.round(136 * Math.min(1.2, m));
+    L.burst = { x: xr - 14 - bs, y: yb - 16 - bs, w: bs, h: bs };
   } else {
     const k = Math.min(m, 1.4);
     const colW = Math.min(250, Math.round(250 * Math.min(1.15, m))), colX = xr - 14 - colW;
-    const chipH = Math.round(112 * Math.min(m, 1.4)), gap = 12;
+    const chipH = Math.round(100 * Math.min(m, 1.4)), gap = 12;
     const top = yt + 10 + small + 16, bottom = yb - 14, total = 3 * chipH + 2 * gap;
     const y0 = Math.round(Math.max(top, (top + bottom - total) / 2 + 40));
     L.chips = [0, 1, 2].map((q) => ({ x: colX, y: y0 + q * (chipH + gap), w: colW, h: chipH }));
     const bs = Math.round(150 * Math.min(1.1, m));
     L.burst = { x: colX, y: yb - 14 - bs, w: colW, h: bs };
     // option A: the scoreboard and clock above the arena
-    const pillW = clamp(Math.round(520 * k), 440, 780), pillH = Math.round(150 * k);
+    const pillW = clamp(Math.round(520 * k), 440, 780), pillH = Math.round(112 * k);
     const A = { board: { x: Math.round((xl + colX) / 2 - pillW / 2), y: yt + 10, w: pillW, h: pillH }, clockH };
     A.clock = { x: Math.round(A.board.x + A.board.w / 2 - 130), y: A.board.y + A.board.h + 6, w: 260, h: clockH };
     A.arena = { x: xl + 4, y: A.clock.y + clockH + 2, w: colX - 12 - (xl + 4), h: yb - 6 - (A.clock.y + clockH + 2) };
@@ -112,7 +113,7 @@ export function playLayout(idx) {
     const lw = clamp(Math.round(300 * Math.min(m, 1.3)), 260, 400), lx = xl + 12;
     const py = yt + 10 + (I.back ? Math.round(I.back) : 0);
     const B = { pause: { x: lx, y: py, w: small, h: small }, think: { x: lx + small + 10, y: py, w: small, h: small } };
-    B.board = { x: lx, y: py + small + 12, w: lw, h: Math.round(150 * k) };
+    B.board = { x: lx, y: py + small + 12, w: lw, h: Math.round(112 * k) };
     B.clock = { x: lx + Math.round((lw - 260) / 2), y: B.board.y + B.board.h + 8, w: 260, h: clockH };
     B.arena = { x: lx + lw + 8, y: yt + 4, w: colX - 12 - (lx + lw + 8), h: yb - yt - 8 };
     const sc = (r) => Math.min(r.w / 66.4, r.h / 43.6);

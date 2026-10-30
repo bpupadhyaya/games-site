@@ -86,7 +86,7 @@ function portrait(z, watch) {
   const sideW = tap(Math.round(Math.max(92, fs.btn * 3.2)));
   const hudH = Math.round(Math.max(sideW * 0.82, fs.big + fs.small * 1.5 + 10));
   const pause = R(M, top, sideW, hudH), think = R(W - M - sideW, top, sideW, hudH), info = R(M + sideW + g, top, W - 2 * M - 2 * sideW - 2 * g, hudH);
-  const ph = clamp(Math.round(H * (0.41 + 0.1 * (hz - 1))), 420, Math.round(H * 0.68));
+  const ph = clamp(Math.round(H * (0.37 + 0.1 * (hz - 1))), 420, Math.round(H * 0.68));
   const panelTop = H - 10 - bb - ph;
   const P = R(M - 4 < 8 ? 8 : M - 4, panelTop, W - 2 * (M - 4 < 8 ? 8 : M - 4), ph);
   const stage = R(0, top + hudH + g, W, panelTop - 8 - (top + hudH + g));

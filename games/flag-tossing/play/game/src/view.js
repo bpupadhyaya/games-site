@@ -31,30 +31,40 @@ function titleText(ctx, cx, y, size, label, maxW) {
 function heroBase(H) { return H.y + H.h - 14; }
 const sstep = (a, b, x) => { const u = clamp((x - a) / (b - a), 0, 1); return u * u * (3 - 2 * u); };
 function hero(ctx, st, H, calm, L) {
-  const n = 3, span = Math.min(H.w - 30, 600), bh = clamp(H.h * 0.5, 120, 270);
+  // Each bearer loops: the flag is waved in figure-of-eight sweeps over the head (the flag always in sight), then a wind-up crouch, a toss that
+  // stays below the title lettering, the eyes follow it, a reach to catch, a knee absorb, and the waving starts again. The free hand rests on the hip.
   const foot = heroBase(H), items = [];
+  const top = L.title ? L.title.titleY + L.title.size * 2.0 + 10 : H.y;
+  // tall enough to read, short enough that a flag held high (about 1.95 body heights) stays under the title lettering
+  const n = 3, span = Math.min(H.w - 30, 600), bh = clamp(Math.min(H.h * 0.56, (foot - top) / 1.95), 110, 290);
   for (let i = 0; i < n; i++) {
-    const cx = H.x - span / 2 + span * (i + 0.5) / n, period = 3.4 + i * 0.55, u = ((st.t + i * 1.1) % period) / period;
-    const air = 0.78, up = u < air ? u / air : 0;
-    const apex = Math.min(H.h * 0.92 - bh * 0.4, bh * (1.5 + i * 0.35));
-    const catching = u > air - 0.12 && u < air + 0.04;
-    const wind = sstep(0.9, 1, u), follow = u < 0.14 ? 1 - sstep(0.02, 0.14, u) : 0;
-    let hr = { x: 22, y: -100 }, hl = { x: -22, y: -70 };
-    const body = { crouch: 0.9 * wind, twist: 0.35 * wind - 0.2 * follow, bend: 0.12 * wind, flex: -0.06 * wind + 0.1 * follow, rise: follow };
-    if (u < air) hr = { x: 22, y: -62 };                                           // the flag is in the air: the hand falls away
-    if (wind > 0) hr = { x: 22 + 10 * wind, y: -100 + 34 * wind };
-    if (follow > 0) { hr = { x: 12, y: -126 - 14 * follow }; hl = { x: -22 - 16 * follow, y: -62 }; }
-    if (catching) { const k = sstep(air - 0.12, air, u); hr = { x: 18, y: -62 - 46 * k }; body.crouch = 0.35 * k; }
-    const fy = foot - bh * 1.22 - apex * 4 * up * (1 - up), fx = cx + 22 * bh / 100 + Math.sin(up * Math.PI) * (i - 1) * 18;
-    items.push({ i, cx, u, air, up, apex, fx, fy, hr, hl, body, grip: [u >= air || u < 0.1 || wind > 0 ? 'fist' : 'relaxed', 'relaxed'] });
+    const cx = H.x - span / 2 + span * (i + 0.5) / n, period = 5.6 + i * 0.75, u = ((st.t + i * 1.9) % period) / period;
+    const W0 = 0.46, WIND = 0.56, AIR = 0.86;                                      // wave | wind-up | flight | catch + settle
+    const air = AIR;
+    const flying = u >= WIND && u < AIR, up = flying ? (u - WIND) / (AIR - WIND) : 0;
+    const apex = clamp(foot - bh * 1.22 - (top + bh * 0.42), bh * 0.2, bh * (1.15 + i * 0.25));
+    const wind = u >= W0 && u < WIND ? sstep(W0, WIND, u) : 0, follow = flying && up < 0.2 ? 1 - sstep(0.02, 0.2, up) : 0;
+    const settle = u >= AIR ? 1 - sstep(AIR, 1, u) : 0;
+    let hr, hl = { x: -15, y: -54 };
+    const body = { crouch: 0.85 * wind + 0.35 * settle, twist: 0.3 * wind - 0.2 * follow, bend: 0.1 * wind, flex: -0.05 * wind + 0.1 * follow, rise: follow };
+    let ang = 0;
+    if (u < W0) {                                                                 // the wave: sweeps side to side over the head
+      const k = u / W0, sw = Math.sin(k * TAU * 2), env = sstep(0, 0.12, k) * (1 - sstep(0.85, 1, k));
+      ang = 0.95 * sw * env * (i % 2 ? -1 : 1);
+      hr = { x: 14 + 14 * sw * env * (i % 2 ? -1 : 1), y: -112 - 8 * Math.abs(sw) * env };
+      body.twist = -0.16 * sw * env; body.bend = 0.05 * sw * env;
+    } else if (wind > 0 && !flying) { hr = { x: 22 + 10 * wind, y: -104 + 38 * wind }; ang = -0.25 * wind; }
+    else if (flying) {
+      hr = follow > 0 ? { x: 12, y: -126 - 14 * follow } : { x: 20, y: -86 - 30 * sstep(0.7, 1, up) };     // throw, then the hand rises to meet the flag
+      hl = follow > 0 ? { x: -24 - 14 * follow, y: -64 } : hl;
+    } else { hr = { x: 18, y: -108 + 4 * settle }; }
+    const fy = foot - bh * 1.22 - apex * 4 * up * (1 - up), fx = cx + 22 * bh / 100 + Math.sin(up * Math.PI) * (i - 1) * 14;
+    items.push({ i, cx, u, air, up, apex, fx, fy, hr, hl, body, ang, flying, grip: [flying && follow === 0 && up < 0.7 ? 'relaxed' : 'fist', 'relaxed'] });
   }
   const f3 = globalThis.__show3d;
-  const flights = items.filter((it) => it.u < it.air).map((it) => {
-    const y = foot - bh * 1.22 - it.apex * 4 * it.up * (1 - it.up), x = it.cx + 22 * bh / 100 + Math.sin(it.up * Math.PI) * (it.i - 1) * 18;
-    return { id: it.i, x, y, ang: TAU * 2 * it.up * (it.i % 2 ? -1 : 1), design: (it.i * 3 + 1) % 8, side: it.i % 2 ? 1 : -1 };
-  });
-  const bearers = items.map((it) => ({ id: it.i, cx: it.cx, you: it.i === 1, costume: it.i === 1 ? 0 : (it.i % 2) + 1, hands: [it.hr, it.hl], grip: it.grip, lean: 0, yaw: Math.PI + (it.i - 1) * 0.42, gaze: it.u < it.air ? { x: it.fx, y: it.fy } : null, body: it.body,
-    held: it.u >= it.air || it.u < 0.1 || it.body.crouch > 0 ? [{ design: (it.i * 3 + 1) % 8, ang: 0.06 * Math.sin(st.t * 1.4 + it.i), hand: 0, side: 1 }] : [] }));
+  const flights = items.filter((it) => it.flying).map((it) => ({ id: it.i, x: it.fx, y: it.fy, ang: TAU * 2 * it.up * (it.i % 2 ? -1 : 1), design: (it.i * 3 + 1) % 8, side: it.i % 2 ? 1 : -1 }));
+  const bearers = items.map((it) => ({ id: it.i, cx: it.cx, you: it.i === 1, costume: it.i === 1 ? 0 : (it.i % 2) + 1, hands: [it.hr, it.hl], grip: it.grip, lean: 0, yaw: Math.PI + (it.i - 1) * 0.42, gaze: it.flying ? { x: it.fx, y: it.fy } : { x: it.cx + 30 * bh / 100 * Math.sin(it.ang), y: foot - bh * 1.9 }, body: it.body,
+    held: it.flying ? [] : [{ design: (it.i * 3 + 1) % 8, ang: it.ang + 0.05 * Math.sin(st.t * 1.4 + it.i), hand: 0, side: 1 }] }));
   if (f3 && f3.render) {
     const r = f3.render(ctx, { mode: 'title', w: L.w, h: L.h, t: st.t, foot, H: bh, calm, beat: st.t * 1.2, bpm: 72, beatFlash: 0, bearers, flights, camX: calm ? 0 : 0.18 * Math.sin(st.t * 0.21) });
     if (r) return true;
@@ -67,14 +77,12 @@ function hero2D(ctx, st, H, calm, items, bh, foot) {
   const f3 = globalThis.__show3d;
   if (f3 && f3.pending) return;
   for (const it of items) {
-    const { i, cx, u, air, up, apex } = it, k = bh / 100;
+    const { i, cx } = it;
     drawBearerGround(ctx, cx, foot, bh, { you: i === 1 });
     const hands = drawBearer(ctx, cx, foot, bh, { costume: i === 1 ? 0 : (i % 2) + 1, you: i === 1, hands: [it.hr, it.hl] });
     const Lf = bh * 0.95;
-    if (u < air) {
-      const y = foot - bh * 1.22 - apex * 4 * up * (1 - up), x = cx + 22 * k + Math.sin(up * Math.PI) * (i - 1) * 18;
-      drawFlag(ctx, x, y, Lf, TAU * 2 * up * (i % 2 ? -1 : 1), (i * 3 + 1) % 8, { ph: st.t * 8 + i, side: i % 2 ? 1 : -1, calm });
-    } else drawFlag(ctx, hands[0].x + Math.sin(0.06) * Lf * 0.3, hands[0].y - Lf * 0.3, Lf, 0.06 * Math.sin(st.t * 1.4 + i), (i * 3 + 1) % 8, { ph: st.t * 3 + i, side: 1, calm, held: true });
+    if (it.flying) drawFlag(ctx, it.fx, it.fy, Lf, TAU * 2 * it.up * (i % 2 ? -1 : 1), (i * 3 + 1) % 8, { ph: st.t * 8 + i, side: i % 2 ? 1 : -1, calm });
+    else drawFlag(ctx, hands[0].x + Math.sin(it.ang) * Lf * 0.3, hands[0].y - Math.cos(it.ang) * Lf * 0.3, Lf, it.ang, (i * 3 + 1) % 8, { ph: st.t * 3 + i, side: 1, calm, held: true });
   }
 }
 
@@ -132,7 +140,7 @@ function renderTitle(ctx, st, L) {
   titleText(ctx, tcx, T.titleY + size * 0.98, size * 0.9, 'TOSSING', maxW);
   txt(ctx, 'ITALIAN FLAG THROWING', tcx, T.titleY + size * 1.78, Math.max(24, size * 0.26), PAL.goldHi, { align: 'center', font: DISPLAY, weight: 700, stroke: 8, strokeColor: 'rgba(13,24,48,0.9)', maxW });
   button(ctx, T.play, 'Perform', { kind: 'primary', size: 44, icon: 'play' });
-  button(ctx, T.prac, 'Practice', { kind: 'quiet', size: 32, icon: 'restart' });
+  button(ctx, T.prac, 'Practice', { kind: 'quiet', size: wide || T.prac.w > T.play.w * 0.8 ? 32 : 30, icon: 'restart' });
   button(ctx, T.auto, 'Watch and Learn', { kind: 'ghost', size: 30, icon: 'eye' });
   button(ctx, T.how, 'How to Play', { kind: 'ghost', size: 26 });
   button(ctx, T.rules, 'Rules', { kind: 'ghost', size: 26 });

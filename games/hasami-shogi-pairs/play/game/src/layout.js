@@ -49,9 +49,9 @@ function build(w, h, ins, flip) {
   // ---------------------------------------------------------------- play layout
   let cell, board;
   if (!land) {
-    const pad = 12, backRes = ins.back ? 62 : 0, cellW = (U.w - 2 * pad) / OUTER;
+    const pad = 3, backRes = ins.back ? 62 : 0, cellW = (U.w - 2 * pad) / OUTER;
     const fixedFor = (mp, mh, rows) => BH + rows * mp + mh + (rows + 3) * G + Math.max(0, ins.b - 8) + Math.max(ins.t, 8) + (backRes && rows === 1 ? 0 : 0);
-    let minPlate = 124, msgH = 64, rows = 2, cellH = (h - fixedFor(minPlate, msgH, 2)) / (OUTER + THICK);
+    let minPlate = 98, msgH = 44, rows = 2, cellH = (h - fixedFor(minPlate, msgH, 2)) / (OUTER + THICK);
     if (cellH < cellW * 0.95) { minPlate = 86; msgH = 46; cellH = (h - fixedFor(minPlate, msgH, 2)) / (OUTER + THICK); }
     if (cellH < cellW * 0.95) { rows = 1; minPlate = 100; msgH = 46; cellH = (h - fixedFor(minPlate, msgH, 1)) / (OUTER + THICK); }   // squat screen: both plates side by side above the board
     cell = Math.min(cellW, cellH);
@@ -59,7 +59,7 @@ function build(w, h, ins, flip) {
     const top0 = Math.max(ins.t + 6, backRes ? ins.t + backRes : 0);
     const free = barY - G - top0 - bh - msgH - rows * minPlate - (rows + 1) * G;
     // spare height first makes the plates roomier (bigger type and tray), what is left becomes even breathing room around the board
-    const plateH = minPlate + (rows === 2 && free > 0 ? Math.min(free * 0.5, 120) : 0);
+    const plateH = minPlate + (rows === 2 && free > 0 ? Math.min(free * 0.25, 26) : 0);
     const air = Math.max(0, free - (rows === 2 ? 2 * (plateH - minPlate) : 0));
     const gA = air / 5;
     let y = top0 + gA;

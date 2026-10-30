@@ -11,7 +11,8 @@ import { LESSONS } from './lessons.js';
 import { PUZZLE_TEXT } from './puzzles.js';
 import { CAMPAIGN } from './campaign.js';
 import { RULES } from './content.js';
-import { drawCredit, drawTitleLockup, drawMoreLine, edgeStroke } from './brand.js';
+import { drawCredit, drawTitleLockup, drawMoreLine } from './brand.js';
+import { v3 } from './v3.js';
 
 const FONT = '"Cormorant Garamond", Georgia, "Times New Roman", serif', UI = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 const SIDE = { H: 'Hare', D: 'Hounds' };
@@ -25,13 +26,29 @@ const rulesScrollNow = (state) => Math.max(0, Math.min(state.rulesScroll || 0, r
 const fitMemo = new Map(); let fitFontsKey = '';
 export const readerStats = { fits: 0 };
 
+// A walnut grain swatch for the HUD plaques and buttons, painted once (OffscreenCanvas where it exists; a plain gradient otherwise).
+let grainPat = null, grainTried = false;
+function grainPattern(ctx) {
+  if (grainTried) return grainPat; grainTried = true;
+  try {
+    if (typeof OffscreenCanvas === 'undefined') return null;
+    const c = new OffscreenCanvas(256, 64), x = c.getContext('2d'); let sd = 7; const r = () => { sd = (Math.imul(sd, 1664525) + 1013904223) >>> 0; return sd / 4294967296; };
+    x.clearRect(0, 0, 256, 64);
+    for (let i = 0; i < 46; i++) { const y0 = r() * 64, a = 1 + r() * 3, f = 0.01 + r() * 0.03, ph = r() * 6; x.strokeStyle = r() < 0.5 ? 'rgba(255,214,150,0.07)' : 'rgba(0,0,0,0.16)'; x.lineWidth = 0.6 + r() * 1.6; x.beginPath(); for (let t = 0; t <= 256; t += 8) x.lineTo(t, y0 + Math.sin(t * f + ph) * a); x.stroke(); }
+    grainPat = ctx.createPattern(c, 'repeat');
+  } catch { grainPat = null; }
+  return grainPat;
+}
+
 export function render(ctx, state, L) {
   { ctx.font = `700 40px ${FONT}`; const a = ctx.measureText('Hamburgefonstiv').width; ctx.font = `600 40px ${UI}`; const k = a + '/' + ctx.measureText('Hamburgefonstiv').width; if (k !== fitFontsKey || fitMemo.size > 3000) { fitMemo.clear(); fitFontsKey = k; } }
   const memo = (key, fn) => { let v = fitMemo.get(key); if (v === undefined) { readerStats.fits++; v = fn(); fitMemo.set(key, v); } return v; };
-  const set = state.look.set, big = state.look.big;
+  const set = state.look.set, big = state.look.big, td = v3.on;          // td: the 3D presenter draws the forest, the board and the pieces
   const g = state.game, a = state.anim, scene = state.scene, B = L.board;
   const boardScene = scene === 'play' || scene === 'over' || scene === 'lesson' || scene === 'autoplay' || (scene === 'puzzle' && state.pz.status !== 'making');
-  drawGround(ctx, state.look.board, L.w, L.h);
+  if (!td) drawGround(ctx, state.look.board, L.w, L.h);
+  else if (v3.fade < 1) { ctx.save(); ctx.globalAlpha = 1 - v3.fade; drawGround(ctx, state.look.board, L.w, L.h); ctx.restore(); }   // the flat forest dissolves into the 3D one
+  v3.hero = null; v3.over = null;
   const minPx = Math.max(10, 11 / (host.px || 0.6) * 0.95);        // text never below ~11 css px
 
   const text = (str, x, y, size, color = '#f6e3b4', font = FONT, weight = 700, align = 'center') => { ctx.textAlign = align; ctx.font = `${weight} ${size}px ${font}`; ctx.fillStyle = color; ctx.fillText(str, x, y); };
@@ -43,29 +60,70 @@ export function render(ctx, state, L) {
   const wrap = (str, x, y, size, maxW, color, lh = size * 1.3, align = 'center', weight = 600) => { const ls = lines(str, size, maxW, weight); ls.forEach((ln, i) => text(ln, x, y + i * lh, size, color, UI, weight, align)); return ls.length; };
   const piece = (k, pos, opts = {}) => { const r = PIECE_R * pos.s * SIZE[k] * (opts.scale ?? 1); (k === 'H' ? drawHare : drawHound)(ctx, pos.x, pos.y - r * 0.56, r, { set, ...opts }); };
   const fit = (label, maxW, start, weight = 700) => memo(`f|${label}|${maxW}|${start}|${weight}`, () => { let sz = start; ctx.font = `${weight} ${sz}px ${UI}`; while (ctx.measureText(label).width > maxW && sz > 11) { sz -= 1; ctx.font = `${weight} ${sz}px ${UI}`; } return sz; });
+  // Buttons are carved walnut plaques with a brass edge (the primary one is polished brass with engraved lettering); flat, no gloss shapes.
   const button = (r, label, o = {}) => {
     ctx.save(); if (o.dim) ctx.globalAlpha = 0.5;
-    const rad = Math.min(18, r.h * 0.28);
-    ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.roundRect(r.x + 3, r.y + 6, r.w, r.h, rad); ctx.fill();
-    const gr = ctx.createLinearGradient(0, r.y, 0, r.y + r.h); gr.addColorStop(0, o.primary ? '#f1cd78' : '#6b5a34'); gr.addColorStop(1, o.primary ? '#c28e2c' : '#3a2f18');
+    const rad = Math.min(16, r.h * 0.26), pr = o.primary;
+    ctx.fillStyle = 'rgba(0,0,0,0.42)'; ctx.beginPath(); ctx.roundRect(r.x + 2, r.y + 5, r.w, r.h, rad); ctx.fill();
+    const gr = ctx.createLinearGradient(0, r.y, 0, r.y + r.h);
+    if (pr) { gr.addColorStop(0, '#f3d27e'); gr.addColorStop(0.55, '#d6a242'); gr.addColorStop(1, '#a8741e'); } else { gr.addColorStop(0, '#5a3a1e'); gr.addColorStop(1, '#2e1c0c'); }
     ctx.fillStyle = gr; ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, rad); ctx.fill();
-    ctx.strokeStyle = 'rgba(255,232,170,0.5)'; ctx.lineWidth = 2; ctx.stroke();
-    const size = Math.min(o.size ?? 30, Math.max(14, r.h * 0.5)), sz = fit(label, r.w - 20, size);
-    text(label, r.x + r.w / 2, r.y + r.h / 2 + sz * 0.35, sz, o.primary ? '#2a1a06' : '#f6e3b4', UI, 700);
+    const gp = !pr && grainPattern(ctx); if (gp) { ctx.fillStyle = gp; ctx.fill(); }
+    ctx.lineWidth = 2; ctx.strokeStyle = pr ? 'rgba(255,240,200,0.85)' : 'rgba(214,170,92,0.75)'; ctx.stroke();
+    ctx.beginPath(); ctx.roundRect(r.x + 4, r.y + 4, r.w - 8, r.h - 8, Math.max(2, rad - 4)); ctx.lineWidth = 1; ctx.strokeStyle = pr ? 'rgba(110,70,10,0.45)' : 'rgba(0,0,0,0.45)'; ctx.stroke();
+    const icw = o.icon ? Math.min(r.h * 0.5, 34) : 0, size = Math.min(o.size ?? 30, Math.max(14, r.h * 0.5)), sz = fit(label, r.w - 22 - (icw ? icw + 8 : 0), size);
+    ctx.font = `700 ${sz}px ${UI}`; const lw = ctx.measureText(label).width, cx = r.x + r.w / 2 + (icw ? (icw + 8) / 2 : 0), cy = r.y + r.h / 2 + (o.sub ? -sz * 0.32 : 0);
+    if (icw) icon(o.icon, cx - lw / 2 - 8 - icw / 2, cy, icw, pr ? '#3a2408' : '#f0d79c');
+    if (pr) text(label, cx, cy + sz * 0.35 + 1, sz, 'rgba(255,240,200,0.55)', UI, 700);
+    text(label, cx, cy + sz * 0.35, sz, pr ? '#2a1704' : '#f6e3b4', UI, 700);
+    if (o.sub) text(o.sub, r.x + r.w / 2, cy + sz * 0.35 + Math.max(minPx, sz * 0.5) * 1.35, Math.max(minPx, sz * 0.5), pr ? 'rgba(42,23,4,0.8)' : 'rgba(246,227,180,0.75)', UI, 600);
     ctx.restore();
   };
-  const panel = (r, rad = 22, fill = 'rgba(14,10,4,0.62)') => { ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, rad); ctx.fillStyle = fill; ctx.fill(); edgeStroke(ctx, r, rad, 0.4); };
-  const glow = (i, rgb, pulse) => { const p = B.at(i); ctx.fillStyle = `rgba(${rgb},${0.45 + pulse * 0.3})`; ctx.beginPath(); ctx.ellipse(p.x, p.y, 34 * UNIT * p.s, 28 * UNIT * p.s, 0, 0, TAU); ctx.fill(); };
+  // simple line icons for the menu grid
+  const icon = (k, x, y, s, col) => {
+    ctx.save(); ctx.translate(x, y); ctx.scale(s / 32, s / 32); ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = 2.6; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath();
+    if (k === 'hare') { ctx.ellipse(2, 6, 9, 6.5, -0.2, 0, TAU); ctx.moveTo(-5, 1); ctx.ellipse(-7, 0, 4.5, 4, 0, 0, TAU); ctx.moveTo(-8, -3); ctx.lineTo(-12, -15); ctx.moveTo(-6, -3); ctx.lineTo(-3, -15); }
+    else if (k === 'two') { ctx.arc(-6, -6, 5, 0, TAU); ctx.moveTo(-15, 13); ctx.quadraticCurveTo(-6, -2, 3, 13); ctx.moveTo(13, -6); ctx.arc(8, -6, 5, 0, TAU); ctx.moveTo(1, 13); ctx.quadraticCurveTo(8, 0, 16, 13); }
+    else if (k === 'learn') { ctx.moveTo(0, -10); ctx.lineTo(-14, -13); ctx.lineTo(-14, 11); ctx.lineTo(0, 14); ctx.lineTo(14, 11); ctx.lineTo(14, -13); ctx.lineTo(0, -10); ctx.lineTo(0, 14); }
+    else if (k === 'campaign') { ctx.moveTo(-12, 15); ctx.lineTo(-12, -14); ctx.lineTo(12, -9); ctx.lineTo(-12, -3); }
+    else if (k === 'daily') { ctx.roundRect(-14, -11, 28, 25, 3); ctx.moveTo(-14, -3); ctx.lineTo(14, -3); ctx.moveTo(-7, -15); ctx.lineTo(-7, -8); ctx.moveTo(7, -15); ctx.lineTo(7, -8); }
+    else if (k === 'auto') { ctx.arc(0, 0, 14, 0, TAU); ctx.moveTo(-4, -7); ctx.lineTo(8, 0); ctx.lineTo(-4, 7); ctx.closePath(); }
+    else if (k === 'rules') { ctx.moveTo(-10, -14); ctx.lineTo(10, -14); ctx.lineTo(10, 14); ctx.lineTo(-10, 14); ctx.closePath(); ctx.moveTo(-5, -6); ctx.lineTo(5, -6); ctx.moveTo(-5, 0); ctx.lineTo(5, 0); ctx.moveTo(-5, 6); ctx.lineTo(2, 6); }
+    else if (k === 'look') { ctx.moveTo(0, -15); ctx.quadraticCurveTo(15, -4, 0, 15); ctx.quadraticCurveTo(-15, -4, 0, -15); ctx.moveTo(0, -11); ctx.lineTo(0, 12); }
+    else if (k === 'play') { ctx.moveTo(-8, -12); ctx.lineTo(12, 0); ctx.lineTo(-8, 12); ctx.closePath(); ctx.fill(); }
+    ctx.stroke(); ctx.restore();
+  };
+  // HUD plaques: a dark walnut panel with grain, a thin brass edge and an inner shadow line
+  const panel = (r, rad = 22, fill = 'rgba(30,18,8,0.8)') => {
+    ctx.save();
+    ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, rad);
+    const gr = ctx.createLinearGradient(0, r.y, 0, r.y + r.h); gr.addColorStop(0, fill); gr.addColorStop(1, 'rgba(14,8,3,0.86)'); ctx.fillStyle = gr; ctx.fill();
+    const gp = grainPattern(ctx); if (gp) { ctx.fillStyle = gp; ctx.fill(); }
+    ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(214,170,92,0.7)'; ctx.stroke();
+    ctx.beginPath(); ctx.roundRect(r.x + 5, r.y + 5, r.w - 10, r.h - 10, Math.max(4, rad - 5)); ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(255,220,150,0.16)'; ctx.stroke();
+    ctx.restore();
+  };
+  // cast-brass title lettering: dark under-cut, a bright upper edge, a warm gradient face
+  const brassTitle = (str, x, y, size) => {
+    ctx.save(); ctx.textAlign = 'center'; ctx.font = `700 ${size}px ${FONT}`;
+    ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillText(str, x + size * 0.03, y + size * 0.07);
+    ctx.fillStyle = 'rgba(80,44,8,0.95)'; ctx.fillText(str, x, y + size * 0.035);
+    const gr = ctx.createLinearGradient(0, y - size * 0.8, 0, y + size * 0.1); gr.addColorStop(0, '#fff2c4'); gr.addColorStop(0.45, '#f0c35e'); gr.addColorStop(0.7, '#c08a2a'); gr.addColorStop(1, '#f7d98a');
+    ctx.fillStyle = gr; ctx.fillText(str, x, y);
+    ctx.restore();
+  };
+  const glow = (i, rgb, pulse) => { if (td) { v3.marks.push({ i, rgb, a: 0.45 + pulse * 0.3 }); return; } const p = B.at(i); ctx.fillStyle = `rgba(${rgb},${0.45 + pulse * 0.3})`; ctx.beginPath(); ctx.ellipse(p.x, p.y, 34 * UNIT * p.s, 28 * UNIT * p.s, 0, 0, TAU); ctx.fill(); };
   // the art block of the title and board-look screens, in canonical phone coordinates, placed by `hero`
   const hero = (H, title, sub, pieces, credit) => {
     ctx.save(); ctx.translate(H.hx, H.hy); ctx.scale(H.sc, H.sc);
-    text(title, 360 + H.dx, 150, title === NAME ? 54 : 46); text(sub, 360, 205, 26, 'rgba(246,227,180,0.85)', FONT, 400);
-    if (pieces) { drawHare(ctx, 215, 500, 150, { set }); drawHound(ctx, 520, 490, 130, { set }); }
+    if (td) { const vg = ctx.createRadialGradient(360, 165, 20, 360, 165, 420); vg.addColorStop(0, 'rgba(10,6,2,0.55)'); vg.addColorStop(1, 'rgba(10,6,2,0)'); ctx.fillStyle = vg; ctx.fillRect(-200, -260, 1120, 860); }
+    brassTitle(title, 360 + (td ? 0 : H.dx), 150, title === NAME ? (td ? 66 : 54) : 46); text(sub, 360, 205, 26, 'rgba(250,236,200,0.92)', FONT, 400);
+    if (pieces && !td) { drawHare(ctx, 215, 500, 150, { set }); drawHound(ctx, 520, 490, 130, { set }); }
     ctx.restore();
   };
 
   // drifting leaves: a few cached sprites, still in reduced-motion mode
-  if (!state.calm) {
+  if (!state.calm && !td) {
     const n = Math.max(5, Math.min(13, Math.round((7 * L.w * L.h) / (720 * 1560))));
     for (let k = 0; k < n; k++) {
       const t = state.t, x = ((k * 173 + t * (10 + k * 3)) % (L.w + 80)) - 40 + Math.sin(t * 0.6 + k) * 22, y = ((k * 331 + t * (16 + k * 4)) % (L.h + 140)) - 70;
@@ -130,9 +188,9 @@ export function render(ctx, state, L) {
   const clockText = (rect) => { const left = Math.max(0, g.limit - g.hm); return centered(rect, tb(g.limit > 60 ? '' : `Hunt clock: the hounds have ${left} move${left === 1 ? '' : 's'} left`, 22, left <= 3 ? '#ff9a80' : '#f6e3b4', { x: 0, maxW: rect.w })); };
 
   if (boardScene) {
-    drawBoard(ctx, state.look.board, B);
+    if (!td) drawBoard(ctx, state.look.board, B);
     if (scene !== 'over') {
-      if (L.wide) panel(L.leftCard, 20); else if (L.infoPanel) panel(L.infoPanel, 18);
+      if (L.wide) panel(L.leftCard, 20); else if (L.infoPanel) panel(L.infoPanel, 18); else if (td) panel({ x: L.info.x - 8, y: L.info.y - 4, w: L.info.w + 16, h: L.info.h + 6 }, 18);
       const I = L.info, ctr = (f) => centered(I, f), msgTopOverlay = scene === 'play' && L.tall && state.msg;
       const nameB = ctr(tb(NAME, 40, '#f6e3b4', { font: FONT, weight: 700, x: 0, opt: true, gap: 10 }));
       const blocks = [];
@@ -177,18 +235,18 @@ export function render(ctx, state, L) {
       if (chosen) {
         glow(chosen.to, '255,208,90', pulse); glow(chosen.from, '120,255,170', pulse);
         // A dark ring around the chosen destination so gold still reads clearly against this board's own light cream tone.
-        const cp = B.at(chosen.to); ctx.strokeStyle = 'rgba(40,24,4,0.85)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(cp.x, cp.y, 34 * UNIT * cp.s, 28 * UNIT * cp.s, 0, 0, TAU); ctx.stroke();
+        const cp = B.at(chosen.to); if (!td) { ctx.strokeStyle = 'rgba(40,24,4,0.85)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(cp.x, cp.y, 34 * UNIT * cp.s, 28 * UNIT * cp.s, 0, 0, TAU); ctx.stroke(); }
       }
     }
-    const order = [...Array(11).keys()].sort((p, q) => B.at(p).y - B.at(q).y);
+    const order = td ? [] : [...Array(11).keys()].sort((p, q) => B.at(p).y - B.at(q).y);
     for (const i of order) {                                          // far points first; the moving piece is drawn where it is, not where it will be
       if (a && ((a.type !== 'refuse' && i === a.to) || (a.type === 'refuse' && i === a.from))) continue;
       const k = g.board[i]; if (!k) continue;
       const sel = state.sel === i;
       piece(k, B.at(i), { selected: sel, lift: sel ? 0.5 + (state.calm ? 0 : Math.sin(state.t * 3) * 0.08) : 0 });
     }
-    if (a) { const pos = animPos(); piece(a.kind, pos, { lift: pos.lift, selected: a.type === 'refuse' }); }
-    if (a && a.type === 'move' && !state.calm && a.t / a.dur > 0.6) {          // a puff of leaves where a piece lands
+    if (a && !td) { const pos = animPos(); piece(a.kind, pos, { lift: pos.lift, selected: a.type === 'refuse' }); }
+    if (a && !td && a.type === 'move' && !state.calm && a.t / a.dur > 0.6) {          // a puff of leaves where a piece lands
       const f = (a.t / a.dur - 0.6) / 0.4, p = B.at(a.to);
       ctx.strokeStyle = `rgba(255,236,190,${0.55 * (1 - f)})`; ctx.lineWidth = 4 * (1 - f) + 1;
       ctx.beginPath(); ctx.ellipse(p.x, p.y, (24 + 40 * f) * UNIT * p.s, (18 + 30 * f) * UNIT * p.s, 0, 0, TAU); ctx.stroke();
@@ -224,12 +282,15 @@ export function render(ctx, state, L) {
   const heads = scene === 'title' || scene === 'demo-limit' || scene === 'look' || scene === 'campaign' || (scene === 'puzzle' && state.pz.status === 'making');
   if (heads) {
     const T = L.title(!!state.saved), LK = L.look;
-    if (scene === 'title' || scene === 'demo-limit') { if (T.board) drawBoard(ctx, state.look.board, { ...T.board, layer: null }); }
-    else if (scene === 'look' && LK.board) drawBoard(ctx, state.look.board, { ...LK.board });
+    if (td) v3.hero = scene === 'look' ? (LK.hero ? { x: LK.hero.hx + 20 * LK.hero.sc, y: LK.hero.hy + 230 * LK.hero.sc, w: 680 * LK.hero.sc, h: 420 * LK.hero.sc } : null) : T.stage;
+    if (!td && (scene === 'title' || scene === 'demo-limit')) { if (T.board) drawBoard(ctx, state.look.board, { ...T.board, layer: null }); }
+    else if (!td && scene === 'look' && LK.board) drawBoard(ctx, state.look.board, { ...LK.board });
     const dim = scene === 'campaign' ? null : scene === 'look' ? LK.dim : T.dim;
     ctx.fillStyle = 'rgba(8,12,6,0.62)';
     if (scene === 'campaign') { ctx.fillStyle = 'rgba(8,12,6,0.72)'; ctx.fillRect(0, 0, L.w, L.h); }
+    else if (dim && td) { const gr = ctx.createLinearGradient(0, dim.y - 90, 0, dim.y + 60); gr.addColorStop(0, 'rgba(10,7,3,0)'); gr.addColorStop(1, 'rgba(10,7,3,0.72)'); ctx.fillStyle = gr; ctx.fillRect(dim.x, dim.y - 90, dim.w, dim.h + 90); }
     else if (dim) ctx.fillRect(dim.x, dim.y, dim.w, dim.h);
+    else if (td && scene !== 'puzzle') { const gr = ctx.createLinearGradient(L.w * 0.35, 0, L.w * 0.6, 0); gr.addColorStop(0, 'rgba(10,7,3,0)'); gr.addColorStop(1, 'rgba(10,7,3,0.5)'); ctx.fillStyle = gr; ctx.fillRect(0, 0, L.w, L.h); }
     else if (scene !== 'puzzle') { ctx.fillStyle = 'rgba(8,12,6,0.34)'; ctx.fillRect(0, 0, L.w, L.h); }
     if (scene === 'title' || scene === 'demo-limit') { if (T.hero) hero(T.hero, NAME, 'One hare. Three hounds. One narrow board.', true, false); }
     if ((scene === 'title' || scene === 'demo-limit') && T.lock) drawTitleLockup(ctx, T.lock, state.lockPress > 0);
@@ -270,14 +331,13 @@ export function render(ctx, state, L) {
   }
   if (scene === 'title') {
     const T = L.title(!!state.saved), R = T.rows, solvedToday = state.daily.solvedDay === state.daily.day;
-    if (R.resume) button(R.resume, 'Continue your game', { primary: true, size: 30 });
-    button(R.learn, 'Learn to play', { primary: !state.learned && !R.resume, size: 30 });
-    button(R.campaign, 'Campaign', { size: 30 });
-    button(R.hare, 'Play the Hare', { size: 26 }); button(R.hound, 'Play the Hounds', { primary: state.learned && !R.resume, size: 26 });
-    button(R.two, 'Two players, one phone', { size: 28 });
-    button(R.daily, solvedToday ? `Daily puzzle: solved · streak ${state.daily.streak}` : state.daily.streak ? `Daily puzzle · streak ${state.daily.streak}` : 'Daily puzzle', { size: 28 });
-    button(R.level, `Computer: ${LEVELS[state.level].name}`, { size: 22 }); button(R.sound, state.sound ? 'Sound on' : 'Sound off', { size: 22 }); button(R.marks, state.marks ? "Hare's reach: on" : "Hare's reach: off", { size: 21 }); button(R.calm, state.calm ? 'Reduced motion: on' : 'Reduced motion: off', { size: 20 });
-    button(R.look, 'Board and pieces', { size: 24 }); button(R.rules, 'Rules', { size: 24 }); button(R.auto, 'Auto Play', { size: 24 });
+    if (R.resume) button(R.resume, 'Continue your game', { size: 28, icon: 'play' });
+    button(R.hound, 'Play', { primary: true, size: 46, sub: `You are the hounds · Computer: ${LEVELS[state.level].name}` });
+    button(R.hare, 'Play the Hare', { size: 24, icon: 'hare' }); button(R.two, 'Two players', { size: 24, icon: 'two' });
+    button(R.learn, 'Learn to play', { size: 24, icon: 'learn' }); button(R.campaign, 'Campaign', { size: 24, icon: 'campaign' });
+    button(R.daily, solvedToday ? `Daily · ✓ ${state.daily.streak}` : state.daily.streak ? `Daily · ${state.daily.streak}` : 'Daily puzzle', { size: 24, icon: 'daily' });
+    button(R.auto, 'Auto Play', { size: 24, icon: 'auto' }); button(R.rules, 'Rules', { size: 24, icon: 'rules' }); button(R.look, 'Board and pieces', { size: 24, icon: 'look' });
+    button(R.level, `Computer: ${LEVELS[state.level].name}`, { size: 21 }); button(R.sound, state.sound ? 'Sound on' : 'Sound off', { size: 21 }); button(R.marks, state.marks ? "Hare's reach: on" : "Hare's reach: off", { size: 21 }); button(R.calm, state.calm ? 'Reduced motion: on' : 'Reduced motion: off', { size: 21 });
     if (T.badges) {                                             // badges: one star per level beaten with each side
       for (const b of T.badges.rows) {
         text(b.label, b.x, b.y, 22, 'rgba(246,227,180,0.85)', UI, 600, 'left');
@@ -291,12 +351,16 @@ export function render(ctx, state, L) {
     text('That was the free taste.', L.w / 2, cy, 44); text('Get Hare and Hounds on iPhone and Android', L.w / 2, cy + 70, 28, '#fff3d6', UI, 600); text('for unlimited games.', L.w / 2, cy + 110, 28, '#fff3d6', UI, 600);
   } else if (scene === 'over') {
     const O = L.over;
-    ctx.fillStyle = 'rgba(6,10,6,0.74)'; ctx.fillRect(0, 0, L.w, L.h);
-    if (O.card) panel(O.card, 24, 'rgba(14,10,4,0.5)');
+    if (td) {
+      v3.over = { x: O.tx + 150 * O.sc, y: O.ty + 250 * O.sc, w: 420 * O.sc, h: 370 * O.sc };
+      const gr = ctx.createLinearGradient(0, O.ty + 560 * O.sc, 0, O.ty + 700 * O.sc); gr.addColorStop(0, 'rgba(8,6,3,0)'); gr.addColorStop(1, 'rgba(8,6,3,0.78)'); ctx.fillStyle = gr; ctx.fillRect(0, 0, L.w, L.h);
+      if (!L.tall) { ctx.fillStyle = 'rgba(8,6,3,0.35)'; ctx.fillRect(0, 0, L.w, L.h); }
+    } else { ctx.fillStyle = 'rgba(6,10,6,0.74)'; ctx.fillRect(0, 0, L.w, L.h); }
+    if (O.card) panel(O.card, 24, 'rgba(30,18,8,0.6)');
     const won = state.two ? `${SIDE[g.winner]} win` : g.winner === state.human ? 'You win!' : 'The computer wins';
     ctx.save(); ctx.translate(O.tx, O.ty); ctx.scale(O.sc, O.sc);
-    (g.winner === 'H' ? drawHare : drawHound)(ctx, 360, 430, g.winner === 'H' ? 130 : 118, { set });
-    text(won, 360, 700, 62); text(g.reason, 360, 752, 28, '#fff3d6', UI, 500);
+    if (!td) (g.winner === 'H' ? drawHare : drawHound)(ctx, 360, 430, g.winner === 'H' ? 130 : 118, { set });
+    brassTitle(won, 360, 700, 66); text(g.reason, 360, 752, 28, '#fff3d6', UI, 500);
     text(`${g.hm} hound move${g.hm === 1 ? '' : 's'} of ${g.limit}`, 360, 796, 24, 'rgba(246,227,180,0.8)', UI, 500);
     if (state.result) {
       const r = state.result;

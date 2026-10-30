@@ -8,14 +8,15 @@ export const THINK_STEPS = [2, 5, 8, 10];
 export const TEXT_SCALES = [1, 1.5, 2, 2.5, 3];
 export const inRect = (r, x, y) => !!r && x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
 // Safe areas and the host's floating back button, in virtual units (main.js keeps this current). px = css px per unit.
-export const host = { t: 0, r: 0, b: 0, l: 0, back: 0, px: 0.52 };
+export const host = { t: 0, r: 0, b: 0, l: 0, back: 0, px: 0.52, c3: false };   // c3: the 3D scene is on (the board is a tilted 3D slab, a little shorter than wide)
+import { v3 } from './v3.js';
 
 const R = (x, y, w, h) => ({ x, y, w, h });
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const cache = new Map();
 export function layoutFor(w, h) {
   w = Math.round(w); h = Math.round(h);
-  const key = `${w}x${h}|${Math.round(host.t)},${Math.round(host.r)},${Math.round(host.b)},${Math.round(host.l)},${Math.round(host.back)}`;
+  const key = `${w}x${h}|${Math.round(host.t)},${Math.round(host.r)},${Math.round(host.b)},${Math.round(host.l)},${Math.round(host.back)}|${host.c3 ? 3 : 2}`;
   let L = cache.get(key);
   if (!L) { L = build(w, h, { ...host }); L.key = key; cache.set(key, L); if (cache.size > 30) cache.delete(cache.keys().next().value); }
   return L;
@@ -28,20 +29,21 @@ function build(w, h, ins) {
   const backSz = ins.back ? Math.max(ins.back, 56) + 8 : 0;
   L.backBox = ins.back ? R(U.x0, U.y0, backSz, backSz) : R(U.x0, U.y0, 0, 0);
   // the board: a square slab; `grid` is the playing area inside its frame
-  const slabGrid = (x, y, s) => ({ x: x + s * 0.076, y: y + s * 0.076, size: s * 0.848 });
+  const KH = ins.c3 ? 0.9 : 1;                         // 3D: the tilted slab is about 0.9 of its width tall
+  const slabGrid = (x, y, s) => (ins.c3 ? { x: x + s * 0.045, y: y + s * 0.045, size: s * 0.91 } : { x: x + s * 0.076, y: y + s * 0.076, size: s * 0.848 });
   const btn = {};
   if (!land) {
     const barH = U.h < 1100 ? 62 : 74, bottom = Math.max(m, ins.b > 12 ? 4 : 0) + 4;
     const barY = U.y1 - bottom - barH;
     const topPad = Math.max(m, 4) + (U.h < 1100 ? 22 : 30);
     const short = U.h < 1100, Pmin = short ? 70 : 96, msgH = short ? 42 : 56;
-    const B = Math.min(U.w - 2 * m, U.h - topPad - bottom - barH - msgH - 2 * Pmin - 6 * m);
-    const P = clamp((U.h - B - barH - msgH - topPad - bottom - 5 * m) / 2, Pmin, 190);
-    const spare = Math.max(0, U.h - (B + 2 * P + barH + msgH + topPad + bottom + 5 * m));
+    const B = Math.min(U.w - (ins.c3 ? 6 : 2 * m), (U.h - topPad - bottom - barH - msgH - 2 * Pmin - 6 * m) / KH), hB = B * KH;
+    const P = clamp((U.h - hB - barH - msgH - topPad - bottom - 5 * m) / 2, Pmin, ins.c3 ? 250 : 190);
+    const spare = Math.max(0, U.h - (hB + 2 * P + barH + msgH + topPad + bottom + 5 * m));
     const gap = spare / 4 + m;
     let y = U.y0 + topPad + spare / 8;
     L.opp = R(U.x0 + m, y, U.w - 2 * m, P); y += P + gap;
-    L.board = { x: U.x0 + (U.w - B) / 2, y, s: B }; y += B + gap * 0.6;
+    L.board = { x: U.x0 + (U.w - B) / 2, y, s: B, h: hB }; y += hB + gap * 0.6;
     L.msg = R(U.x0 + m, y, U.w - 2 * m, msgH); y += msgH + gap * 0.4;
     L.you = R(U.x0 + m, y, U.w - 2 * m, P);
     L.info = null;
@@ -57,7 +59,7 @@ function build(w, h, ins) {
     const two = U.w - B1 - 6 * m >= 2 * 250;
     if (two) {
       const B = B1, pw = clamp((U.w - B - 4 * m) / 2, 250, 520), total = B + 2 * pw + 4 * m, x0 = U.x0 + (U.w - total) / 2;
-      L.board = { x: x0 + pw + 2 * m, y: U.y0 + (U.h - B) / 2, s: B };
+      L.board = { x: x0 + pw + 2 * m, y: U.y0 + (U.h - B * KH) / 2, s: B, h: B * KH };
       const colH = U.y1 - m - colTop;
       const left = R(x0, colTop, pw, colH), right = R(x0 + pw + B + 3 * m, colTop, pw, colH);
       const cardH = clamp(colH * 0.29, 170, 210), msgH = clamp(colH * 0.16, 84, 120);
@@ -76,7 +78,7 @@ function build(w, h, ins) {
     } else {
       const pwMin = 340, B = Math.min(B1, U.w - pwMin - 3 * m);
       const pw = clamp(U.w - B - 3 * m, 230, 460), total = B + pw + m, x0 = U.x0 + (U.w - total) / 2;
-      L.board = { x: x0, y: U.y0 + (U.h - B) / 2, s: B };
+      L.board = { x: x0, y: U.y0 + (U.h - B * KH) / 2, s: B, h: B * KH };
       const col = R(x0 + B + m, colTop, pw, U.y1 - m - colTop);
       const bh = clamp((col.h - 5 * m) / 6.6, 50, 72), cardH = clamp(col.h * 0.22, 112, 150);
       L.opp = R(col.x, col.y, col.w, cardH);
@@ -193,6 +195,7 @@ export function boardGeo(L, n, flip) {
     center: (i) => { const [r, c] = rcOf(i); return { x: gx + (c + 0.5) * cell, y: gy + (r + 0.5) * cell }; },
     rect: (i) => { const [r, c] = rcOf(i); return { x: gx + c * cell, y: gy + r * cell, w: cell, h: cell }; },
     squareAt: (x, y) => {
+      if (v3.on && v3.unproj) { const q = v3.unproj(x, y); if (!q) return -1; x = gx + q.cx * cell; y = gy + q.cy * cell; }   // through the tilted 3D board
       if (x < gx || y < gy || x >= gx + size || y >= gy + size) return -1;
       let c = Math.floor((x - gx) / cell), r = Math.floor((y - gy) / cell);
       if (flip) { r = n - 1 - r; c = n - 1 - c; }

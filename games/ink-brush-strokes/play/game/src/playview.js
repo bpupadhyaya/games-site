@@ -1,5 +1,6 @@
 // The painting screens: practice (lessons and Watch and Learn) and the free scroll, with their overlays (pause, grind, result, seal row).
-import { PAL, UI, DISPLAY, CJK, rgba, drawBackdrop, paperImage, drawMount, paintSeal, drawBrush, drawStar, drawStone } from './art.js';
+import { PAL, UI, DISPLAY, CJK, rgba, drawBackdrop, paperImage, drawMount, paintSeal, drawBrush, drawStar, drawStone, sheetBegin } from './art.js';
+import { v3, flatAlpha } from './v3.js';
 import { txt, button, panel, rrect, chip, icon, wrap } from './ui.js';
 import { menuRects } from './layout.js';
 import { LESSONS, TYPES, SEALS, PAGE, targetPath, envAt, toPage } from './lessons.js';
@@ -7,14 +8,19 @@ import { BRUSH, toneAlpha, toneBand } from './brush.js';
 import { drawLayer } from './ink.js';
 import { edgeStroke } from './brand.js';
 
+let meta3 = null;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const TOOL_LABEL = { dip: 'Dip', water: 'Water', grind: 'Grind', size: 'Size', guide: 'Guide', undo: 'Undo', hint: 'Hint', seal: 'Seal', left: 'Left', right: 'Right', keep: 'Keep', pause: 'Pause', skip: 'Next' };
 
 export function renderPlay(ctx, st, L, view, meta, h) {
+  meta3 = meta;
   const free = st.scene === 'free', sess = free ? st.fr : st.ps, { w, h: hh } = L, P = L.play;
   meta.previewBadge = null;
-  drawBackdrop(ctx, w + 20, hh + 20, st.t, st.prefs.calm ? 1 : 0);
-  if (!sess) return;
+  if (!v3.on) v3.want = null;
+  if (!v3.on || flatAlpha() > 0.01) { ctx.save(); ctx.globalAlpha = v3.on ? flatAlpha() : 1; drawBackdrop(ctx, w + 20, hh + 20, st.t, st.prefs.calm ? 1 : 0); ctx.restore(); }
+  if (!sess) { v3.want = null; v3.map.active = false; return; }
+  v3.map.active = v3.on && (sess.overlay === 'none' || sess.overlay === 'after');
+  v3.map.skip = free && sess.sealMode ? P.seals : null;
   const les = free ? null : LESSONS[sess.li], auto = !free && sess.mode === 'auto';
   if (L.mode === 'wide') {
     panel(ctx, P.panelL, { fill: 'rgba(12,20,22,0.72)', rad: 26 }); edgeStroke(ctx, P.panelL, 26, 0.18);
@@ -32,42 +38,54 @@ export function renderPlay(ctx, st, L, view, meta, h) {
 }
 
 // ---- the sheet: paper, grid, guide, ink, brush -----------------------------------------------------------------------------------------------------------------
-function drawPaper(ctx, st, L, h, sess, les, free, auto) {
+function drawPaper(ctx0, st, L, h, sess, les, free, auto) {
   const P = L.play, r = P.paper, k = r.w / PAGE.w;
-  drawMount(ctx, r, Math.max(10, r.w * 0.026));
   let src = { x: 0, y: 0, w: PAGE.w, h: PAGE.h };
   const lay = h.layer(free ? 'free' : 'lesson');
   if (free) { src = { x: sess.scroll, y: 0, w: PAGE.w, h: PAGE.h }; }
-  const pimg = free ? paperImage(PAGE.w * 3, PAGE.h, 1.2) : paperImage(PAGE.w, PAGE.h, 1.25);
-  if (pimg) ctx.drawImage(pimg, src.x * (pimg.width / (free ? PAGE.w * 3 : PAGE.w)), 0, PAGE.w * (pimg.width / (free ? PAGE.w * 3 : PAGE.w)), pimg.height, r.x, r.y, r.w, r.h);
-  else { ctx.fillStyle = PAL.paper; ctx.fillRect(r.x, r.y, r.w, r.h); }
   const sx = (x) => r.x + (x - src.x) * k, sy = (y) => r.y + y * k;
-  if (free) {                                   // page seams
-    ctx.save(); ctx.strokeStyle = 'rgba(120,90,50,0.22)'; ctx.setLineDash([8, 8]); ctx.lineWidth = 1.5;
-    for (let i = 1; i < 3; i++) { const x = sx(PAGE.w * i); if (x > r.x + 2 && x < r.x + r.w - 2) { ctx.beginPath(); ctx.moveTo(x, r.y); ctx.lineTo(x, r.y + r.h); ctx.stroke(); } }
-    ctx.restore();
-  } else if (les.box.w === 480) {               // the square practice grid
-    const b = les.box;
-    ctx.save(); ctx.strokeStyle = 'rgba(190,70,50,0.45)'; ctx.lineWidth = 2;
-    ctx.strokeRect(sx(b.x), sy(b.y), b.w * k, b.h * k);
-    ctx.setLineDash([10, 9]); ctx.strokeStyle = 'rgba(190,70,50,0.26)'; ctx.lineWidth = 1.5; ctx.beginPath();
-    ctx.moveTo(sx(b.x), sy(b.y)); ctx.lineTo(sx(b.x + b.w), sy(b.y + b.h)); ctx.moveTo(sx(b.x + b.w), sy(b.y)); ctx.lineTo(sx(b.x), sy(b.y + b.h));
-    ctx.moveTo(sx(b.x + b.w / 2), sy(b.y)); ctx.lineTo(sx(b.x + b.w / 2), sy(b.y + b.h)); ctx.moveTo(sx(b.x), sy(b.y + b.h / 2)); ctx.lineTo(sx(b.x + b.w), sy(b.y + b.h / 2));
-    ctx.stroke(); ctx.restore();
-  }
-  if (!free) drawGuide(ctx, st, sess, les, auto, sx, sy, k, h);
-  drawLayer(ctx, lay, r, src);
-  if (st.flash && !free && !auto) {              // a soft glow round the paper after a stroke
-    const a = 1 - st.flash.t; ctx.save(); ctx.strokeStyle = st.flash.good ? `rgba(88,194,163,${0.7 * a})` : `rgba(236,208,138,${0.55 * a})`; ctx.lineWidth = 6;
-    ctx.strokeRect(r.x - 6, r.y - 6, r.w + 12, r.h + 12); ctx.restore();
-  }
-  // brush
-  const bs = Math.max(14, 20 * BRUSH.sizes[st.prefs.size].k * clamp(k * 1.7, 0.7, 1.4));
+  // the sheet itself: paper, grid, guide, ink. With 3D on it is drawn into the canvas that lies on the 3D paper (and, while the flat art fades out, once more on screen).
+  const paintSheet = (ctx) => {
+    const pimg = free ? paperImage(PAGE.w * 3, PAGE.h, 1.2) : paperImage(PAGE.w, PAGE.h, 1.25);
+    if (pimg) ctx.drawImage(pimg, src.x * (pimg.width / (free ? PAGE.w * 3 : PAGE.w)), 0, PAGE.w * (pimg.width / (free ? PAGE.w * 3 : PAGE.w)), pimg.height, r.x, r.y, r.w, r.h);
+    else { ctx.fillStyle = PAL.paper; ctx.fillRect(r.x, r.y, r.w, r.h); }
+    if (free) {                                   // page seams
+      ctx.save(); ctx.strokeStyle = 'rgba(120,90,50,0.22)'; ctx.setLineDash([8, 8]); ctx.lineWidth = 1.5;
+      for (let i = 1; i < 3; i++) { const x = sx(PAGE.w * i); if (x > r.x + 2 && x < r.x + r.w - 2) { ctx.beginPath(); ctx.moveTo(x, r.y); ctx.lineTo(x, r.y + r.h); ctx.stroke(); } }
+      ctx.restore();
+    } else if (les.box.w === 480) {               // the square practice grid
+      const b = les.box;
+      ctx.save(); ctx.strokeStyle = 'rgba(190,70,50,0.45)'; ctx.lineWidth = 2;
+      ctx.strokeRect(sx(b.x), sy(b.y), b.w * k, b.h * k);
+      ctx.setLineDash([10, 9]); ctx.strokeStyle = 'rgba(190,70,50,0.26)'; ctx.lineWidth = 1.5; ctx.beginPath();
+      ctx.moveTo(sx(b.x), sy(b.y)); ctx.lineTo(sx(b.x + b.w), sy(b.y + b.h)); ctx.moveTo(sx(b.x + b.w), sy(b.y)); ctx.lineTo(sx(b.x), sy(b.y + b.h));
+      ctx.moveTo(sx(b.x + b.w / 2), sy(b.y)); ctx.lineTo(sx(b.x + b.w / 2), sy(b.y + b.h)); ctx.moveTo(sx(b.x), sy(b.y + b.h / 2)); ctx.lineTo(sx(b.x + b.w), sy(b.y + b.h / 2));
+      ctx.stroke(); ctx.restore();
+    }
+    if (!free) drawGuide(ctx, st, sess, les, auto, sx, sy, k, h);
+    drawLayer(ctx, lay, r, src);
+  };
+  const pad = Math.max(10, r.w * 0.026), bs = Math.max(14, 20 * BRUSH.sizes[st.prefs.size].k * clamp(k * 1.7, 0.7, 1.4));
+  let brush = null;
   if (auto) {
-    if (!sess.paused || sess.overlay !== 'none') { const a = sess.auto; if (a.phase === 'reveal' || a.phase === 'act') drawBrush(ctx, sx(a.ghost.x), sy(a.ghost.y), bs, st.brush.load, st.brush.tone, a.phase === 'act'); }
-  } else if (st.cursor.on && sess.cur) drawBrush(ctx, st.cursor.x, st.cursor.y, bs, st.brush.load, st.brush.tone, true);
+    if (!sess.paused || sess.overlay !== 'none') { const a = sess.auto; if (a.phase === 'reveal' || a.phase === 'act') brush = { x: sx(a.ghost.x), y: sy(a.ghost.y), down: a.phase === 'act' }; }
+  } else if (st.cursor.on && sess.cur) brush = { x: st.cursor.x, y: st.cursor.y, down: true };
+  if (v3.on) {
+    paintSheet(sheetBegin(v3, r, (meta3 && meta3.cssPerUnit) || 0));
+    v3.want = { kind: 'play', rect: r, free, auto, brush: brush && { ...brush, load: st.brush.load, tone: st.brush.tone, size: bs }, fin: st.flash && st.flash.good ? 1 - st.flash.t : 0 };
+    const fa = flatAlpha();
+    if (fa > 0.01) { ctx0.save(); ctx0.globalAlpha = fa; drawMount(ctx0, r, pad); paintSheet(ctx0); ctx0.restore(); }
+  } else {
+    drawMount(ctx0, r, pad);
+    paintSheet(ctx0);
+    if (st.flash && !free && !auto) {              // a soft glow round the paper after a stroke
+      const a = 1 - st.flash.t; ctx0.save(); ctx0.strokeStyle = st.flash.good ? `rgba(88,194,163,${0.7 * a})` : `rgba(236,208,138,${0.55 * a})`; ctx0.lineWidth = 6;
+      ctx0.strokeRect(r.x - 6, r.y - 6, r.w + 12, r.h + 12); ctx0.restore();
+    }
+    if (brush) drawBrush(ctx0, brush.x, brush.y, bs, st.brush.load, st.brush.tone, brush.down);
+  }
   if (free) {                                    // scroll position dots
-    for (let i = 0; i < 3; i++) { const cur = Math.abs(sess.scroll / PAGE.w - i) < 0.5; ctx.fillStyle = cur ? PAL.gold : 'rgba(244,236,216,0.3)'; ctx.beginPath(); ctx.arc(r.x + r.w / 2 + (i - 1) * 26, r.y + r.h + Math.max(10, r.w * 0.026) + 14, cur ? 6 : 4.5, 0, Math.PI * 2); ctx.fill(); }
+    for (let i = 0; i < 3; i++) { const cur = Math.abs(sess.scroll / PAGE.w - i) < 0.5; ctx0.fillStyle = cur ? PAL.gold : 'rgba(244,236,216,0.3)'; ctx0.beginPath(); ctx0.arc(r.x + r.w / 2 + (i - 1) * 26, r.y + r.h + pad + 14, cur ? 6 : 4.5, 0, Math.PI * 2); ctx0.fill(); }
   }
 }
 

@@ -26,7 +26,8 @@ export const GEOM = {
 
 export async function createAthlete(V3, o) {
   const { THREE, loadHuman, CLIP_BONES, semanticRot, FINGER_POSES } = V3;
-  const h = await loadHuman({ character: o.character || 'athlete_m', kit: o.kit, skin: o.skin, hair: o.hair, quality: o.quality || 'high' });
+  const h = await loadHuman({ character: o.character || 'athlete_m', kit: o.kit, skin: o.skin, hair: o.hair, quality: o.quality || 'high', top: 'long', lod: 0 });
+  h.lodAuto = false;                             // close-up athletes always render the full-detail LOD 0 (hands and legs complete at every quality tier)
   const side = o.side | 0;                       // 0: left of the screen (faces +X), 1: right (faces -X)
   const dir = side === 0 ? 1 : -1;
   h.groundClamp = 'off';

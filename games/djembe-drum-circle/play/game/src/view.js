@@ -1,5 +1,5 @@
 // Rendering of every screen. Reads the state and the live layout; never changes the game state.
-import { FONT, UI, PAL, drawBackdrop, drawDrum, drawNote, drawHand, rgba } from './art.js';
+import { FONT, UI, PAL, drawBackdrop, drawDrum, drawNote, drawHand, rgba, drum3d } from './art.js';
 import { txt, wrap, fitText, panel, button, stars as drawStars, drawBlocks, scrollbar } from './ui.js';
 import { drawCredit, drawMoreLine, edgeStroke, drawBadgeStack, brandGradient } from './brand.js';
 import { buttonsFor, pickLayout, settingsLayout, resultLayout, TITLE_CARDS, RULES_CHAPTERS } from './buttons.js';
@@ -210,7 +210,8 @@ function renderPlay(ctx, st, L, dim = false) {
   }
   const dfx = drumFx(st, { guide, labels: st.mode === 'free' && !st.free.layers.length && st.free.phase === 'idle' && st.t < 8 });
   drawDrum(ctx, g, dfx);
-  ctx.save(); ctx.beginPath(); ctx.rect(g.clip.x, g.clip.y - 120, g.clip.w, g.clip.h + 120); ctx.clip(); for (const hd of st.fx.hands) drawHand(ctx, g, hd); ctx.restore();
+  // the 3D drum shows the lead's strokes as real dents and ripples in the skin; the painted hand is only used by the 2D drum
+  if (!drum3d.ready()) { ctx.save(); ctx.beginPath(); ctx.rect(g.clip.x, g.clip.y - 120, g.clip.w, g.clip.h + 120); ctx.clip(); for (const hd of st.fx.hands) drawHand(ctx, g, hd); ctx.restore(); }
   sparks(ctx, st);
   // header
   renderPlayHeader(ctx, st, L);

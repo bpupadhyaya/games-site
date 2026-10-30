@@ -4,7 +4,7 @@
   "tagline": "The nine-pebble game of the steppe",
   "genre": "abstract strategy board game",
   "orientation": "any",
-  "version": "0.2.5",
+  "version": "0.3.0",
   "monetization": {
     "model": "premium",
     "priceUsd": 2.99,

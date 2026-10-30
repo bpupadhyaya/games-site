@@ -443,7 +443,7 @@ export function renderTitle(ctx, st, L, t, items) {
   ['SILK ROAD', 'TRADER'].forEach((ln, i) => { const y = ty + (i - 0.5) * big * 1.08; ctx.lineWidth = big * 0.18; ctx.strokeStyle = 'rgba(30,12,4,0.9)'; ctx.strokeText(ln, cx, y); const g = ctx.createLinearGradient(0, y - big * 0.5, 0, y + big * 0.5); g.addColorStop(0, '#fff3c4'); g.addColorStop(0.5, '#f2c04c'); g.addColorStop(1, '#b8731c'); ctx.fillStyle = g; ctx.fillText(ln, cx, y); });
   ctx.restore();
   txt(ctx, "A caravan journey from Chang'an to Baghdad", cx, ty + big * 1.3, Math.min(32, tc.w / 15), '#fff0d0', { align: 'center', weight: 600, stroke: 6, strokeColor: 'rgba(30,12,4,0.85)', maxW: tc.w });
-  items.forEach((it, i) => { const r = T.buttons[i]; button(ctx, r, it.label, { kind: it.kind === 'primary' ? 'primary' : 'menu', size: 30, sub: it.sub, icon: it.icon }); ui.hits.push({ id: 'menu:' + it.id, r }); });
+  items.forEach((it, i) => { const r = T.buttons[i]; if (!r) return; button(ctx, r, it.label, { kind: it.kind === 'primary' ? 'primary' : 'menu', size: it.kind === 'primary' ? 34 : 29, sub: it.sub, icon: it.icon }); ui.hits.push({ id: 'menu:' + it.id, r }); });
   const cr = T.credit;
   if (!drawLockup(ctx, cr, 0.95)) drawCredit(ctx, cr.x + cr.w / 2, cr.y + cr.h * 0.6, Math.min(22, cr.w / 14));
   ui.hits.push({ id: 'credit', r: { x: cr.x - 10, y: cr.y - 10, w: cr.w + 20, h: cr.h + 20 } });

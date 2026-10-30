@@ -48,6 +48,19 @@ export function render(ctx, state, L) {
     ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, rad); ctx.fillStyle = fill; ctx.fill(); ctx.strokeStyle = stroke; ctx.lineWidth = 2; ctx.stroke();
     if (brand) edgeStroke(ctx, r, rad, 0.3);
   };
+  // line icons for the menu buttons (drawn in the label colour, 0..1 box scaled to s)
+  const icon = (kind, cx, cy, s, col) => {
+    ctx.save(); ctx.translate(cx - s / 2, cy - s / 2); ctx.scale(s, s); ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = 0.09; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath();
+    const C = (x, y, r) => { ctx.moveTo(x + r, y); ctx.arc(x, y, r, 0, 6.2832); };
+    if (kind === 'play') { ctx.moveTo(0.3, 0.14); ctx.lineTo(0.88, 0.5); ctx.lineTo(0.3, 0.86); ctx.closePath(); ctx.fill(); }
+    else if (kind === 'two') { C(0.34, 0.34, 0.16); C(0.7, 0.38, 0.13); ctx.moveTo(0.08, 0.9); ctx.quadraticCurveTo(0.34, 0.42, 0.6, 0.9); ctx.moveTo(0.62, 0.7); ctx.quadraticCurveTo(0.72, 0.58, 0.94, 0.86); ctx.stroke(); }
+    else if (kind === 'auto') { ctx.rect(0.12, 0.12, 0.76, 0.76); ctx.moveTo(0.4, 0.3); ctx.lineTo(0.7, 0.5); ctx.lineTo(0.4, 0.7); ctx.closePath(); ctx.stroke(); }
+    else if (kind === 'rules') { ctx.rect(0.2, 0.1, 0.6, 0.8); ctx.moveTo(0.34, 0.34); ctx.lineTo(0.66, 0.34); ctx.moveTo(0.34, 0.52); ctx.lineTo(0.66, 0.52); ctx.moveTo(0.34, 0.7); ctx.lineTo(0.56, 0.7); ctx.stroke(); }
+    else if (kind === 'how') { C(0.5, 0.5, 0.4); ctx.moveTo(0.38, 0.4); ctx.quadraticCurveTo(0.4, 0.26, 0.52, 0.27); ctx.quadraticCurveTo(0.66, 0.28, 0.64, 0.42); ctx.quadraticCurveTo(0.62, 0.5, 0.52, 0.56); ctx.lineTo(0.5, 0.64); ctx.stroke(); ctx.beginPath(); C(0.5, 0.78, 0.04); ctx.fill(); }
+    else if (kind === 'about') { C(0.5, 0.5, 0.4); ctx.moveTo(0.5, 0.46); ctx.lineTo(0.5, 0.72); ctx.stroke(); ctx.beginPath(); C(0.5, 0.29, 0.05); ctx.fill(); }
+    else if (kind === 'gear') { for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4; ctx.moveTo(0.5 + Math.cos(a) * 0.3, 0.5 + Math.sin(a) * 0.3); ctx.lineTo(0.5 + Math.cos(a) * 0.46, 0.5 + Math.sin(a) * 0.46); } C(0.5, 0.5, 0.3); C(0.5, 0.5, 0.11); ctx.stroke(); }
+    ctx.restore();
+  };
   const button = (r, label, o = {}) => {
     ui.buttons.push({ x: r.x, y: r.y, w: r.w, h: r.h, label });
     ctx.save(); if (o.dim) ctx.globalAlpha = 0.5;
@@ -60,7 +73,9 @@ export function render(ctx, state, L) {
     ctx.fillStyle = gr; ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, rad); ctx.fill();
     ctx.strokeStyle = o.primary ? 'rgba(255,214,150,0.85)' : 'rgba(159,210,255,0.5)'; ctx.lineWidth = 2; ctx.stroke();
     }
-    const size = o.size ?? 28, maxW = r.w - 20, col = o.primary ? '#fff6e0' : '#e8f2ff', cy = r.y + r.h / 2;
+    const size = o.size ?? 28, ic = o.icon ? Math.min(34, r.h * 0.5) : 0, maxW = r.w - 20 - (ic ? ic + 8 : 0), col = o.primary ? '#fff6e0' : '#e8f2ff', cy = r.y + r.h / 2;
+    const lx = ic ? r.x + 14 + ic + 8 + (r.w - 28 - ic - 8) / 2 : r.x + r.w / 2;
+    if (ic) icon(o.icon, r.x + 14 + ic / 2, cy, ic, col);
     const w1 = (str, s) => { ctx.font = `700 ${s}px ${UI}`; return ctx.measureText(str).width; };
     let s1 = size; while (s1 > minU && w1(label, s1) > maxW) s1 -= 1;
     let best = { s: s1, ls: [label] };
@@ -72,9 +87,9 @@ export function render(ctx, state, L) {
         if (s2 > best.s) best = { s: s2, ls };
       }
     }
-    if (o.sub && best.ls.length === 1) { text(label, r.x + r.w / 2, cy + best.s * 0.1 - 6, best.s, col, UI, 700); fitText(o.sub, r.x + r.w / 2, cy + best.s * 0.1 + Math.max(minU, size * 0.62) + 2, Math.round(size * 0.62), maxW, DIM, UI, 500, 'center', minU); }
-    else if (best.ls.length === 1) text(label, r.x + r.w / 2, cy + best.s * 0.35, best.s, col, UI, 700);
-    else best.ls.forEach((ln, i) => text(ln, r.x + r.w / 2, cy + best.s * 0.35 + (i - 0.5) * best.s * 1.15, best.s, col, UI, 700));
+    if (o.sub && best.ls.length === 1) { text(label, lx, cy + best.s * 0.1 - 6, best.s, col, UI, 700); fitText(o.sub, lx, cy + best.s * 0.1 + Math.max(minU, size * 0.62) + 2, Math.round(size * 0.62), maxW, DIM, UI, 500, 'center', minU); }
+    else if (best.ls.length === 1) text(label, lx, cy + best.s * 0.35, best.s, col, UI, 700);
+    else best.ls.forEach((ln, i) => text(ln, lx, cy + best.s * 0.35 + (i - 0.5) * best.s * 1.15, best.s, col, UI, 700));
     ctx.restore();
   };
 
@@ -100,10 +115,10 @@ export function render(ctx, state, L) {
       wrapBox('Get Sáhkku on iPhone and Android for unlimited games, every computer level and all boards.', R(r.x + 24, r.y + r.h * 0.42, r.w - 48, r.h * 0.4), 28, 1.3, CREAM);
     } else {
       if (Rr.resume) button(Rr.resume, 'Continue your game', { primary: true, size: 30 });
-      button(Rr.play, 'Play the computer', { primary: !Rr.resume, size: 32, sub: `${LEVELS[state.level].name} · as ${NAMES[state.humanSide]}` });
-      button(Rr.two, 'Two players', { size: 26 }); button(Rr.auto, 'Auto Play', { size: 26 });
-      button(Rr.rules, 'Rules', { size: 26 }); button(Rr.how, 'How to Play', { size: 26 });
-      button(Rr.about, 'About', { size: 26 }); button(Rr.settings, 'Settings', { size: 26 });
+      button(Rr.play, 'Play the computer', { primary: !Rr.resume, size: 34, icon: 'play', sub: `${LEVELS[state.level].name} · as ${NAMES[state.humanSide]}` });
+      button(Rr.two, 'Two players', { size: 26, icon: 'two' }); button(Rr.auto, 'Auto Play', { size: 26, icon: 'auto' });
+      button(Rr.rules, 'Rules', { size: 26, icon: 'rules' }); button(Rr.how, 'How to Play', { size: 25, icon: 'how' });
+      button(Rr.about, 'About', { size: 26, icon: 'about' }); button(Rr.settings, 'Settings', { size: 26, icon: 'gear' });
       if (state.msg) fitText(state.msg.text, L.w / 2, Rr.play.y - 14, 24, L.w - 40, GOLD, UI, 600);
     }
     const lk = T.lockup; state.lockupRect = drawLockup(ctx, lk.x, lk.y + 4, 50);

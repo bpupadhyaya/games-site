@@ -65,7 +65,7 @@ export function titleWidgets(state) {
   if (!land()) wd.push({ t: 'gap', h: 0 });
   const rec = state.record, dk = dailyKey(state), gn = GROUNDS[rec.groundSel].name;
   const bs = rec.bestSession[rec.groundSel];
-  wd.push({ t: 'btn', id: 'session', label: 'Pull Session', sub: bs ? `${gn} · best ${bs} ft` : `${gn} · three pulls`, primary: true, h: 92 });
+  wd.push({ t: 'btn', id: 'session', label: 'Pull Session', sub: bs ? `${gn} · best ${bs} ft` : `${gn} · three pulls`, primary: true, gold: true, h: 100 });
   wd.push({ t: 'btn', id: 'daily', label: 'Daily Pull', sub: dk >= 0 ? `Today ${dk} ft` : 'Same strips for everyone', row: 1 });
   wd.push({ t: 'btn', id: 'free', label: 'Free Pull', sub: 'No score, just practise', row: 1 });
   wd.push({ t: 'btn', id: 'watch', label: 'Watch & Learn', row: 2 });
@@ -179,7 +179,7 @@ export function resultWidgets(state, wide = false) {
   for (const u of r.unlocks) wd.push({ t: 'p', label: `Unlocked: ${u}`, bold: true, color: '#b6f09a', size: 26, cap: big ? 2 : 3 });
   if (r.unlocks.length) wd.push({ t: 'btn', id: 'collection', label: 'Open the Garage', active: true });
   wd.push({ t: 'gap', h: wide ? 6 : 14 });
-  wd.push({ t: 'btn', id: 'again', label: r.mode === 'watch' ? 'Watch again' : 'Pull again', primary: true, h: 92 });
+  wd.push({ t: 'btn', id: 'again', label: r.mode === 'watch' ? 'Watch again' : 'Pull again', primary: true, gold: true, h: 92 });
   if (r.mode !== 'watch' && r.mode !== 'free') wd.push({ t: 'btn', id: 'share', label: 'Share', row: 6 });
   wd.push({ t: 'btn', id: 'menu', label: 'Main menu', row: 6, dark: true });
   wd.push(moreWidget());
@@ -201,7 +201,7 @@ export function pauseWidgets(state) {
   const st = state.settings;
   return [
     { t: 'h', label: 'Paused', size: 52 },
-    { t: 'btn', id: 'resume', label: 'Resume', primary: true, h: 88 },
+    { t: 'btn', id: 'resume', label: 'Resume', primary: true, gold: true, h: 88 },
     { t: 'btn', id: 'p-rules', label: 'Rules', row: 7 },
     { t: 'btn', id: 'p-howto', label: 'How to Play', row: 7 },
     { t: 'btn', id: 'p-sound', label: st.sound ? 'Sound: On' : 'Sound: Off', row: 8 },

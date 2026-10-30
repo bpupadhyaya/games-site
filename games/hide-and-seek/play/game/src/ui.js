@@ -27,8 +27,8 @@ export function setPress(ptr) {
 }
 const BTN_FILL = {
   disabled: ['#c9cbd2', '#b8bbc5', 'rgba(70,80,100,0.35)'],
-  primary: ['#3fbf8e', '#1f8f68', '#0a4634'],
-  active: ['#f4b840', '#d98a1c', '#6a3f08'],
+  primary: ['#ffd05a', '#e79a1c', '#6a3f08'],
+  active: ['#3a5a94', '#243a6a', 'rgba(255,255,255,0.28)'],
   dark: ['#2f4676', '#1d2c54', 'rgba(255,255,255,0.22)'],
   plain: ['#f8f2e2', '#e2d6b6', 'rgba(40,50,60,0.55)'],
 };
@@ -58,13 +58,13 @@ export function paintButton(ctx, r, o = {}) {
   }
   if (pressed) { roundPath(ctx, r.x, r.y + dy, r.w, r.h, rad); ctx.fillStyle = 'rgba(4,12,26,0.14)'; ctx.fill(); }
   ctx.restore();
-  return { dy, light: primary || active || dark };
+  return { dy, light: (active || dark) && !primary };
 }
 export function drawButton(ctx, r, label, opts = {}) {
   const { disabled = false, sub = null, size = 28, icon = null } = opts;
   const { dy, light } = paintButton(ctx, r, opts);
   ctx.save();
-  ctx.fillStyle = disabled ? 'rgba(40,46,64,0.55)' : light ? '#ffffff' : C.ink;
+  ctx.fillStyle = disabled ? 'rgba(40,46,64,0.55)' : light ? '#ffffff' : opts.primary ? '#3a2204' : C.ink;
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   let px = sub ? Math.round(size * 0.9) : size;
   const maxW = r.w - (icon ? 84 : 24);
@@ -211,7 +211,7 @@ function drawButtonRect(ctx, r, it, wd) {
   const { disabled = false } = wd;
   const { dy, light } = paintButton(ctx, r, wd);
   ctx.save();
-  ctx.fillStyle = disabled ? 'rgba(40,46,64,0.55)' : light ? '#ffffff' : C.ink;
+  ctx.fillStyle = disabled ? 'rgba(40,46,64,0.55)' : light ? '#ffffff' : wd.primary ? '#3a2204' : C.ink;
   ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
   ctx.font = `700 ${it.fs}px ${FONT}`;
   const subLines = wd.sub ? (() => { ctx.font = `400 ${subSz(it.fs)}px ${FONT}`; const l = wrapLines(ctx, wd.sub, r.w - 28); ctx.font = `700 ${it.fs}px ${FONT}`; return l; })() : [];

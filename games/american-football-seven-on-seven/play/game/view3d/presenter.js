@@ -99,7 +99,7 @@ export async function createPresenter({ kitCanvas, quality }) {
   let CAM = CAMS.portrait;
   let cssW = 0, cssH = 0, scaleV = 1, fitKey = '', laidOut = null, sizeKey = '';
   const MAX_PIXELS = 3e6;
-  function layout(viewRect) {
+  function layout(viewRect, clipRect) {
     const r = kitCanvas.getBoundingClientRect();
     const cw = r.width || globalThis.innerWidth, ch = r.height || globalThis.innerHeight;
     const vw = LY.w, vh = LY.h;
@@ -115,24 +115,31 @@ export async function createPresenter({ kitCanvas, quality }) {
     scaleV = Math.min(cw / vw, ch / vh);
     const ox = (cw - vw * scaleV) / 2, oy = (ch - vh * scaleV) / 2;
     canvas.style.clipPath = `inset(${Math.max(0, oy)}px ${Math.max(0, ox)}px ${Math.max(0, oy)}px ${Math.max(0, ox)}px)`;
+    if (clipRect) { const t = Math.max(0, oy + viewRect.y * scaleV), l = Math.max(0, ox + viewRect.x * scaleV), b = Math.max(0, ch - (oy + (viewRect.y + viewRect.h) * scaleV)), r = Math.max(0, cw - (ox + (viewRect.x + viewRect.w) * scaleV)); canvas.style.clipPath = `inset(${t}px ${r}px ${b}px ${l}px)`; }
     laidOut = { cw, ch, rx: ox + viewRect.x * scaleV, ry: oy + viewRect.y * scaleV, rw: viewRect.w * scaleV, rh: viewRect.h * scaleV, ox, oy };
     return laidOut;
   }
   // choose the fov that just fits every field corner (and the goal posts) inside the region, then show the region inside the full canvas with a view offset
-  function fitCamera(L) {
+  function fitCamera(L, title) {
     CAM = LY.land ? CAMS.landscape : CAMS.portrait;
+    if (title) {
+      // the title picture: a closer three-quarter view of the formation at the line of scrimmage, behind the blue offence (the stands and the far goal posts stay in view)
+      const lz = title.losZ * YD;
+      const hero = title.mode === 'title';
+      CAM = { title: true, h: QP('th', hero ? 18 : 24), back: QP('tb', hero ? 15 : 12), px: hero ? QP('tx', 5) : 0, look: lz + QP('tl', hero ? 11 : 6) * YD, lz, z0: title.losZ - QP('tz0', 8), z1: title.losZ + QP('tz1', 21), hx: QP('thx', 12), fovMargin: QP('tfm', 0.94) };
+    }
     // portrait: the taller the region, the steeper and closer the camera, so a tall phone's field is longer on screen (the original look at region ratio 1.0)
-    if (!LY.land) { const t = Math.max(0, Math.min(1, (L.rh / L.rw - 1.0) / 0.7)); CAM = { ...CAMS.portrait, h: CAMS.portrait.h + 16 * t, back: CAMS.portrait.back - 9 * t }; }
-    const key = `${L.cw}x${L.ch}:${Math.round(L.rx)},${Math.round(L.ry)},${Math.round(L.rw)},${Math.round(L.rh)}:${LY.land}`;
+    if (!LY.land && !title) { const t = Math.max(0, Math.min(1, (L.rh / L.rw - 1.0) / 0.7)); CAM = { ...CAMS.portrait, h: CAMS.portrait.h + 16 * t, back: CAMS.portrait.back - 9 * t }; }
+    const key = `${L.cw}x${L.ch}:${Math.round(L.rx)},${Math.round(L.ry)},${Math.round(L.rw)},${Math.round(L.rh)}:${LY.land}:${title ? 't' + title.losZ : ''}`;
     if (key === fitKey) return;
     fitKey = key;
     camera.clearViewOffset?.();
     // landscape: a broadcast-style sideline camera, the field runs left to right (Blue attacks to the right); portrait: behind the user's end
-    if (CAM.side) { camera.position.set(-CAM.d, CAM.h, CAM.look); camera.lookAt(0, 0, CAM.look); } else { camera.position.set(0, CAM.h, -CAM.back); camera.lookAt(0, 0, CAM.look); }
+    if (CAM.title) { camera.position.set(CAM.px, CAM.h, CAM.lz - CAM.back); camera.lookAt(0, 0, CAM.look); } else if (CAM.side) { camera.position.set(-CAM.d, CAM.h, CAM.look); camera.lookAt(0, 0, CAM.look); } else { camera.position.set(0, CAM.h, -CAM.back); camera.lookAt(0, 0, CAM.look); }
     camera.updateMatrixWorld(true);
     const aspect = L.rw / L.rh;
     const pts = [];
-    for (const x of [-14, 14]) for (const z of [CAM.z0, CAM.z1]) pts.push(V(x * YD, 0, z * YD));
+    for (const x of CAM.title ? [-CAM.hx, CAM.hx] : [-14, 14]) for (const z of [CAM.z0, CAM.z1]) pts.push(V(x * YD, 0, z * YD));
     let lo = 8, hi = 80, best = 60;
     for (let i = 0; i < 24; i++) {
       const mid = (lo + hi) / 2;
@@ -152,7 +159,7 @@ export async function createPresenter({ kitCanvas, quality }) {
   }
 
   // ---- per frame ---------------------------------------------------------------------------------------------------------------------------------------------
-  let markedP = null, lastE = null, lastP = null, lastSimT = -1, wallAt = 0, animT = 0, seen = 0, shown = false;
+  let markedP = null, lastE = null, lastP = null, lastSimT = -1, wallAt = 0, animT = 0, seen = 0, shown = false, shownTitle = false, titleWall = 0;
     const proj = V();
   const F = { P: null, E: null, alpha: 1, dt: 0, simT: 0, ball: null, ctl: [] };
   const vyAt = (b) => { const f = b.fly; if (!f) return 0; return (f.y1 - f.y0) / f.T; };
@@ -160,20 +167,23 @@ export async function createPresenter({ kitCanvas, quality }) {
 
   function frame(game, ctx) {
     const s = game.getState();
-    const E = s.E;
+    // the formation view: every screen that used to show the flat play diagram (title, Call your play, Watch & Learn) shows this same 3D picture in its slot (state.fv)
+    let E = s.E, isTitle = false;
+    const fv = s.fv && s.fv.rect ? s.fv : null;
+    if (fv && game.formationEngine && ready && !lost) { E = game.formationEngine(fv); isTitle = !!(E && E.P); }
     // the look of the players (men / women) is switched behind the menus, never at the first live frame
     { const want = !!(s.settings && s.settings.women); if (ready && want !== womenLoaded && !loading) loadAll(want).catch(() => { loading = false; }); }
-    const active = s.scene === 'play' && E && ready && !lost && !s.hide3d;
+    const active = (isTitle || (s.scene === 'play' && E && !s.hide3d && !fv)) && ready && !lost;
     if (!active) {
-      if (shown) { canvas.style.visibility = 'hidden'; shown = false; game.setView3d?.(false); }
+      if (shown) { canvas.style.visibility = 'hidden'; shown = false; game.setView3d?.(false); game.setFv3d?.(false); }
       lastSimT = -1;
       return;
     }
     const wantWomen = !!(s.settings && s.settings.women);
     if (wantWomen !== womenLoaded && !loading) loadAll(wantWomen).catch(() => { loading = false; });
-    if (!shown) { canvas.style.visibility = 'visible'; shown = true; game.setView3d?.(true); stage.invalidate(); }
-    const L = layout(s.viewRect || { x: 0, y: 176, w: LY.w, h: 900 });
-    fitCamera(L);
+    if (!shown || shownTitle !== isTitle) { canvas.style.visibility = 'visible'; shown = true; shownTitle = isTitle; game.setView3d?.(!isTitle); game.setFv3d?.(isTitle); stage.invalidate(); }
+    const L = isTitle ? layout(fv.rect, true) : layout(s.viewRect || { x: 0, y: 176, w: LY.w, h: 900 });
+    fitCamera(L, isTitle ? { losZ: E.P.losZ, mode: fv.mode } : null);
     const M = E.m, P = E.P;
     const acts = P ? P.actors : M.actors;
     // sub-step blending: the sim runs in fixed 1/60 s steps, the screen at 60 or 120 Hz
@@ -184,6 +194,7 @@ export async function createPresenter({ kitCanvas, quality }) {
     let dt = animT > 0 ? target - animT : 0;
     if (dt < 0 || dt > 0.25) dt = 0;
     animT = target;
+    if (isTitle) { const w = nowMs(); dt = s.headless || !titleWall ? 0 : Math.min(0.05, (w - titleWall) / 1000); titleWall = w; F.dt = dt; } else titleWall = 0;
     F.P = P || fakePlay(E); F.E = E; F.alpha = alpha; F.dt = dt; F.simT = P ? P.t : E.t; F.ctl = ents.map((e) => e.ctl);
     // a new play or a new engine: forget what the previous one left behind
     if (P !== lastP || E !== lastE) { for (const e of ents) if (!(e.ctl.st.lying)) e.ctl.reset(); seen = 0; lastP = P; lastE = E; animT = target; dt = 0; F.dt = 0; }
@@ -213,9 +224,9 @@ export async function createPresenter({ kitCanvas, quality }) {
     if (P && P !== markedP) { markedP = P; field.userData.setMarks(P.kick ? null : P.losZ, P.kick || P.try ? null : (P.dir > 0 ? (P.losZ + Math.min(P.toGo, 40) < 46 ? P.losZ + Math.min(P.toGo, 40) : null) : (P.losZ - Math.min(P.toGo, 40) > 6 ? P.losZ - Math.min(P.toGo, 40) : null))); }
     else if (!P && markedP) { markedP = null; }
     camera.updateMatrixWorld(true);
-    stage.setShadowTarget(0, 0, 26 * YD);
+    stage.setShadowTarget(0, 0, (isTitle ? P.losZ : 26) * YD);
     stage.render();
-    overlay(game, ctx, acts);
+    if (!isTitle) overlay(game, ctx, acts); else formationOverlay(game, ctx, fv, E.P);
   }
 
   // screen position of a point, in the game's virtual units (for the 2D markers and tags)
@@ -223,6 +234,14 @@ export async function createPresenter({ kitCanvas, quality }) {
     proj.set(wx, wy, wz).project(camera);
     return { x: (((proj.x * 0.5 + 0.5) * laidOut.cw) - laidOut.ox) / scaleV, y: (((-proj.y * 0.5 + 0.5) * laidOut.ch) - laidOut.oy) / scaleV, z: proj.z };
   };
+  // the play-call / Watch & Learn picture: position tags and the routes are drawn on top by the game (menus.js), from ground points projected here
+  function formationOverlay(game, ctx, fv, P) {
+    if (!ctx || !game.drawFormationOverlay || !laidOut || fv.mode === 'title') return;
+    const ground = (u, v) => { const f = P.fieldPt(u, v), w = toWorld(f.x, f.z); return toScreen(w.x, 0.04, w.z); };
+    const pt = (u, v) => { const a = ground(u, v), b = ground(u + 1, v); return { x: a.x, y: a.y, s: Math.abs(a.y - b.y) }; };
+    const head = (id) => { const e = ents[id]; if (!e) return null; const hp = e.h.bonePosition('Head', proj); return toScreen(hp.x, hp.y + 0.3, hp.z); };
+    game.drawFormationOverlay(ctx, { pt, head, ids: P.actors.map((a) => ({ id: a.id, slot: a.slot, off: a.unit === 'off', team: a.team })) });
+  }
   function overlay(game, ctx, acts) {
     if (!ctx || !game.drawOverlay || !laidOut) return;
     const pos = (id) => { const e = ents[id]; if (!e) return null; const hp = e.h.bonePosition('Head', proj); return toScreen(hp.x, hp.y + 0.34, hp.z); };

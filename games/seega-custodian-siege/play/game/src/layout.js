@@ -92,7 +92,7 @@ export function setSize(w, h) {
     const langW = (U.x1 - 24 - leftX - 12) / 2, ly = U.y0 + 20;
     set(LANG_EN, leftX, ly, langW, 64); set(LANG_AR, leftX + langW + 12, ly, langW, 64);
     // art block: local y 90..732 (title, board). Scaled down on short screens so the menu keeps >= 540 units.
-    const lw = Math.min(260, U.w - 80), lh = lw * 327 / 1200, top = U.y0 + 90, lockY = h - host.b - 10 - lh, creditY = lockY + 40, minMenu = 540;
+    const lw = Math.min(260, U.w - 80), lh = lw * 327 / 1200, top = U.y0 + 90, lockY = h - host.b - 10 - lh, creditY = lockY + 40, minMenu = 400;
     const s = clamp((creditY - 36 - top - minMenu - 28) / 642, 0.48, 1);
     Object.assign(TITLE, { cx: 360, top, s, creditX: 360, creditY, land: false, lock: { x: w / 2 - lw / 2, y: lockY, w: lw, h: lh } });
     const my = top + 642 * s + 28;

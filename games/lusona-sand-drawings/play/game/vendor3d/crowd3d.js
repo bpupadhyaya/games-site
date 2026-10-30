@@ -203,10 +203,10 @@ function makeBuilder() {
 }
 
 /** The merged person. level: 'near' | 'mid' | 'far' picks segment counts and which small details exist. */
-function buildPersonGeometry(level, seg) {
+function buildPersonGeometry(level, seg, natural = false) {
   const b = makeBuilder();
   const near = level === 'near', far = level === 'far';
-  const S = seg, S2 = Math.max(5, Math.round(seg * 0.7));
+  const S = seg, S2 = natural || !far ? seg : Math.max(5, Math.round(seg * 0.7));   // 1.13.0: limbs are round at near/mid in every look (prism arms read blocky)   // natural look: limbs as round as the trunk (no prism arms)
   // torso (top)
   b.tube([
     { y: 0.84, rx: 0.150, rz: 0.098 }, { y: 0.97, rx: 0.146, rz: 0.090 }, { y: 1.09, rx: 0.158, rz: 0.098 },
@@ -234,11 +234,15 @@ function buildPersonGeometry(level, seg) {
     b.tube([{ y: 1.12, rx: 0.042, rz: 0.044 }, { y: 1.26, rx: 0.048, rz: 0.050 }, { y: 1.39, rx: 0.056, rz: 0.058 }], far ? 4 : S2, { joint: jU, mat: 2, ox: x });
     b.tube([{ y: 0.87, rx: 0.031, rz: 0.034 }, { y: 1.0, rx: 0.037, rz: 0.040 }, { y: 1.12, rx: 0.043, rz: 0.044 }], far ? 4 : S2, { joint: jF, mat: 11, ox: x });
     if (!far) b.ellipsoid(0, 0.81, 0.005, 0.032, 0.062, 0.02, 6, 4, { joint: jF, mat: 0, ox: x });
+    // 1.13.0 round joints: deltoid cap over the shoulder (the trunk meets a ball, not a prism end) and an elbow ball (no kink / gap when bent)
+    if (!far) b.ellipsoid(0, 1.36, 0, 0.056, 0.052, 0.055, S2, 5, { joint: jU, mat: 2, ox: x - side * 0.012 });
+    if (!far) b.ellipsoid(0, 1.12, 0, 0.043, 0.043, 0.045, S2, 4, { joint: jF, mat: 11, ox: x });
   }
   // legs: thigh (bottom), calf (bottom or skin), shoe
   for (const [side, jT, jC] of [[1, 6, 8], [-1, 7, 9]]) {
     const x = side * 0.088;
     b.tube([{ y: 0.46, rx: 0.060, rz: 0.066 }, { y: 0.68, rx: 0.075, rz: 0.082 }, { y: 0.91, rx: 0.085, rz: 0.090 }], far ? 4 : S2, { joint: jT, mat: 3, ox: x });
+    if (!far) b.ellipsoid(0, 0.475, 0.004, 0.064, 0.056, 0.068, S2, 4, { joint: jC, mat: 12, ox: x });   // knee ball
     b.tube([{ y: 0.09, rx: 0.040, rz: 0.044 }, { y: 0.26, rx: 0.052, rz: 0.058, cz: -0.006 }, { y: 0.48, rx: 0.062, rz: 0.066 }], far ? 4 : S2, { joint: jC, mat: 12, ox: x });
     b.tube([{ y: 0.0, rx: 0.046, rz: 0.115, cz: 0.045 }, { y: 0.05, rx: 0.048, rz: 0.115, cz: 0.045 }, { y: 0.095, rx: 0.042, rz: 0.06, cz: 0.0 }], far ? 4 : S2, { joint: jC, mat: 4, ox: x });
   }
@@ -460,6 +464,33 @@ void setupPose(){
     gFlL = -0.32*sin(w); gFlR = 0.32*sin(w); gElL = 0.2; gElR = 0.2;
     gBob = abs(sin(w))*0.03; gSway = 0.0;
   }
+#ifdef CROWD_NATURAL
+  {
+    // every person carries a personal posture (slouch, lean, head tilt, weight on one leg) and, when idle, one of a few rest poses
+    float h1 = fract(sin(ph*12.9898)*43758.5453), h2 = fract(sin(ph*78.233)*24634.63), h3 = fract(sin(ph*39.425)*11317.1);
+    gLean += mix(0.01, 0.08, h1) + gSeat*mix(0.05, 0.16, h2);
+    gSway += (h2 - 0.5)*0.07;
+    gNod += (h3 - 0.5)*0.16 + gSeat*0.05;
+    gTwist += 0.28*sin(t*0.17*sp + ph*3.1)*step(0.45, h2);          // now and then look along the stand
+    gBob += 0.003*sin(t*1.5*sp + ph);                              // breathing
+    if (idle < 1.5) {
+      float pose = floor(h3*5.0);
+      if (gSeat > 0.5) {
+        if (pose < 1.0)      { gFlL = 0.75; gFlR = 0.75; gElL = 0.75; gElR = 0.75; gAbL = -0.16; gAbR = -0.16; }     // hands in the lap
+        else if (pose < 2.0) { gFlL = 0.55; gFlR = 0.55; gElL = 0.55; gElR = 0.55; gAbL = 0.04; gAbR = 0.04; gLean += 0.12; }  // forearms on the knees
+        else if (pose < 3.0) { gFlL = 0.6; gElL = 1.45; gAbL = -0.34; gFlR = 0.55; gElR = 1.55; gAbR = -0.34; }      // arms folded
+        else if (pose < 4.0) { gFlR = 0.8; gElR = 0.7; gAbR = -0.12; gFlL = 0.15; gAbL = 0.2; gElL = 0.35; gSway += 0.04; }  // one hand on the knee
+        else { gFlL = 0.7; gElL = 1.9; gAbL = -0.2; gNod += 0.12; gTwist *= 0.4; }                                 // chin on the hand
+        gElL += 0.04*sin(t*0.6*sp + ph); gElR += 0.04*sin(t*0.55*sp + ph + 2.0);
+      } else {
+        if (pose < 1.0)      { gFlL = 0.6; gElL = 1.45; gAbL = -0.34; gFlR = 0.55; gElR = 1.55; gAbR = -0.34; }      // arms folded
+        else if (pose < 2.0) { gFlL = -0.12; gFlR = -0.12; gElL = 0.45; gElR = 0.45; gAbL = 0.06; gAbR = 0.06; }     // hands clasped behind
+        else if (pose < 3.0) { gFlR = 0.35; gElR = 1.1; gAbR = -0.15; gFlL = 0.05; gElL = 0.3; }                      // one hand at the chest
+        else { gElL = 0.32 + 0.05*sin(t*0.5+ph); gElR = 0.3; gAbL = 0.06; gAbR = 0.07; }                             // relaxed, elbows soft
+      }
+    }
+  }
+#endif
   // reactions (type, start, duration, amplitude), staggered by the CPU
   float ru = (t - iR.y)/max(iR.z, 0.001);
   float env = (ru > 0.0 && ru < 1.0) ? min(1.0, sin(3.14159*ru)*1.8) : 0.0;
@@ -555,6 +586,9 @@ else if (M < 11.5) { col = mix(skin, top, 1.0-shortSleeve); vCloth = 1.0-shortSl
 else if (M < 12.5) { col = mix(bottom, skin, shorts); vCloth = 1.0-shorts; }
 else col = vec3(0.12,0.08,0.05);
 if (M > 13.5) col = vec3(0.13,0.09,0.05);
+#ifdef CROWD_NATURAL
+if (vCloth > 0.5 || (M > 4.5 && M < 6.5)) { float cl = dot(col, vec3(0.2126, 0.7152, 0.0722)); col = mix(vec3(cl), col, 0.66) * 0.9; }   // real fabrics: less toy-saturated
+#endif
 vCol = col; vMat = M; vHair = hair; vFace = iCol1.w; vPat = iL.y;
 vP = position;
 vec3 q = position; vec3 nn = objectNormal;
@@ -584,17 +618,18 @@ gTransformedPos = q;
 objectNormal = normalize(nn);
 `;
 
-function patchMaterial(mat, uniforms) {
+function patchMaterial(mat, uniforms, natural = false) {
   mat.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, uniforms);
+    const def = natural ? '#define CROWD_NATURAL\n' : '';
     shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', `#include <common>\n${GLSL_COMMON}\nvec3 gTransformedPos;`)
+      .replace('#include <common>', `#include <common>\n${def}${GLSL_COMMON}\nvec3 gTransformedPos;`)
       .replace('#include <beginnormal_vertex>', `#include <beginnormal_vertex>\n${GLSL_VERT_MAIN}`)
       .replace('#include <begin_vertex>', '#include <begin_vertex>\ntransformed = gTransformedPos;')
       .replace('#include <project_vertex>', '#include <project_vertex>\nif (dot(gTransformedPos, gTransformedPos) == 0.0) gl_Position = vec4(2.0, 2.0, 2.0, 1.0);');
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', `#include <common>
-uniform sampler2D uFace; uniform sampler2D uMask; uniform sampler2D uFab; uniform float uFaceOn;
+${def}uniform sampler2D uFace; uniform sampler2D uMask; uniform sampler2D uFab; uniform float uFaceOn;
 varying vec3 vCol; varying vec3 vP; varying float vMat; varying float vFace; varying float vPat; varying float vCloth; varying vec3 vHair; varying vec3 vEmit; varying vec3 vFlag;`)
       .replace('#include <color_fragment>', `#include <color_fragment>
 {
@@ -630,11 +665,17 @@ varying vec3 vCol; varying vec3 vP; varying float vMat; varying float vFace; var
   }
   // hem trim on long garments, belly shade low on the body
   if (m > 1.5 && m < 2.5 && vP.y < 0.62 && vP.y > 0.3) c = mix(c, c*0.55+vec3(0.05,0.03,0.0), smoothstep(0.52, 0.4, vP.y));
+#ifdef CROWD_NATURAL
+  // soft occlusion: legs and feet sit in the shade of the body and the bench, the trunk's flanks under the arms are darker
+  c *= mix(0.68, 1.0, smoothstep(0.02, 0.75, vP.y));
+  if (vP.y > 0.85 && vP.y < 1.38) c *= 1.0 - 0.16*smoothstep(0.11, 0.19, abs(vP.x))*step(abs(vP.x), 0.205);
+  if (m < 0.5 || (m > 12.5 && m < 13.5)) c *= vec3(1.04, 0.99, 0.95);   // skin: a touch of warmth (light scattered under the skin)
+#endif
   diffuseColor.rgb = c;
 }`)
       .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += vEmit;');
   };
-  mat.customProgramCacheKey = () => 'crowd3d-v1';
+  mat.customProgramCacheKey = () => (natural ? 'crowd3d-v1-natural' : 'crowd3d-v1');
 }
 
 // ------------------------------------------------------------------------------------------------ the crowd
@@ -799,15 +840,18 @@ export function createCrowd(stageOrScene, opts = {}) {
   const N = people.length;
 
   // ---------------- GPU resources
+  // look: 'classic' (default, unchanged since 1.8.0) | 'natural' (1.12.0 opt-in: round limbs, personal posture + rest poses, look-around,
+  // muted fabrics, soft height occlusion; same draw calls, ~+35% near / +20% mid triangles)
+  const NATURAL = opts.look === 'natural';
   const tex = makeFaceTextures(); const fab = makeFabricTexture();
   const timeU = { value: 0 }, exciteU = { value: opts.excitement || 0 };
   const uniforms = { uTime: timeU, uExcite: exciteU, uFace: { value: tex.face }, uMask: { value: tex.mask }, uFab: { value: fab }, uFaceOn: { value: Q.face ? 1 : 0 } };
   const material = new THREE.MeshLambertMaterial({ color: 0xffffff });
-  patchMaterial(material, uniforms);
+  patchMaterial(material, uniforms, NATURAL);
   const IBA = new THREE.InstancedMesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial(), 1).instanceMatrix.constructor;
 
   function makeLevel(level, seg) {
-    const g = level === 'far' ? buildPersonGeometry('far', seg) : buildPersonGeometry(level, seg);
+    const g = level === 'far' ? buildPersonGeometry('far', seg, NATURAL) : buildPersonGeometry(level, NATURAL && level === 'near' ? seg + 3 : seg, NATURAL);
     if (level !== 'far') addFlagCloth(g);
     const bufs = {};
     for (const name of ['iCol0', 'iCol1', 'iK', 'iL', 'iM', 'iR']) {

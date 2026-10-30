@@ -4,7 +4,7 @@
   "tagline": "Sandwich the enemy. Nine by nine. Japan's rook-slide capture game.",
   "genre": "Japanese custodian-capture board game",
   "orientation": "any",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "monetization": {
     "model": "premium",
     "priceUsd": 2.99,

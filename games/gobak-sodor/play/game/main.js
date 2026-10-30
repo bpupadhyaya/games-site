@@ -1,7 +1,7 @@
 import { boot } from './kit/index.js';
 import { createGame, meta, wheelInput } from './src/game.js';
 import { host } from './src/layout.js';
-import { setLogo, setLockup } from './src/brand.js';
+import { setLogo, setLockup, setHero } from './src/brand.js';
 import { createPresenter } from './view3d/presenter.js';
 import { createLazy3d } from './lazy3d.js';
 
@@ -33,6 +33,7 @@ const create = async (env) => { const game = await createGame(env); if (env.conf
 
 // The Arcforge badge and lockup (see src/brand.js): optional, the title screen still reads without them.
 const af = new Image(); af.onload = () => setLogo(af); af.src = './brand/arcforge-af.png';
+const hr = new Image(); hr.onload = () => setHero(hr); hr.src = './brand/hero.jpg';
 const lk = new Image(); lk.onload = () => setLockup(lk); lk.src = './brand/arcforge-lockup.png';
 
 boot({ createGame: create, meta, canvas, background: lazy.background });

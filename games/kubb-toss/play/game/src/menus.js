@@ -9,7 +9,7 @@ import { SIZES } from './engine.js';
 import { LOFTS, SPINS, FIELD, KUBB, KING } from './phys.js';
 import { ABOUT, HOWTO, RULES, LESSONS } from './content.js';
 import { drawScene, sideName } from './view.js';
-import { TEAM, TAU } from './scene.js';
+import { TEAM, TAU, v3alpha } from './scene.js';
 
 // ---- flow screens ------------------------------------------------------------------------------------------------------------
 let LAID = { key: '', lay: null, top: 0, bottom: H };
@@ -330,7 +330,7 @@ export function renderTitle(ctx, state) {
   const P = titleParams(state), g = geomFor('title', state);
   if (P.wide) {
     // left: the lawn in a window; right: a quiet panel with the title and the buttons
-    ctx.fillStyle = '#0a120a'; ctx.fillRect(0, 0, W, H);
+    ctx.save(); ctx.globalAlpha = v3alpha(); ctx.fillStyle = '#0a120a'; ctx.fillRect(0, 0, W, H); ctx.restore();
     ctx.save(); ctx.beginPath(); ctx.rect(0, 0, P.cut, H); ctx.clip();
     drawAttract(ctx, state, P.cut / 2);
     const sg = ctx.createLinearGradient(0, H - 160, 0, H); sg.addColorStop(0, 'rgba(4,12,6,0)'); sg.addColorStop(1, 'rgba(4,12,6,0.7)'); ctx.fillStyle = sg; ctx.fillRect(0, H - 160, P.cut, 160);

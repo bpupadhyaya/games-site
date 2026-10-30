@@ -2,6 +2,7 @@ import { boot } from './kit/index.js';
 import { createGame, meta, wheelInput } from './src/game.js';
 import { host } from './src/layout.js';
 import { setLogo } from './src/brand.js';
+import { v3 } from './src/v3.js';
 
 const canvas = document.getElementById('game');
 // Host safe areas (notch, home indicator) and the floating back button: the shell publishes window.__safeInsets in CSS px.
@@ -40,7 +41,33 @@ const create = async (env) => {
     if (q.has('after')) d.script(q.get('after'), Number(q.get('k') || 4));
     if (q.has('shot')) { S.sceneT = 5; S.t = 1.3; }
   }
-  return game;
+  inner = wrapGame(game);
+  return inner;
 };
 const af = new Image(); af.onload = () => setLogo(af); af.src = './brand/arcforge-af.png';
-boot({ createGame: create, meta, canvas, background: '#1d0b0e' });
+
+// 3D presenter (a carved oak box, turning tiles and a dice tray on a tavern table, behind the kit canvas). The game boots at once on the flat
+// 2D art; three.js is fetched and the scene built after that, then crossfades in. No WebGL or a lost context: the flat art stays.
+let presenter = null, inner = null;
+const bg = { toString: () => (v3.on ? 'rgba(0,0,0,0)' : '#1d0b0e') };     // read by the kit every frame, so the switch is instant
+function wrapGame(g) {
+  return Object.assign(Object.create(g), g, {
+    render(ctx, view) {
+      if (v3.on && presenter) {
+        ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height); ctx.restore();   // the kit's fill is transparent now
+        presenter.pre();
+      }
+      g.render(ctx, view);
+      if (v3.on && presenter) presenter.post();
+    },
+  });
+}
+boot({ createGame: create, meta, canvas, background: bg });
+{
+  const start = () => import('./view3d/presenter.js').then((m) => m.createPresenter({ kitCanvas: canvas })).then((p) => {
+    if (!p.ok) return;
+    const go = () => { if (!inner) return setTimeout(go, 30); presenter = p; p.attach(inner); };
+    go();
+  }).catch((e) => console.warn('3D presenter unavailable; flat art stays', e));
+  requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(start, 30)));   // let the flat title paint and become interactive first
+}

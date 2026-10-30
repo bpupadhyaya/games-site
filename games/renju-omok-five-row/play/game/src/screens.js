@@ -1,20 +1,30 @@
 // Every screen except the board itself: title, setup, settings, readers (About / How to Play / Rules), Learn, result, demo limit.
 import { MODES, MODE_IDS, OPENINGS } from './rules.js';
-import { drawTable, drawBoard, drawStone, WOODS, WOOD_IDS, STONES, STONE_IDS, boardGeom, glow } from './art.js';
+import { drawTable, drawBoard, drawBowl, drawStone, WOODS, WOOD_IDS, STONES, STONE_IDS, boardGeom, glow } from './art.js';
 import { TEXT_SCALES, THINK_STEPS, clamp, R } from './layout.js';
 import { LEVELS } from './engine.js';
 import { ABOUT, HOWTO, RULES, LESSONS } from './content.js';
 import { drawCredit, drawMoreLine, edgeStroke } from './brand.js';
 import { ui, text, para, wrap, panel, button, segmented, scrollZone, roundRect, COL, DISPLAY, SANS, TAU, minUnits, addHit, toggleIcon } from './ui.js';
 import { drawDiagram, diagramSize } from './view.js';
+import { v3, flatAlpha } from './v3.js';
+
+// the table behind every screen (with the 3D scene on, the WebGL table shows through instead)
+const table = (ctx, L, state) => { const fa = flatAlpha(); if (fa <= 0) return; ctx.save(); ctx.globalAlpha *= fa; drawTable(ctx, L.w, L.h, state.set.wood); ctx.restore(); };
 
 const ts = (s) => TEXT_SCALES[s.set.ts] ?? 1;
 const COACH_NAMES = ['Off', 'Alerts', 'Full'];
 
 // ---- title ---------------------------------------------------------------------------------------------------------------------------
-const SHOW = [[7, 7], [6, 6], [8, 8], [9, 9], [7, 8], [8, 7], [9, 8], [5, 9], [6, 8], [8, 6], [10, 8]];
+export const SHOW = [[7, 7], [6, 6], [8, 8], [9, 9], [7, 8], [8, 7], [9, 8], [5, 9], [6, 8], [8, 6], [10, 8]];
 function showcase(ctx, state, r) {
-  const S = Math.min(r.w, r.h), x = r.x + (r.w - S) / 2, y = r.y + (r.h - S) / 2, n = 15, geo = boardGeom(n);
+  v3.hero = { x: r.x, y: r.y, w: r.w, h: r.h }; v3.heroT = state.t;          // the 3D presenter builds the same showcase as a lit scene here
+  const fa = flatAlpha(); if (fa <= 0) return;
+  ctx.save(); ctx.globalAlpha *= fa; flatShowcase(ctx, state, r); ctx.restore();
+}
+function flatShowcase(ctx, state, r) {
+  const S = Math.min(r.w * 0.94, r.h / 1.19), x = r.x + (r.w - S) / 2, y = r.y + (r.h - S * 1.19) / 2, n = 15, geo = boardGeom(n);
+  const br = S * 0.115;
   drawBoard(ctx, x, y, S, n, state.set.wood, state.set.coords);
   const cell = S * geo.cell, x0 = x + S * geo.m, rad = cell * 0.465, period = SHOW.length * 0.85 + 4.8, t = state.t % period;
   const shown = Math.min(SHOW.length, Math.floor(t / 0.85) + 1), fade = t > period - 1 ? clamp(1 - (t - (period - 1)), 0, 1) : 1;
@@ -29,16 +39,34 @@ function showcase(ctx, state, r) {
     ctx.strokeStyle = 'rgba(255,236,170,0.95)'; ctx.lineWidth = rad * 0.2; ctx.stroke();
   }
   ctx.restore();
+  const by = y + S + br * 0.55;                                                       // two stone bowls resting on the table below the board
+  drawBowl(ctx, x + S * 0.2, by, br, true, state.set.wood, state.set.stones);
+  drawBowl(ctx, x + S * 0.8, by, br, false, state.set.wood, state.set.stones);
 }
+
+// small line icons for the menu grid (drawn in the button's text colour)
+const ico = (draw) => (ctx, cx, cy, r, fg) => { ctx.save(); ctx.strokeStyle = COL.gold; ctx.fillStyle = COL.gold; ctx.lineWidth = Math.max(2, r * 0.13); ctx.lineCap = 'round'; ctx.lineJoin = 'round'; draw(ctx, cx, cy, r * 0.62); ctx.restore(); };
+const MENU_ICONS = {
+  learn: ico((c, x, y, r) => { c.beginPath(); c.moveTo(x, y - r * 0.55); c.quadraticCurveTo(x - r * 0.5, y - r * 0.85, x - r, y - r * 0.6); c.lineTo(x - r, y + r * 0.7); c.quadraticCurveTo(x - r * 0.5, y + r * 0.45, x, y + r * 0.75); c.quadraticCurveTo(x + r * 0.5, y + r * 0.45, x + r, y + r * 0.7); c.lineTo(x + r, y - r * 0.6); c.quadraticCurveTo(x + r * 0.5, y - r * 0.85, x, y - r * 0.55); c.lineTo(x, y + r * 0.75); c.stroke(); }),
+  auto: ico((c, x, y, r) => { c.beginPath(); c.ellipse(x, y, r, r * 0.58, 0, 0, TAU); c.stroke(); c.beginPath(); c.arc(x, y, r * 0.3, 0, TAU); c.fill(); }),
+  howto: ico((c, x, y, r) => { c.beginPath(); c.arc(x, y, r, 0, TAU); c.stroke(); c.beginPath(); c.moveTo(x - r * 0.3, y - r * 0.45); c.lineTo(x + r * 0.5, y); c.lineTo(x - r * 0.3, y + r * 0.45); c.closePath(); c.fill(); }),
+  rules: ico((c, x, y, r) => { c.beginPath(); c.rect(x - r * 0.7, y - r, r * 1.4, r * 2); c.stroke(); for (const k of [-0.45, 0, 0.45]) { c.beginPath(); c.moveTo(x - r * 0.4, y + k * r); c.lineTo(x + r * 0.4, y + k * r); c.stroke(); } }),
+  about: ico((c, x, y, r) => { c.beginPath(); c.arc(x, y, r, 0, TAU); c.stroke(); c.beginPath(); c.moveTo(x, y - r * 0.05); c.lineTo(x, y + r * 0.5); c.stroke(); c.beginPath(); c.arc(x, y - r * 0.42, r * 0.12, 0, TAU); c.fill(); }),
+  settings: ico((c, x, y, r) => { for (let k = 0; k < 8; k++) { const a = (k / 8) * TAU; c.beginPath(); c.moveTo(x + Math.cos(a) * r * 0.62, y + Math.sin(a) * r * 0.62); c.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r); c.stroke(); } c.beginPath(); c.arc(x, y, r * 0.6, 0, TAU); c.stroke(); c.beginPath(); c.arc(x, y, r * 0.22, 0, TAU); c.stroke(); }),
+};
+// gilded title lettering: ivory at the top of the glyphs warming to old gold at the baseline
+const titleGold = (ctx, base, sz) => { const g = ctx.createLinearGradient(0, base - sz * 0.78, 0, base + sz * 0.08); g.addColorStop(0, '#fff7df'); g.addColorStop(0.5, '#f2d792'); g.addColorStop(1, '#c4933c'); return g; };
 export function renderTitle(ctx, state, L) {
-  drawTable(ctx, L.w, L.h, state.set.wood);
+  table(ctx, L, state);
   const M = L.menu, U = L.U;
   const card = { ...M.card }; card.h -= 54;
   // hero: title text + the attract board
   const hero = M.hero, titleH = clamp(hero.h * 0.26, 100, 200);
   const cx = hero.x + hero.w / 2;
   const tsz = clamp(Math.min(hero.w / 6.1, titleH * 0.5), 44, 110);
-  text(ctx, 'Five in a Row', cx, hero.y + tsz * 0.95, tsz, '#f3e6c4', { font: DISPLAY, weight: 700, maxW: hero.w - 20 });
+  text(ctx, 'Five in a Row', cx + tsz * 0.025, hero.y + tsz * 0.95 + tsz * 0.045, tsz, 'rgba(0,0,0,0.55)', { font: DISPLAY, weight: 700, maxW: hero.w - 20 });     // engraved drop shadow under the lettering
+  text(ctx, 'Five in a Row', cx, hero.y + tsz * 0.95 - Math.max(1, tsz * 0.012), tsz, 'rgba(255,248,228,0.55)', { font: DISPLAY, weight: 700, maxW: hero.w - 20 });   // lit upper edge of the gilded lettering
+  text(ctx, 'Five in a Row', cx, hero.y + tsz * 0.95, tsz, titleGold(ctx, hero.y + tsz * 0.95, tsz), { font: DISPLAY, weight: 700, maxW: hero.w - 20 });
   const sub = 'RENJU  ·  OMOK  ·  GOMOKU';
   ctx.save(); ctx.font = `700 ${clamp(tsz * 0.27, 16, 30)}px ${SANS}`; ctx.textAlign = 'center'; ctx.fillStyle = COL.gold;
   const sz = clamp(tsz * 0.27, minUnits(), 30), sp = sz * 0.28; ctx.font = `700 ${sz}px ${SANS}`; let w = [...sub].reduce((s, ch) => s + ctx.measureText(ch).width + sp, -sp), sx = cx - w / 2; ctx.textAlign = 'left';
@@ -56,7 +84,7 @@ export function renderTitle(ctx, state, L) {
   const total = nr * bh + (nr - 1) * gap, y0 = card.y + (card.h - total) / 2;
   rows.forEach((row, i) => {
     const y = y0 + i * (bh + gap), w2 = (card.w - pad * 2 - gap * (row.length - 1)) / row.length;
-    row.forEach((id, j) => button(ctx, R(card.x + pad + j * (w2 + gap), y, w2, bh), names[id], id, { kind: id === 'play' || id === 'continue' ? 'primary' : 'normal', size: Math.min(bh * 0.4, row.length > 1 ? 30 : 36) }));
+    row.forEach((id, j) => button(ctx, R(card.x + pad + j * (w2 + gap), y, w2, bh), names[id], id, { kind: id === 'play' || id === 'continue' ? 'primary' : 'normal', size: Math.min(bh * 0.4, row.length > 1 ? 30 : 36), icon: row.length > 1 && w2 > 190 ? MENU_ICONS[id] : null }));
   });
   // Arcforge credit, small, bottom centre under the menu; tapping it opens the Arcforge home
   const ly = card.y + card.h + 38;
@@ -66,7 +94,7 @@ export function renderTitle(ctx, state, L) {
 
 // ---- setup -----------------------------------------------------------------------------------------------------------------------------
 function pageArt(ctx, state, L) {
-  drawTable(ctx, L.w, L.h, state.set.wood);
+  table(ctx, L, state);
   const a = L.page.art; if (!a || a.w < 240) return;
   const tsz = clamp(Math.min(a.w / 6.4, 84), 36, 84);
   text(ctx, 'Five in a Row', a.x + a.w / 2, a.y + a.h * 0.5 - Math.min(a.w, a.h * 0.62) / 2 - 8, tsz, '#f3e6c4', { font: DISPLAY, weight: 700, maxW: a.w - 20 });
@@ -79,7 +107,7 @@ function blockPage(ctx, state, L, key, title, left, right, nav) {
   const two = L.split && L.U.w >= 900;
   const P = L.page, pr = two ? R(L.U.x0 + L.pad + 4, P.panel.y, Math.min(L.U.w - 2 * L.pad - 8, 1240), P.panel.h) : P.panel;
   if (two) pr.x = L.U.x0 + (L.U.w - pr.w) / 2;
-  if (!two) pageArt(ctx, state, L); else drawTable(ctx, L.w, L.h, state.set.wood);
+  if (!two) pageArt(ctx, state, L); else table(ctx, L, state);
   panel(ctx, pr, { radius: 26, brand: true });
   text(ctx, title, pr.x + pr.w / 2, pr.y + 56, 46, '#f3e6c4', { font: DISPLAY, weight: 700, maxW: pr.w - 40 });
   const body = R(pr.x + 24, pr.y + 80, pr.w - 48, pr.h - 96);

@@ -59,7 +59,7 @@ function build(w, h, ins, flip) {
     const top0 = Math.max(ins.t + 6, backRes ? ins.t + backRes : 0);
     const free = barY - G - top0 - bh - msgH - rows * minPlate - (rows + 1) * G;
     // spare height first makes the plates roomier (bigger type and tray), what is left becomes even breathing room around the board
-    const plateH = minPlate + (rows === 2 && free > 0 ? Math.min(free * 0.5, 120) : 0);
+    const plateH = minPlate + (rows === 2 && free > 0 ? Math.min(free * 0.1, 24) : 0);
     const air = Math.max(0, free - (rows === 2 ? 2 * (plateH - minPlate) : 0));
     const gA = air / 5;
     let y = top0 + gA;
@@ -68,6 +68,7 @@ function build(w, h, ins, flip) {
     else { const hw = (pw - G) / 2; L.plateTop = R(pad + 6, y, hw, minPlate); L.plateBot = R(pad + 6 + hw + G, y, hw, minPlate); y += minPlate + G + gA; L.msg = R(pad + 6, y, pw, msgH); y += msgH + 4 + gA * 0.5; }
     board = boardAt(w / 2, y, cell, flip); y += board.h + G + gA * 1.5;
     if (rows === 2) L.plateBot = R(pad + 6, y, pw, plateH);
+    if (rows === 2) { const sy = L.msg.y + L.msg.h; L.stage = R(0, sy, w, L.plateBot.y - sy); }   // the free band the tilted 3D board is centred in
     L.barY = barY;
     const bw = Math.min(210, (w - 60 - 2 * 20) / 3), bx = (w - (3 * bw + 2 * 20)) / 2;
     L.BTN = { menu: R(bx, barY, bw, BH), undo: R(bx + bw + 20, barY, bw, BH), hint: R(bx + 2 * (bw + 20), barY, bw, BH) };
@@ -149,11 +150,12 @@ function buildTitle(L, hasSave) {
   const memo = titleCache.get(L) || {}; titleCache.set(L, memo);
   if (memo[hasSave]) return memo[hasSave];
   const { w, h, U, ins } = L, T = { rows: {}, hero: null, card: null, lockup: null };
-  const names = [hasSave ? ['resume'] : null, ['play'], ['two', 'learn'], ['auto'], ['rules', 'how'], ['about', 'settings']].filter(Boolean);
+  const names = [hasSave ? ['resume'] : null, ['play'], ['two', 'learn'], ['auto', 'rules'], ['how', 'about', 'settings']].filter(Boolean);
   const n = names.length;
   const place = (x0, aw, y0, pitch, bh) => names.forEach((row, i) => {
     const y = y0 + i * pitch;
     if (row.length === 1) T.rows[row[0]] = R(x0, y, aw, bh);
+    else if (row.length === 3) { const u = (aw - 24) / 5, a = 2 * u, c = u; T.rows[row[0]] = R(x0, y, a, bh); T.rows[row[1]] = R(x0 + a + 12, y, a, bh); T.rows[row[2]] = R(x0 + 2 * a + 24, y, c, bh); }
     else { const cw = (aw - 12) / 2; T.rows[row[0]] = R(x0, y, cw, bh); T.rows[row[1]] = R(x0 + cw + 12, y, cw, bh); }
   });
   if (!L.land) {

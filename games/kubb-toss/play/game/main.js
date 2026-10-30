@@ -24,5 +24,21 @@ const af = new Image(); af.onload = () => setLogo(af); af.src = './brand/arcforg
 const lk = new Image(); lk.onload = () => setLockup(lk); lk.src = './brand/arcforge-lockup.png';
 
 // Dev tools only (?dev=1 or the app's Developer toggle): expose the game object for the layout/resize check scripts.
-const create = async (env) => { const game = await createGame({ ...env, clock }); if (env.config.dev) window.__kb = game; return game; };
-boot({ createGame: create, meta, canvas, background: '#0a120a' });
+let isDev = false;
+const create = async (env) => { const game = await createGame({ ...env, clock }); isDev = !!env.config.dev; if (isDev) window.__kb = game; return game; };
+// The lit 3D lawn (view3d/presenter.js) sits behind the transparent kit canvas. The kit boots at once on the 2D lawn; the 3D layer is imported and
+// built only after the first frames (never before boot), then cross-fades in. With no WebGL, a failed import or a lost context the 2D lawn stays.
+let presenter = null;
+const start3d = () => {
+  import('./view3d/presenter.js')
+    .then((m) => m.createPresenter({ kitCanvas: canvas }))
+    .then((p) => { if (p && p.ok) { presenter = p; if (isDev) window.__p3 = p; } })
+    .catch((e) => console.warn('3D lawn unavailable; 2D lawn kept', e));
+};
+boot({
+  createGame: async (env) => {
+    const game = await create(env);
+    return Object.assign({}, game, { render(ctx, view) { ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, canvas.width, canvas.height); ctx.restore(); game.render(ctx, view); if (presenter) presenter.frame(); } });
+  },
+  meta, canvas, background: 'rgba(0,0,0,0)',
+}).then(() => { const go = () => setTimeout(start3d, 350); if (window.requestIdleCallback) requestIdleCallback(go, { timeout: 900 }); else go(); });

@@ -61,7 +61,7 @@ const FIGK = FIG;
 
 // the rider's body on a horse3d horse: tinted barrel-racer kit, quirt in the right hand
 export async function createRider(o = {}) {
-  const h = await loadHuman({ character: o.female === false ? 'athlete_m' : 'athlete_f', kit: { top: o.top, bottoms: o.bottoms || '#2f4a78', socks: o.socks || '#2b1d15', shoes: '#2a1a12' }, skin: o.skin || 'tan', hair: o.hair || 'brown' });
+  const h = await loadHuman({ character: o.female === false ? 'athlete_m' : 'athlete_f', top: 'long', kit: { top: o.top, bottoms: o.bottoms || '#2f4a78', socks: o.socks || '#2b1d15', shoes: '#2a1a12' }, skin: o.skin || 'tan', hair: o.hair || 'brown' });
   h.groundClamp = 'off'; h.footPlanting = false;
   h.root.scale.setScalar(FIG);
   if (o.lod !== undefined) h.setLOD(o.lod);

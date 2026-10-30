@@ -95,6 +95,7 @@ export function fontReady(ctx) {
   return ready;
 }
 const gen = () => (ready ? 1 : 0);
+export const spriteGen = gen;
 export function spriteOf(t, side, rot, label, lang = 'jp') {
   const key = `${gen()}|${t}|${side}|${rot}|${label || ''}|${lang}`;
   let s = cache.get(key);

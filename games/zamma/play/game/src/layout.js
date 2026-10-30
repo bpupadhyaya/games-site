@@ -13,12 +13,13 @@ export const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 // px = css pixels per virtual unit (type never goes below ~11 css px); dpr = device pixel ratio (sprite resolution).
 export const host = { t: 0, r: 0, b: 0, l: 0, back: 0, px: 0.6, dpr: 2 };
 
+import { v3 } from './v3.js';
 export const FRAME = 0.55;
 const THICK = 0.22;                                          // board: frame margin and slab thickness in cells
 const cache = new Map();
 export function layoutFor(w, h, flip = false, n = 5) {
   w = Math.round(w); h = Math.round(h);
-  const key = `${w}x${h}|${Math.round(host.t)},${Math.round(host.r)},${Math.round(host.b)},${Math.round(host.l)},${Math.round(host.back)}|${flip ? 1 : 0}|${n}`;
+  const key = `${w}x${h}|${Math.round(host.t)},${Math.round(host.r)},${Math.round(host.b)},${Math.round(host.l)},${Math.round(host.back)}|${flip ? 1 : 0}|${n}|${v3.on ? 1 : 0}`;
   let L = cache.get(key);
   if (!L) { L = build(w, h, { ...host }, flip, n); L.key = key; cache.set(key, L); if (cache.size > 40) cache.delete(cache.keys().next().value); }
   return L;
@@ -77,12 +78,12 @@ function build(w, h, ins, flip, n) {
     L.layoutKind = rows === 2 ? 'portrait' : 'portrait-duo';
   } else {
     const pad = 12, panelMin = 250, gap = 14;
-    const cellH = (U.h - 2 * pad) / (OUTER + THICK);
+    const cellH = (U.h - 2 * pad) / ((OUTER + THICK) * (v3.on ? 0.86 : 1));   // the tilted 3D board renders about 0.86 as tall as its square rect, so let it grow
     const twoW = (U.w - 2 * panelMin - 4 * gap) / OUTER;
     let two = cellH <= twoW;
     cell = two ? cellH : Math.min(cellH, (U.w - panelMin - 3 * gap - 16) / OUTER);
     cell = Math.max(cell, 30);
-    const bh = (OUTER + THICK) * cell, S = OUTER * cell;
+    const bh = (OUTER + THICK) * cell * (v3.on ? 0.86 : 1), S = OUTER * cell;
     const topB = U.y0 + (U.h - bh) / 2;
     const cardTop = ins.back ? Math.max(U.y0 + pad, L.backBox.y + L.backBox.h + 4) : U.y0 + pad, cardH = U.y1 - pad - cardTop;
     if (two) {

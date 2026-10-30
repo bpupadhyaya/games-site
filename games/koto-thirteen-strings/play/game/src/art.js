@@ -2,6 +2,7 @@
 // plectrum-disc notes, a teacher's fingertip, petals and sparks. Pure canvas 2D; no DOM. Everything is a function of its arguments.
 import { NSTR, GEO, KANJI } from './music.js';
 import { BODY, makeInst } from './layout.js';
+import { flatAlpha } from './v3.js';
 
 export const PAL = {
   ink: '#0d0c1c', night: '#171629', wall: '#1d2036', paper: '#f1e2bc', lacquer: '#c8281f', lacquerHi: '#ff7a58', vermilion: '#e8452c',
@@ -100,9 +101,12 @@ function paintRoom(g, w, h) {
   g.fillStyle = vg; g.fillRect(0, 0, w, h);
 }
 export function drawRoom(ctx, w, h) {
+  const fa = flatAlpha(); if (fa <= 0) return;                          // the 3D room is behind this canvas
   const c = cached(`room${Math.round(w)}x${Math.round(h)}`, 0, 0, w, h, 1, (g) => paintRoom(g, w, h));
+  ctx.save(); ctx.globalAlpha *= fa;
   if (c) ctx.drawImage(c.cv, 0, 0, w, h);
   else { ctx.fillStyle = '#1d2036'; ctx.fillRect(0, 0, w, h); }
+  ctx.restore();
 }
 
 // ---- the instrument body ----------------------------------------------------------------------------------------------------------------------
@@ -189,12 +193,17 @@ export function drawStrings(ctx, inst, ss, bu, o = {}) {
       const N = amp > 0.4 ? 22 : 1;
       for (let i = 1; i <= N; i++) { const x = xb + ((xn - xb) * i) / N, k = (i / N); ctx.lineTo(x + dx, ly + dy + (N > 1 ? Math.sin(Math.PI * k) * amp * Math.cos(ph) : 0)); }
     };
-    ctx.strokeStyle = 'rgba(40,24,6,0.38)'; ctx.lineWidth = th + 1.5; path(th * 0.9 + 1.5); ctx.stroke();
+    const fl = o.flat ?? 1;
+    if (fl > 0) { ctx.globalAlpha = fl; ctx.strokeStyle = 'rgba(40,24,6,0.38)'; ctx.lineWidth = th + 1.5; path(th * 0.9 + 1.5); ctx.stroke(); ctx.globalAlpha = 1; }
     if ((st.glow ?? 0) > 0.02 || soft) {
-      ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = `rgba(255,214,140,${0.1 + 0.4 * (st.glow ?? 0) + (soft ? 0.14 : 0)})`; ctx.lineWidth = th * 4.2; path(0); ctx.stroke(); ctx.restore();
+      ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = `rgba(255,214,140,${0.1 + 0.4 * (st.glow ?? 0) + (soft ? 0.14 : 0)})`; ctx.lineWidth = th * (fl > 0 ? 4.2 : 3); path(0); ctx.stroke(); ctx.restore();
     }
-    ctx.strokeStyle = '#efe3c3'; ctx.lineWidth = th; path(0); ctx.stroke();
-    ctx.strokeStyle = 'rgba(255,255,255,0.8)'; ctx.lineWidth = Math.max(0.8, th * 0.34); path(-th * 0.22); ctx.stroke();
+    if (fl > 0) {
+      ctx.globalAlpha = fl;
+      ctx.strokeStyle = '#efe3c3'; ctx.lineWidth = th; path(0); ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,255,255,0.8)'; ctx.lineWidth = Math.max(0.8, th * 0.34); path(-th * 0.22); ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
   }
   ctx.restore();
 }
@@ -203,12 +212,13 @@ export function drawBridges(ctx, inst, bu, o = {}) {
   ctx.save(); inst.apply(ctx);
   for (let s = 0; s < NSTR; s++) {
     const x = bu[s] * len, y = (s + 0.5) * sp, lift = o.drag === s ? 1 : 0;
-    ctx.save(); ctx.translate(0, 0);
+    ctx.save(); ctx.translate(0, 0); ctx.globalAlpha = o.flat ?? 1;
     ctx.fillStyle = 'rgba(30,16,4,0.34)'; ctx.beginPath(); ctx.roundRect(x - d / 2 + 4, y - wd / 2 + 4 + lift * 3, d, wd, 5); ctx.fill();
     const g = ctx.createLinearGradient(x - d / 2, 0, x + d / 2, 0); g.addColorStop(0, '#cfc19c'); g.addColorStop(0.45, '#fffcf0'); g.addColorStop(0.55, '#f8f0da'); g.addColorStop(1, '#bfb08a');
     ctx.fillStyle = g; ctx.beginPath(); ctx.roundRect(x - d / 2, y - wd / 2 - lift * 2, d, wd, 5); ctx.fill();
     ctx.strokeStyle = 'rgba(90,70,35,0.55)'; ctx.lineWidth = 1.2; ctx.stroke();
     ctx.strokeStyle = 'rgba(255,255,255,0.8)'; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(x - d * 0.1, y - wd / 2 + 4); ctx.lineTo(x - d * 0.1, y + wd / 2 - 4); ctx.stroke();
+    ctx.globalAlpha = 1;
     if (o.hot && o.hot.has(s)) { ctx.strokeStyle = 'rgba(255,214,120,0.95)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.roundRect(x - d / 2 - 3, y - wd / 2 - 3, d + 6, wd + 6, 7); ctx.stroke(); }
     ctx.restore();
   }

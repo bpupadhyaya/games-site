@@ -25,10 +25,10 @@ export function setPress(ptr) {
 }
 const BTN_FILL = {
   disabled: ['rgba(200,205,225,0.35)', 'rgba(255,255,255,0.25)'],
-  primary: ['#1fa896', '#0d6b5f'],
+  primary: ['#ffc94d', '#b9831c'],
   active: ['#e2742f', '#9c4414'],
-  dark: ['rgba(30,38,96,0.82)', 'rgba(255,246,228,0.35)'],
-  plain: ['#fff6e4', 'rgba(28,37,82,0.45)'],
+  dark: ['rgba(14,30,56,0.92)', '#c9a24a'],
+  plain: ['rgba(14,30,56,0.94)', '#c9a24a'],
 };
 export function paintButton(ctx, r, o = {}) {
   const { primary = false, active = false, disabled = false, dark = false } = o;
@@ -41,9 +41,9 @@ export function paintButton(ctx, r, o = {}) {
   roundPath(ctx, r.x, r.y + dy, r.w, r.h, 18);
   ctx.fillStyle = fill; ctx.fill();
   if (pressed) { ctx.fillStyle = 'rgba(8,10,40,0.16)'; ctx.fill(); }
-  ctx.lineWidth = 1.5; ctx.strokeStyle = edge; ctx.stroke();
+  ctx.lineWidth = primary ? 2 : 2.5; ctx.strokeStyle = edge; ctx.stroke();
   ctx.restore();
-  return { dy, light: primary || active || dark };
+  return { dy, light: !primary };
 }
 
 // A flat pill. opts: primary (vermilion), active (teal), disabled, sub (small second line), size (font px)

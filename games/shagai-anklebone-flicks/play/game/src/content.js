@@ -47,6 +47,12 @@ export const ABOUT = [
   ] },
 ];
 
+// Credits for the optional 3D layer (three.js and the shared view3d library), added at the end of About by main.js once loaded.
+export const addAboutCredits = (body) => {
+  if (ABOUT.some((d) => d.credits)) return;
+  ABOUT.push({ credits: true, h: '3D graphics credits', p: [body] });
+};
+
 export const RULES = [
   { h: 'Goal and players', art: 'trail', p: [
     `Race your bone-horse from station 0 (the start) to station ${FINISH} (the finish). The first rider to reach or pass station ${FINISH} wins immediately.`,

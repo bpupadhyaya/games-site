@@ -7,6 +7,7 @@
 //           'wide'    landscape, plenty of width: left card (opponent + status), board, right card (you + buttons)
 //           'side'    landscape, less width: board + status on the left, one column of cards on the right
 import { BW, BH } from './art.js';
+import { v3 } from './v3.js';
 
 export const meta = { width: 720, height: 1560, fluid: { short: 720 } };
 // Safe areas and the host's floating back button, in virtual units. main.js keeps this current (browsers: all zero).
@@ -21,7 +22,7 @@ let cache = { key: '', v: null };
 export const layoutNow = (scale = 1) => layoutFor(meta.width, meta.height, scale);
 
 export function layoutFor(w, h, scale = 1) {
-  const key = `${w}x${h}|${scale}|${Math.round(host.t)},${Math.round(host.r)},${Math.round(host.b)},${Math.round(host.l)},${Math.round(host.back)}|${host.px}`;
+  const key = `${w}x${h}|${scale}|${v3.on ? 1 : 0}|${Math.round(host.t)},${Math.round(host.r)},${Math.round(host.b)},${Math.round(host.l)},${Math.round(host.back)}|${host.px}`;
   if (cache.key === key) return cache.v;
   const ins = { t: host.t, r: host.r, b: host.b, l: host.l, back: host.back };
   const land = w > h;
@@ -66,7 +67,7 @@ export function layoutFor(w, h, scale = 1) {
 function playFor(L, scale, auto) {
   const { w, h, ins } = L;
   const k = clamp((scale - 1) / 2, 0, 1);
-  const chipH0 = Math.round(140 + 50 * k), statusH0 = Math.round(270 + 70 * k), toolH0 = Math.round(112 + 74 * k);
+  const chipH0 = Math.round((v3.on ? 112 : 140) + 50 * k), statusH0 = Math.round((v3.on ? 150 : 270) + 70 * k), toolH0 = Math.round(112 + 74 * k);   // 3D on: slimmer cards so the board gets the height
   const out = { mode: 'tall', chips: [], board: null, status: null, tool: [], slower: null, pause: null, faster: null };
   const ctrlRow = (x, y, cw, ch) => {   // the bottom row of three buttons
     const bw = (cw - 32) / 3;
@@ -77,7 +78,7 @@ function playFor(L, scale, auto) {
   if (!L.land) {
     const top = L.bar.bottom + 4, x0 = 24 + ins.l, cw = w - 48 - ins.l - ins.r, maxBw = Math.min(696, cw);
     const solve = (duo, f) => {
-      const chipH = duo ? Math.max(170, Math.round((190 + 50 * k) * f)) : Math.max(100, Math.round(chipH0 * f));
+      const chipH = duo ? (v3.on ? Math.max(160, Math.round((170 + 50 * k) * f)) : Math.max(170, Math.round((190 + 50 * k) * f))) : Math.max(100, Math.round(chipH0 * f));
       const gap = Math.max(10, Math.round(24 * f)), statusH = Math.max(110, Math.round(statusH0 * f)), toolH = Math.max(84, Math.round(toolH0 * f));
       const toolY = h - ins.b - 28 - toolH, bottom = toolY - 18, nGaps = duo ? 2 : 3;
       const boardH = (bottom - top) - (duo ? chipH : 2 * chipH) - statusH - (nGaps + 1) * gap - 20;
@@ -87,6 +88,21 @@ function playFor(L, scale, auto) {
     for (let f = 1; f >= 0.6 && !s; f -= 0.05) { const c = solve(false, f); if (c.bw >= 560) s = c; }
     for (let f = 1; f >= 0.7 && !s; f -= 0.1) { const c = solve(true, f); if (c.bw >= 560) s = c; }
     if (!s) { const a = solve(false, 0.6), b = solve(true, 0.7); s = a.bw >= b.bw ? a : b; }
+    // 3D on and the screen tall enough: stand the board up the screen (the camera turns it a quarter turn) so it takes the height as well
+    // as the width; slim player strips above and below it and a slim status line. Chosen only when it gives clearly more board.
+    if (v3.on) {
+      const chipH = 104, gp = 12, statusH = 104, toolH = 96, toolY = h - ins.b - 28 - toolH, bottom = toolY - 18;
+      const rh = bottom - top - 2 * chipH - statusH - 4 * gp - 8, rw = Math.min(cw, rh * BH / BW), rhh = rw * BW / BH;
+      const bwU = Math.max(260, s.bw), areaU = bwU * (bwU * BH / BW);
+      if (rw >= 300 && rw * rhh > areaU * 1.2) {
+        const total = chipH * 2 + statusH + rhh + 4 * gp, y0 = Math.round(top + (bottom - top - total) / 2), boardY = y0 + chipH + gp;
+        out.mode = 'up'; out.board = { x: Math.round(x0 + (cw - rw) / 2), y: boardY, w: Math.round(rw), rot: true };
+        out.chips = [R(x0, y0, cw, chipH), R(x0, boardY + rhh + gp, cw, chipH)];
+        out.status = R(x0, boardY + rhh + gp + chipH + gp, cw, statusH);
+        ctrlRow(x0, toolY, cw, toolH);
+        return out;
+      }
+    }
     const bw = Math.max(260, s.bw), bh = bw * BH / BW;
     const total = s.chipH * (s.duo ? 1 : 2) + s.gap * s.nGaps + bh + s.statusH;
     const y0 = Math.round(top + (s.bottom - top - total) * 0.5), boardY = y0 + s.chipH + s.gap;

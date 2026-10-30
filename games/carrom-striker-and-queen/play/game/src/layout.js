@@ -16,7 +16,7 @@ export { S };
 export const PLAY = 570, K = PLAY / S;                 // playing surface in canonical units, canonical units per board unit
 export const CX = 360, CY = 800;
 export const BX = CX - PLAY / 2, BY = CY - PLAY / 2;   // top-left of the playing surface (canonical)
-export const FRAME = 62;                               // wooden frame thickness
+export const FRAME = 28;                               // wooden frame thickness
 export const FR = PLAY + FRAME * 2;                    // the framed board, canonical
 export const sx = (x) => BX + x * K;
 export const sy = (y) => BY + y * K;
@@ -78,7 +78,7 @@ function build(w, h, ins, left) {
       if (sc === 'play') head = cardH + 8 + mh; else if (sc === 'auto') head = cardH + 8 + barH; else if (sc === 'lesson') head = 30 + 56 + 8 + ltH; else head = 30 + 52 + 30 + mh;
       const btnY = h - bottomPad - bh, mY = btnY - 10 - meterH, tipH = tall ? 64 : 0;
       const freeTop = top + head + 8, freeBot = mY - 10 - tipH, free = freeBot - freeTop;
-      P.f = clamp(Math.min(free / FR, (U.w - 8) / FR), 0.4, 1.06);
+      P.f = clamp(Math.min(free / FR, (U.w - 8) / FR), 0.4, 1.18);
       P.cx = ucx; P.cy = freeTop + free / 2;
       const cw = (U.w - 3 * g) / 2;
       P.cards = { W: R(U.x0 + g, top, cw, cardH), B: R(U.x0 + g * 2 + cw, top, cw, cardH) };
@@ -97,7 +97,7 @@ function build(w, h, ins, left) {
     }
     // ---- landscape
     const Lmin = 214, Rmin = 190;
-    P.f = clamp(Math.min((U.h - 14) / FR, (U.w - Lmin - Rmin - 2 * g) / FR), 0.4, 1.12);
+    P.f = clamp(Math.min((U.h - 14) / FR, (U.w - Lmin - Rmin - 2 * g) / FR), 0.4, 1.3);
     const bw = FR * P.f, extra = U.w - bw - 2 * g;
     let Lw, Rw;
     if (extra / 2 >= Math.max(Lmin, Rmin)) Lw = Rw = Math.min(extra / 2, 380); else { const s = Math.max(0, (extra - Lmin - Rmin) / 2); Lw = Lmin + s; Rw = Rmin + s; }

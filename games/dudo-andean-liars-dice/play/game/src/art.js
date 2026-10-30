@@ -1,6 +1,7 @@
 // Drawing helpers: Andean woven themes, carved dice, the leather cup, panels, flat buttons, icons.
 // Plain canvas 2D, no images. Nothing here changes game state.
 import { scr } from './layout.js';
+import { v3, flatAlpha } from './v3.js';
 export const W = 720, H = 1560;   // the phone design canvas; live screen size is `scr` (layout.js)
 export const UI = '-apple-system, "SF Pro Text", "Segoe UI", Roboto, system-ui, sans-serif';
 export const DISPLAY = '"Palatino Linotype", Palatino, "Iowan Old Style", Georgia, "Times New Roman", serif';
@@ -91,6 +92,13 @@ function stripe(ctx, th, x, y, w, h) {
 // ---------------------------------------------------------------------------------------------------- background
 const FLECKS = Array.from({ length: 26 }, (_, i) => [((i * 97) % 211) / 211, ((i * 53) % 173) / 173, 0.6 + ((i * 31) % 7) / 7, ((i * 13) % 11) / 11]);
 export function background(ctx, th, t, glowY = 700, glowX = scr.w / 2) {
+  const fa = flatAlpha();   // with the 3D table on, the flat backdrop only shows during the crossfade
+  if (fa <= 0) return;
+  ctx.save(); ctx.globalAlpha = fa;
+  bgFlat(ctx, th, t, glowY, glowX);
+  ctx.restore();
+}
+function bgFlat(ctx, th, t, glowY, glowX) {
   const w = scr.w, h = scr.h;
   const g = ctx.createLinearGradient(0, 0, 0, h);
   g.addColorStop(0, th.bg[0]); g.addColorStop(0.5, th.bg[1]); g.addColorStop(1, th.bg[2]);
@@ -110,14 +118,20 @@ export function background(ctx, th, t, glowY = 700, glowX = scr.w / 2) {
   const vg = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.78, w / 2, h / 2, Math.hypot(w, h) * 0.5 + 120);
   vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.5)');
   ctx.fillStyle = vg; ctx.fillRect(0, 0, w, h);
-  ctx.globalAlpha = 0.9;
+  const ga = ctx.globalAlpha; ctx.globalAlpha = ga * 0.9;
   weaveBand(ctx, th, 0, 0, w, 16, {});
   weaveBand(ctx, th, 0, h - 16, w, 16, {});
-  ctx.globalAlpha = 1;
+  ctx.globalAlpha = ga;
 }
 
 // A woven mat with a dark centre so text stays readable: used behind the table.
+// ---------------------------------------------------------------------------------------------------- 3D capture
+// While v3.cap is set (view.js, 3D on), dice, cups and mats are recorded in canvas pixels for the 3D presenter instead of painted.
+const capPt = (ctx, x, y) => { const m = ctx.getTransform(); return { x: m.a * x + m.c * y + m.e, y: m.b * x + m.d * y + m.f, k: Math.sqrt(Math.abs(m.a * m.d - m.b * m.c)), rot: Math.atan2(m.b, m.a) }; };
+export function capRect(ctx, x, y, w, h, kind) { const a = capPt(ctx, x, y), b = capPt(ctx, x + w, y + h); v3.cloths.push({ x: a.x, y: a.y, w: b.x - a.x, h: b.y - a.y, kind }); }
+
 export function mat(ctx, th, x, y, w, h) {
+  if (v3.cap) { capRect(ctx, x, y, w, h, 'mat'); return; }
   ctx.save();
   ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 22; ctx.shadowOffsetY = 8;
   const g = ctx.createLinearGradient(x, y, x, y + h);
@@ -223,6 +237,12 @@ const PIPS = {
 
 // A carved die seen from above. size = edge length. o: { angle, scale, alpha, glow (0..1), dim, wildMark (ace shown as wild), lift }
 export function drawDie(ctx, th, cx, cy, size, face, o = {}) {
+  if (v3.cap) {
+    const p = capPt(ctx, cx, cy), al = ctx.globalAlpha * (o.alpha ?? 1);
+    v3.dice.push({ px: p.x, py: p.y, s: size * (o.scale ?? 1) * p.k, face, yaw: (o.angle ?? 0) + p.rot, hop: (o.lift ?? 0) * 0.5 + (o.hop ?? 0), glow: o.glow ?? 0,
+      dim: Math.max(o.dim ?? 0, 1 - al), tumble: o.tumble ?? 0, seed: o.seed ?? 0, flip: o.flip });
+    return;
+  }
   const d = th.die, s = size * (o.scale ?? 1), r = s * 0.2;
   ctx.save();
   ctx.translate(cx, cy - (o.lift ?? 0) * size * 0.25);
@@ -277,6 +297,7 @@ export function drawBack(ctx, th, cx, cy, size, o = {}) {
 
 // The leather cup (cacho) standing mouth-down. o: { tilt (radians), alpha, lift, shadow }
 export function drawCup(ctx, th, cx, cy, w, h, o = {}) {
+  if (v3.cap) { const p = capPt(ctx, cx, cy + h / 2); v3.cups.push({ px: p.x, py: p.y, w: w * p.k, h: h * p.k, tilt: (o.tilt ?? 0) + p.rot, lift: (o.lift ?? 0) * p.k, alpha: ctx.globalAlpha * (o.alpha ?? 1) }); return; }
   ctx.save();
   ctx.translate(cx, cy + (o.lift ? -o.lift : 0));
   if (o.tilt) ctx.rotate(o.tilt);

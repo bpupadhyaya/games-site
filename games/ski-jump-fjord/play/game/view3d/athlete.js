@@ -1,14 +1,16 @@
 // The jumper: a lifelike Rocketbox figure in a ski-jump suit, helmet, goggles, gloves and boots on two long skis, plus the authored poses for the crouch, the
 // take-off, the flight, the landing variants and the celebration. The sim sets which pose and how far into it; the skis follow the feet every frame.
-export async function loadAthlete(V3, { character = 'athlete_m', lod = 0 } = {}) {
+export async function loadAthlete(V3, { character = 'athlete_m' } = {}) {
+  // full detail ALWAYS (no LOD sets, no tier swaps in the simplified hands/shoulders) and a long top (no tank armhole edge): the athlete is seen close up.
   const { loadHuman, buildClip, THREE, addWhites, addGloves } = V3;
   const female = character === 'athlete_f';
   const suit = 0xd5361f, dark = 0x16263c;
   const h = await loadHuman({
     character,
     kit: { top: '#d5361f', bottoms: '#d5361f', socks: '#16263c' },
-    skin: 'light', hair: female ? 'brown' : 'brown', lod,
+    skin: 'light', hair: female ? 'brown' : 'brown', top: 'long',
   });
+  h.lodAuto = false;
   h.groundClamp = 'off'; h.footPlanting = false;
   const A = { h, THREE, ready: true, clips: {}, skis: [], gear: [] };
   const mat = (c, r = 0.5, m = 0.1) => new THREE.MeshStandardMaterial({ color: c, roughness: r, metalness: m });
@@ -31,11 +33,7 @@ export async function loadAthlete(V3, { character = 'athlete_m', lod = 0 } = {})
     };
     for (const sd of ['L', 'R']) {
       const up = h.bones[`Bip01_${sd}_UpperArm`], fo = h.bones[`Bip01_${sd}_Forearm`], hand = h.bones[`Bip01_${sd}_Hand`];
-      if (up && fo && hand) {
-        seg(up, fo, 0.056, 0.045); seg(fo, hand, 0.045, 0.036);
-        const el = new THREE.Mesh(new THREE.SphereGeometry(0.047, 14, 10), suitM); el.castShadow = true; fo.add(el); A.gear.push({ remove() { fo.remove(el); } });
-        const sh = new THREE.Mesh(new THREE.SphereGeometry(0.078, 14, 10), suitM); sh.castShadow = true; up.add(sh); A.gear.push({ remove() { up.remove(sh); } });
-      }
+      void up; void fo; void hand; void seg;   // the long top is the sleeve now (no overlay tubes)
       const foot = h.bones[`Bip01_${sd}_Foot`], toe = h.bones[`Bip01_${sd}_Toe0`], calf = h.bones[`Bip01_${sd}_Calf`];
       if (foot && toe) {
         const bm = mat(0x151a20, 0.5, 0.2), dir = toe.position.clone(), len = dir.length(); dir.normalize();

@@ -158,7 +158,7 @@ export function hurleyGeometry() {
 // helmet cap (tinted per team through the instance colour) and its steel face guard (fixed colour); both in head-centre space, +Y up, +Z forward
 export function helmetCapGeometry() {
   return mergeParts([
-    { geo: new THREE.SphereGeometry(0.118, 10, 6, 0, Math.PI * 2, 0, Math.PI * 0.55), p: [0, 0.02, 0], s: [1, 1, 1.08], c: 0xffffff },
+    { geo: new THREE.SphereGeometry(0.118, 10, 6, 0, Math.PI * 2, 0, Math.PI * 0.68), p: [0, 0.02, 0], s: [1, 1, 1.08], c: 0xffffff },
     { geo: new THREE.TorusGeometry(0.113, 0.011, 4, 12), p: [0, -0.045, 0], r: [Math.PI / 2, 0, 0], s: [1, 1.08, 1], c: 0xffffff },
   ]);
 }

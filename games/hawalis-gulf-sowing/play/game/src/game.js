@@ -12,11 +12,12 @@ import { RULE_COUNT, HOWTO_COUNT, tr, levelName, hintText, notBestText, setCalib
 import { CAL_EN } from './calibration.js';
 import { THEMES, boardGeo, cellAt, CELLS } from './art.js';
 import { render, plateIcons } from './view.js';
+import { v3 } from './v3.js';
 
 // `meta` is the live size the kit keeps current (fluid layout); layout.js owns it.
 export { meta };
 
-const VERSION = '1.0.0';
+const VERSION = '1.1.0';
 const WIN_NOTES = [523, 659, 784, 1047, 1319];
 const AUTO_GAMES = [{ lv: ['master', 'master'] }, { lv: ['master', 'expert'] }];
 const KEY = 'hw';
@@ -40,6 +41,7 @@ export async function createGame(env) {
     demo: Boolean(config?.demo), dev: Boolean(config?.dev), owns: false, price: '', resetArm: false, version: VERSION, shot: false, lastPtr: { x: 0, y: 0 }, winSeq: null,
   };
 
+  v3.S = S;   // drawing hand-off for the optional 3D presenter (it only reads)
   const [set, stats, les, save, dg, prog] = await Promise.all([storage.get(`${KEY}.settings`, null), storage.get(`${KEY}.stats`, null), storage.get(`${KEY}.lessons`, null), storage.get(`${KEY}.save`, null), storage.get(`${KEY}.demo`, 0), storage.get(`${KEY}.progress`, null)]);
   if (set) {
     if (typeof set.sound === 'boolean') S.sound = set.sound;

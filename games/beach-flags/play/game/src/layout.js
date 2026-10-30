@@ -64,7 +64,7 @@ function portrait(z, watch) {
 function landscape(z, watch) {
   const hz = Math.min(z, 1.6), mf = minFs(), fs = fontsFor(hz, mf), g = 10;
   const U = { x0: host.l, x1: W - host.r, y0: host.t, y1: H - host.b }; U.w = U.x1 - U.x0; U.h = U.y1 - U.y0;
-  const pw = Math.round(clamp(U.w * 0.34 * (1 + (hz - 1) * 0.3), 340, 540)), px0 = U.x1 - pw - 14;
+  const pw = Math.round(clamp(U.w * 0.25 * (1 + (hz - 1) * 0.3), 300, 420)), px0 = U.x1 - pw - 14;
   const topPad = Math.max(host.t + 12, 12);
   const scoreH = Math.round(Math.max(110, fs.big * 0.95 + fs.small * 1.5 + 18));
   const gaugeH = Math.round(Math.max(70, fs.gauge * 3.2));

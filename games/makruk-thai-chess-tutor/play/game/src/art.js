@@ -348,18 +348,29 @@ export function textBlock(ctx, text, cx, y, maxW, lh, align = 'center') {
 // ---- buttons: clean flat fills, a thin edge and a soft drop shadow; pressed buttons sink a little -----------------------------
 let pressAt = null;
 export const setPress = (pt) => { pressAt = pt; };
+// Lacquered plaques with brass corner fittings: flat fills (no inner gloss shapes), a brass edge, the lacquer of the board's own border.
+function corners(ctx, r, inset, len, col, lw) {
+  ctx.strokeStyle = col; ctx.lineWidth = lw; ctx.lineCap = 'square';
+  for (const [cx, cy, sx, sy] of [[r.x + inset, r.y + inset, 1, 1], [r.x + r.w - inset, r.y + inset, -1, 1], [r.x + inset, r.y + r.h - inset, 1, -1], [r.x + r.w - inset, r.y + r.h - inset, -1, -1]]) {
+    ctx.beginPath(); ctx.moveTo(cx + sx * len, cy); ctx.lineTo(cx, cy); ctx.lineTo(cx, cy + sy * len); ctx.stroke();
+  }
+}
+const LAQ = { lacquer: ['#3a1f12', '#1d0e08'], gold: ['#f8db8a', '#c48a2a'], jade: ['#1f6b5c', '#0d3a31'], panel: ['#33190e', '#1b0d07'] };
 export function drawButton(ctx, r, label, T, o = {}) {
   const { primary = false, active = false, disabled = false, sub = null, px = 34, subPx = 20 } = o;
   const pressed = !disabled && (o.pressed || (!!pressAt && pressAt.x >= r.x && pressAt.x <= r.x + r.w && pressAt.y >= r.y && pressAt.y <= r.y + r.h));
   ctx.save();
   if (pressed) ctx.translate(0, 2);
   if (disabled) ctx.globalAlpha = 0.45;
-  ctx.shadowColor = 'rgba(0,0,0,0.45)'; ctx.shadowBlur = pressed ? 3 : 12; ctx.shadowOffsetY = pressed ? 1 : 5;
-  rr(ctx, r.x, r.y, r.w, r.h, 20);
-  ctx.fillStyle = primary ? T.accent : active ? '#2d5b52' : T.panel; ctx.fill();
+  const rad = Math.min(20, r.h * 0.26);
+  ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = pressed ? 3 : 12; ctx.shadowOffsetY = pressed ? 1 : 5;
+  rr(ctx, r.x, r.y, r.w, r.h, rad);
+  const c = primary ? LAQ.gold : active ? LAQ.jade : LAQ.lacquer, gr = ctx.createLinearGradient(0, r.y, 0, r.y + r.h); gr.addColorStop(0, c[0]); gr.addColorStop(1, c[1]);
+  ctx.fillStyle = gr; ctx.fill();
   ctx.shadowColor = 'transparent';
   if (pressed) { ctx.fillStyle = 'rgba(0,0,0,0.16)'; ctx.fill(); }
-  ctx.lineWidth = 2; ctx.strokeStyle = primary ? T.accentDark : active ? 'rgba(255,225,160,0.9)' : T.panelEdge; ctx.stroke();
+  ctx.lineWidth = primary ? 3 : 2; ctx.strokeStyle = primary ? 'rgba(255,248,214,0.95)' : active ? 'rgba(255,225,160,0.9)' : 'rgba(226,190,116,0.62)'; ctx.stroke();
+  if (r.w > 110 && r.h >= 54) corners(ctx, r, 7, Math.min(14, r.h * 0.2), primary ? 'rgba(96,56,10,0.6)' : 'rgba(236,206,140,0.7)', 2);
   ctx.fillStyle = primary ? T.accentText : T.ink; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   const maxW = r.w - 24;
   if (sub) {
@@ -371,8 +382,11 @@ export function drawButton(ctx, r, label, T, o = {}) {
 export function drawPanel(ctx, r, T, o = {}) {
   ctx.save();
   ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 18; ctx.shadowOffsetY = 7;
-  rr(ctx, r.x, r.y, r.w, r.h, o.round ?? 26); ctx.fillStyle = o.fill || T.panel; ctx.globalAlpha = o.alpha ?? 0.94; ctx.fill(); ctx.shadowColor = 'transparent'; ctx.globalAlpha = 1;
-  ctx.lineWidth = 2; ctx.strokeStyle = T.panelEdge; ctx.stroke();
+  const rad = o.round ?? 26; rr(ctx, r.x, r.y, r.w, r.h, rad);
+  if (o.fill) ctx.fillStyle = o.fill; else { const g = ctx.createLinearGradient(0, r.y, 0, r.y + r.h); g.addColorStop(0, LAQ.panel[0]); g.addColorStop(1, LAQ.panel[1]); ctx.fillStyle = g; }
+  ctx.globalAlpha = o.alpha ?? 0.94; ctx.fill(); ctx.shadowColor = 'transparent'; ctx.globalAlpha = 1;
+  ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(226,190,116,0.6)'; ctx.stroke();
+  if (r.w > 120 && r.h > 56) corners(ctx, r, 8, Math.min(16, r.h * 0.2), 'rgba(236,206,140,0.6)', 2);
   ctx.restore();
 }
 export function drawIcon(ctx, kind, x, y, s, color) {

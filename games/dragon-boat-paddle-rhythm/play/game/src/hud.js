@@ -1,7 +1,7 @@
 // The race HUD drawn over the 3D river: progress bar, place, sync and energy meters, tempo banner, the drum pad with its
 // closing rings, the steering stick, the Surge button, pop-ups, countdown, the coach panel, hint, pause menu, tutorial prompts,
 // and a top-down 2D fallback when WebGL is missing.
-import { COL, FONT_D, R, icon } from './ui.js';
+import { COL, FONT_D, R, icon, plaque } from './ui.js';
 import { clamp, lerp, TIER_LABEL, fmtTime, placeName, HALF_LEN, laneX, spm } from './common.js';
 import { project } from './cam.js';
 import { COACH, TUT } from './content.js';
@@ -12,9 +12,8 @@ const CALL_COL = { up: '#ffc65a', settle: '#6fd8ff', sprint: '#ff6a4a' };
 const CALL_TEXT = { up: 'UP', settle: 'SETTLE', sprint: 'SPRINT' };
 const hsl = (h, s = 70, l = 52, a = 1) => `hsla(${h},${s}%,${l}%,${a})`;
 const panel = (ctx, r, o = {}) => {
-  ctx.save(); ctx.fillStyle = o.fill ?? 'rgba(6,16,30,0.62)'; ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, o.radius ?? 16); ctx.fill();
-  if (o.edge !== false) { ctx.lineWidth = 1.5; ctx.strokeStyle = o.stroke ?? 'rgba(255,214,130,0.35)'; ctx.stroke(); }
-  ctx.restore();
+  const hot = /^rgba\((1[2-9]\d|2\d\d),/.test(o.fill ?? '');
+  plaque(ctx, r, { radius: o.radius ?? 16, shadow: false, hot, alpha: 0.9, thick: 2, edge: o.edge });
 };
 
 export const rankOf = (w) => {

@@ -40,10 +40,10 @@ function build(w, h, ins) {
 // Top to bottom: score board, message plaque, the arena (scene), the rhythm track / loop meter (info) and the button row.
 function buildPlay(L) {
   const { U, back, land } = L, P = {};
-  const sbH = land ? 70 : 88, btnH = Math.max(land ? 62 : 78, minTap()), infoH = land ? 112 : 168;
+  const sbH = land ? 58 : 80, btnH = Math.max(land ? 56 : 78, minTap()), infoH = land ? 96 : 156;
   const sbX = U.x0 + (back ? back : 10), sbW = Math.min(U.x1 - 10 - sbX, land ? 980 : 700);
   P.board = R(sbX + (U.x1 - 10 - sbX - sbW) / 2, U.y0 + 8, sbW, sbH);
-  const plW = Math.min(U.w - 20, 700), plH = land ? 46 : 58;
+  const plW = Math.min(U.w - 20, 700), plH = land ? 40 : 50;
   P.plaque = R(U.x0 + (U.w - plW) / 2, P.board.y + sbH + 8, plW, plH);
   const rowW = Math.min(U.w - 20, land ? 760 : 700);
   P.row = R(U.x0 + (U.w - rowW) / 2, U.y1 - btnH - 10, rowW, btnH);

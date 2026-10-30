@@ -7,6 +7,7 @@ import { makeCaber, makeStone, makeWeight } from './props.js';
 import { CABERS, WT, BAR_HEIGHTS } from '../src/physics.js';
 
 const LIB = '../vendor3d/index.js';
+const DEV = (() => { try { return new URLSearchParams(globalThis.location.search).has('dev'); } catch { return false; } })();
 const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 const lerp = (a, b, t) => a + (b - a) * t;
 const ease = (t) => { t = clamp(t, 0, 1); return t * t * (3 - 2 * t); };
@@ -34,10 +35,10 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
   let sizeKey = '';
   stage.onContextLost(() => { P.lost = true; });
   stage.onContextRestored(() => { P.lost = false; sizeKey = ''; stage.resize(); stage.invalidate(); });
-  stage.setLighting('day', { exposure: 0.92, hemi: 0.85, keyI: 2.9, sky: 0x9cc6ee, fog: 0xcfdde6 });
+  stage.setLighting('day', { exposure: 0.95, hemi: 0.72, hemiGround: 0x3e5a2e, key: 0xffe6c4, keyI: 3.2, rimI: 1.1, sky: 0x9cc6ee, fog: 0xcfdde6 });   // late-afternoon sun: warm key, cooler sky fill
   stage._shadowOffset.set(-14, 22, -9);
-  stage.lights.rim.intensity = 0.7;
-  const glen = buildGlen(V3, stage);
+  stage.lights.rim.intensity = 0.9;
+  const glen = buildGlen(V3, stage, { quality });
   P.glen = glen;
   glen.clock.visible = false; glen.range.visible = false; glen.barRig.visible = false;
 
@@ -46,6 +47,42 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
   const stone = makeStone(THREE); stone.visible = false; stage.add(stone);
   const weight = makeWeight(THREE); weight.visible = false; stage.add(weight);
   stage.add(weight.userData.chain); weight.userData.chain.visible = false;
+
+  // ---- landing burst: turf clods and a puff of dry earth where a caber end or the stone strikes the ground (sim-time driven, so pause freezes it)
+  const FX = (() => {
+    const NC = 48, clodGeo = new THREE.BoxGeometry(0.06, 0.035, 0.05);
+    const clods = new THREE.InstancedMesh(clodGeo, new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1 }), NC); clods.frustumCulled = false; clods.castShadow = false;
+    const cc = new THREE.Color(); for (let i = 0; i < NC; i++) clods.setColorAt(i, cc.set(i % 3 === 0 ? '#3f6a2c' : i % 3 === 1 ? '#5a4128' : '#6b5236'));
+    stage.add(clods);
+    const dc = document.createElement('canvas'); dc.width = dc.height = 64; const dg = dc.getContext('2d'); const rg = dg.createRadialGradient(32, 32, 0, 32, 32, 32); rg.addColorStop(0, 'rgba(176,150,112,0.85)'); rg.addColorStop(0.5, 'rgba(160,136,100,0.4)'); rg.addColorStop(1, 'rgba(150,130,100,0)'); dg.fillStyle = rg; dg.fillRect(0, 0, 64, 64);
+    const dTex = new THREE.CanvasTexture(dc); dTex.colorSpace = THREE.SRGBColorSpace;
+    const puffs = []; for (let i = 0; i < 7; i++) { const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: dTex, transparent: true, depthWrite: false, opacity: 0 })); m.visible = false; stage.add(m); puffs.push(m); }
+    const P = []; for (let i = 0; i < NC; i++) P.push({ p: V(), v: V(), r: V(), w: V(), life: 0 });
+    const M4 = new THREE.Matrix4(), Q = new THREE.Quaternion(), E = new THREE.Euler(), SC = V(1, 1, 1), HID = new THREE.Matrix4().makeScale(0, 0, 0);
+    let rr = 12345; const rnd = () => { rr = (rr * 1664525 + 1013904223) >>> 0; return rr / 4294967296; };
+    let pt = 0, alive = false;
+    return {
+      burst(at, dir, power = 1) {
+        rr = 12345; alive = true; pt = 0;
+        for (const q of P) { const a = rnd() * Math.PI * 2, up = 1.6 + rnd() * 2.6 * power, sp = (0.6 + rnd() * 1.8) * power; q.p.copy(at).add(V((rnd() - 0.5) * 0.3, 0.03, (rnd() - 0.5) * 0.3)); q.v.set(Math.cos(a) * sp + dir.x * 1.2 * power, up, Math.sin(a) * sp + dir.z * 1.2 * power); q.r.set(rnd() * 6, rnd() * 6, rnd() * 6); q.w.set((rnd() - 0.5) * 18, (rnd() - 0.5) * 18, (rnd() - 0.5) * 18); q.life = 1.4 + rnd() * 0.6; }
+        puffs.forEach((m, i) => { m.visible = true; m.userData = { p: at.clone().add(V((rnd() - 0.5) * 0.6 * power, 0.15, (rnd() - 0.5) * 0.6 * power)), v: V((rnd() - 0.5) * 0.7, 0.35 + rnd() * 0.4, (rnd() - 0.5) * 0.7), s0: 0.4 + rnd() * 0.4, k: i }; });
+      },
+      update(dt) {
+        if (!alive) return; pt += dt;
+        let any = false;
+        P.forEach((q, i) => {
+          if (q.life <= 0) { clods.setMatrixAt(i, HID); return; }
+          q.life -= dt; any = true;
+          if (q.p.y > 0.02 || q.v.y > 0) { q.v.y -= 9.8 * dt; q.p.addScaledVector(q.v, dt); q.r.addScaledVector(q.w, dt); if (q.p.y < 0.02) { q.p.y = 0.02; q.v.multiplyScalar(0.25); q.v.y = Math.abs(q.v.y) * 0.3; q.w.multiplyScalar(0.3); } }
+          E.set(q.r.x, q.r.y, q.r.z); Q.setFromEuler(E); M4.compose(q.p, Q, SC.setScalar(Math.min(1, q.life * 2))); clods.setMatrixAt(i, M4);
+        });
+        clods.instanceMatrix.needsUpdate = true;
+        for (const m of puffs) { const u = m.userData; if (!u.p) continue; const f = Math.min(1, pt / 1.6); m.position.copy(u.p).addScaledVector(u.v, pt); const sc = u.s0 + pt * 1.4; m.scale.set(sc * 1.6, sc, 1); m.material.opacity = 0.7 * (1 - f) * Math.min(1, pt * 8); m.visible = f < 1; if (f < 1) any = true; }
+        if (!any) alive = false;
+      },
+    };
+  })();
+  const fxKeys = { caber: '', stone: '' };
 
   // ---- the athlete (loaded in the background; the picture works without it)
   let A = null;
@@ -81,6 +118,9 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
   };
   const dirOf = (psiDeg) => { const a = (psiDeg * Math.PI) / 180; return V(-Math.sin(a), 0, Math.cos(a)); };
   const placeRod = (mesh, S, axis) => { mesh.position.copy(S); mesh.quaternion.setFromUnitVectors(V(0, 1, 0), axis.clone().normalize()); };
+  // the carry: small end cupped in both hands at the belt, the pole upright against the right shoulder (as real throwers hold it); the heave
+  // blends from here to the release point so the hand-off to the flight frames does not jump
+  const CARRY = (z) => V(-0.09, 0.98, z + 0.26);
   const reach = (h, S, axis, up = 0.1) => {
     const a = axis.clone().normalize();
     const base = S.clone().addScaledVector(a, up);
@@ -108,7 +148,7 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
         pos = V(Math.sin(az) * Rr, 3.2 + 2.5 * u, c.z - Math.cos(az) * Rr); look = c; fov = land ? 36 : 44; k = 0.2;
       } else if (d.ph === 'fly' || d.ph === 'judge') {
         const lz = za + 4 + Math.min(d.landF || 6, 10) * 0.35;
-        if (land) { pos = V(-21, 6.8, za + 3.8 + (d.landF || 6) * 0.25); look = V(0, 2.4, lz - 1); fov = 42; } else { pos = V(-7, 6.8, za - 11); look = V(0, 2.6, lz); fov = 54; }
+        if (land) { pos = V(-18.5, 6.2, za + 3.8 + (d.landF || 6) * 0.25); look = V(0, 2.2, lz - 1); fov = 42; } else { pos = V(-7, 6.8, za - 11); look = V(0, 2.6, lz); fov = 54; }
         k = 0.45;
       } else {
         if (land) { pos = V(-13.5, 3.3, za + 1.6); look = V(0, 3.4, za + 1.6); fov = 38; } else { pos = V(-5.6, 3.5, za - 12.5); look = V(0.2, 3.1, za + 0.4); fov = 44; }
@@ -149,10 +189,11 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
     stone.visible = false; weight.visible = false; weight.userData.chain.visible = false;
     glen.clock.visible = d.mode === 'caber' && d.clock; glen.range.visible = d.mode === 'stone'; glen.barRig.visible = d.mode === 'weight';
     if (A) poseAthlete(d, s, dt);
+    FX.update(dt);
     if (s && s.events.length) { const last = s.events[s.events.length - 1]; if (last.id !== lastEvId) { lastEvId = last.id; if (last.type === 'judge') cheerHold = last.pts >= 70 ? 4 : last.pts > 0 ? 1.6 : 0; } }
     cheerHold = Math.max(0, cheerHold - dt);
     glen.spectators.update(dt, d.mode === 'end' || cheerHold > 0 ? 1 : 0.1);
-    const dr = director(d, aspect, tReal);
+    const dr = (DEV && globalThis.__camOverride) || director(d, aspect, tReal);   // dev only: icon / evidence framing
     const kk = dt > 0 ? 1 - Math.exp(-dt / Math.max(0.05, dr.k)) : 0;
     if (!cam.init) { cam.pos.copy(dr.pos); cam.look.copy(dr.look); cam.fov = dr.fov; cam.init = true; } else { cam.pos.lerp(dr.pos, kk); cam.look.lerp(dr.look, kk); cam.fov = lerp(cam.fov, dr.fov, kk); }
     const c = stage.camera;
@@ -161,6 +202,7 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
     if (dr.shift) { const r = V(1, 0, 0).applyQuaternion(c.quaternion); c.position.addScaledVector(r, dr.shift); c.lookAt(cam.look.clone().addScaledVector(r, dr.shift)); }
     stage.setShadowTarget(0, 0, d.shadowZ || 0);
     stage.update(dt, { renderNow: false });
+    if (A && A.kilt && A.kilt.update) A.kilt.update(dt);   // after the skeleton is posed for this frame
     if (!P.noRender) { stage.render(); perfTick(); }
   }
 
@@ -195,7 +237,7 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
       setBase(h, 'a_carry', { loop: true });
       h.root.position.set(0, 0, 0); h.setFacing(0);
       const C = cabers[1]; C.visible = true;
-      const S = V(0, 1.12, 0.45), ax = V(Math.sin(Math.sin(tReal * 0.6) * 0.03), 1, 0.06 + Math.sin(tReal * 0.8) * 0.03);
+      const S = CARRY(0), ax = V(Math.sin(Math.sin(tReal * 0.6) * 0.03), 1, 0.02 + Math.sin(tReal * 0.8) * 0.02);
       placeRod(C, S, ax); reach(h, S, ax);
       return;
     }
@@ -218,26 +260,26 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
     const key = `${s.attempt}:${ph}`;
     if (ph === 'choose' || !c) {
       setBase(h, 'a_carry', { loop: true }); h.root.position.set(0, 0, 0); flags.heave = '';
-      const S = V(0, 1.12, 0.45), ax = V(0.0, 1, 0.07); placeRod(C, S, ax); reach(h, S, ax); return;
+      const S = CARRY(0), ax = V(0.0, 1, 0.03); placeRod(C, S, ax); reach(h, S, ax); return;
     }
     const lean = V(c.bz, 1, c.bx);
     if (ph === 'lift') {
       setBase(h, 'a_carry', { loop: true }); h.root.position.set(0, 0, 0); flags.heave = '';
-      let ax = lean, S = V(0, 1.12, 0.45);
+      let ax = lean, S = CARRY(0);
       if (c.dropT > 0) { const u = 1 - c.dropT / 1.4; S = V(0, lerp(1.12, 0.12, ease(u * 1.6)), 0.45 + 1.8 * ease(u)); ax = V(0, Math.cos(1.2 * ease(u)), Math.sin(1.2 * ease(u))); placeRod(C, S, ax); return; }
       placeRod(C, S, ax); reach(h, S, ax); return;
     }
     if (ph === 'run') {
       h.locomote(c.v, { set: LOCO });
       h.root.position.set(0, 0, c.x); flags.heave = '';
-      const S = V(0, 1.14, c.x + 0.45), ax = lean;
+      const S = CARRY(c.x), ax = lean;
       placeRod(C, S, ax); reach(h, S, ax); return;
     }
     if (ph === 'heave') {
       h.root.position.set(0, 0, c.x); flags.heave = '';
       const tr = setBase(h, 'a_heave', { loop: false }); if (tr) { tr.speed = 0; tr.time = clamp(c.sweepT > 0 ? c.tau : 0, 0, 1) * 0.5; }
       const th = 0.04 + 0.22 * c.tau + 0.8 * c.bx, crouch = ease(clamp(c.tau, 0, 1));
-      const S = V(0, 1.12 - 0.22 * crouch, c.x + 0.45), ax = V(c.bz, Math.cos(th), Math.sin(th));
+      const S = CARRY(c.x).lerp(V(0, 1.12 - 0.22 * crouch, c.x + 0.45), ease(clamp(c.tau * 1.6, 0, 1))), ax = V(c.bz, Math.cos(th), Math.sin(th));
       placeRod(C, S, ax); reach(h, S, ax); return;
     }
     // fly / judge
@@ -257,6 +299,7 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
     const S = V(dir.x * fs, ys, za + dir.z * fs);
     const ax = V(dir.x * Math.sin(fr.th), Math.cos(fr.th), dir.z * Math.sin(fr.th));
     placeRod(C, S, ax);
+    { const fk = `${s.attempt}:${s.replay ? 'r' + (s.replay.n || 0) : 'l'}`; if (tv >= res.tFirst && tv < res.tFirst + 0.3 && fxKeys.caber !== fk) { fxKeys.caber = fk; const tip = res.first === 'small' ? S.clone() : S.clone().addScaledVector(ax, cab.L); tip.y = 0; FX.burst(tip, dir, 1); } if (tv < res.tFirst - 0.05 && fxKeys.caber === fk) fxKeys.caber = ''; }
     if (t < 0.12) reach(h, S, ax);
     glen.clock.position.set(0, 0, za);
     glen.wedge.visible = (ph === 'judge' || tv > res.tEnd - 0.05) && res.turned; glen.wedgeRoot.rotation.y = -(res.psi * Math.PI) / 180;
@@ -283,6 +326,7 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
       const t = s.replay ? s.replay.t : k.flyT;
       const q = sampleFrames(k.fly.frames, Math.max(0, t));
       stone.position.set(-0.17, q.y, q.f);
+      const fk = `${s.attempt}:${s.replay ? 'r' : 'l'}`; if (q.y <= 0.16 && t > 0.2 && fxKeys.stone !== fk) { fxKeys.stone = fk; FX.burst(V(-0.17, 0, q.f), V(0, 0, 1), 0.55); } if (q.y > 0.4 && fxKeys.stone === fk) fxKeys.stone = '';
     } else stone.visible = false;
   }
 

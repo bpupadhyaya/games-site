@@ -23,7 +23,7 @@ export function setPress(ptr) {
 }
 const BTN = {
   disabled: ['#4a4a44', 'rgba(255,255,255,0.10)', '#2a2a27'],
-  primary: ['#d8453a', '#f58a7c', '#7d1d17'],
+  primary: ['#f2b441', '#ffe6a6', '#7a4e0e'],
   active: ['#2f8f55', '#6fd196', '#17482b'],
   dark: ['#1f3340', 'rgba(255,225,160,0.38)', '#0a141a'],
   plain: ['#efe6cf', '#fff6dc', '#8a7448'],
@@ -37,18 +37,19 @@ export function paintButton(ctx, r, o = {}) {
   ctx.save();
   if (!disabled) { roundPath(ctx, r.x, r.y + (pressed ? 1 : 4), r.w, r.h, 16); ctx.fillStyle = drop; ctx.globalAlpha = 0.9; ctx.fill(); ctx.globalAlpha = 1; }
   roundPath(ctx, r.x, r.y + dy, r.w, r.h, 16);
-  ctx.fillStyle = fill; ctx.fill();
+  if (k === 'primary') { const g = ctx.createLinearGradient(0, r.y + dy, 0, r.y + dy + r.h); g.addColorStop(0, '#ffcf6a'); g.addColorStop(1, '#e9a02c'); ctx.fillStyle = g; } else ctx.fillStyle = fill;
+  ctx.fill();
   if (pressed) { ctx.fillStyle = 'rgba(0,0,0,0.2)'; ctx.fill(); }
   ctx.lineWidth = 2; ctx.strokeStyle = edge; ctx.stroke();
   ctx.restore();
-  return { dy, light: primary || active || dark || disabled };
+  return { dy, light: active || dark || disabled, gold: k === 'primary' };
 }
 
 export function drawButton(ctx, r, label, opts = {}) {
   const { disabled = false, sub = null, size = 28 } = opts;
-  const { dy, light } = paintButton(ctx, r, opts);
+  const { dy, light, gold } = paintButton(ctx, r, opts);
   ctx.save();
-  ctx.fillStyle = disabled ? 'rgba(255,255,255,0.35)' : light ? '#fff7e6' : C.ink;
+  ctx.fillStyle = disabled ? 'rgba(255,255,255,0.35)' : gold ? '#2a1704' : light ? '#fff7e6' : C.ink;
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   let px = sub ? Math.round(size * 0.9) : size;
   const maxW = r.w - 24;
@@ -180,9 +181,9 @@ export function drawFlow(ctx, lay, top, bottom, scroll) {
 }
 function drawButtonRect(ctx, r, it, wd) {
   const { disabled = false } = wd;
-  const { dy, light } = paintButton(ctx, r, wd);
+  const { dy, light, gold } = paintButton(ctx, r, wd);
   ctx.save();
-  ctx.fillStyle = disabled ? 'rgba(255,255,255,0.35)' : light ? '#fff7e6' : C.ink;
+  ctx.fillStyle = disabled ? 'rgba(255,255,255,0.35)' : gold ? '#2a1704' : light ? '#fff7e6' : C.ink;
   ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
   ctx.font = `700 ${it.fs}px ${FONT}`;
   const subPx = Math.max(FLOORPX.v, Math.round(it.fs * 0.72));

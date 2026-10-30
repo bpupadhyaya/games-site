@@ -248,7 +248,7 @@ let titleLockTap = null;
 export const getLockTap = () => titleLockTap;
 export function renderTitle(ctx, state) {
   ctx.clearRect(0, 0, W, H);
-  const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, 'rgba(6,14,26,0.15)'); g.addColorStop(0.35, 'rgba(6,14,26,0.45)'); g.addColorStop(1, 'rgba(6,14,26,0.9)');
+  const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, 'rgba(6,14,26,0.0)'); g.addColorStop(0.3, 'rgba(6,14,26,0.22)'); g.addColorStop(0.55, 'rgba(6,14,26,0.6)'); g.addColorStop(1, 'rgba(6,14,26,0.92)');
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
   const fr = flowFrame('title');
   if (fr.hero) {

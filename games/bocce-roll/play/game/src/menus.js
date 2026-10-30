@@ -2,10 +2,10 @@
 // About / How to play / Rules reader with its illustrations (drawn with the game's own balls). Pure drawing; game.js owns
 // state. Every position comes from the live layout L (layout.js).
 import { COURT, HALF, SURFACE_IDS, surfaceName, SURFACES } from './sim.js';
-import { drawBallIcon, TEAM } from './art.js';
+import { drawBallIcon, TEAM, newCanvas } from './art.js';
 import { worldBackdrop } from './view.js';
 import { TEXT_SCALES, THINK_STEPS, host } from './layout.js';
-import { FONT, DISPLAY, C, roundPath, drawButton, panel, wrapLines, textShadow, flowLayout, drawFlow, flowHit } from './ui.js';
+import { FONT, DISPLAY, C, roundPath, drawButton, panel, wrapLines, textShadow, flowLayout, drawFlow, flowHit, v3 } from './ui.js';
 import { PROFILES, PARTNER, TOUR_NAMES } from './opponents.js';
 import { ABOUT, HOWTO, RULES } from './content.js';
 import { drawLockup, drawMoreLine } from './brand.js';
@@ -18,20 +18,56 @@ let LAID = { key: '', size: '', cols: [], max: 0, est: false };
 export const flowMeta = () => LAID;
 const estCtx = { font: '', measureText(t) { const m = /(\d+)px/.exec(this.font); return { width: String(t).length * (m ? +m[1] : 20) * 0.52 }; } };
 
+// embossed display lettering: a dark bevel offset, a metal / ivory gradient face, a thin top highlight
+function emboss(ctx, text, x, y, size, stops, glow = 14) {
+  ctx.save();
+  ctx.font = `700 ${size}px ${DISPLAY}`;
+  ctx.shadowColor = 'rgba(4,14,6,0.75)'; ctx.shadowBlur = glow; ctx.shadowOffsetY = size * 0.05;
+  ctx.fillStyle = 'rgba(40,22,6,0.95)'; ctx.fillText(text, x, y + size * 0.035);
+  ctx.shadowColor = 'transparent';
+  const g = ctx.createLinearGradient(0, y - size * 0.78, 0, y + size * 0.05);
+  stops.forEach(([o, c]) => g.addColorStop(o, c));
+  ctx.fillStyle = g; ctx.fillText(text, x, y);
+  ctx.lineWidth = Math.max(1, size * 0.012); ctx.strokeStyle = 'rgba(70,40,10,0.55)'; ctx.strokeText(text, x, y);
+  ctx.save(); ctx.beginPath(); ctx.rect(x - size * 4, y - size * 0.8, size * 8, size * 0.18); ctx.clip();
+  ctx.fillStyle = 'rgba(255,255,240,0.35)'; ctx.fillText(text, x, y); ctx.restore();
+  ctx.restore();
+}
+const IVORY = [[0, '#fffdf4'], [0.5, '#f6ead0'], [0.56, '#d9c39a'], [1, '#fff3d6']];
+const GOLD = [[0, '#fff3c0'], [0.42, '#f3c95a'], [0.52, '#a8741c'], [0.75, '#e2ac3c'], [1, '#fde59a']];
+let logoCache = null, logoSeen = { key: '', n: 0 };
 const heroArt = (h = 520) => ({
   t: 'art', h,
   draw(ctx, w) {
     ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-    const s = Math.min(1, w / 640); ctx.scale(s, s);
+    const s = Math.min(1, w / 640);
     const cx = w / s / 2;
-    ctx.font = `700 118px ${DISPLAY}`; textShadow(ctx, 'Bocce', cx, 150, '#fff6dc', 16);
-    ctx.font = `700 78px ${DISPLAY}`; textShadow(ctx, 'Roll', cx, 232, '#ffd97a', 12);
-    ctx.font = `600 26px ${FONT}`; textShadow(ctx, 'IL GIOCO DELLE BOCCE', cx, 282, '#f3ecd6', 6);
-    // tricolour rule with the pallino in the middle
-    const cols = ['#2aa05c', '#f8f4e8', '#d3232f'];
-    cols.forEach((c, i) => { ctx.fillStyle = c; ctx.fillRect(cx - 150 + i * 100, 308, 100, 5); });
+    const letters = (g) => {
+      g.textAlign = 'center'; g.textBaseline = 'alphabetic';
+      emboss(g, 'Bocce', cx, 150, 118, IVORY, 18);
+      emboss(g, 'Roll', cx, 232, 78, GOLD, 12);
+      g.font = `600 26px ${FONT}`; textShadow(g, 'IL GIOCO DELLE BOCCE', cx, 282, '#f3ecd6', 6);
+      // tricolour rule
+      ['#2aa05c', '#f8f4e8', '#d3232f'].forEach((c, i) => { g.fillStyle = c; g.fillRect(cx - 150 + i * 100, 308, 100, 5); });
+    };
+    // the lettering (gradients + soft shadows) is drawn once per size into a cached bitmap: cheap every frame after the first
+    const T0 = ctx.getTransform ? ctx.getTransform() : null, dev = T0 && typeof T0.a === 'number' ? Math.hypot(T0.a, T0.b) : 0;
+    const key = `${Math.round(w)}|${dev.toFixed(3)}`;
+    logoSeen = logoSeen.key === key ? { key, n: logoSeen.n + 1 } : { key, n: 0 };
+    if (dev && logoSeen.n > 20 && (!logoCache || logoCache.key !== key)) {   // not on the first frames: the title must appear at once
+      const off = newCanvas(w * dev, 330 * s * dev);
+      logoCache = off ? { key, off } : null;
+      if (off) { const g = off.getContext('2d'); g.scale(dev * s, dev * s); letters(g); }
+    }
+    if (dev && logoCache && logoCache.key === key) ctx.drawImage(logoCache.off, 0, 0, w, 330 * s);
+    ctx.scale(s, s);
+    if (!(dev && logoCache && logoCache.key === key)) letters(ctx);
     if (h > 360) {
-      drawBallIcon(ctx, cx - 92, 392, 38, 0); drawBallIcon(ctx, cx + 4, 408, 38, 1); drawBallIcon(ctx, cx + 100, 384, 38, 0); drawBallIcon(ctx, cx + 20, 372, 14, -1);
+      // with the 3D court live, the real balls of the court sit here instead (the presenter aims its hero camera at this spot)
+      const T = v3.on && ctx.getTransform ? ctx.getTransform() : null;
+      if (T && typeof T.a === 'number' && ctx.canvas && ctx.canvas.width) { const k = v3.vw / ctx.canvas.width; v3.hero = { x: (T.a * cx + T.c * 392 + T.e) * k, y: (T.b * cx + T.d * 392 + T.f) * k, r: 38 * T.a * k }; }
+      const a = v3.on ? 1 - v3.mix : 1;
+      if (a > 0.01) { ctx.globalAlpha = a; drawBallIcon(ctx, cx - 92, 392, 38, 0); drawBallIcon(ctx, cx + 4, 408, 38, 1); drawBallIcon(ctx, cx + 100, 384, 38, 0); drawBallIcon(ctx, cx + 20, 372, 14, -1); ctx.globalAlpha = 1; }
     }
     ctx.restore();
   },
@@ -343,7 +379,7 @@ function drawFlowScreen(ctx, state, key, L) {
 export function renderTitle(ctx, state, L) {
   const ok = worldBackdrop(ctx, L, state, state.att.w, state.att.parts, { noMarker: true });
   if (!ok) return;
-  scrim(ctx, L, 0.28);
+  scrim(ctx, L, v3.on ? 0.28 - 0.14 * v3.mix : 0.28);   // the live 3D court can show through more
   // soft vignette behind the logo
   const vx = L.wide ? L.w / 4 : L.w / 2, vy = L.wide ? L.h / 2 : 260 + Math.round(Math.max(0, L.sb - 1280) * 0.35);
   const g = ctx.createRadialGradient(vx, vy, 40, vx, vy, 420);

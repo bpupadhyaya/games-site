@@ -4,7 +4,7 @@
   "tagline": "Hop your pegs across the board. Chain leaps, build ladders, fill the far camp.",
   "genre": "Hopping race board game",
   "orientation": "any",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "monetization": {
     "model": "premium",
     "priceUsd": 2.99,

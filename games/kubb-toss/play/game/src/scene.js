@@ -16,6 +16,12 @@ function rawProj(x, y, z) {
 const n0 = rawProj(0, 0, 0), f0 = rawProj(0, FIELD.L, 0);
 export const FOCAL = (YN - YF) / (-n0.up / n0.d + f0.up / f0.d);
 const YC = YN + FOCAL * (n0.up / n0.d);
+export const CAM = { pitch: PITCH, ch: CH, cb: CB, F: FOCAL, yc: YC };
+// The 3D layer (view3d/presenter.js) draws the lawn, scenery, blocks, batons and stands behind the transparent 2D canvas with the SAME pinhole.
+// The 2D scene stays as the fallback (no WebGL, lost context) and cross-fades out. `want` is what this frame asks the presenter to show.
+export const v3 = { on: false, mix: 0, want: null, clip: null };
+export const v3alpha = () => (v3.on ? 1 - v3.mix : 1);
+export const deviceRect = (m, x, y, w, h) => !m ? null : ({ x: m.a * x + m.e, y: m.d * y + m.f, w: m.a * w, h: m.d * h });
 // World point -> screen. s = pixels per metre at that depth. d = distance along the view axis (for sorting).
 export function proj(x, y, z) {
   const r = rawProj(x, y, z), k = FOCAL / r.d;

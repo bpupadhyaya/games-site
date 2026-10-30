@@ -10,11 +10,15 @@ import { LEVELS, createThinker } from './engine.js';
 import { LESSONS } from './lessons.js';
 import { createPuzzleMaker, puzzleGame, bestReply } from './puzzles.js';
 import { render, pageMetrics } from './view.js';
+import { v3 } from './v3.js';
 
 // `meta.width/height` are updated live by the kit on every resize; every position comes from layoutFor(meta.width, meta.height).
 export const meta = { width: 720, height: 1560, fluid: { short: 720 } };
 export const wheelInput = { dy: 0 };
 const lay = () => layoutFor(meta.width, meta.height);
+// With the 3D board alive a tap is mapped through the tilted view (v3.squareAt); otherwise through the flat layout.
+const sqAt = (n, x, y) => (v3.on && v3.frame && v3.squareAt ? v3.squareAt(n, x, y) : lay().squareAt(n, x, y));
+const ctrAt = (n, i) => (v3.on && v3.frame && v3.toScreen ? v3.toScreen((i % n) + 0.5, ((i / n) | 0) + 0.5) : lay().centerOf(n, i));
 const DEMO_GAMES = 2, HINTS_PER_GAME = 3;
 // Auto Play (assisted-learning): a fixed engine strength for both sides, independent of the title
 // screen's own "Computer: X" setting - the point is a consistently instructive demonstration game,
@@ -371,7 +375,7 @@ export function createGame(env) {
     const n = N(); let dx = 0, dy = 0;
     if (k.has('ArrowLeft')) dx = -1; else if (k.has('ArrowRight')) dx = 1; else if (k.has('ArrowUp')) dy = -1; else if (k.has('ArrowDown')) dy = 1;
     if (dx || dy) { state.kb = true; const x = Math.max(0, Math.min(n - 1, (state.cursor % n) + dx)), y = Math.max(0, Math.min(n - 1, Math.floor(state.cursor / n) + dy)); state.cursor = x + n * y; return null; }
-    if (k.has('Enter') || k.has('Space')) { state.kb = true; if (state.cursor >= n * n) state.cursor = (n * n) >> 1; const p = lay().centerOf(n, state.cursor); return { x: p.x, y: p.y, board: true }; }
+    if (k.has('Enter') || k.has('Space')) { state.kb = true; if (state.cursor >= n * n) state.cursor = (n * n) >> 1; const p = ctrAt(n, state.cursor); return { x: p.x, y: p.y, board: true }; }
     return null;
   }
 
@@ -389,13 +393,13 @@ export function createGame(env) {
       let sq;
       if (boardScene && !state.anim) {
         const n = N();
-        if (tap) { const i = lay().squareAt(n, tap.x, tap.y); if (i >= 0 || !(inRect(lay().BTN.menu, tap.x, tap.y) || inRect(lay().BTN.undo, tap.x, tap.y) || inRect(lay().BTN.hint, tap.x, tap.y) || inRect(lay().BTN.next, tap.x, tap.y) || inRect(lay().BTN.skip, tap.x, tap.y) || inRect(lay().BTN.share, tap.x, tap.y))) sq = i; }
+        if (tap) { const i = sqAt(n, tap.x, tap.y); if (i >= 0 || !(inRect(lay().BTN.menu, tap.x, tap.y) || inRect(lay().BTN.undo, tap.x, tap.y) || inRect(lay().BTN.hint, tap.x, tap.y) || inRect(lay().BTN.next, tap.x, tap.y) || inRect(lay().BTN.skip, tap.x, tap.y) || inRect(lay().BTN.share, tap.x, tap.y))) sq = i; }
         if (sq !== undefined && sq >= 0 && p.pressed && state.game.b[sq] && side(state.game.b[sq]) === state.game.turn) state.drag = { from: sq, x: p.x, y: p.y, sx: p.x, sy: p.y, moved: false };
         else if (p.pressed) state.drag = null;
         if (state.drag && p.down) { state.drag.x = p.x; state.drag.y = p.y; if (Math.hypot(p.x - state.drag.sx, p.y - state.drag.sy) > 22) state.drag.moved = true; }
         if (state.drag && p.released) {
           const d = state.drag; state.drag = null;
-          if (d.moved) { const to = lay().squareAt(n, p.x, p.y); if (to >= 0 && to !== d.from) { state.sel = d.from; sq = to; } }
+          if (d.moved) { const to = sqAt(n, p.x, p.y); if (to >= 0 && to !== d.from) { state.sel = d.from; sq = to; } }
         }
       } else if (p.released) state.drag = null;
       if (sc === 'title') updateTitle(tap);

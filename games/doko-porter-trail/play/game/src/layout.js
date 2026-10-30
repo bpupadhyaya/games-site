@@ -97,10 +97,10 @@ export function playLayout(w, h, { hand = 'right', coach = false, auto = false }
   const pause = R(U.x1 - m - s, top, s, s);
   const hint = R(pause.x - 8 - s, top, s, s);
   const leftX = f.lx;
-  const strip = R(leftX, top + s + 10, U.x1 - m - leftX, 40);
+  const strip = R(leftX, top + s + 10, U.x1 - m - leftX, 46);
   const barsY = strip.y + strip.h + 12;
   const gap3 = 12, gw = Math.min(190, strip.w * 0.26), side = (strip.w - gw - gap3 * 2) / 2;
-  const breath = R(strip.x, barsY, side, 26), gauge = R(strip.x + side + gap3, barsY, gw, 26), day = R(strip.x + side + gw + gap3 * 2, barsY, side, 26);
+  const breath = R(strip.x, barsY, side, 34), gauge = R(strip.x + side + gap3, barsY, gw, 34), day = R(strip.x + side + gw + gap3 * 2, barsY, side, 34);
   const items = R(leftX, top, hint.x - leftX - 10, s);
   // Watch and Learn card sits at the bottom: card + a row of controls
   const railH = s * 2 + 40 + (f.land ? 118 : 170);
@@ -121,7 +121,7 @@ export function playLayout(w, h, { hand = 'right', coach = false, auto = false }
     : { x: U.x0 + U.w / 2, y: U.y1 - 150 };
   if (!f.land && auto) pad.y = Math.min(pad.y, rail.y - padR - 14);
   else if (!f.land && coach) pad.y = Math.min(pad.y, coachRect.y - padR - 14);
-  return { f, U, pause, hint, strip, breath, gauge, day, items, pad: { ...pad, r: padR }, coach: coachRect, coachBtns, rail, railBtns, sceneTop: barsY + 48 };
+  return { f, U, pause, hint, strip, breath, gauge, day, items, pad: { ...pad, r: padR }, coach: coachRect, coachBtns, rail, railBtns, sceneTop: barsY + 58 };
 }
 
 export function pauseLayout(w, h) {

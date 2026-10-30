@@ -14,8 +14,8 @@ const LIB = '../vendor3d/index.js';
 const TAU = Math.PI * 2;
 const BALL_R = 0.135;   // a real 21 cm dodgeball is 0.105 m radius; drawn 1.3x so it reads on a phone
 const KIT = {   // team 0 (the player's) in orange, team 1 in blue; shorts the other way round
-  0: { top: '#ff8a1c', bottoms: '#1b2a52', socks: '#ffd9a0', shoes: '#f4efe4', trim: '#ffe2b8' },
-  1: { top: '#2f66ff', bottoms: '#f4f1e8', socks: '#cfdcff', shoes: '#f4efe4', trim: '#cfe0ff' },
+  0: { top: '#ff8a1c', bottoms: '#1b2230', socks: '#ffd9a0', shoes: '#f4efe4', trim: '#ffe2b8' },
+  1: { top: '#2f66ff', bottoms: '#232a3a', socks: '#cfdcff', shoes: '#f4efe4', trim: '#cfe0ff' },
 };
 const FEMALE = new Set(['Ana', 'Bia', 'Lia', 'Marta', 'Nina', 'Anna', 'Lena', 'Mia', 'Emma', 'Hanna', 'Giulia', 'Sofia', 'Chiara', 'Elena', 'Sara']);
 const SKIN = { '#f6d9c0': 'light', '#eec19a': 'light', '#d9a577': 'tan', '#b57d54': 'brown', '#8a5a3a': 'deep' };
@@ -27,7 +27,7 @@ const CROWD_ROWS = {
   piazza: { culture: 'mediterranean', kids: 0.2, rows: [[-14.7, -12, -14.7, 6, 9], [14.7, -12, 14.7, 6, 9], [-11, -13.9, 11, -13.9, 12]] },
   praia: { culture: 'latin_american', kids: 0.3, rows: [[-14.2, -9, -14.2, 9, 8], [14.2, -9, 14.2, 9, 8], [-12, -12.6, 12, -12.6, 10]] },
 };
-const POOL = { f: [0.97, 0.99, 1.0, 0.96, 0.98], m: [1.0, 1.02, 0.98, 1.03, 1.0] };
+const POOL = { f: [0.97, 0.99, 1.0, 0.96, 0.98].map((x) => x * 1.1), m: [1.0, 1.02, 0.98, 1.03, 1.0].map((x) => x * 1.1) };
 const POOL_LOOK = { f: [['tan', 'black'], ['light', 'brown'], ['brown', 'black'], ['light', 'blond'], ['deep', 'black']], m: [['brown', 'black'], ['tan', 'brown'], ['light', 'black'], ['tan', 'black'], ['deep', 'black']] };
 
 function pickQuality() {
@@ -85,7 +85,8 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
   const pool = { f: [], m: [] }, crowd = [];
   async function build() {
     const mk = async (c, scale, [skin, hair]) => {
-      const h = await loadHuman({ character: c, scale, kit: { ...KIT[0] }, skin, hair, lod: 'auto', quality });
+      const h = await loadHuman({ character: c, top: 'long', scale, kit: { ...KIT[0] }, skin, hair, lod: 'medium', quality });
+      h.lodAuto = false;   // the light level has no sleeves: players stay at the medium level
       stage.add(h); stage.track(h); h.root.visible = false;
       if (quality === 'low') h.model.traverse((o) => { if (o.isMesh || o.isSkinnedMesh) o.castShadow = false; });
       return new Person(h);

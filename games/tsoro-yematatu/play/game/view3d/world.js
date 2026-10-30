@@ -66,7 +66,7 @@ export const stoneHeight = () => STONE_R * 0.95;
 
 // ------------------------------------------------------------------ the carved board
 const SLAB = {
-  granite: { base: ['#4a5651', '#7c8880'], top: ['#66726a', '#9aa69c'], seed: 9, terrace: '#566159', groove: '#1d2523', inlay: '#f0c15a' },
+  granite: { base: ['#2a3330', '#4d5a54'], top: ['#26322d', '#4a5a52'], seed: 9, terrace: '#46544d', groove: '#1d2523', inlay: '#f0c15a' },
   soap:    { base: ['#3d4a34', '#6c7c58'], top: ['#566748', '#92a47c'], seed: 14, terrace: '#4a5a3c', groove: '#1a2116', inlay: '#f2cf6a' },
   basalt:  { base: ['#1c2427', '#34403f'], top: ['#27343a', '#4b5d62'], seed: 31, terrace: '#34464b', groove: '#0c1214', inlay: '#f6d070' },
   copper:  { base: ['#54291a', '#98603f'], top: ['#7e4630', '#c58e68'], seed: 21, terrace: '#8a5236', groove: '#2c1509', inlay: '#ffe08a' },

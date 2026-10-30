@@ -171,45 +171,6 @@ function makeGralla() {
   return g;
 }
 
-// ---- sleeves: the athlete wears a tank top, a castellers' shirt has sleeves. Repainted ONCE per character (shared canvas copies). ----
-const SLEEVES = {
-  athlete_m: [[0, 490, 308, 800], [716, 490, 1024, 800]],
-  athlete_f: [[62, 250, 436, 548], [586, 250, 960, 548]],
-};
-const shared = {};
-function sleeveTextures(char, human) {
-  if (shared[char]) return shared[char];
-  const N = 1024;
-  const m = human.mats.find((x) => x.userData.kind === 'body' && x.map && x.userData.tint);
-  if (!m) return (shared[char] = null);
-  const u = m.userData.tint;
-  const cv = () => { const c = globalThis.document.createElement('canvas'); c.width = c.height = N; return c; };
-  const read = (img) => { const c = cv(); const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(img, 0, 0, N, N); return { c, g, d: g.getImageData(0, 0, N, N) }; };
-  const A = read(m.map.image), M = read(u.tMask.value.image), K = read(u.tSkin.value.image);
-  const a = A.d.data, mk = M.d.data, sk = K.d.data;
-  for (const [x0, y0, x1, y1] of SLEEVES[char]) {
-    for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
-      const i = (y * N + x) * 4;
-      // keep the soft light/dark of the old texels as cloth folds, on a light shirt grey
-      const L = 0.299 * a[i] + 0.587 * a[i + 1] + 0.114 * a[i + 2];
-      const v = clamp(206 + (L - 150) * 0.35, 150, 240);
-      a[i] = v; a[i + 1] = v; a[i + 2] = v; a[i + 3] = 255;
-      mk[i] = 255; mk[i + 1] = 0; mk[i + 2] = 0; sk[i] = 0;
-    }
-  }
-  A.g.putImageData(A.d, 0, 0); M.g.putImageData(M.d, 0, 0); K.g.putImageData(K.d, 0, 0);
-  const tex = (c, srgb) => { const t = new THREE.CanvasTexture(c); t.flipY = false; t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace; t.generateMipmaps = true; t.minFilter = THREE.LinearMipmapLinearFilter; t.anisotropy = 4; return t; };
-  return (shared[char] = { map: tex(A.c, true), mask: tex(M.c, false), skin: tex(K.c, false) });
-}
-function dress(human, char) {
-  const sh = sleeveTextures(char, human);
-  if (!sh) return;
-  for (const m of human.mats) {
-    if (m.userData.kind !== 'body' || !m.userData.tint) continue;
-    m.map = sh.map; m.userData.tint.tMask.value = sh.mask; m.userData.tint.tSkin.value = sh.skin; m.needsUpdate = true;
-  }
-}
-
 // ---------------------------------------------------------------------------------------------------------------------------------
 export async function createCastells3D({ quality = 'medium', poolSize = 30 } = {}) {
   const canvas = globalThis.document.createElement('canvas');
@@ -242,8 +203,7 @@ export async function createCastells3D({ quality = 'medium', poolSize = 30 } = {
   const load = async (char) => {
     loading++;
     try {
-      const h = await loadHuman({ character: char, lod: 1, kit: { top: '#ffffff', bottoms: TROUSERS, socks: TROUSERS, shoes: SHOES }, skin: SKIN[1], hair: 'black' });
-      dress(h, char);
+      const h = await loadHuman({ character: char, lod: 1, top: 'long', kit: { top: '#ffffff', bottoms: TROUSERS, socks: TROUSERS, shoes: SHOES }, skin: SKIN[1], hair: 'black' });
       const c = new Casteller(h, char);
       stage.add(h);
       if (char === 'athlete_m' && all.length === 0) shoulderY = h.bones.Bip01_L_UpperArm.getWorldPosition(new Vector3()).y;
@@ -263,8 +223,7 @@ export async function createCastells3D({ quality = 'medium', poolSize = 30 } = {
     const parts = [{ x: 3.35, z: -0.55, yaw: -0.55, kind: 'gralla', seed: 1 }, { x: 4.05, z: -0.15, yaw: -0.7, kind: 'gralla', seed: 2 }, { x: 4.75, z: -0.6, yaw: -0.8, kind: 'gralla', seed: 3 }, { x: -3.7, z: -0.4, yaw: 0.65, kind: 'tabal', seed: 4 }];
     for (const pt of parts) {
       try {
-        const h = await loadHuman({ character: 'athlete_m', lod: 1, kit: { top: '#fbfaf5', bottoms: '#17151a', socks: '#17151a', shoes: '#2a1f18' }, skin: SKIN[pt.seed % 3], hair: 'black' });
-        dress(h, 'athlete_m');
+        const h = await loadHuman({ character: 'athlete_m', lod: 1, top: 'long', kit: { top: '#fbfaf5', bottoms: '#17151a', socks: '#17151a', shoes: '#2a1f18' }, skin: SKIN[pt.seed % 3], hair: 'black' });
         const c = new Casteller(h, 'athlete_m', true);
         c.part = pt; c.idleSeed = pt.seed * 1.7;
         const prop = pt.kind === 'gralla' ? makeGralla() : (() => {
@@ -521,8 +480,8 @@ export async function createCastells3D({ quality = 'medium', poolSize = 30 } = {
         alpha *= 1 - sstep(((it.fall || 0) - 0.25) / 0.65);
         kidScale = 1;
       }
-      // quality tiers: the pinya (small, partly hidden) drops to the one-draw-call light mesh on weak devices; the tower keeps the medium mesh
-      const wantLod = api.quality === 'low' && it.kind === 'pinya' ? 2 : 1;
+      // quality tiers: the tower and the children are close to the camera: full-detail mesh (complete hands) unless the cost guard trips; the pinya (small, partly hidden) uses the medium mesh, the light mesh on weak devices
+      const wantLod = it.kind === 'pinya' ? (api.quality === 'low' ? 2 : 1) : (api.quality === 'low' ? 1 : 0);
       if (c.lodNow !== wantLod && h.lodSets && h.lodSets.ready) { try { h.setLOD(wantLod); c.lodNow = wantLod; } catch (e) { c.lodNow = wantLod; } }
       const base = it.person.kid ? it.person.h : 1 + (it.person.h - 1) * 0.35;
       const sca = base * kidScale;

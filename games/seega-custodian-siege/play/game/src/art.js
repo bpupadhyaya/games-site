@@ -172,6 +172,28 @@ export function icon(ctx, name, x, y, s, color = '#fff') {
     ctx.beginPath(); ctx.moveTo(-r * 0.6, 0); ctx.lineTo(-r * 0.15, r * 0.45); ctx.lineTo(r * 0.65, -r * 0.5); ctx.stroke();
   } else if (name === 'stop') {
     rr(ctx, -r * 0.55, -r * 0.55, r * 1.1, r * 1.1, 6); ctx.fill();
+  } else if (name === 'learn') { // an open book
+    ctx.beginPath(); ctx.moveTo(0, -r * 0.45); ctx.quadraticCurveTo(-r * 0.4, -r * 0.62, -r * 0.82, -r * 0.5); ctx.lineTo(-r * 0.82, r * 0.5); ctx.quadraticCurveTo(-r * 0.4, r * 0.38, 0, r * 0.55); ctx.closePath(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, -r * 0.45); ctx.quadraticCurveTo(r * 0.4, -r * 0.62, r * 0.82, -r * 0.5); ctx.lineTo(r * 0.82, r * 0.5); ctx.quadraticCurveTo(r * 0.4, r * 0.38, 0, r * 0.55); ctx.closePath(); ctx.stroke();
+  } else if (name === 'eye') {
+    ctx.beginPath(); ctx.moveTo(-r * 0.85, 0); ctx.quadraticCurveTo(0, -r * 0.8, r * 0.85, 0); ctx.quadraticCurveTo(0, r * 0.8, -r * 0.85, 0); ctx.closePath(); ctx.stroke();
+    ctx.beginPath(); ctx.arc(0, 0, r * 0.24, 0, Math.PI * 2); ctx.fill();
+  } else if (name === 'help') {
+    ctx.beginPath(); ctx.arc(0, 0, r * 0.8, 0, Math.PI * 2); ctx.stroke();
+    ctx.lineWidth = Math.max(2, s * 0.085);
+    ctx.beginPath(); ctx.arc(0, -r * 0.18, r * 0.26, Math.PI * 1.05, Math.PI * 2.3); ctx.lineTo(0, r * 0.2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(0, r * 0.45, r * 0.07, 0, Math.PI * 2); ctx.fill();
+  } else if (name === 'rules') { // a page of lines
+    rr(ctx, -r * 0.58, -r * 0.78, r * 1.16, r * 1.56, r * 0.14); ctx.stroke();
+    ctx.lineWidth = Math.max(2, s * 0.07);
+    for (const yy of [-0.38, -0.05, 0.28]) { ctx.beginPath(); ctx.moveTo(-r * 0.3, r * yy); ctx.lineTo(r * 0.3, r * yy); ctx.stroke(); }
+  } else if (name === 'info') {
+    ctx.beginPath(); ctx.arc(0, 0, r * 0.8, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, -r * 0.08); ctx.lineTo(0, r * 0.42); ctx.stroke();
+    ctx.beginPath(); ctx.arc(0, -r * 0.38, r * 0.08, 0, Math.PI * 2); ctx.fill();
+  } else if (name === 'gear') {
+    ctx.beginPath(); for (let k = 0; k < 16; k++) { const a = (k / 16) * Math.PI * 2, rad = k % 2 ? r * 0.58 : r * 0.8; ctx.lineTo(Math.cos(a) * rad, Math.sin(a) * rad); } ctx.closePath(); ctx.stroke();
+    ctx.beginPath(); ctx.arc(0, 0, r * 0.24, 0, Math.PI * 2); ctx.stroke();
   } else if (name === 'auto') { // two stones dropping: a quick "place the rest" glyph
     ctx.beginPath(); ctx.arc(-r * 0.4, r * 0.25, r * 0.3, 0, Math.PI * 2); ctx.fill();
     ctx.beginPath(); ctx.arc(r * 0.4, r * 0.25, r * 0.3, 0, Math.PI * 2); ctx.fill();

@@ -239,7 +239,7 @@ export async function createPresenter({ kitCanvas, quality }) {
     // a fixed per-frame budget: if the average cost of a frame stays high, step the quality down one tier (shadows off, then blob shadows + 1x pixels)
     const cost = nowMs() - t0;
     avg += (cost - avg) * 0.05; window.__v3avg = Math.round(avg * 10) / 10; window.__v3tier = tier;
-    if (avg > 9 && tier !== 'low' && ++slow > 90) { slow = 0; tier = tier === 'high' ? 'medium' : 'low'; stage.setQuality(tier); hall.setQuality(tier); sizeKey = ''; avg = 6; }
+    if (avg > 9 && tier !== 'low' && ++slow > 90) { slow = 0; tier = tier === 'high' ? 'medium' : 'low'; stage.setQuality(tier); hall.setQuality(tier); for (const r of rigs) { if (r && r.h.setLOD) r.h.setLOD(0); } sizeKey = ''; avg = 6; }
   }
 
   return {

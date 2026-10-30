@@ -37,7 +37,7 @@ export function createGame(env) {
     ui: { scroll: 0, drag: null, focusId: null }, page: 0, bookMsg: '', restoreMsg: '',
     w: createWorld('yoyo', 1), j: newJudge(), trickId: 'y-downup', show: newShow(), daily: null, drops: 0, dropTotal: 0,
     drag: null, tossT: -1, res: null, resT: 0, hint: null, learn: null, watch: null, ghost: null,
-    pops: [], toast: '', toastT: 0, flash: 0, camTop: 1.6, thinkSecs: 5, loaded: false, att: null, spinSfx: 0,
+    pops: [], toast: '', toastT: 0, flash: 0, camTop: 0.9, thinkSecs: 5, loaded: false, att: null, spinSfx: 0,
   };
   let planner = null, camCache = { key: '', cam: null };
 
@@ -85,7 +85,7 @@ export function createGame(env) {
   const getCam = () => {
     const top = Math.round(state.camTop * 20) / 20, toy = playScene() ? state.toy : (state.att ? state.att.toy : state.toy);
     const tight = !playScene() && !LAY.land, key = `${LAY.key}|${toy}|${top}|${playScene()}`;
-    if (camCache.key !== key) camCache = { key, cam: makeCam(LAY.W, LAY.H, sceneRect(), toy, playScene() ? top : 1.6, tight) };
+    if (camCache.key !== key) camCache = { key, cam: makeCam(LAY.W, LAY.H, sceneRect(), toy, playScene() ? top : 0.9, tight) };
     return camCache.cam;
   };
   const toyOf = (w) => (w.toy === 'yoyo' ? w.yy : w.db);
@@ -117,7 +117,7 @@ export function createGame(env) {
   const resetPlayBits = () => {
     state.drag = null; state.tossT = -1; state.res = null; state.resT = 0; state.hint = null; state.learn = null; state.watch = null; state.ghost = null;
     state.pops = []; state.toastT = 0; state.flash = 0; state.drops = 0; state.paused = false; state.pauseMenu = false; state.ui.scroll = 0; planner = null;
-    state.camTop = 1.6;
+    state.camTop = 0.9;
   };
   const freshWorld = (toy, seed) => {
     state.toy = toy; state.settings.toy = toy;
@@ -154,7 +154,7 @@ export function createGame(env) {
     state.mode = 'watch'; state.thinkSecs = THINK_STEPS[state.settings.thinkIdx];
     beginWatchTrick(null);
   };
-  const leavePlay = () => { state.scene = 'title'; state.paused = false; state.pauseMenu = false; state.ui.scroll = 0; state.hint = null; state.watch = null; state.learn = null; planner = null; state.res = null; state.ghost = null; state.camTop = 1.6; if (!state.att) resetAttract(); };
+  const leavePlay = () => { state.scene = 'title'; state.paused = false; state.pauseMenu = false; state.ui.scroll = 0; state.hint = null; state.watch = null; state.learn = null; planner = null; state.res = null; state.ghost = null; state.camTop = 0.9; if (!state.att) resetAttract(); };
 
   // ---- plans, in words --------------------------------------------------------------------------
   const describePlan = (id, p) => {
@@ -224,7 +224,7 @@ export function createGame(env) {
     const list = tricksOf(state.toy).filter((t) => t.id !== last && demoOpen(t));
     const tr = aiRng.pick(list);
     const w = createWorld(state.toy, 1 + aiRng.int(90000)); w.assist = state.settings.assist;
-    state.w = w; state.j = newJudge(); state.j.last = w.eid; state.pops = []; state.ghost = null; state.camTop = 1.6;
+    state.w = w; state.j = newJudge(); state.j.last = w.eid; state.pops = []; state.ghost = null; state.camTop = 0.9;
     state.trickId = tr.id;
     state.watch = { phase: 'think', t: 0, dur: state.thinkSecs, plan: null, arcs: [], note: '', tries: 0, lastId: tr.id, ctl: null, done: false };
     beginThink();
@@ -275,7 +275,7 @@ export function createGame(env) {
     const evs = judgeStep(state.j, w);
     for (const e of evs) onEvent(e);
     const t = toyOf(w);
-    const want = Math.max(1.6, t.y + 1.0);                 // the camera follows the toy up when it goes high, settles back slowly
+    const want = Math.max(0.9, t.y + 0.8);                 // the camera follows the toy up when it goes high, settles back slowly
     state.camTop += (want - state.camTop) * Math.min(1, dt * (want > state.camTop ? 9 : 0.9));
     if (t.w > 40) { state.spinSfx -= dt; if (state.spinSfx <= 0) { sfx.whirr(t.w); state.spinSfx = 0.12; } }
   }
@@ -676,7 +676,7 @@ export function createGame(env) {
       const play = playScene();
       const w = play ? state.w : state.att ? state.att.w : state.w;
       const toy = play ? state.toy : state.att ? state.att.toy : state.toy;
-      return { toy, w, W: L.W, H: L.H, rect: sceneRect(), camTop: play ? state.camTop : 1.6, tight: !play && !L.land, clock: state.t, ghost: state.scene === 'play' && state.ghost ? state.ghost : null, scene: state.scene };
+      return { toy, w, W: L.W, H: L.H, rect: sceneRect(), camTop: play ? state.camTop : 0.9, tight: !play && !L.land, clock: state.t, ghost: state.scene === 'play' && state.ghost ? state.ghost : null, scene: state.scene };
     },
     // Dev / check scripts only: every tappable rectangle and info box of the screen being shown.
     devRects() {

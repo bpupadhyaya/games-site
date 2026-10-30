@@ -10,6 +10,7 @@ for (const type of ['pointerdown', 'pointermove', 'pointerup', 'pointercancel'])
 // The 3D field (web/view3d) draws behind the kit canvas; if it cannot load or WebGL is missing the game keeps its flat 2D field.
 let presenter = { stage: null, wrap: (g) => g };
 try {
+  if (/[?&]flat=1/.test(location.search)) throw new Error('flat=1: 2D field requested');
   const { createPresenter } = await import('./view3d/presenter.js');
   presenter = await createPresenter({ kitCanvas: canvas });
 } catch (e) { console.warn('3D field unavailable, using the 2D field', e); }

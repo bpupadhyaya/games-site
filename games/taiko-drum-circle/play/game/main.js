@@ -3,6 +3,7 @@ import { createGame, meta } from './src/game.js';
 import { host, layoutFor } from './src/layout.js';
 import { setLogo, setLockup } from './src/brand.js';
 import { createDrumEngine } from './audio/engine.js';
+import { v3 } from './src/v3.js';
 
 const canvas = document.getElementById('game');
 const engine = createDrumEngine();
@@ -40,19 +41,45 @@ document.addEventListener('visibilitychange', () => { if (document.hidden && gam
 const q = new URLSearchParams(location.search);
 // Store screenshots (`tools/arc shots` loads ?shot=1&seed=N&ticks=0): the seed picks a real screen instead of random monkey taps.
 const SHOT_SCENES = { 1: { scene: 'title' }, 2: { scene: 'play', mode: 'perform', piece: 3, advance: 20, play: true }, 3: { scene: 'play', mode: 'learn', piece: 1, advance: 9, play: true }, 4: { scene: 'free' }, 5: { scene: 'about' }, 6: { scene: 'result' }, 7: { scene: 'piece', piece: 4 }, 8: { scene: 'rules', page: 1 } };
+let presenter = null, inner = null;
+const bg = { toString: () => (v3.on ? 'rgba(0,0,0,0)' : '#0b0a1f') };      // read by the kit every frame, so the switch is instant
+const wrap = (g) => Object.assign(Object.create(g), g, {
+  render(ctx, view) {
+    if (v3.on && presenter) {
+      // the kit fills its background each frame; a transparent fill erases nothing, so clear the 2D layer here
+      ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height); ctx.restore();
+      presenter.pre();
+    }
+    g.render(ctx, view);
+    if (v3.on && presenter) presenter.post();
+  },
+});
 const create = async (env) => {
   game = await createGame({ ...env, rhythm: engine });
+  inner = wrap(game);
   if (q.has('shot') && !q.has('scene') && SHOT_SCENES[Number(q.get('seed'))]) game.dev.jump(SHOT_SCENES[Number(q.get('seed'))]);
   if (env.config.dev) {
-    window.__tdc = game; window.__tdcEngine = engine;
+    window.__tdc = game; window.__tdcEngine = engine; window.__p3 = () => presenter;
     window.__tdcCss = (vx, vy) => { const r = canvas.getBoundingClientRect(), scale = Math.min(canvas.width / meta.width, canvas.height / meta.height), k = r.width / canvas.width; return { x: r.left + (vx * scale + (canvas.width - meta.width * scale) / 2) * k, y: r.top + (vy * scale + (canvas.height - meta.height * scale) / 2) * k }; };
+    window.__tdcRect = (scene, name) => layoutFor(meta.width, meta.height)[scene]?.[name];
     window.__tdcDrum = (i) => layoutFor(meta.width, meta.height).play.stage.drums[i];
     if (q.has('scene')) game.dev.jump({ scene: q.get('scene'), piece: Number(q.get('piece') ?? 0), mode: q.get('mode') ?? 'perform', page: Number(q.get('page') ?? 0), advance: Number(q.get('adv') ?? 0), play: q.has('play'), pause: q.has('pause'), pref: q.has('pref') ? JSON.parse(q.get('pref')) : undefined });
   }
-  return game;
+  return inner;
 };
 
 const af = new Image(); af.onload = () => setLogo(af); af.src = './brand/arcforge-af.png';
 const lock = new Image(); lock.onload = () => setLockup(lock); lock.src = './brand/arcforge-lockup.png';
 
-boot({ createGame: create, meta, canvas, background: '#0b0a1f' }).then((b) => { gate = b.game; });
+boot({ createGame: create, meta, canvas, background: bg }).then((b) => { gate = b.game; });
+
+// 3D festival-night presenter (wooden taiko with rope and tacks, plank stage, kohaku curtain, paper lanterns) behind the kit canvas. The
+// game boots at once on the flat 2D art; three.js loads after that and crossfades in. No WebGL, ?flat=1 or a lost context: flat art stays.
+if (!q.has('flat')) {
+  const start = () => import('./view3d/presenter.js').then((m) => m.createPresenter({ kitCanvas: canvas })).then((p) => {
+    if (!p.ok) return;
+    const go = () => { if (!inner) return setTimeout(go, 30); presenter = p; p.attach(); };
+    go();
+  }).catch((e) => console.warn('3D presenter unavailable; flat art stays', e));
+  requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(start, 30)));
+}

@@ -45,10 +45,10 @@ export function buildUi(S, L = S.L ?? layoutFor()) {
       if (S.save) b.push({ t: 'btn', id: 'continue', label: tr('continueBtn'), kind: 'primary', size: z(32), sub: S.save.two ? tr('twoPlayers') : LEVELS.find((l) => l.id === S.save.level)?.name ?? '', minH: z(104) });
       const playSub = S.demo ? tr('demoLeft', { n: Math.max(0, DEMO_GAMES - S.demoGames) }) : undefined;
       b.push({ t: 'btn', id: 'play', label: tr('playBtn'), kind: S.save ? 'normal' : 'primary', size: z(36), sub: playSub, minH: z(S.save ? 92 : 118) });
-      b.push({ t: 'btn', id: 'learn', label: tr('learnBtn'), size: z(30), sub: `${lessonsDone(S)} / ${LESSONS.length}`, minH: z(96) });
-      b.push({ t: 'btn', id: 'auto', label: tr('autoBtn'), size: z(30), minH: z(92) });
-      b.push({ t: 'row', size: z(28), minH: z(92), items: [{ id: 'howto', label: tr('howtoBtn') }, { id: 'rules', label: tr('rulesBtn') }] });
-      b.push({ t: 'row', size: z(28), minH: z(92), items: [{ id: 'about', label: tr('aboutBtn') }, { id: 'settings', label: tr('settingsBtn') }] });
+      // one dominant Play button, then a tidy 2-column grid of the rest (leaves the 3D board room above the menu)
+      b.push({ t: 'row', size: z(28), minH: z(88), items: [{ id: 'learn', icon: 'book', label: `${tr('learnBtn')} ${lessonsDone(S)}/${LESSONS.length}` }, { id: 'auto', icon: 'eye', label: tr('autoBtn') }] });
+      b.push({ t: 'row', size: z(28), minH: z(88), items: [{ id: 'howto', icon: 'question', label: tr('howtoBtn') }, { id: 'rules', icon: 'scroll', label: tr('rulesBtn') }] });
+      b.push({ t: 'row', size: z(28), minH: z(88), items: [{ id: 'about', icon: 'info', label: tr('aboutBtn') }, { id: 'settings', icon: 'gear', label: tr('settingsBtn') }] });
       ui.blocks = b;
       break;
     }

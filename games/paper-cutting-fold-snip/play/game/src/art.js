@@ -1,6 +1,7 @@
 // UI drawing helpers: the lantern-lit desk, the cream cutting mat, flat clean buttons (no inner gloss), panels, icons, stars, paper confetti.
 // Palette: deep ink-brown desk with a warm lantern glow, cream rice-paper cards, vermilion and gold accents, jade for "done".
 import { unitShape, SHAPES } from './shapes.js';
+import { v3, flatAlpha, is3d, xf } from './v3.js';
 
 export const UI = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 export const DISPLAY = '"Songti SC", "Noto Serif SC", "Hiragino Mincho ProN", Georgia, "Times New Roman", serif';
@@ -59,6 +60,10 @@ function lattice() {
 
 // The desk: ink-brown lacquer lit by a lantern. `lx, ly` = where the glow falls.
 export function desk(ctx, w, h, t = 0, lx = 0.5, ly = 0.2) {
+  if (is3d(ctx)) { v3.req.desk = true; const a = flatAlpha(); if (a <= 0) return; ctx.save(); ctx.globalAlpha = a; deskFlat(ctx, w, h, t, lx, ly); ctx.restore(); return; }
+  deskFlat(ctx, w, h, t, lx, ly);
+}
+function deskFlat(ctx, w, h, t, lx, ly) {
   const g = ctx.createLinearGradient(0, 0, w, h);
   g.addColorStop(0, '#2a1715'); g.addColorStop(1, '#170d0e');
   ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
@@ -90,6 +95,10 @@ function matNoise() {
 
 // The cutting mat the paper lies on: a rounded card in the paper's mat colour, with fibre grain, ruler ticks and a soft edge.
 export function mat(ctx, r, color, o = {}) {
+  if (is3d(ctx)) { const q = xf(ctx); v3.req.mat = { x: r.x * q.k + q.e, y: r.y * q.k + q.f, w: r.w * q.k, h: r.h * q.k, color, dark: Boolean(o.dark) }; const a = flatAlpha(); if (a <= 0) return; ctx.save(); ctx.globalAlpha = a; matFlat(ctx, r, color, o); ctx.restore(); return; }
+  matFlat(ctx, r, color, o);
+}
+function matFlat(ctx, r, color, o) {
   ctx.save();
   ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 24; ctx.shadowOffsetY = 8;
   ctx.fillStyle = color; rr(ctx, r.x, r.y, r.w, r.h, 26); ctx.fill();

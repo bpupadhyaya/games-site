@@ -11,8 +11,8 @@ const KITS = [
   { top: '#f2a900', bottoms: '#1f6f78', socks: '#fff3d6', trim: '#fff3d6', shoes: '#fff3d6' },
   { top: '#1f9d8f', bottoms: '#e4572e', socks: '#fff3d6', trim: '#ffd98a', shoes: '#fff3d6' },
 ];
-const SKINS = ['brown', 'tan'];
-const HAIRS = ['black', 'black'];
+const SKINS = ['#8d5a3b', '#a8704a'];
+const HAIRS = ['#17110e', '#1c120d'];
 export const SPOT = [{ x: 0, z: -0.78 }, { x: 0, z: 0.78 }];     // where the two players stand (metres); they face each other
 // The camera looks along a fixed direction (the approved 3/4 view from behind the gold player's right shoulder); for every screen shape the DISTANCE is
 // solved so that both players (feet to raised hands, with the thrown foot) fill the rectangle the HUD leaves for them (the "band"), and the image is
@@ -20,7 +20,7 @@ export const SPOT = [{ x: 0, z: -0.78 }, { x: 0, z: 0.78 }];     // where the tw
 // title screen cut: a steady, wider shot (menu text above, buttons below)
 export const TITLE_CAM = { x: 5.5, y: 2.5, z: -4.1, lx: 0, ly: -0.12, lz: 0, fov: 46 };
 export const CAM = { x: 4.4, y: 2.5, z: -3.2, lx: 0, ly: 0.7, lz: 0, fov: 46 };
-const FIT_FILL = 0.96;           // the players' bounding box fills this much of the band (the rest is breathing room)
+const FIT_FILL = 1.0;           // the players' bounding box fills this much of the band (the rest is breathing room)
 
 function pickQuality() {
   try { const m = /[?&]q=(low|medium|high)/.exec(globalThis.location.search); if (m) return m[1]; } catch { /* ignore */ }
@@ -57,7 +57,7 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
     P.humans = []; P.actors = [];
     const gens = [g0, g1];
     for (let i = 0; i < 2; i++) {
-      const h = await loadHuman({ character: gens[i] === 'f' ? 'mannequin_f' : 'mannequin_m', kit: KITS[i], skin: SKINS[i], hair: HAIRS[i], legs: 'shorts' });
+      const h = await loadHuman({ character: gens[i] === 'f' ? 'athlete_f' : 'athlete_m', kit: KITS[i], skin: SKINS[i], hair: HAIRS[i], legs: 'shorts', top: 'long', lod: 'auto' });
       h.groundClamp = 'off'; h.footPlanting = false;
       h.play('ready_stance', { fade: 0 });
       if (quality === 'low') h.model.traverse((o) => { if (o.isMesh || o.isSkinnedMesh) o.castShadow = false; });
@@ -97,19 +97,22 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
     return { x: ((proj.x * 0.5 + 0.5) * map.cw - map.ox) / map.sc, y: ((-proj.y * 0.5 + 0.5) * map.ch - map.oy) / map.sc };
   }
   // world points that must stay in frame: both players, feet to raised hands, plus the clap point between them
-  const FIT_PTS = [];
-  for (let i = 0; i < 2; i++) for (const x of [-0.6, 0.6]) for (const y of [0, 1.95]) FIT_PTS.push(V(SPOT[i].x + x, y, SPOT[i].z));
-  FIT_PTS.push(V(0, 1.5, 0), V(0.45, 0.4, 0), V(-0.45, 0.4, 0));
+  const FIT_PTS = [], TITLE_PTS = [];
+  for (let i = 0; i < 2; i++) for (const x of [-0.45, 0.45]) for (const y of [0, 1.9]) FIT_PTS.push(V(SPOT[i].x + x, y, SPOT[i].z));
+  FIT_PTS.push(V(0, 1.5, 0), V(0.4, 0.4, 0), V(-0.4, 0.4, 0));
+  for (let i = 0; i < 2; i++) for (const x of [-0.4, 0.4]) for (const y of [0, 1.8]) TITLE_PTS.push(V(SPOT[i].x + x, y, SPOT[i].z));
   const tmp = V(), dirV = V(), tgtV = V(0, 0.9, 0);
   // box of FIT_PTS on screen (px) for a camera at distance d along `dir`
+  let PTS = FIT_PTS;
   function boxAt(cam, dir, d, aspect) {
     cam.clearViewOffset(); cam.aspect = aspect; cam.fov = CAM.fov; cam.updateProjectionMatrix();
     cam.position.copy(tgtV).addScaledVector(dir, d); cam.lookAt(tgtV); cam.updateMatrixWorld(true);
     let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
-    for (const p of FIT_PTS) { tmp.copy(p).project(cam); x0 = Math.min(x0, tmp.x); x1 = Math.max(x1, tmp.x); y0 = Math.min(y0, tmp.y); y1 = Math.max(y1, tmp.y); }
+    for (const p of PTS) { tmp.copy(p).project(cam); x0 = Math.min(x0, tmp.x); x1 = Math.max(x1, tmp.x); y0 = Math.min(y0, tmp.y); y1 = Math.max(y1, tmp.y); }
     return { x0, y0: -y1, x1, y1: -y0 };          // normalised device units, y down
   }
   function fitCamera(co, band, vw, vh, cw, ch) {
+    PTS = co === TITLE_CAM ? TITLE_PTS : FIT_PTS;
     const cam = stage.camera, sc = Math.min(cw / vw, ch / vh), ox = (cw - vw * sc) / 2, oy = (ch - vh * sc) / 2;
     Object.assign(map, { cw, ch, sc, ox, oy });
     const aspect = cw / ch;

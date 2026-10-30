@@ -27,7 +27,8 @@ const PLAYBACK = 2;       // the roll is animated at twice real time so a long r
 
 export function createGame(env) {
   const { rng, audio, storage, config, monetization } = env;
-  const lay = () => layoutFor(meta.width, meta.height);
+  const isWatch = () => state.scene === 'play' && !!state.m && state.m.cfg.mode === 'watch';
+  const lay = () => layoutFor(meta.width, meta.height, isWatch());
   const fx = rng.fork();
   const aiRng = rng.fork();
   const bestInit = () => Object.fromEntries(TRACK_IDS.map((t) => [t, 0]));
@@ -622,7 +623,7 @@ export function createGame(env) {
       }
     },
     render(ctx, view) {
-      const L = layoutFor(view?.width ?? meta.width, view?.height ?? meta.height);
+      const L = layoutFor(view?.width ?? meta.width, view?.height ?? meta.height, isWatch());
       if (gl.active) { ctx.clearRect(0, 0, L.w, L.h); gl.frame = buildFrame(L); }
       switch (state.scene) {
         case 'title': renderTitle(ctx, state, L); break;

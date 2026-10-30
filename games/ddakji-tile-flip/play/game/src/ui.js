@@ -26,7 +26,7 @@ export function setPress(ptr) {
 }
 const BTN_FILL = {
   disabled: ['#d3c7ab', '#c4b795', 'rgba(110,90,60,0.35)'],
-  primary: ['#e0702e', '#bd4c18', '#6e280a'],
+  primary: ['#ffe48e', '#efaf36', '#7a4c0a'],       // gold: the one main action of a screen
   active: ['#3c9378', '#2a735c', '#174537'],
   dark: ['#4a382c', '#37281e', 'rgba(255,255,255,0.18)'],
   plain: ['#f6ead0', '#e8d6a8', 'rgba(110,76,40,0.6)'],
@@ -46,7 +46,7 @@ export function paintButton(ctx, r, o = {}) {
   if (pressed) { ctx.fillStyle = 'rgba(20,10,4,0.16)'; ctx.fill(); }
   ctx.lineWidth = 1.5; ctx.strokeStyle = edge; ctx.stroke();
   ctx.restore();
-  return { dy, light: primary || active || dark };
+  return { dy, light: active || dark };
 }
 
 // A parchment pill. opts: primary (terracotta), active (olive), disabled, sub (small second line), size (font px)
@@ -121,7 +121,7 @@ export function flowLayout(ctx, widgets, scale, o = {}) {
     if (wd.t === 'btn' && wd.row !== undefined) {
       const group = [];
       while (i < widgets.length && widgets[i].t === 'btn' && widgets[i].row === wd.row) group.push(widgets[i++]);
-      const fs = Math.round((o.btn ?? 26) * Math.min(scale, 3));
+      const fs = Math.round((o.btn ?? 26) * Math.min(scale, 3) * (wd.big ?? 1));
       // a row of side-by-side buttons falls back to a stack when the text no longer fits
       ctx.font = `700 ${fs}px ${FONT}`;
       const cw0 = (w0 - GAP * (group.length - 1)) / group.length;
@@ -164,7 +164,7 @@ export function flowLayout(ctx, widgets, scale, o = {}) {
       continue;
     }
     if (wd.t === 'btn') {
-      const fs = Math.round((o.btn ?? 26) * Math.min(scale, 3));
+      const fs = Math.round((o.btn ?? 26) * Math.min(scale, 3) * (wd.big ?? 1));
       ctx.font = `700 ${fs}px ${FONT}`;
       const lines = wrapLines(ctx, wd.label, w0 - 28);
       const sub = wd.sub ? wrapLines(ctx, wd.sub, w0 - 28).length : 0;

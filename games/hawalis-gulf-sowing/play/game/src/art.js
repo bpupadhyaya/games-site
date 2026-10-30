@@ -1,6 +1,7 @@
 // Drawing helpers: themes, the painted wooden board, lit stones, panels, flat buttons, icons.
 // Plain canvas 2D, no images, nothing here changes game state.
 import { N, CIRCUIT } from './engine.js';
+import { v3 } from './v3.js';
 
 export const W = 720, H = 1560;
 export const UI = '-apple-system, "SF Pro Text", "Segoe UI", Roboto, system-ui, sans-serif';
@@ -207,7 +208,9 @@ export function boardGeo(x, y, w) {
   return { x, y, w, h: BH * sc, sc, toLocal: (sx, sy) => [(sx - x) / sc, (sy - y) / sc], toScreen: (lx, ly) => [x + lx * sc, y + ly * sc] };
 }
 export function cellAt(geo, sx, sy) {
-  const [lx, ly] = geo.toLocal(sx, sy);
+  // with the 3D board on, the tap goes through the 3D camera (a ray onto the board top) instead of the flat board's rectangle
+  const p = v3.on && v3.toLocal ? v3.toLocal(sx, sy) : null;
+  const [lx, ly] = p ?? geo.toLocal(sx, sy);
   let best = -1, bd = Infinity;
   for (let i = 0; i < N; i++) {
     const r = CELLS[i], d = Math.hypot(lx - r.cx, ly - r.cy);

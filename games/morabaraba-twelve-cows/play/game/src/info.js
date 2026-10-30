@@ -36,6 +36,8 @@ export const PAGES = {
     { title: "Controls (cont.)", lines: ["Take back undoes your last move; Hint shows a good move and why."] },
     { title: "Controls (cont.)", lines: ["Keyboard: arrow keys move the cursor, Space or Enter is a TAP, U takes back,"] },
     { title: "Controls (cont.)", lines: ["H hints, Escape is Menu."] },
+    { title: "The menu", lines: ["Play starts a game against the computer as Dark. Play Light, 2 players, Learn, Daily and Auto Play sit below it."] },
+    { title: "The menu (cont.)", lines: ["Settings holds the computer level, sound, mill warnings, reduced motion and large text."] },
     { title: "Auto Play", lines: ["On the title screen, TAP Auto Play (free, silent) to watch a full game play itself,"] },
     { title: "Auto Play (cont.)", lines: ["one move at a time."] },
     { title: "Auto Play (cont.)", lines: ["It pauses so you can guess the move yourself, then reveals every legal point and the one it chose."] },
@@ -52,7 +54,7 @@ export const PAGES = {
     { title: "A family of games (cont.)", lines: ["The diagonals and the extra cows make it quick and tactical."] },
     { title: "A family of games (cont.)", lines: ["Local rules vary. This version shoots while placing, one cow per move,"] },
     { title: "A family of games (cont.)", lines: ["and lets a player with three cows fly."] },
-    { title: "A family of games (cont.)", lines: ["The board and the cows are painted for this game."] },
+    { title: "A family of games (cont.)", lines: ["Here the board is a sandstone slab on the veld at sundown, and the cows are carved Nguni cattle."] },
     { title: "A family of games (cont.)", lines: ["The bands around the board are decoration only."] },
   ],
   // Exhaustive rules reference (added for the in-app Rules page). Every claim here is cross-checked
@@ -112,6 +114,8 @@ export const PAGES = {
 // Pages with the same title ("(cont.)" fragments included) join one section, and a line that stops mid-sentence
 // continues in the next line, so a sentence cut across pages is read whole.
 const cache = new WeakMap();
+// Credits for the 3D layer (three.js, view3d), added at the end of About once main.js has read vendor3d/LICENSES.md.
+export function addCredits(paras) { PAGES.about.push(...paras.map((t) => ({ title: '3D graphics credits', lines: [t] }))); cache.delete(PAGES.about); }
 export function flow(pages) {
   if (cache.has(pages)) return cache.get(pages);
   const out = [];

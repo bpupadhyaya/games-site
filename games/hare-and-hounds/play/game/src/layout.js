@@ -8,6 +8,7 @@
 // across the screen, flat). Both are painted ONCE in their own canonical coordinates (art.js) and drawn scaled; `board.s` is the scale.
 // Board coordinates (u, v): u in -1..1 (the three lanes), v in 0..4 (0 = the hare's end, 4 = the hounds' end).
 import { AX, LAT } from './rules.js';
+import { v3 } from './v3.js';
 export const W = 720, H = 1560;
 export const THINK_STEPS = [2, 5, 8, 10];
 export const REVEAL_TIME = 2;
@@ -138,11 +139,15 @@ function makeBoard(kind, s, ox, oy) {
   return {
     kind, s, ox, oy, layer: kd.layer, project: (u, v) => to(kd.project(u, v)),
     box: { x0: ox + kd.mat.x0 * s, x1: ox + kd.mat.x1 * s, y0: oy + kd.mat.y0 * s, y1: oy + kd.mat.y1 * s },
-    at: (i) => pts[i],
+    // while the 3D board is on, a point is where the presenter's camera shows it (taps and the keyboard cursor follow the lit board)
+    at: (i) => (v3.on && v3.pt ? v3.pt(i) : pts[i]),
     near(x, y) {
-      let best = -1, bd = Infinity;
-      for (let i = 0; i < 11; i++) { const p = pts[i], d = Math.min(Math.hypot(p.x - x, p.y - y), Math.hypot(p.x - x, p.y - 34 * p.s - y)); if (d < bd) { bd = d; best = i; } }
-      return bd < Math.max(46, 80 * s) ? best : -1;
+      const on = v3.on && v3.pt; let best = -1, bd = Infinity, sc = s;
+      for (let i = 0; i < 11; i++) {
+        const p = on ? v3.pt(i) : pts[i], hy = on ? p.hy : p.y - 34 * p.s, d = Math.min(Math.hypot(p.x - x, p.y - y), Math.hypot(p.x - x, hy - y), Math.hypot(p.x - x, (p.y + hy) / 2 - y));
+        if (d < bd) { bd = d; best = i; sc = on ? p.s : s; }
+      }
+      return bd < Math.max(46, 80 * sc) ? best : -1;
     },
   };
 }
@@ -173,40 +178,43 @@ export function lockHit(L, T) {
 }
 function lockRect(cx, y, maxW) { const lw = Math.min(260, maxW), lh = lw * LOCK_AR; return R(cx - lw / 2, y, lw, lh); }
 
-// Title: the phone's single column (kept exactly), or a grid for every other shape.
+// Title: ONE dominant Play button (Play the Hounds against the computer; "Continue your game" sits above it when a game is saved),
+// then a tidy grid of secondary actions and the settings toggles. The art (title lettering + the 3D hero or the flat pieces) takes the
+// space above. T.stage is the rectangle the 3D hero board is fitted into (below the lettering).
+const ROWS3 = [['hare', 'two', 'learn'], ['campaign', 'daily', 'auto'], ['rules', 'look']];
 function buildTitle(L, hasSave) {
-  const { w, h, U, oy, ins } = L, T = { hero: null, rows: {}, badges: null, dim: null, card: null, board: null, msgY: 0, msgX: w / 2 };
-  if (L.tall) {
-    const big = (hasSave ? [['resume']] : []).concat([['learn'], ['campaign'], ['hare', 'hound'], ['two'], ['daily']]), n = big.length;
-    const lk = lockRect(w / 2, 0, 300), lockY = h - Math.max(10, ins.b) - lk.h - 8, base = 770 + oy, need = n * 78 + 4 + 140 + 62, avail = lockY - 10 - base, f = Math.min(1, avail / need);
-    T.lock = { ...lk, y: lockY };
-    placeRows(big, 90, 540, base, 78 * f, 68 * f, T.rows);
-    placeRows([['level', 'sound'], ['marks', 'calm'], ['look', 'rules', 'auto']], 90, 540, base + n * 78 * f + 4 * f, 70 * f, 62 * f, T.rows);
-    T.hero = { sc: 1, hx: 0, hy: oy, dx: 50 };
-    const by = T.rows.look.y + 62 * f + 42;
-    if (by + 50 <= lockY - 6) T.badges = { rows: [{ label: 'Hare', side: 'H', x: 96, y: by }, { label: 'Hounds', side: 'D', x: 396, y: by }], games: { x: w / 2, y: by + 44 } };
-    T.dim = R(0, 760 + oy, w, h - 760 - oy); T.msgY = T.dim.y - 12;
-    T.board = { kind: 'v', s: 1, ox: 0, oy };
-    return T;
-  }
-  const rows = [['resume'], ['learn', 'campaign'], ['hare', 'hound'], ['two', 'daily'], ['level', 'sound'], ['marks', 'calm'], ['look', 'rules', 'auto']].filter((r) => hasSave || r[0] !== 'resume');
-  const n = rows.length;
-  if (!L.wide) {                                                   // stack: art on top, a grid below
-    const lk = lockRect(w / 2, 0, 300), lockY = h - Math.max(10, ins.b) - lk.h - 8; T.lock = { ...lk, y: lockY };
-    const pitch = Math.min(78, (h * 0.6) / n), bh = pitch - 10, y0 = lockY - 10 - n * pitch + (pitch - bh);
-    placeRows(rows, U.x0 + 40, U.w - 80, y0, pitch, bh, T.rows);
+  const { w, h, U, oy, ins } = L, T = { hero: null, rows: {}, badges: null, dim: null, card: null, board: null, msgY: 0, msgX: w / 2, big: {}, stage: null };
+  const lk0 = lockRect(w / 2, 0, 300);
+  if (!L.wide) {
+    const lockY = h - Math.max(10, ins.b) - lk0.h - 8; T.lock = { ...lk0, y: lockY };
+    const x0 = U.x0 + (L.tall ? 36 : 40), aw = U.w - (L.tall ? 72 : 80);
+    const tall = L.tall, pb = tall ? 104 : 96, pr = tall ? 74 : 70, pt = tall ? 62 : 58, gap = 14;
+    const need = (hasSave ? 70 + 12 : 0) + pb + gap + ROWS3.length * pr + 2 * pt + 6, avail = lockY - 12 - (tall ? 760 + oy : h * 0.42);
+    const f = Math.min(1, Math.max(0.72, avail / need)), y0 = lockY - 12 - need * f;
+    let y = y0;
+    if (hasSave) { placeRows([['resume']], x0, aw, y, 0, 70 * f, T.rows); y += (70 + 12) * f; }
+    placeRows([['hound']], x0, aw, y, 0, pb * f, T.rows); T.big.hound = true; y += (pb + gap) * f;
+    placeRows(ROWS3, x0, aw, y, pr * f, (pr - 10) * f, T.rows); y += ROWS3.length * pr * f + 6 * f;
+    placeRows([['level', 'sound'], ['marks', 'calm']], x0, aw, y, pt * f, (pt - 10) * f, T.rows);
     const top = Math.max(10, ins.t + 6);
-    T.hero = heroIn(R(U.x0, top, U.w, y0 - 14 - top), 0.34);
-    T.dim = R(0, y0 - 14, w, h - y0 + 14); T.msgY = y0 - 28;
+    T.hero = tall ? { sc: 1, hx: 0, hy: oy, dx: 50 } : heroIn(R(U.x0, top, U.w, y0 - 14 - top), 0.34);
+    if (T.hero) { const H = T.hero; T.stage = R(U.x0 + 6, H.hy + 222 * H.sc, U.w - 12, Math.max(80, y0 - 18 - (H.hy + 222 * H.sc))); }
+    T.dim = R(0, y0 - 18, w, h - y0 + 18); T.msgY = y0 - 28;
+    if (tall) T.board = { kind: 'v', s: 1, ox: 0, oy };
     return T;
   }
   // wide: art on the left, a card of buttons on the right
-  const aw = clamp(w * 0.5, 440, 720), ax = U.x1 - aw - 16, lk = lockRect(ax + aw / 2, 0, aw - 40), pitch = Math.min(86, (U.h - 36 - lk.h - 14) / n), bh = pitch - 12, y0 = U.y0 + (U.h - lk.h - 14 - n * pitch) / 2 + (pitch - bh) / 2;
-  placeRows(rows, ax + 20, aw - 40, y0, pitch, bh, T.rows);
-  T.card = R(ax, y0 - 22, aw, n * pitch + 12);
+  const rows = [...(hasSave ? [['resume']] : []), ['hound'], ['hare', 'two'], ['learn', 'campaign'], ['daily', 'auto'], ['rules', 'look'], ['level', 'sound'], ['marks', 'calm']], n = rows.length + 0.4;
+  const aw = clamp(w * 0.46, 420, 680), ax = U.x1 - aw - 16, lk = lockRect(ax + aw / 2, 0, aw - 40), pitch = Math.min(82, (U.h - 40 - lk.h - 14) / n), bh = pitch - 12;
+  const y0 = U.y0 + (U.h - lk.h - 14 - n * pitch) / 2 + (pitch - bh) / 2;
+  let y = y0;
+  rows.forEach((row) => { const big = row[0] === 'hound', hh = big ? bh + pitch * 0.4 : bh; placeRows([row], ax + 20, aw - 40, y, 0, hh, T.rows); y += big ? pitch * 1.4 : pitch; });
+  T.big.hound = true;
+  T.card = R(ax, y0 - 22, aw, y - y0 + 12);
   T.lock = { ...lk, y: Math.min(T.card.y + T.card.h + 8, U.y1 - lk.h - 4) };
   const leftW = ax - U.x0 - 8;
   T.hero = heroIn(R(U.x0 + 4, U.y0 + 8, leftW - 8, U.h - 16), 0.3);
+  if (T.hero) { const H = T.hero; T.stage = R(U.x0 + 4, H.hy + 222 * H.sc, leftW - 8, U.y1 - 8 - (H.hy + 222 * H.sc)); }
   T.msgY = U.y1 - 22; T.msgX = U.x0 + leftW / 2;
   return T;
 }

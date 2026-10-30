@@ -14,14 +14,14 @@ export const AP_REVEAL_TIME = 2;
 export const inRect = (r, x, y) => !!r && x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
 
 // Safe areas and the host's floating back button, in virtual units. main.js keeps this current (browsers: all zero).
-export const host = { t: 0, r: 0, b: 0, l: 0, back: 0, px: 0.6 };   // px: css pixels per virtual unit
+export const host = { t: 0, r: 0, b: 0, l: 0, back: 0, px: 0.6, c3: false };   // px: css pixels per virtual unit
 
 const R = (x, y, w, h) => ({ x, y, w, h });
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const cache = new Map();
 export function layoutFor(w, h) {
   w = Math.round(w); h = Math.round(h);
-  const key = `${w}x${h}|${Math.round(host.t)},${Math.round(host.r)},${Math.round(host.b)},${Math.round(host.l)},${Math.round(host.back)}`;
+  const key = `${w}x${h}|${Math.round(host.t)},${Math.round(host.r)},${Math.round(host.b)},${Math.round(host.l)},${Math.round(host.back)}|${host.c3 ? 3 : 2}`;
   let L = cache.get(key);
   if (!L) { L = build(w, h, { ...host }); L.key = key; cache.set(key, L); if (cache.size > 40) cache.delete(cache.keys().next().value); }
   return L;
@@ -51,6 +51,12 @@ function build(w, h, ins) {
     ap.exit = BTN.menu; ap.pause = BTN.undo; ap.skip = BTN.hint;
   };
 
+  // 3D play header: ONE compact plaque (turn + mode + two tray rows) so the board gets the height; returns { play, plaque, y1 }
+  const hud3 = () => {
+    const y0 = Math.max(ins.t + 12, 70), tr = (y) => ({ x: 36, y, size: 24, taken: { x: 262, y, size: 21, align: 'left' }, pieces: { x: 392, y: y - 8, dx: 22, dy: 20, cols: 13, s: 0.4 } });
+    const ix = ins.back ? bb.x + bb.w + 14 : 66;
+    return { y1: y0 + 232, plaque: R(10, y0, w - 20, 222), play: { title: null, sub: null, icon: { x: ix + 6, y: y0 + 50, s: 0.7 }, turn: { x: ix + 46, y: y0 + 58, size: 34, maxW: w - ix - 66, lh: 36, lines: 1 }, mode: { x: ix + 46, y: y0 + 92, size: 22, maxW: w - ix - 66 }, trayA: tr(y0 + 146), trayD: tr(y0 + 196) } };
+  };
   if (tall) {
     bx = (w - 616) / 2; by = 500 + (h - 1560) / 2;
     Object.assign(hud, {
@@ -61,6 +67,8 @@ function build(w, h, ins) {
     });
     ap = { dec: R(150, 352, 130, 50), inc: R(440, 352, 130, 50) };
     hud.msg = { rect: R(40, by + 676, 640, 160), size: 25, lh: 32, bigSize: 31, bigLh: 39 };
+    L.rect3 = R(4, by - FR, w - 8, 704);
+    if (ins.c3) { const H3 = hud3(), mh = 140, my = barY - 12 - mh; hud.play = H3.play; L.plaque = H3.plaque; hud.msg = { rect: R(40, my, w - 80, mh), size: 25, lh: 32, bigSize: 31, bigLh: 39 }; L.rect3play = R(4, H3.y1, w - 8, my - 6 - H3.y1); }
     barButtons();
   } else if (!land) {
     const top = Math.max(ins.t + 10, 76), rowH = 72, rowTop = top + (ins.back ? Math.max(0, (bb.h - rowH) / 2) : 0);
@@ -81,20 +89,24 @@ function build(w, h, ins) {
     k = outer / 684; bx = (w - 616 * k) / 2;
     const fy = hb + 4 + Math.max(0, (availH - outer) / 2);
     by = fy + FR * k;
-    hud.msg = { rect: R(24, Math.min(by + 616 * k + FR * k + 10, barY - 10 - bannerH), w - 48, bannerH), size: 24, lh: 30, bigSize: 28, bigLh: 34 };
+    hud.msg = { rect: R(24, ins.c3 ? barY - 10 - bannerH : Math.min(by + 616 * k + FR * k + 10, barY - 10 - bannerH), w - 48, bannerH), size: 24, lh: 30, bigSize: 28, bigLh: 34 };
+    L.rect3 = R(4, hb + 2, w - 8, Math.max(260, availH - 2));
+    if (ins.c3) { const H3 = hud3(); hud.play = H3.play; L.plaque = H3.plaque; L.rect3play = R(4, H3.y1, w - 8, Math.max(260, barY - 10 - bannerH - 6 - H3.y1)); }
     barButtons();
   } else {
     const g = 12, cardTop = U.y0 + g, cardH = U.y1 - g - cardTop;
     k = Math.min(1, (U.h - 20) / 684);
-    let single = false, Lw, Rw = 0, rem = U.w - 684 * k - 4 * g;
+    const wk = ins.c3 ? 1.22 : 1;           // the tilted 3D board is wider than tall on screen
+    let single = false, Lw, Rw = 0, rem = U.w - 684 * k * wk - 4 * g;
     single = rem < 450;
     if (single) {
-      if (rem < 300) { k = Math.max(0.45, (U.w - 300 - 4 * g) / 684); rem = U.w - 684 * k - 4 * g; }
+      if (rem < 300) { k = Math.max(0.45, (U.w - 300 - 4 * g) / (684 * wk)); rem = U.w - 684 * k * wk - 4 * g; }
       Lw = clamp(rem, 300, 400);
     } else if (rem / 2 >= 250) { Lw = Rw = rem / 2; } else { Lw = 250 + (rem - 450) * 0.6; Rw = rem - Lw; }
     const bs = 616 * k, regionX = U.x0 + g + Lw + g, regionEnd = single ? U.x1 - g : U.x1 - g - Rw - g;
     bx = regionX + (regionEnd - regionX - 684 * k) / 2 + FR * k;
     by = U.y0 + (U.h - 684 * k) / 2 + FR * k;
+    L.rect3 = R(regionX + (regionEnd - regionX - 684 * k * wk) / 2, U.y0 + 6, 684 * k * wk, U.h - 12);
     const leftCard = R(U.x0 + g, cardTop, Lw, cardH), rightCard = single ? null : R(U.x1 - g - Rw, cardTop, Rw, cardH);
     let bw, bh, gapB, x0, yStart;
     if (!single) {
@@ -187,17 +199,23 @@ function buildTitle(L, hasSave) {
   const STATS = 92;
   if (mode !== 'wide') {
     const top = mode === 'tall' ? ins.t + 8 : Math.max(ins.t + 8, 72), lk = lockRect(w / 2, 0, 300), lockY = h - Math.max(ins.b, 10) - lk.h - 6, bottom = lockY - 10, avail = bottom - top;
-    const need = (f, mc) => Math.ceil(m / mc) * Math.round(76 * f) + 4 * Math.round(68 * f) + 6 + STATS + 12;
-    const tries = [[1, 1, 330], [0.88, 1, 330], [1, 2, 300], [0.88, 2, 280], [0.76, 2, 0]];
+    const need = (f, mc) => (ins.c3 && mc === 2 ? 1.18 + Math.ceil((m - 1) / 2) : Math.ceil(m / mc)) * Math.round(76 * f) + 4 * Math.round(68 * f) + 6 + STATS + 12;
+    const tries = ins.c3 ? [[1, 2, 300], [0.88, 2, 280], [0.76, 2, 0]] : [[1, 1, 330], [0.88, 1, 330], [1, 2, 300], [0.88, 2, 280], [0.76, 2, 0]];     // 3D: the board hero wants the height
     let pick = tries[tries.length - 1];
     for (const t of tries) if (avail - need(t[0], t[1]) >= t[2]) { pick = t; break; }
     const [f, mc] = pick, pm = Math.round(76 * f), bm = Math.round(66 * f), ps = Math.round(68 * f), bsx = Math.round(60 * f);
     const bw = mc === 2 ? 648 : 540, x0 = (w - bw) / 2, hero = Math.max(120, avail - need(f, mc));
     let y = top + hero;
     const heroRect = R(0, top, w, hero);
+    let mainRows = Math.ceil(m / mc);
     if (mc === 1) main.forEach((nm, i) => { rows[nm] = R(x0, y + i * pm, bw, bm); });
-    else { const cw = (bw - 16) / 2; main.forEach((nm, i) => { rows[nm] = R(x0 + (i % 2) * (cw + 16), y + Math.floor(i / 2) * pm, cw, bm); }); }
-    y += Math.ceil(m / mc) * pm + 6;
+    else if (ins.c3) {            // 3D title: ONE dominant full-width Play (or Continue) row, the rest in two columns below it
+      const cw = (bw - 16) / 2, first = hasSave ? 'resume' : 'big', rest = main.filter((nm) => nm !== first);
+      rows[first] = R(x0, y, bw, Math.round(bm * 1.18)); const y2 = y + Math.round(pm * 1.18);
+      rest.forEach((nm, i) => { rows[nm] = i === rest.length - 1 && rest.length % 2 ? R(x0, y2 + Math.floor(i / 2) * pm, bw, bm) : R(x0 + (i % 2) * (cw + 16), y2 + Math.floor(i / 2) * pm, cw, bm); });
+      mainRows = 1.18 + Math.ceil(rest.length / 2);
+    } else { const cw = (bw - 16) / 2; main.forEach((nm, i) => { rows[nm] = R(x0 + (i % 2) * (cw + 16), y + Math.floor(i / 2) * pm, cw, bm); }); }
+    y += mainRows * pm + 6;
     const sw = (bw - 16) / 2;
     SETTINGS.forEach((nm, i) => { rows[nm] = R(x0 + (i % 2) * (sw + 16), y + Math.floor(i / 2) * ps, sw, bsx); });
     y += 4 * ps + 18;

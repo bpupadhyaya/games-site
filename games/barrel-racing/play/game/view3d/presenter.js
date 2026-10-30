@@ -71,7 +71,7 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
   P.ready_p = (async () => {
     const mk = async (o) => { const h = await loadHorse({ coat: 'bay', mane: 'loose', tack: 'western', quality: quality === 'high' ? 'high' : 'medium', ...o }); h.root.scale.setScalar(FIG); stage.add(h); return h; };
     horse = await mk({});
-    rider = await createRider({ top: '#f1ead8', bottoms: '#2f4a78', skin: 'tan', hair: 'brown', lod: quality === 'high' ? 0 : quality === 'medium' ? 'medium' : 'light', seed: 3 });
+    rider = await createRider({ top: '#f1ead8', bottoms: '#2f4a78', skin: 'tan', hair: 'brown', lod: quality === 'low' ? 'light' : 0, seed: 3 });
     stage.add(rider.human);
     kerchief = makeKerchief('#c8372d'); stage.add(kerchief);
     const rd = horse.attachRider(rider.human, { style: 'western', hatColor: '#d8c294' });

@@ -239,6 +239,11 @@ export const ABOUT = [
   { en: { title: 'In this game', body: `A race edition with ${PIECES} stones a side (or ${MED} or ${SHORT}), one 28-square path, star squares, extra throws on a one, four or six, and every count spendable in any order. Original art and sound, text that scales up to 300 percent, no timers, no stakes, works offline.` },
     ar: { title: 'في هذه اللعبة', body: `نسخة سباق بـ${PIECES} حجارة لكل طرف (أو ${MED} أو ${SHORT})، ومسار واحد من 28 مربعاً، ومربعات نجمة، ورميات إضافية عند الواحد والأربعة والستة، وكل عدد يمكن صرفه بأي ترتيب. فن وصوت أصليان، وخط يكبر حتى 300 بالمئة، بلا مؤقّتات ولا رهانات، ويعمل بلا اتصال.` } },
 ];
+// Credits for the optional 3D layer (three.js and the shared view3d library), added at the end of About by main.js once loaded.
+export const addAboutCredits = (body) => {
+  if (ABOUT.some((d) => d.credits)) return;
+  ABOUT.push({ credits: true, en: { title: '3D graphics credits', body } });
+};
 export const RULE_COUNT = RULES.length;
 export const HOWTO_COUNT = HOWTO.length;
 export const pageOf = (list, i, lang) => { const p = list[i]; return { art: p.art, ...(p[lang] ?? p.en) }; };

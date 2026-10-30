@@ -7,7 +7,7 @@ export const SANS = "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
 export const PAL = {
   gold: '#ffd36b', amber: '#ff9d3d', peach: '#ffb48a', coral: '#ff6b57', plum: '#0c3a46', ink: '#08222c', navy: '#13203a',
   cream: '#fff4dc', teal: '#2ec4b6', tealDark: '#0f6f6a', sky1: '#35609a', sky2: '#e58f6c', sky3: '#ffd98a',
-  panel: 'rgba(6,30,40,0.8)', panelEdge: 'rgba(255,214,140,0.35)', white: '#ffffff', red: '#e24a3b', green: '#58c46a',
+  panel: 'rgba(44,27,16,0.8)', panelEdge: 'rgba(255,214,140,0.35)', white: '#ffffff', red: '#e24a3b', green: '#58c46a',
 };
 
 export const hash = (n) => { let h = (n | 0) * 374761393 + 668265263; h = (h ^ (h >>> 13)) * 1274126177; return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };

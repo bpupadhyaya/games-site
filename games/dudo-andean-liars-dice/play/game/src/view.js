@@ -8,6 +8,8 @@ import { LEVELS } from './ai.js';
 import { tr, getLang, faceWord, bidWords } from './content.js';
 import { autoLayout, playLayout, hud, scr, frame, host, clamp } from './layout.js';
 import { drawLockup, drawMoreLine } from './brand.js';
+import { v3 } from './v3.js';
+import { capRect } from './art.js';
 import { THINK_STEPS } from './screens.js';
 import { countIn, wildApplies, prevBid, totalDice, canCalzo } from './rules.js';
 import { handVisible, bottomSeat, seatOrder, faceAllowed, selLegal, qtyMin } from './match.js';
@@ -201,26 +203,48 @@ function drawArt(ctx, S, name, x, y, w, h, b) {
 function drawAttract(ctx, S) {
   const th = theme(S), t = S.t;
   const cyc = 4.2, tt = t % cyc;
-  const glow = ctx.createRadialGradient(W / 2, 520, 30, W / 2, 520, 340);
-  glow.addColorStop(0, th.glow); glow.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.fillStyle = glow; ctx.fillRect(0, 220, W, 640);
+  if (!v3.on) {
+    const glow = ctx.createRadialGradient(W / 2, 520, 30, W / 2, 520, 340);
+    glow.addColorStop(0, th.glow); glow.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = glow; ctx.fillRect(0, 220, W, 640);
+  }
+  v3.cap = v3.on;
   // the cup shakes, then lifts and the dice tumble out and settle
   const shaking = tt < 1.5;
-  const lift = tt < 1.5 ? 0 : Math.min(1, (tt - 1.5) / 0.4) * 150;
-  drawCup(ctx, th, W / 2, 492, 190, 220, { tilt: shaking ? Math.sin(tt * 34) * 0.16 : 0, lift, alpha: tt > 1.9 ? Math.max(0, 1 - (tt - 1.9) / 0.5) * 0.9 + 0.1 : 1 });
   const faces = [5, 1, 3, 1, 6];
-  if (tt > 1.6) faces.forEach((f, i) => {
-    const a = tt - 1.6 - i * 0.06;
-    if (a < 0) return;
-    const k = clamp01(a / 0.55);
-    const px = W / 2 + (i - 2) * 100, py = 640 - Math.abs(Math.sin(a * 11)) * 70 * (1 - k);
-    drawDie(ctx, th, px, py, 82, k < 1 ? tumbleFace(i, a) : f, { angle: (1 - k) * Math.sin(a * 30 + i) * 0.9, glow: k >= 1 && f === 1 ? 0.7 : 0 });
-  });
+  if (v3.cap) {
+    // 3D: the cup rattles mouth-down, lifts off and is set aside; the dice tumble out and settle; at the end of the loop the dice are
+    // swept back together and the cup comes down over them again (a smooth loop, nothing pops)
+    const up = (a, b) => ease(clamp01((tt - a) / (b - a)));
+    const away = up(1.5, 2.3) * (1 - up(3.55, 4.2)), arc = Math.sin(Math.PI * clamp01((tt - 1.5) / 0.8)) * (tt < 2.3 ? 1 : 0) + Math.sin(Math.PI * clamp01((tt - 3.55) / 0.65)) * (tt > 3.55 ? 1 : 0);
+    const slam = tt < 1.5 ? Math.abs(Math.sin(tt * 17)) * 16 * (1 - up(1.25, 1.5)) : 0;
+    drawCup(ctx, th, W / 2 + 200 * away, 492 + 10 * away, 190, 220, { tilt: shaking ? Math.sin(tt * 34) * 0.12 : -0.05 * arc, lift: slam + arc * 70 });
+    const sweep = up(3.55, 4.05);
+    if (tt > 1.6) faces.forEach((f, i) => {
+      const a = tt - 1.6 - i * 0.06;
+      if (a < 0) return;
+      const k = clamp01(a / 0.75);
+      const bounce = Math.abs(Math.sin(a * 9)) * (1 - k) * (1 - k);
+      const px = W / 2 + (i - 2) * 100 * (1 - sweep) + Math.sin(a * 5 + i) * 26 * (1 - k), py = 640 + ((i * 37) % 23 - 11) * (1 - sweep) - 100 * sweep;
+      drawDie(ctx, th, px, py, 82, f, { angle: (1 - k) * (i - 2) * 0.8 + ((i * 53) % 7 - 3) * 0.04, hop: bounce * 1.6 + sweep * 0.2, tumble: 1 - k, seed: i + 1, glow: k >= 1 && f === 1 && sweep < 0.2 ? 0.55 : 0 });
+    });
+  } else {
+    const lift = tt < 1.5 ? 0 : Math.min(1, (tt - 1.5) / 0.4) * 150;
+    drawCup(ctx, th, W / 2, 492, 190, 220, { tilt: shaking ? Math.sin(tt * 34) * 0.16 : 0, lift, alpha: tt > 1.9 ? Math.max(0, 1 - (tt - 1.9) / 0.5) * 0.9 + 0.1 : 1 });
+    if (tt > 1.6) faces.forEach((f, i) => {
+      const a = tt - 1.6 - i * 0.06;
+      if (a < 0) return;
+      const k = clamp01(a / 0.55);
+      const px = W / 2 + (i - 2) * 100, py = 640 - Math.abs(Math.sin(a * 11)) * 70 * (1 - k);
+      drawDie(ctx, th, px, py, 82, k < 1 ? tumbleFace(i, a) : f, { angle: (1 - k) * Math.sin(a * 30 + i) * 0.9, glow: k >= 1 && f === 1 ? 0.7 : 0 });
+    });
+  }
   const g = ctx.createLinearGradient(0, 120, 0, 290);
   g.addColorStop(0, '#fff0c0'); g.addColorStop(0.5, th.accent); g.addColorStop(1, '#a8782a');
   ctx.save();
   ctx.shadowColor = 'rgba(0,0,0,0.65)'; ctx.shadowBlur = 24; ctx.shadowOffsetY = 8;
   ctx.font = `800 150px ${DISPLAY}`; ctx.textAlign = 'center'; ctx.fillStyle = g;
+  v3.cap = false;
   ctx.fillText('Dudo', 360, 240);
   ctx.restore();
   weaveBand(ctx, th, 140, 262, 440, 22, {});
@@ -392,6 +416,7 @@ function statusCard(ctx, S, r, head, body, col) {
 
 function drawTable(ctx, S, M, lay) {
   const th = theme(S), T = lay.table, st = M.st, z = zf(S);
+  v3.cap = v3.on;
   mat(ctx, th, T.x, T.y, T.w, T.h);
   const prev = prevBid(st);
   const cx = T.x + T.w / 2;
@@ -424,6 +449,7 @@ function drawTable(ctx, S, M, lay) {
   } else {
     text(ctx, tr('noBid'), cx, mid + 12, fitOne(tr('noBid'), T.w - 60, 40, 18), 'rgba(246,236,214,0.6)', { font: DISPLAY, weight: 700 });
   }
+  v3.cap = false;
   const sx = statusFor(S, M);
   if (M.phase === 'handoff') return;
   if (sr.h > 40 && !M.auto) statusCard(ctx, S, sr, sx.head, sx.body);
@@ -454,7 +480,8 @@ function drawBottomDice(ctx, S, M, lay) {
   const th = theme(S), z = zf(S), r = lay.dice, st = M.st;
   const seat = bottomSeat(M), p = st.players[seat];
   ctx.save();
-  ctx.fillStyle = 'rgba(8,6,6,0.55)'; rr(ctx, r.x, r.y, r.w, r.h, 20); ctx.fill();
+  if (v3.on) capRect(ctx, r.x, r.y, r.w, r.h, 'tray');   // a leather tray on the 3D table
+  else { ctx.fillStyle = 'rgba(8,6,6,0.55)'; rr(ctx, r.x, r.y, r.w, r.h, 20); ctx.fill(); }
   const mine = turnPhase(M) && st.turn === seat;
   ctx.strokeStyle = mine ? th.accent : 'rgba(255,255,255,0.14)'; ctx.lineWidth = mine ? 3 : 1.5; rr(ctx, r.x, r.y, r.w, r.h, 20); ctx.stroke();
   ctx.restore();
@@ -467,12 +494,17 @@ function drawBottomDice(ctx, S, M, lay) {
   const ds = Math.min(100, (r.w - 40) / Math.max(n, 5) - 10, r.h - ls - 34);
   const cy = r.y + r.h - 10 - ds / 2;
   if (p.dice === 0) { text(ctx, tr('youOut'), r.x + r.w / 2, r.y + r.h / 2 + 12, 32, '#ff8d7a', { font: DISPLAY, weight: 800 }); return; }
+  void hideCover;
+  v3.cap = v3.on;
+  try { bottomDice(ctx, S, M, r, ls, th, hand, n, ds, cy, visible); } finally { v3.cap = false; }
+}
+function bottomDice(ctx, S, M, r, ls, th, hand, n, ds, cy, visible) {
+  const st = M.st;
   if (M.phase === 'shake' || (M.hot && !M.ack && M.phase !== 'roll') || (!visible && M.phase !== 'roll')) {
-    drawCup(ctx, th, r.x + r.w / 2, cy - 4, Math.min(110, r.h * 0.62), Math.min(r.h * 0.7, 120), { tilt: M.phase === 'shake' ? Math.sin(M.t * 34) * 0.18 : 0 });
+    drawCup(ctx, th, r.x + r.w / 2, cy - 4, Math.min(110, r.h * 0.62), Math.min(r.h * 0.7, 120), { tilt: M.phase === 'shake' ? Math.sin(M.t * 34) * 0.18 : 0, lift: M.phase === 'shake' && v3.cap ? Math.abs(Math.sin(M.t * 17)) * 10 : 0 });
     if (M.phase !== 'shake') text(ctx, tr('hiddenDice'), r.x + r.w - 20, r.y + 14 + ls * 0.9, ls, 'rgba(246,236,214,0.55)', { weight: 600, align: 'right' });
     return;
   }
-  void hideCover;
   const gap = ds * 0.2, total = n * ds + (n - 1) * gap;
   const myPrev = prevBid(st);
   for (let i = 0; i < n; i++) {
@@ -482,6 +514,7 @@ function drawBottomDice(ctx, S, M, lay) {
       const tt = M.rollT - 0.06 * i;
       if (tt < 0) continue;
       const k = clamp01(tt / 0.55);
+      if (k < 1 && v3.cap) { drawDie(ctx, th, dx + Math.sin(tt * 7 + i) * 10 * (1 - k), cy, ds, hand[i], { angle: Math.sin(tt * 5 + i * 2) * 0.6 * (1 - k), hop: Math.abs(Math.sin(tt * 9 + i)) * 1.4 * (1 - k) * (1 - k), tumble: 1 - k, seed: i + st.round * 7 }); continue; }
       if (k < 1) { drawDie(ctx, th, dx + Math.sin(tt * 19 + i) * 14 * (1 - k), cy - Math.abs(Math.sin(tt * 13 + i)) * 46 * (1 - k), ds, tumbleFace(i + st.round, tt), { angle: Math.sin(tt * 31 + i * 2) * 0.9 * (1 - k), lift: 0.4 * (1 - k) }); continue; }
       o = { scale: 1 + 0.1 * Math.max(0, 1 - (tt - 0.55) / 0.2) };
     } else if (M.phase === 'human' || M.phase === 'cpu' || M.phase === 'gap') {
@@ -551,6 +584,7 @@ function drawControls(ctx, S, M, lay) {
 function drawReveal(ctx, S, M, lay) {
   const th = theme(S), z = zf(S), s = M.snap, st = M.st;
   const RV = lay.rev, T = RV.T;
+  v3.cap = v3.on;
   mat(ctx, th, T.x, T.y, T.w, T.h);
   const f = s.bid.f, wild = !s.palifico && f !== 1;
   const alive = s.dice.map((d, i) => (d > 0 ? i : -1)).filter((i) => i >= 0);
@@ -585,6 +619,7 @@ function drawReveal(ctx, S, M, lay) {
       const hit = d === f || (wild && d === 1);
       if (a < 0) { drawBack(ctx, th, dx, y, ds); return; }
       const kk = clamp01(a / 0.3);
+      if (v3.cap) { drawDie(ctx, th, dx, y, ds, d, { flip: kk, glow: kk >= 1 && hit ? 0.5 + 0.3 * Math.sin(S.t * 5) : 0, dim: kk >= 1 && !hit ? 0.5 : 0 }); if (kk >= 1 && hit) matches++; return; }
       ctx.save(); ctx.translate(dx, y); ctx.scale(Math.max(0.05, kk), 1); ctx.translate(-dx, -y);
       drawDie(ctx, th, dx, y, ds, d, kk >= 1 && hit ? { glow: 0.5 + 0.3 * Math.sin(S.t * 5), noShadow: true } : { dim: kk >= 1 && !hit ? 0.5 : 0, noShadow: true });
       ctx.restore();
@@ -593,6 +628,7 @@ function drawReveal(ctx, S, M, lay) {
     if (age >= 0.3 + (hand.length - 1) * 0.04) { running += matches; text(ctx, `+${matches}`, T.x + T.w - 34, y + 10, Math.min(36, grow(z, 26, 0.3)), matches ? th.accent : 'rgba(246,236,214,0.4)', { weight: 800, align: 'right' }); }
   });
   ctx.restore();
+  v3.cap = false;
   const done = M.phase === 'verdict' || M.phase === 'result';
   const shown = done ? s.res.actual : running;
   text(ctx, `${shown}`, T.x + T.w - 90, headerY + grow(z, 24, 0.3), grow(z, 70, 0.3), done ? (s.res.actual >= s.bid.q ? th.accent : '#ff8d7a') : th.ink, { font: DISPLAY, weight: 800 });

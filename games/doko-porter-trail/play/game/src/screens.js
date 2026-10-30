@@ -94,7 +94,7 @@ export function drawTitle(ctx, w, h, S, flash) {
 function toast(ctx, w, h, text, y) {
   const T = theme(); setFont(ctx, F(28), 600);
   const tw = Math.min(w - 40, ctx.measureText(text).width + 50), x = (w - tw) / 2;
-  plaque(ctx, { x, y: y - 34, w: tw, h: 66 }, { radius: 18, tint: 'rgba(10,14,30,0.92)' });
+  plaque(ctx, { x, y: y - 34, w: tw, h: 66 }, { radius: 18, tint: 'rgba(40,27,17,0.94)' });
   txt(ctx, text, w / 2, y, { size: F(28), weight: 600, align: 'center', maxW: tw - 30 });
 }
 
@@ -273,14 +273,14 @@ export function drawHud(ctx, w, h, S, flash, model) {
     const px = st.x + 10 + clamp(R.x / len, 0, 1) * (st.w - 20);
     ctx.fillStyle = T.accent; ctx.beginPath(); ctx.arc(px, st.y + st.h - 10, 9, 0, TAU); ctx.fill();
     ctx.strokeStyle = '#2a1706'; ctx.lineWidth = 2; ctx.stroke();
-    txt(ctx, trail.name, st.x + 14, st.y + 14, { size: F(21), weight: 600, color: T.text, maxW: st.w - 160 });
-    txt(ctx, `${Math.max(0, Math.ceil(len - R.x))} m to go`, st.x + st.w - 14, st.y + 14, { size: F(21), weight: 600, color: T.dim, align: 'right' });
+    txt(ctx, trail.name, st.x + 14, st.y + 16, { size: F(25), weight: 700, color: T.text, maxW: st.w - 160 });
+    txt(ctx, `${Math.max(0, Math.ceil(len - R.x))} m to go`, st.x + st.w - 14, st.y + 16, { size: F(25), weight: 700, color: T.dim, align: 'right' });
   }
   // breath and daylight bars
   const bar = (r, frac, fill, label, pulse) => {
     plaque(ctx, r, { radius: 12 });
     if (frac > 0.002) { rr(ctx, r.x + 3, r.y + 3, Math.max(8, (r.w - 6) * clamp(frac, 0, 1)), r.h - 6, 9); ctx.fillStyle = fill; if (pulse) ctx.globalAlpha = 0.65 + 0.35 * Math.sin(S.t * 10); ctx.fill(); ctx.globalAlpha = 1; }
-    txt(ctx, label, r.x + 10, r.y + r.h / 2, { size: F(17), weight: 800, fam: NUM, color: '#fff', maxW: r.w - 20 });
+    txt(ctx, label, r.x + 10, r.y + r.h / 2, { size: F(21), weight: 800, fam: NUM, color: '#fff', maxW: r.w - 20 });
   };
   const bcol = R.breath > 0.5 ? '#46c98a' : R.breath > K.LOW_BREATH ? '#e8b84a' : '#ef6a4f';
   bar(P.breath, R.breath, bcol, R.halt > 0 ? 'OUT OF BREATH' : 'BREATH', R.breath < K.LOW_BREATH);
@@ -295,7 +295,7 @@ export function drawHud(ctx, w, h, S, flash, model) {
     const mk = cx + clamp(R.a / K.SPILL_ANGLE, -1.1, 1.1) * half;
     ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.moveTo(mk, r.y + 3); ctx.lineTo(mk - 7, r.y - 5); ctx.lineTo(mk + 7, r.y - 5); ctx.closePath(); ctx.fill();
     ctx.fillRect(mk - 2, r.y + 3, 4, r.h - 6);
-    txt(ctx, 'LOAD', cx, r.y + r.h + 12, { size: F(15), weight: 800, fam: NUM, color: 'rgba(255,255,255,0.8)', align: 'center' }); }
+    txt(ctx, 'LOAD', cx, r.y + r.h + 12, { size: F(18), weight: 800, fam: NUM, color: 'rgba(255,255,255,0.85)', align: 'center' }); }
 
   // a nudge near the load: which way to drag when it is tipping
   if (!auto && Math.abs(R.a) > 0.2 && !R.ended) {
@@ -341,7 +341,7 @@ export function drawHud(ctx, w, h, S, flash, model) {
 
 function drawCard(ctx, r, card, S, flash, closeRect, extra, timer) {
   const T = theme();
-  plaque(ctx, r, { radius: 20, tint: 'rgba(12,18,36,0.94)', edge: T.accent });
+  plaque(ctx, r, { radius: 20, tint: 'rgba(40,27,17,0.95)', edge: T.accent });
   txt(ctx, card.title, r.x + 20, r.y + 36, { size: F(32), weight: 800, fam: NUM, color: T.accent, maxW: r.w - 100 });
   const size = F(24);
   para(ctx, card.text, r.x + 20, r.y + 66, r.w - 40, { size, weight: 400, lh: 1.32 });
@@ -350,7 +350,7 @@ function drawCard(ctx, r, card, S, flash, closeRect, extra, timer) {
 function drawRail(ctx, P, S, flash) {
   const T = theme(), run = S.run, a = run.auto, r = P.rail, B = P.railBtns;
   const card = a.card ?? { title: 'Watch and Learn', text: 'The game walks a whole trail and explains each hazard before it gets there.' };
-  plaque(ctx, r, { radius: 20, tint: 'rgba(12,18,36,0.94)', edge: T.accent });
+  plaque(ctx, r, { radius: 20, tint: 'rgba(40,27,17,0.95)', edge: T.accent });
   txt(ctx, card.title, r.x + 20, r.y + 34, { size: F(30), weight: 800, fam: NUM, color: T.accent, maxW: r.w - 220 });
   const phase = a.phase === 'think' ? `THINK ${Math.ceil(a.timer)}` : a.phase === 'reveal' ? 'REVEAL' : a.done ? 'DONE' : 'ACT';
   txt(ctx, a.paused ? 'PAUSED' : phase, r.x + r.w - 20, r.y + 34, { size: F(24), weight: 800, fam: NUM, color: T.dim, align: 'right' });

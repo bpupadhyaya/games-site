@@ -16,13 +16,22 @@ function pitchCanvas() {
   const PX = 32, W = HL * 2 * PX, H = HW * 2 * PX;
   const c = document.createElement('canvas'); c.width = W; c.height = H;
   const x = c.getContext('2d'), r = noise(11);
-  const g = x.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#9a9b52'); g.addColorStop(1, '#a8984f'); x.fillStyle = g; x.fillRect(0, 0, W, H);
+  const g = x.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#7f9443'); g.addColorStop(0.55, '#8c9a49'); g.addColorStop(1, '#9a9a4e'); x.fillStyle = g; x.fillRect(0, 0, W, H);
+  // broad meadow tone: lusher hollows and sun-dried rises (large soft blotches), so the turf never reads as one flat colour
+  for (let i = 0; i < 46; i++) { const px = r() * W, py = r() * H, rr = (3 + r() * 6) * PX; const gr = x.createRadialGradient(px, py, 1, px, py, rr); const lush = r() < 0.55; gr.addColorStop(0, lush ? 'rgba(62,98,34,0.20)' : 'rgba(196,178,98,0.20)'); gr.addColorStop(1, lush ? 'rgba(62,98,34,0)' : 'rgba(196,178,98,0)'); x.fillStyle = gr; x.fillRect(px - rr, py - rr, rr * 2, rr * 2); }
   // mown stripes along x, soft
-  for (let i = 0; i < 16; i++) { x.fillStyle = i % 2 ? 'rgba(255,240,170,0.10)' : 'rgba(40,50,10,0.07)'; x.fillRect(i * 4 * PX, 0, 4 * PX, H); }
+  for (let i = 0; i < 16; i++) { x.fillStyle = i % 2 ? 'rgba(255,244,180,0.11)' : 'rgba(30,48,8,0.10)'; x.fillRect(i * 4 * PX, 0, 4 * PX, H); }
   // grass tufts and dry patches
-  for (let i = 0; i < 9000; i++) { const px = r() * W, py = r() * H, l = 3 + r() * 7; x.strokeStyle = r() < 0.5 ? 'rgba(70,86,30,0.22)' : 'rgba(214,196,110,0.2)'; x.lineWidth = 1.2; x.beginPath(); x.moveTo(px, py); x.lineTo(px + (r() - 0.5) * 3, py - l); x.stroke(); }
+  for (let i = 0; i < 16000; i++) { const px = r() * W, py = r() * H, l = 3 + r() * 7, q = r(); x.strokeStyle = q < 0.45 ? 'rgba(52,80,22,0.26)' : q < 0.8 ? 'rgba(214,200,112,0.2)' : 'rgba(120,140,52,0.25)'; x.lineWidth = 1.2; x.beginPath(); x.moveTo(px, py); x.lineTo(px + (r() - 0.5) * 3, py - l); x.stroke(); }
   for (let i = 0; i < 70; i++) { const px = r() * W, py = r() * H, rr = 16 + r() * 60; const gr = x.createRadialGradient(px, py, 2, px, py, rr); gr.addColorStop(0, 'rgba(150,112,64,0.24)'); gr.addColorStop(1, 'rgba(150,112,64,0)'); x.fillStyle = gr; x.fillRect(px - rr, py - rr, rr * 2, rr * 2); }
   const X = (m) => (m + HL) * PX, Z = (m) => (m + HW) * PX;
+  // hoof prints: small dark crescents scattered along the busy lanes (more near the middle and in front of each pit)
+  for (let i = 0; i < 2600; i++) {
+    const lane = r(); const wx = lane < 0.5 ? (r() - 0.5) * 2 * HL * 0.9 : (lane < 0.75 ? -1 : 1) * (GOAL_X - 2 - r() * 10);
+    const wz = (r() + r() + r() - 1.5) * HW * 0.55;
+    x.fillStyle = r() < 0.7 ? 'rgba(92,70,40,0.32)' : 'rgba(60,46,26,0.28)';
+    x.beginPath(); x.ellipse(X(wx), Z(wz), 0.07 * PX, 0.06 * PX, r() * TAU, 0, Math.PI * 1.4); x.fill();
+  }
   // worn earth: centre and both pits
   for (const [wx, rad] of [[0, 5.5], [-GOAL_X, 6], [GOAL_X, 6]]) { const gr = x.createRadialGradient(X(wx), Z(0), 4, X(wx), Z(0), rad * PX); gr.addColorStop(0, 'rgba(140,100,60,0.45)'); gr.addColorStop(1, 'rgba(140,100,60,0)'); x.fillStyle = gr; x.fillRect(X(wx) - rad * PX, Z(0) - rad * PX, rad * 2 * PX, rad * 2 * PX); }
   // lines
@@ -43,8 +52,8 @@ function pitchCanvas() {
 function apronCanvas() {
   const c = document.createElement('canvas'); c.width = c.height = 512;
   const x = c.getContext('2d'), r = noise(5);
-  x.fillStyle = '#8e8a4a'; x.fillRect(0, 0, 512, 512);
-  for (let i = 0; i < 2600; i++) { x.fillStyle = r() < 0.5 ? 'rgba(60,70,25,0.18)' : 'rgba(206,190,110,0.16)'; x.fillRect(r() * 512, r() * 512, 2 + r() * 6, 1 + r() * 3); }
+  x.fillStyle = '#6f8239'; x.fillRect(0, 0, 512, 512);
+  for (let i = 0; i < 3600; i++) { x.fillStyle = r() < 0.55 ? 'rgba(40,62,18,0.22)' : 'rgba(196,186,100,0.16)'; x.fillRect(r() * 512, r() * 512, 2 + r() * 6, 1 + r() * 3); }
   return c;
 }
 const soft = (() => { let t = null; return () => {

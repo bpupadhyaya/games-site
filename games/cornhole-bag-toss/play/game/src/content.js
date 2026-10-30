@@ -22,6 +22,9 @@ export const ABOUT = [
     'All opponents are invented characters. There are no real players, teams, leagues or brands in this game.',
     'It is a game of skill for fun: no betting, no stakes, no coins. Scores and records stay on your device.',
   ] },
+  { title: '3D credits and licences', p: [
+    'The backyard, the board and the bags are drawn with the three.js library (MIT licence, three.js authors). Everything you see is made inside the game; there are no downloaded pictures.',
+  ] },
   { title: 'Made to be comfortable', p: [
     'Every text screen can be enlarged up to 300%. Aim steadiness has three settings. The Think button tests a throw with real simulated bags and tells you what happened, Learn teaches throws, scoring and cancellation in five short lessons, and Watch & Learn lets you watch two players with their reasons on screen.',
     'Menus, the rules, Learn and Watch & Learn are always free. Free to play with short ads; go ad-free once.',

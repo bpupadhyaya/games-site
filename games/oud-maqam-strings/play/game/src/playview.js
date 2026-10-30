@@ -2,6 +2,7 @@
 import { PAL, UI, DISPLAY, rgba, drawBackdrop, drawLamps, drawRug, drawOud, drawFinger, drawTarget, drawParticles } from './art.js';
 import { txt, wrap, button, panel, rrect, chip } from './ui.js';
 import { host, minBtn } from './layout.js';
+import { v3, flatAlpha } from './v3.js';
 import { MAQAMAT, IQA, PIECES, FORM, posOfCents, degLabel, nearestDegree, slotDur, LEAD, tendency, JOURNEY } from './music.js';
 
 const TAU = Math.PI * 2;
@@ -13,14 +14,24 @@ export const uOf = (G, c) => posOfCents(Math.min(c, G.span), G.span) * G.Lneck;
 
 // Room + oud + degree labels. Returns the geometry actually used (span set).
 function stage(ctx, st, L, G, sess, maqamId, t, lit, pulse) {
-  const S = L.S, w = L.w, h = L.h;
-  drawBackdrop(ctx, w, h, t, lit, pulse);
-  drawLamps(ctx, w, S.y + 4, t, lit, pulse, Math.min(1, w / 760));
-  const a = G.area;
-  const rug = G.wide ? { x: a.x + 6, y: a.y + 4, w: a.w - 12, h: a.h - 14 } : { x: a.x + 6, y: a.y + 4, w: a.w - 12, h: a.h - 12 };
-  drawRug(ctx, rug);
+  const S = L.S, w = L.w, h = L.h, fa = flatAlpha();
   const vib = sess && sess.fx && sess.fx.vib && !sess.fx.calm ? sess.fx.vib : null;
-  drawOud(ctx, G, { t, vib, marks: sess ? sess.marks : true, maqam: maqamId });
+  if (fa > 0) {                                     // the flat room and oud (no WebGL, or fading out while the 3D scene takes over)
+    ctx.save(); ctx.globalAlpha = fa;
+    drawBackdrop(ctx, w, h, t, lit, pulse);
+    drawLamps(ctx, w, S.y + 4, t, lit, pulse, Math.min(1, w / 760));
+    const a = G.area;
+    const rug = G.wide ? { x: a.x + 6, y: a.y + 4, w: a.w - 12, h: a.h - 14 } : { x: a.x + 6, y: a.y + 4, w: a.w - 12, h: a.h - 12 };
+    drawRug(ctx, rug);
+    drawOud(ctx, G, { t, vib, marks: sess ? sess.marks : true, maqam: maqamId });
+    ctx.restore();
+  }
+  if (v3.on) {
+    // lamp-light falloff: the room darkens away from the instrument
+    const c = G.toScreen(G.Lneck * 0.75, 0), R = Math.max(w, h) * 0.72, g = ctx.createRadialGradient(c.x, c.y, R * 0.3, c.x, c.y, R);
+    g.addColorStop(0, 'rgba(2,6,8,0)'); g.addColorStop(1, `rgba(2,6,8,${0.6 * (1 - fa)})`); ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+    drawOud(ctx, G, { marks: sess ? sess.marks : true, maqam: maqamId, marksOnly: true });
+  }
   // degree labels beside the neck
   if (sess && sess.marks && sess.labels) {
     const M = MAQAMAT[maqamId], side = -(G.nutW * 0.5 + 34);
@@ -40,7 +51,7 @@ function pitchBubble(ctx, G, f, maqamId, labels) {
   const s = `${degLabel(maqamId, nd.idx)}  ${e > 0 ? '+' : ''}${e}`;
   ctx.font = `700 24px ${UI}`; const bw = ctx.measureText(s).width + 26;
   const col = Math.abs(e) <= 22 ? PAL.good : Math.abs(e) <= 45 ? PAL.gold : PAL.bad;
-  rrect(ctx, { x: off.x - bw / 2, y: off.y - 20, w: bw, h: 40 }, 20); ctx.fillStyle = 'rgba(8,20,26,0.8)'; ctx.fill();
+  rrect(ctx, { x: off.x - bw / 2, y: off.y - 20, w: bw, h: 40 }, 20); ctx.fillStyle = 'rgba(22,13,8,0.8)'; ctx.fill();
   txt(ctx, s, off.x, off.y + 1, 24, col, { align: 'center', weight: 700 });
 }
 
@@ -130,6 +141,16 @@ function lamps(ctx, x, y, n, on) {
 }
 
 export const hudHits = [];
+function hudPlaque(ctx, r) {
+  const q = { x: r.x + 6, y: r.y + 4, w: r.w - 12, h: r.h - 6 };
+  ctx.save();
+  ctx.fillStyle = 'rgba(0,0,0,0.3)'; rrect(ctx, { x: q.x, y: q.y + 5, w: q.w, h: q.h }, 22); ctx.fill();
+  const g = ctx.createLinearGradient(0, q.y, 0, q.y + q.h); g.addColorStop(0, 'rgba(46,26,13,0.9)'); g.addColorStop(1, 'rgba(26,14,7,0.9)');
+  ctx.fillStyle = g; rrect(ctx, q, 22); ctx.fill();
+  ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(214,170,96,0.55)'; rrect(ctx, q, 22); ctx.stroke();
+  ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(242,196,109,0.18)'; rrect(ctx, { x: q.x + 6, y: q.y + 6, w: q.w - 12, h: q.h - 12 }, 16); ctx.stroke();
+  ctx.restore();
+}
 
 export function renderPlay(ctx, st, L, view, pauseItems, menuRects) {
   const pl = st.pl, P = L.play, G = P.inst, t = st.t;
@@ -162,8 +183,9 @@ export function renderPlay(ctx, st, L, view, pauseItems, menuRects) {
   popups(ctx, G, pl);
   ctx.restore();
 
-  // HUD
+  // HUD (over the 3D room: a walnut plaque with an inlaid brass line, so the score and cycle sit on something of the room)
   hudHits.length = 0;
+  if (v3.on) hudPlaque(ctx, P.hud);
   const sc = P.score;
   txt(ctx, String(Math.round(pl.score)).padStart(1, '0'), sc.x + 4, sc.y + (L.wide ? sc.h * 0.36 : sc.h * 0.42), L.wide ? 54 : 50, PAL.gold, { font: DISPLAY, weight: 700, stroke: 6 });
   const sub = pl.combo > 1 ? `Combo ${pl.combo}  ×${(1 + Math.min(4, Math.floor(pl.combo / 10)) * 0.25).toFixed(2)}` : `${pl.piece.title}`;
@@ -178,7 +200,7 @@ export function renderPlay(ctx, st, L, view, pauseItems, menuRects) {
   if (pl.mode === 'learn') chipText = pl.learn.final ? 'Final take' : pl.listening ? 'Listen' : pl.counting ? 'Get ready' : `Your turn  (try ${pl.learn.attempt})`;
   else if (pl.mode === 'auto') chipText = pl.auto && pl.auto.phase === 'think' ? 'Think' : pl.auto && pl.auto.phase === 'reveal' ? 'Reveal' : 'Watch';
   else if (pl.counting) chipText = 'Get ready';
-  if (chipText) chip(ctx, G.area.x + 16, G.area.y + (L.wide ? 28 : 26), chipText, 26, { align: 'left', fill: 'rgba(8,20,26,0.8)', stroke: pl.listening || pl.mode === 'auto' ? PAL.good : PAL.gold, color: pl.listening || pl.mode === 'auto' ? PAL.good : PAL.gold });
+  if (chipText) chip(ctx, G.area.x + 16, G.area.y + (L.wide ? 28 : 26), chipText, 26, { align: 'left', fill: 'rgba(22,13,8,0.8)', stroke: pl.listening || pl.mode === 'auto' ? PAL.good : PAL.gold, color: pl.listening || pl.mode === 'auto' ? PAL.good : PAL.gold });
   // caption / think panel
   if (pl.caption && (pl.mode === 'auto' || pl.listening || pl.fx.hint > 0)) captionPanel(ctx, L, G, pl);
   if (pl.auto && pl.auto.phase === 'think') thinkPanel(ctx, L, G, pl);
@@ -206,7 +228,7 @@ function captionPanel(ctx, L, G, pl) {
 function thinkPanel(ctx, L, G, pl) {
   const a = pl.auto, S = L.S, w = Math.min(S.w - 32, 700), h = 150;
   const r = { x: S.x + (S.w - w) / 2, y: G.area.y + G.area.h - h - 44, w, h };
-  panel(ctx, r, { rad: 20, fill: 'rgba(8,20,26,0.86)' });
+  panel(ctx, r, { rad: 20, fill: 'rgba(22,13,8,0.86)' });
   txt(ctx, a.title, r.x + w / 2, r.y + 32, 30, PAL.gold, { align: 'center', weight: 800, font: DISPLAY, maxW: w - 30 });
   ctx.font = `500 24px ${UI}`;
   const ls = wrap(ctx, a.text, w - 40); ls.slice(0, 3).forEach((ln, i) => txt(ctx, ln, r.x + w / 2, r.y + 72 + i * 30, 24, PAL.text, { align: 'center', weight: 500 }));
@@ -218,14 +240,14 @@ function thinkPanel(ctx, L, G, pl) {
 export function toast(ctx, L, text) {
   const S = L.S; ctx.font = `700 26px ${UI}`;
   const w = Math.min(S.w - 40, ctx.measureText(text).width + 60), r = { x: S.x + (S.w - w) / 2, y: S.y + S.h - 130, w, h: 56 };
-  panel(ctx, r, { rad: 28, fill: 'rgba(8,20,26,0.9)' }); txt(ctx, text, r.x + w / 2, r.y + 29, 26, PAL.text, { align: 'center', weight: 700, maxW: w - 30 });
+  panel(ctx, r, { rad: 28, fill: 'rgba(22,13,8,0.9)' }); txt(ctx, text, r.x + w / 2, r.y + 29, 26, PAL.text, { align: 'center', weight: 700, maxW: w - 30 });
 }
 
 const MENU_TEXT = { resume: 'Resume', restart: 'Restart', quit: 'Back to pieces', listen: 'Listen again', speed: 'Slower', next: 'Next piece', again: 'Play again', exit: 'Back to pieces' };
 export function pauseMenu(ctx, st, L, items, menuRects) {
   const pl = st.pl, M = menuRects(L, items.length);
   ctx.fillStyle = 'rgba(2,8,12,0.66)'; ctx.fillRect(0, 0, L.w, L.h);
-  panel(ctx, M.panel, { rad: 26, fill: 'rgba(10,26,32,0.96)' });
+  panel(ctx, M.panel, { rad: 26, fill: 'rgba(22,13,8,0.96)' });
   txt(ctx, pl.over ? 'Finished' : 'Paused', M.panel.x + M.panel.w / 2, M.panel.y + 54, 46, PAL.gold, { align: 'center', font: DISPLAY, weight: 700 });
   items.forEach((it, i) => button(ctx, M.btns[i], it === 'speed' && st.prefs.autoSlow ? 'Normal speed' : MENU_TEXT[it], { kind: it === 'resume' || it === 'again' ? 'primary' : 'quiet', size: 32 }));
 }

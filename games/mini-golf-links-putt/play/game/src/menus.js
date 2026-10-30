@@ -7,6 +7,7 @@ import { PROFILES } from './ai.js';
 import { COURSES, COURSE_BY_ID, holeById } from './courses.js';
 import { ABOUT, HOWTO, RULES } from './content.js';
 import { compileHole, newBall, stepBall, simulate } from './sim.js';
+import { v3, makeCam3 } from './v3.js';
 import { makeCam, drawCourse, drawBall, drawFlag, drawGuide, drawPowerRing, drawBackdrop, themeOf, BALL_COLORS, place, parLabel } from './view.js';
 
 const TAU = Math.PI * 2;
@@ -41,6 +42,12 @@ export function stepAttract(a, dt) {
 export function drawAttract(ctx, state) {
   const a = state.att; if (!a) return;
   const def = holeById(ATTRACT[a.i % ATTRACT.length].h), h = compileHole(def), th = themeOf(def.course);
+  if (v3.on) {
+    // the 3D table behind this canvas shows the demonstration hole and its rolling ball
+    v3.want = { mode: 'hero', def, cam: makeCam3(h, { x: 0, y: H * 0.08, w: W, h: H * 0.84 }, 0), clock: a.clock, t: state.t, bump: {}, cur: 0, near: false,
+      balls: a.ball ? [{ x: a.ball.x, y: a.ball.y, mode: a.ball.mode, sink: a.ball.sink, hd: a.ball.hd, rot: a.ball.rot, ci: 0, hide: false }] : [{ x: def.tee.x, y: def.tee.y, mode: 'rest', sink: 0, hd: 0, rot: 0, ci: 0, hide: false }] };
+    return;
+  }
   drawBackdrop(ctx, COURSE_BY_ID[def.course].feel, state.t);
   const cam = makeCam(h, { x: 0, y: 0, w: W, h: H }, 0, true);
   drawCourse(ctx, h, cam, a.clock, th, {});

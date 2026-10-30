@@ -200,4 +200,10 @@ const PAGES = {
   },
 };
 export const pagesFor = (lang, key) => (PAGES[lang] ?? PAGES.en)[key];
+// Credits for the 3D layer (three.js, view3d), appended to About once main.js has read vendor3d/LICENSES.md.
+export function addCredits(body) {
+  if (!body.length || PAGES.en.about.some((pg) => pg.credits)) return;
+  PAGES.en.about.push({ title: '3D graphics credits', credits: true, p: body });
+  PAGES.ko.about.push({ title: '3D 그래픽 출처', credits: true, p: body });
+}
 void STAGES; void KK; void FLICK_T;

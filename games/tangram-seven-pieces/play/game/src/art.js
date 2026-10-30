@@ -132,13 +132,17 @@ export function button(ctx, r, lines, kind = 'normal', o = {}) {
   if (o.disabled) ctx.globalAlpha = 0.38;
   const press = o.pressed ? 1 : 0;
   const y = r.y + press * 3;
-  ctx.shadowColor = 'rgba(0,0,0,0.45)'; ctx.shadowBlur = press ? 4 : 14; ctx.shadowOffsetY = press ? 1 : 5;
-  const FACE = { primary: '#e6b957', on: '#2e9780', danger: '#b9433a', ghost: 'rgba(255,255,255,0.04)', normal: '#35306c' };   // flat faces
-  ctx.fillStyle = FACE[kind] ?? FACE.normal;
+  // enamel plaques with a gilt rim, resting on the table (soft contact shadow); primary = gilt leaf. Flat faces, no gloss shapes.
+  ctx.shadowColor = 'rgba(0,0,0,0.55)'; ctx.shadowBlur = press ? 4 : 16; ctx.shadowOffsetY = press ? 1 : 6;
+  const FACE = { primary: ['#f4d98f', '#dcae55', '#bf8e37'], on: ['#2f9a83', '#24806c', '#1d6b5a'], danger: ['#c2493f', '#a63a31', '#8f2f28'], ghost: null, normal: ['#2e2a6c', '#26225c', '#1d1a4a'] };
+  const f = FACE[kind] === undefined ? FACE.normal : FACE[kind];
+  if (f) { const g = ctx.createLinearGradient(0, y, 0, y + r.h); g.addColorStop(0, f[0]); g.addColorStop(0.55, f[1]); g.addColorStop(1, f[2]); ctx.fillStyle = g; } else ctx.fillStyle = 'rgba(255,255,255,0.04)';
   rr(ctx, r.x, y, r.w, r.h, o.radius ?? 18); ctx.fill();
   ctx.shadowColor = 'transparent';
-  ctx.strokeStyle = kind === 'primary' ? 'rgba(255,236,170,0.85)' : 'rgba(232,196,106,0.45)';
-  ctx.lineWidth = 1.5;
+  const rim = ctx.createLinearGradient(0, y, 0, y + r.h);
+  if (kind === 'primary') { rim.addColorStop(0, 'rgba(255,244,200,0.95)'); rim.addColorStop(1, 'rgba(140,96,30,0.9)'); } else { rim.addColorStop(0, 'rgba(242,212,138,0.85)'); rim.addColorStop(1, 'rgba(170,124,52,0.6)'); }
+  ctx.strokeStyle = rim;
+  ctx.lineWidth = 2;
   rr(ctx, r.x, y, r.w, r.h, o.radius ?? 18); ctx.stroke();
   if (press) { ctx.fillStyle = 'rgba(0,0,0,0.2)'; rr(ctx, r.x, y, r.w, r.h, o.radius ?? 18); ctx.fill(); }
   const color = kind === 'primary' ? '#3a2410' : PAPER;

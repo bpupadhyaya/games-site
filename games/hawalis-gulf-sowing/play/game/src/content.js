@@ -147,9 +147,12 @@ export const rulesPages = () => rulesEn();
 export const RULE_COUNT = rulesEn().length;
 export const HOWTO_COUNT = HOWTO.length;
 
+// Credits for the 3D layer (filled from vendor3d/LICENSES.md by main.js when the 3D board is available).
+export const ABOUT_CREDITS = [];
 export const aboutSections = () => [
   { title: 'About the game', body: 'Hawalis is the four-row sowing game of Oman and the Gulf, played on a carved teak board with pearl seeds that are dropped one at a time.' },
   { title: 'Where it comes from', body: 'Hawalis is a traditional sowing game of Oman, also played on the coast of Zanzibar, where one version is called Bao la Kiarabu. It was described in writing in 1694 and studied in Oman in 2003. The board has four rows of seven holes and each player owns two rows. Descriptions are short, so this game follows the published Omani form, states its rules in full on the Rules pages and says where it makes its own choices.' },
-  { title: 'The look', body: 'The board is inspired by Gulf craft: dark teak, brass studs like those on old carved doors, a woven diamond band in the pattern of Sadu weaving, and pearls for seeds.' },
+  { title: 'The look', body: 'The board is inspired by Gulf craft: dark teak, brass studs like those on old carved doors, a woven diamond band in the pattern of Sadu weaving, and pearls for seeds. Where the phone can show 3D graphics, the board lies on a red Sadu rug in a sunlit majlis, with a brass dallah coffee pot, finjan cups and dates beside it; elsewhere the flat painted board is shown.' },
   { title: 'In this game', body: 'Four rows of seven holes, two seeds in each, relay sowing and inner-row captures. Five opponent levels from Novice to Master, two players on one phone, Think with a reason in words, six lessons and Watch & Learn. Free to play with short ads; go ad-free once.' },
+  ...(ABOUT_CREDITS.length ? [{ title: '3D graphics credits', body: ABOUT_CREDITS.join(' ') }] : []),
 ];

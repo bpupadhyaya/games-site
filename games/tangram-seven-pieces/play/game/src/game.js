@@ -16,7 +16,7 @@ export { meta };
 // The mouse wheel (fed by main.js, virtual units) scrolls the Rules / How to Play reader and any other scrolling document.
 export const wheelInput = { dy: 0 };
 
-const VERSION = '1.1.0';
+const VERSION = '1.2.0';
 const AUTO_IDS = ['trapezoidhouse', 'duck', 'lantern'];
 
 export async function createGame(env) {
@@ -592,6 +592,9 @@ export async function createGame(env) {
         } : null,
       };
     },
+
+    // Read-only view of the live state for the optional 3D presenter (web/view3d): it draws the same pieces in lit 3D and never writes.
+    peek: () => S,
 
     // Dev tools only (?dev=1): the check scripts drive screens and read layout rects through this.
     dbg: config?.dev ? { S, buildUi: () => buildUi(S), goto: gotoScene, activate, startLevel, startAuto, startDaily, devSolve } : undefined,

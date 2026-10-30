@@ -31,15 +31,46 @@ export function wrap(ctx, text, maxW) {
 
 export function rrect(ctx, r, rad) { ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, rad); }
 
+
+// Lacquered wood: one cached grain pattern per context (walnut dark / lit), brass edges. Pure 2D, no assets.
+const woodCache = new Map();
+const mkCanvas = (w, h) => { try { if (typeof OffscreenCanvas !== 'undefined') return new OffscreenCanvas(w, h); } catch { /* fall through */ } const c = globalThis.document?.createElement('canvas'); if (c) { c.width = w; c.height = h; } return c; };
+function woodFill(ctx, key) {
+  let e = woodCache.get(key);
+  if (!e || e.ctx !== ctx) {
+    const c = mkCanvas(256, 128); if (!c) return null;
+    const g = c.getContext('2d'); let sd = key === 'lit' ? 5 : 23; const r = () => ((sd = (Math.imul(sd, 1664525) + 1013904223) >>> 0) / 4294967296);
+    const [a, b] = key === 'lit' ? ['#6a4826', '#46301a'] : ['#3a2616', '#22160b'];
+    const gr = g.createLinearGradient(0, 0, 0, 128); gr.addColorStop(0, a); gr.addColorStop(1, b); g.fillStyle = gr; g.fillRect(0, 0, 256, 128);
+    for (let i = 0; i < 64; i++) {
+      const y = r() * 128, amp = 0.8 + r() * 2, ph = r() * 6;
+      g.strokeStyle = r() > 0.5 ? `rgba(12,6,0,${0.12 + r() * 0.16})` : `rgba(255,200,130,${0.05 + r() * 0.08})`; g.lineWidth = 0.6 + r() * 1.4;
+      g.beginPath(); for (let x = 0; x <= 256; x += 8) { const yy = y + Math.sin(x * 0.03 + ph) * amp; x === 0 ? g.moveTo(x, yy) : g.lineTo(x, yy); } g.stroke();
+    }
+    e = { ctx, pat: ctx.createPattern(c, 'repeat') }; woodCache.set(key, e);
+  }
+  return e.pat;
+}
+function brassEdge(ctx, x, y, w, h, rad, lw = 2.5) {
+  const bz = ctx.createLinearGradient(0, y, 0, y + h); bz.addColorStop(0, '#f6dc96'); bz.addColorStop(0.5, '#b88a34'); bz.addColorStop(1, '#6b4a14');
+  ctx.lineWidth = lw; ctx.strokeStyle = bz; ctx.beginPath(); ctx.roundRect(x + lw / 2, y + lw / 2, w - lw, h - lw, Math.max(2, rad - lw / 2)); ctx.stroke();
+}
+function woodPlate(ctx, r, rad, key, alpha = 1, lw = 2.5) {
+  ctx.save(); ctx.globalAlpha *= alpha; ctx.fillStyle = woodFill(ctx, key) || '#2a1a0c'; rrect(ctx, r, rad); ctx.fill(); ctx.restore();
+  const sh = ctx.createLinearGradient(0, r.y, 0, r.y + r.h); sh.addColorStop(0, 'rgba(255,220,160,0.16)'); sh.addColorStop(0.45, 'rgba(0,0,0,0)'); sh.addColorStop(1, 'rgba(0,0,0,0.3)');
+  ctx.fillStyle = sh; rrect(ctx, r, rad); ctx.fill();
+  brassEdge(ctx, r.x, r.y, r.w, r.h, rad, lw);
+}
+
 // Keycap buttons: a lit face on a darker edge (real depth, pressed state sinks into the edge), a drop shadow and a fine rim light.
 // kind: primary (orange), ghost (plum), quiet (soft plum), on (mint when a toggle is on), gold, disabled.
 const KEY = {
-  primary: { top: '#ffb24d', bot: '#ff7a12', edge: '#a8470a', rim: 'rgba(255,240,205,0.85)' },
-  ghost: { top: '#3d2a6e', bot: '#22143f', edge: '#0c0620', rim: 'rgba(255,214,150,0.5)' },
-  quiet: { top: '#4a3a7a', bot: '#2c1f52', edge: '#0f0824', rim: 'rgba(255,255,255,0.4)' },
+  primary: { top: '#ffe48a', bot: '#f2a91c', edge: '#8a5604', rim: 'rgba(255,255,235,0.9)' },
+  ghost: { top: '#3d2a6e', bot: '#22143f', edge: '#120a04', rim: 'rgba(255,214,150,0.5)' },
+  quiet: { top: '#4a3a7a', bot: '#2c1f52', edge: '#180e05', rim: 'rgba(255,255,255,0.4)' },
   on: { top: '#6ff3cc', bot: '#22c795', edge: '#0f7a5c', rim: 'rgba(255,255,255,0.8)' },
   gold: { top: '#ffdb7a', bot: '#ffb61f', edge: '#9a6a05', rim: 'rgba(255,255,230,0.85)' },
-  disabled: { top: '#2b2144', bot: '#1d1532', edge: '#0c0720', rim: 'rgba(255,255,255,0.18)' },
+  disabled: { top: '#2b2144', bot: '#1d1532', edge: '#120a04', rim: 'rgba(255,255,255,0.18)' },
 };
 export function button(ctx, r, label, o = {}) {
   const kind = o.kind ?? 'ghost', K = KEY[kind] ?? KEY.ghost, rad = o.rad ?? Math.min(24, r.h * 0.32), size = o.size ?? Math.min(34, r.h * 0.4);
@@ -49,10 +80,14 @@ export function button(ctx, r, label, o = {}) {
   if (!o.noShadow) { ctx.fillStyle = 'rgba(4,1,12,0.45)'; rrect(ctx, { x: r.x + 1, y: r.y + edge + 3, w: r.w - 2, h: r.h - edge }, rad); ctx.fill(); }
   ctx.fillStyle = K.edge; rrect(ctx, { x: r.x, y: r.y + edge - sink * 0.0, w: r.w, h: r.h - edge }, rad); ctx.fill();
   const g = ctx.createLinearGradient(0, face.y, 0, face.y + face.h); g.addColorStop(0, K.top); g.addColorStop(1, K.bot);
-  ctx.fillStyle = g; rrect(ctx, face, rad); ctx.fill();
+  const wood = kind === 'ghost' || kind === 'quiet' || kind === 'disabled';
+  if (wood) { woodPlate(ctx, face, rad, kind === 'quiet' ? 'lit' : 'dark', kind === 'disabled' ? 0.55 : 1, Math.max(2, face.h * 0.05)); }
+  else { ctx.fillStyle = g; rrect(ctx, face, rad); ctx.fill(); }
+  if (!wood) {
   // fine rim light along the top edge and a hairline dark outline (no gloss shape)
   ctx.lineWidth = 1.5; ctx.strokeStyle = K.rim; ctx.beginPath(); ctx.roundRect(face.x + 1.5, face.y + 1.5, face.w - 3, face.h - 3, Math.max(2, rad - 1.5)); ctx.save(); ctx.clip(); ctx.beginPath(); ctx.rect(face.x, face.y, face.w, Math.max(4, face.h * 0.34)); ctx.clip(); ctx.beginPath(); ctx.roundRect(face.x + 1.5, face.y + 1.5, face.w - 3, face.h - 3, Math.max(2, rad - 1.5)); ctx.stroke(); ctx.restore();
   ctx.lineWidth = 1.2; ctx.strokeStyle = 'rgba(8,3,20,0.7)'; rrect(ctx, face, rad); ctx.stroke();
+  }
   const dark = kind === 'on' || kind === 'gold' || kind === 'primary';
   const col = kind === 'disabled' ? 'rgba(255,244,228,0.42)' : dark ? '#1a0f33' : PAL.text;
   const hasSub = !!o.sub, pad = o.icon ? face.h * 0.9 : 14;
@@ -68,6 +103,8 @@ export function panel(ctx, r, o = {}) {
   ctx.save();
   const rad = o.rad ?? 24;
   ctx.shadowColor = 'rgba(4,1,12,0.5)'; ctx.shadowBlur = 16; ctx.shadowOffsetY = 5;
+  ctx.fillStyle = 'rgba(26,15,51,0.8)'; rrect(ctx, r, rad); ctx.fill();
+  if (o.wood) { ctx.shadowColor = 'transparent'; woodPlate(ctx, r, rad, 'dark', 0.94, 3); ctx.restore(); return; }
   ctx.fillStyle = o.fill ?? 'rgba(26,15,51,0.8)'; rrect(ctx, r, rad); ctx.fill();
   ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
   const g = ctx.createLinearGradient(0, r.y, 0, r.y + r.h); g.addColorStop(0, 'rgba(255,255,255,0.09)'); g.addColorStop(0.22, 'rgba(255,255,255,0.02)'); g.addColorStop(1, 'rgba(0,0,0,0.18)');
@@ -98,6 +135,7 @@ export function chip(ctx, x, y, label, size, o = {}) {
   const w = ctx.measureText(label).width + size * 1.1, h = size * 1.7;
   const rx = o.align === 'center' ? x - w / 2 : o.align === 'right' ? x - w : x;
   ctx.save(); ctx.shadowColor = 'rgba(4,1,12,0.45)'; ctx.shadowBlur = 6; ctx.shadowOffsetY = 2; ctx.fillStyle = o.fill ?? 'rgba(26,15,51,0.7)'; rrect(ctx, { x: rx, y: y - h / 2, w, h }, h / 2); ctx.fill(); ctx.restore();
+  if (!o.fill) { woodPlate(ctx, { x: rx, y: y - h / 2, w, h }, h / 2, 'lit', 1, 2); txt(ctx, label, rx + w / 2, y + size * 0.02, size, o.color ?? PAL.text, { align: 'center', weight: o.weight ?? 700 }); return { x: rx, y: y - h / 2, w, h }; }
   { const g = ctx.createLinearGradient(0, y - h / 2, 0, y + h / 2); g.addColorStop(0, 'rgba(255,255,255,0.22)'); g.addColorStop(0.5, 'rgba(255,255,255,0)'); g.addColorStop(1, 'rgba(0,0,0,0.2)'); ctx.fillStyle = g; rrect(ctx, { x: rx, y: y - h / 2, w, h }, h / 2); ctx.fill(); }
   if (o.stroke) { ctx.lineWidth = 1.5; ctx.strokeStyle = o.stroke; rrect(ctx, { x: rx, y: y - h / 2, w, h }, h / 2); ctx.stroke(); }
   txt(ctx, label, rx + w / 2, y + size * 0.02, size, o.color ?? PAL.text, { align: 'center', weight: o.weight ?? 700 });

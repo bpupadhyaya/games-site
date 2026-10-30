@@ -81,16 +81,17 @@ export function geom(a) {
   let s = a.w / (2 * XV);
   s = Math.max(6, Math.min(s, a.h / (yNeed * 0.74)));
   const ty = clamp(a.h / (yNeed * s), 0.74, 1.3);
+  const land = a.w / a.h > 1.15;
   if (GL.on) {
     const key = `${Math.round(a.x)},${Math.round(a.y)},${Math.round(a.w)},${Math.round(a.h)}`;
     if (key !== _camKey) {
       _camKey = key;
-      const land = a.w / a.h > 1.15;
+
       _cam = makeCam(a, COURT_PTS(land ? 14.5 : 10.2), { target: [0, 0, -K.D * 0.36], fillX: 1.0, fillY: land ? 0.9 : 1.18, fov: land ? 0.74 : 0.82 });
     }
     const cam = { ..._cam, pos: [_cam.pos[0] + camState.x, _cam.pos[1], _cam.pos[2]] };
     const home = projCam(cam, 0, K.HOME_Y, 0);
-    return { s: home.k, ty, zs: 1, cx: a.x + a.w / 2, bottom: a.y + a.h - 6, y0: -3.5, a, u: s * 1.42, topY: -3.5 + a.h / (s * ty), cam };
+    return { s: home.k, ty, zs: a.w / a.h > 1.15 ? 1 : 1.4, cx: a.x + a.w / 2, bottom: a.y + a.h - 6, y0: -3.5, a, u: s * 1.42, topY: -3.5 + a.h / (s * ty), cam };
   }
   return { s, ty, zs: 1, cx: a.x + a.w / 2, bottom: a.y + a.h - 6, y0: -3.5, a, u: s * 1.42, topY: -3.5 + a.h / (s * ty) };
 }

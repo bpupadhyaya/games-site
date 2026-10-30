@@ -136,14 +136,14 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
   }
   const ballProp = () => { const m = world.makeBall(1); m.visible = false; return m; };
   async function build() {
-    const bh = await person({ ...BATTER, top: '#f1b91e', cap: 0x3a2a1c }, { clips: ['bat', 'sport'], lod: 1 });
+    const bh = await person({ ...BATTER, top: '#f1b91e', cap: 0x3a2a1c }, { clips: ['bat', 'sport'], lod: 0 });
     const bat = world.makeBat();
     bh.attach(bat, 'R', 'bat', { slide: 0.07 }); bh.holdTwoHanded(bat, 'L', { gap: 0.13 });
     batter = { h: bh, bat, held: true, look: '', swingKey: '', cur: '', outKey: '', hop: 0, dodge: null };
-    const sh = await person(SERVER, { clips: ['throw', 'sport'], lod: 1 });
+    const sh = await person(SERVER, { clips: ['throw', 'sport'], lod: 0 });
     const sb = ballProp(); sh.attach(sb, 'R', 'ball');
     server = { h: sh, ball: sb, tossKey: '' };
-    const fs = await Promise.all(FIELDERS.map((s) => person(s, { clips: ['throw', 'field', 'sport'], lod: 1 })));
+    const fs = await Promise.all(FIELDERS.map((s) => person(s, { clips: ['throw', 'field', 'sport'], lod: 0 })));
     fs.forEach((h, i) => { const b = ballProp(); h.attach(b, 'R', 'ball'); fielders.push({ h, ball: b, i, wasWind: false, sp: 0, catchKey: '', pickKey: '', pickAt: -9 }); });
     // the village: instanced, varied real-looking people standing behind the side fences and along the far fence
     try {
@@ -493,7 +493,7 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
       g = { ...g, cam: hc };
     }
     if (P.debugG) g = { ...g, ...P.debugG };
-    const zs = 1, rball = 0.037;
+    const zs = g.zs || 1, rball = 0.037;
     stage.setVisible(true);
     const m = S.m, T = m ? m.T : null;
     const play = v.kind === 'play' && m && T;
@@ -547,7 +547,7 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
       world.ballShadow.visible = true; world.ballShadow.scale.setScalar(rball * 2.6 * sh);
       world.ballShadow.position.set(ball.x + rball * 0.5, 0.03, -ball.y);
     }
-    { const lod = g.s > 90 ? 0 : 1; if (P.lodNow !== lod) { P.lodNow = lod; batter.h.setLOD(lod); server.h.setLOD(lod); } }
+    { const lod = 0; if (P.lodNow !== lod) { P.lodNow = lod; batter.h.setLOD(lod); server.h.setLOD(lod); } }
     // the people's root scale (legible figures on small screens: the same factor the 2D layer uses for heights)
     for (const h of people) h.root.scale.setScalar(zs);
     P.lastDt = dt; curDt = dt;

@@ -51,6 +51,18 @@ export function render(ctx, state, L) {
     ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, rad); ctx.fillStyle = fill; ctx.fill(); ctx.strokeStyle = stroke; ctx.lineWidth = 2; ctx.stroke();
     if (brand) edgeStroke(ctx, r, rad, 0.38);
   };
+  const icon = (k, x, y, u, col) => {
+    ctx.save(); ctx.translate(x, y); ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = Math.max(2, u * 0.16); ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath();
+    if (k === 'play') { ctx.moveTo(-u * 0.5, -u * 0.8); ctx.lineTo(u * 0.8, 0); ctx.lineTo(-u * 0.5, u * 0.8); ctx.closePath(); ctx.fill(); }
+    else if (k === 'two') { ctx.arc(-u * 0.5, 0, u * 0.55, 0, 7); ctx.moveTo(u * 1.1, 0); ctx.arc(u * 0.5, 0, u * 0.55, 0, 7); ctx.stroke(); }
+    else if (k === 'learn') { ctx.moveTo(0, -u * 0.5); ctx.lineTo(0, u * 0.7); ctx.moveTo(0, -u * 0.5); ctx.quadraticCurveTo(-u * 0.6, -u * 0.8, -u, -u * 0.5); ctx.lineTo(-u, u * 0.5); ctx.quadraticCurveTo(-u * 0.6, u * 0.3, 0, u * 0.7); ctx.quadraticCurveTo(u * 0.6, u * 0.3, u, u * 0.5); ctx.lineTo(u, -u * 0.5); ctx.quadraticCurveTo(u * 0.6, -u * 0.8, 0, -u * 0.5); ctx.stroke(); }
+    else if (k === 'auto') { ctx.arc(0, 0, u * 0.9, 0.5, 5.6); ctx.stroke(); ctx.beginPath(); ctx.moveTo(-u * 0.25, -u * 0.45); ctx.lineTo(u * 0.5, 0); ctx.lineTo(-u * 0.25, u * 0.45); ctx.closePath(); ctx.fill(); }
+    else if (k === 'rules') { for (const dy of [-0.6, 0, 0.6]) { ctx.moveTo(-u * 0.8, u * dy); ctx.lineTo(u * 0.8, u * dy); } ctx.stroke(); }
+    else if (k === 'how') { ctx.arc(0, 0, u * 0.95, 0, 7); ctx.stroke(); ctx.beginPath(); ctx.font = `800 ${u * 1.35}px ${UI}`; ctx.textAlign = 'center'; ctx.fillText('?', 0, u * 0.5); }
+    else if (k === 'about') { ctx.arc(0, 0, u * 0.95, 0, 7); ctx.stroke(); ctx.beginPath(); ctx.arc(0, -u * 0.45, u * 0.12, 0, 7); ctx.fill(); ctx.beginPath(); ctx.moveTo(0, -u * 0.1); ctx.lineTo(0, u * 0.55); ctx.stroke(); }
+    else if (k === 'settings') { for (const [dy, kx] of [[-0.6, -0.35], [0, 0.4], [0.6, -0.1]]) { ctx.moveTo(-u * 0.9, u * dy); ctx.lineTo(u * 0.9, u * dy); ctx.stroke(); ctx.beginPath(); ctx.arc(u * kx, u * dy, u * 0.24, 0, 7); ctx.fill(); ctx.beginPath(); } }
+    ctx.restore();
+  };
   const button = (r, label, o = {}) => {
     ui.buttons.push({ x: r.x, y: r.y, w: r.w, h: r.h, label });
     ctx.save(); if (o.dim) ctx.globalAlpha = 0.5;
@@ -64,7 +76,7 @@ export function render(ctx, state, L) {
     ctx.strokeStyle = o.primary ? 'rgba(255,214,150,0.8)' : 'rgba(242,208,138,0.55)'; ctx.lineWidth = 2; ctx.stroke();
     ctx.strokeStyle = 'rgba(255,255,255,0.10)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.roundRect(r.x + 3, r.y + 3, r.w - 6, r.h - 6, Math.max(2, rad - 3)); ctx.stroke();
     }
-    const size = o.size ?? 28, maxW = r.w - 20, col = o.primary ? '#fff6e0' : GOLD, cy = r.y + r.h / 2;
+    const size = o.size ?? 28, ix = o.icon && !o.stack ? Math.min(r.h * 0.6, 40) : 0, maxW = r.w - 20 - ix, lx = r.x + r.w / 2 + ix / 2, col = o.primary ? '#fff6e0' : GOLD, cy = o.stack ? r.y + r.h * 0.72 : r.y + r.h / 2;
     const w1 = (str, s) => { ctx.font = `700 ${s}px ${UI}`; return ctx.measureText(str).width; };
     let s1 = size; while (s1 > minU && w1(label, s1) > maxW) s1 -= 1;
     let best = { s: s1, ls: [label] };
@@ -76,9 +88,10 @@ export function render(ctx, state, L) {
         if (s2 > best.s) best = { s: s2, ls };
       }
     }
-    if (o.sub && best.ls.length === 1) { text(label, r.x + r.w / 2, cy + best.s * 0.1 - 6, best.s, col, UI, 700); fitText(o.sub, r.x + r.w / 2, cy + best.s * 0.1 + Math.max(minU, size * 0.62) + 2, Math.round(size * 0.62), maxW, DIM, UI, 500, 'center', minU); }
-    else if (best.ls.length === 1) text(label, r.x + r.w / 2, cy + best.s * 0.35, best.s, col, UI, 700);
-    else best.ls.forEach((ln, i) => text(ln, r.x + r.w / 2, cy + best.s * 0.35 + (i - 0.5) * best.s * 1.15, best.s, col, UI, 700));
+    if (o.sub && best.ls.length === 1) { text(label, lx, cy + best.s * 0.1 - 6, best.s, col, UI, 700); fitText(o.sub, lx, cy + best.s * 0.1 + Math.max(minU, size * 0.62) + 2, Math.round(size * 0.62), maxW, DIM, UI, 500, 'center', minU); }
+    else if (best.ls.length === 1) text(label, lx, cy + best.s * 0.35, best.s, col, UI, 700);
+    else best.ls.forEach((ln, i) => text(ln, lx, cy + best.s * 0.35 + (i - 0.5) * best.s * 1.15, best.s, col, UI, 700));
+    if (o.icon) { const c = o.stack ? [r.x + r.w / 2, r.y + r.h * 0.34, Math.min(r.h * 0.2, 17)] : [r.x + r.w / 2 - Math.min(r.w / 2 - 14, (w1(label, best.s) + ix) / 2) + ix * 0.42, cy, Math.min(r.h * 0.26, 17)]; icon(o.icon, c[0], c[1], c[2], col); }
     ctx.restore();
   };
 
@@ -106,11 +119,11 @@ export function render(ctx, state, L) {
       wrapBox('Get Kharbaga on iPhone and Android for unlimited games, every level and every board.', R(r.x + 24, r.y + r.h * 0.42, r.w - 48, r.h * 0.4), 28, 1.3, CREAM);
     } else {
       if (Rr.resume) button(Rr.resume, 'Continue your game', { primary: true, size: 30 });
-      button(Rr.play, 'Play the computer', { primary: !Rr.resume, size: 32, sub: `${LEVELS[state.level].name} · as ${NAMES[state.humanSide]}` });
-      button(Rr.two, 'Two players', { size: 26 }); button(Rr.learn, state.learned ? 'Learn' : 'Learn to play', { size: 26, primary: false });
-      button(Rr.auto, 'Auto Play · Watch & Learn', { size: 26 });
-      button(Rr.rules, 'Rules', { size: 26 }); button(Rr.how, 'How to Play', { size: 26 });
-      button(Rr.about, 'About', { size: 26 }); button(Rr.settings, 'Settings', { size: 26 });
+      button(Rr.play, 'Play the computer', { primary: !Rr.resume, size: 34, icon: 'play', sub: `${LEVELS[state.level].name} · as ${NAMES[state.humanSide]}` });
+      button(Rr.two, 'Two players', { size: 24, icon: 'two' }); button(Rr.learn, state.learned ? 'Learn' : 'Learn to play', { size: 24, primary: false, icon: 'learn' });
+      button(Rr.auto, 'Auto Play', { size: 24, icon: 'auto' });
+      button(Rr.rules, 'Rules', { size: 22, icon: 'rules', stack: true }); button(Rr.how, 'How to Play', { size: 22, icon: 'how', stack: true });
+      button(Rr.about, 'About', { size: 22, icon: 'about', stack: true }); button(Rr.settings, 'Settings', { size: 24, icon: 'settings' });
       if (state.msg) fitText(state.msg.text, L.w / 2, T.rows.play.y - 14, 24, L.w - 40, GOLD, UI, 600);
     }
     // the Arcforge lockup, bottom centre under the menu

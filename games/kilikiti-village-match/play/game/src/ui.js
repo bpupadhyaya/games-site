@@ -17,7 +17,7 @@ const BTN = {
   primary: ['#ffd36b', '#f2a93b', 'rgba(255,248,220,0.9)'],
   danger: ['#d9574a', '#b13d32', 'rgba(255,200,190,0.55)'],
   active: ['#2bb9ab', '#1a8f87', 'rgba(190,255,245,0.6)'],
-  normal: ['#1f7084', '#155566', 'rgba(255,214,140,0.45)'],
+  normal: ['#7a4e2c', '#4d2e19', 'rgba(240,196,104,0.85)'],
 };
 export function drawButton(ctx, r, label, o = {}) {
   const { primary = false, disabled = false, active = false, sub = null, size = 30, danger = false } = o;
@@ -37,7 +37,7 @@ export function drawButton(ctx, r, label, o = {}) {
   ctx.fillStyle = disabled ? 'rgba(255,255,255,0.45)' : primary ? '#2e1a05' : '#ffffff';
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.font = `700 ${size}px ${FONT}`;
-  const lines = wrapLines(ctx, label, r.w - 28);
+  const lines = label.length <= 3 ? [label] : wrapLines(ctx, label, r.w - 28);
   const lh = size * 1.18, subSize = Math.round(size * 0.62), subLh = subSize * 1.25;
   let subLines = [];
   if (sub) { ctx.font = `400 ${subSize}px ${SANS}`; subLines = wrapLines(ctx, sub, r.w - 28); ctx.font = `700 ${size}px ${FONT}`; }
@@ -54,9 +54,17 @@ export function panel(ctx, r, o = {}) {
   ctx.save();
   rr(ctx, r.x, r.y, r.w, r.h, o.radius ?? 26);
   const g = ctx.createLinearGradient(0, r.y, 0, r.y + r.h);
-  g.addColorStop(0, o.top ?? 'rgba(12,58,70,0.92)'); g.addColorStop(1, o.bottom ?? 'rgba(6,30,40,0.94)');
+  g.addColorStop(0, o.top ?? 'rgba(74,47,29,0.92)'); g.addColorStop(1, o.bottom ?? 'rgba(44,27,16,0.94)');
   ctx.fillStyle = g; ctx.fill();
-  ctx.lineWidth = 2; ctx.strokeStyle = PAL.panelEdge; ctx.stroke();
+  // wood grain, then a brass rim with an inner dark line and four brass studs
+  ctx.save(); ctx.clip(); ctx.globalAlpha = 0.09; ctx.strokeStyle = '#000'; ctx.lineWidth = 1;
+  for (let y = r.y + 7; y < r.y + r.h; y += 9) { ctx.beginPath(); ctx.moveTo(r.x, y); ctx.bezierCurveTo(r.x + r.w * 0.3, y - 2, r.x + r.w * 0.6, y + 3, r.x + r.w, y); ctx.stroke(); }
+  ctx.restore();
+  const rad = o.radius ?? 26, bg = ctx.createLinearGradient(0, r.y, 0, r.y + r.h);
+  bg.addColorStop(0, '#f3d38a'); bg.addColorStop(0.5, '#c8963f'); bg.addColorStop(1, '#8c6224');
+  rr(ctx, r.x, r.y, r.w, r.h, rad); ctx.lineWidth = 3; ctx.strokeStyle = bg; ctx.stroke();
+  rr(ctx, r.x + 3.5, r.y + 3.5, r.w - 7, r.h - 7, Math.max(2, rad - 3.5)); ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(20,10,4,0.55)'; ctx.stroke();
+  if (r.w > 120 && r.h > 70) for (const [sx, sy] of [[r.x + 14, r.y + 14], [r.x + r.w - 14, r.y + 14], [r.x + 14, r.y + r.h - 14], [r.x + r.w - 14, r.y + r.h - 14]]) { ctx.beginPath(); ctx.arc(sx, sy, 3.2, 0, 6.283); ctx.fillStyle = bg; ctx.fill(); }
   ctx.restore();
 }
 

@@ -269,7 +269,7 @@ export function createGame(env) {
   const menuItems = () => {
     const a = [{ id: 'new', label: st.hasSave ? 'New Journey' : 'Begin Journey', kind: st.hasSave ? 'quiet' : 'primary', icon: 'east' }];
     if (st.hasSave) a.unshift({ id: 'continue', label: 'Continue Journey', kind: 'primary', icon: 'play' });
-    a.push({ id: 'learn', label: 'Watch and Learn', kind: 'quiet', icon: 'bulb' }, { id: 'journal', label: 'Journal', kind: 'quiet', icon: 'book' }, { id: 'howto', label: 'How to Play', kind: 'quiet' }, { id: 'rules', label: 'Rules', kind: 'quiet' }, { id: 'about', label: 'About', kind: 'quiet' }, { id: 'settings', label: 'Settings', kind: 'quiet', icon: 'gear' });
+    a.push({ id: 'learn', label: 'Watch and Learn', kind: 'quiet', icon: 'bulb' }, { id: 'journal', label: 'Journal', kind: 'quiet', icon: 'book' }, { id: 'howto', label: 'How to Play', kind: 'quiet', icon: 'speak' }, { id: 'rules', label: 'Rules', kind: 'quiet', icon: 'check' }, { id: 'about', label: 'About', kind: 'quiet', icon: 'news' }, { id: 'settings', label: 'Settings', kind: 'quiet', icon: 'gear' });
     return a;
   };
   function menuHit(id) {

@@ -1,0 +1,9 @@
+{
+  "version": "1.11.1",
+  "characters": [],
+  "clips": [],
+  "scenery": [],
+  "files": {},
+  "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "note": "Vendored copies. Never edit. Re-select with: tools/arc view3d-add <slug> --characters a,b ; refresh with: tools/arc view3d-upgrade"
+}

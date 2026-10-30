@@ -11,7 +11,7 @@ import { createPlanner, executePlan, describePlan } from './ai.js';
 import { PROFILES } from './opponents.js';
 import { inRect, PULL, TEXT_SCALES, THINK_STEPS, meta, syncSize, refLayout, toWorld, toScreen } from './layout.js';
 import { renderPlay, layoutOf, sideName } from './view.js';
-import { renderTitle, renderSetup, renderSettings, renderResult, renderPause, renderPages, renderDemoLimit, hitScreen, flowMeta, REF, ensureLayout, resetMenus, setupPinRects, lockupZone } from './menus.js';
+import { renderTitle, renderSetup, renderSettings, renderResult, renderPause, renderPages, renderDemoLimit, hitScreen, flowMeta, REF, ensureLayout, resetMenus, setupPinRects, lockupZone, widgetRect } from './menus.js';
 import { ABOUT, HOWTO, RULES } from './content.js';
 import { setPress } from './ui.js';
 
@@ -597,6 +597,7 @@ export function createGame(env) {
     },
     render(ctx) {
       syncSize();
+      ctx.clearRect(0, 0, meta.width, meta.height);   // the kit canvas is transparent (the lit 3D pond shows through behind it)
       switch (state.scene) {
         case 'title': renderTitle(ctx, state); break;
         case 'setup': renderSetup(ctx, state); break;
@@ -615,6 +616,6 @@ export function createGame(env) {
     },
     getState: () => state,
     lockupZone: () => lockupZone(),
-    dev: config.dev ? { project: (x, y) => toScreen(layoutOf(state), x, y), startMatch, startWatch, handleTitle, setScene: (n) => { state.scene = n; state.ui.scroll = 0; state.refScroll = 0; state.back = 'title'; } } : null,
+    dev: config.dev ? { pins: () => setupPinRects(state), rect: (id) => widgetRect(id, state.ui.scroll), project: (x, y) => toScreen(layoutOf(state), x, y), startMatch, startWatch, handleTitle, setScene: (n) => { state.scene = n; state.ui.scroll = 0; state.refScroll = 0; state.back = 'title'; } } : null,
   };
 }

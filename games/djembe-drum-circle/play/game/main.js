@@ -2,9 +2,12 @@ import { boot } from './kit/index.js';
 import { createGame, meta, drumInput, wheelInput } from './src/game.js';
 import { host } from './src/layout.js';
 import { setLogo } from './src/brand.js';
+import { drum3d } from './src/art.js';
+import { install as install3d } from './view3d/drum3d.js';
 import { createDrumKit } from './audio/drumkit.js';
 
 const canvas = document.getElementById('game');
+install3d(drum3d);                                   // the lit 3D drum (loads three.js lazily after the first painted frames)
 const q = new URLSearchParams(location.search);
 
 // Host safe areas (notch, home indicator) and the floating back button: the shell publishes window.__safeInsets in CSS px.

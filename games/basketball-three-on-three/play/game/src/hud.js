@@ -53,7 +53,7 @@ function scoreboard(ctx, G, s, lay) {
   if (!sc.tall) {
     // landscape / squarish: one slim bar, Think | team score | clock + shot clock | team score | Pause (those two are drawn by renderHud)
     const k = sc.k, y = sc.y, h = sc.h, mf = UI.minf;
-    const g = ctx.createLinearGradient(0, 0, 0, hl.barBottom + 18); g.addColorStop(0, 'rgba(6,14,26,0.9)'); g.addColorStop(1, 'rgba(6,14,26,0)');
+    const g = ctx.createLinearGradient(0, 0, 0, hl.barBottom + 18); g.addColorStop(0, 'rgba(34,22,30,0.62)'); g.addColorStop(1, 'rgba(6,14,26,0)');
     ctx.fillStyle = g; ctx.fillRect(0, 0, W, hl.barBottom + 18);
     for (const i of [0, 1]) {
       const left = i === 0, x0 = left ? sc.left : sc.right - sc.bw;
@@ -85,7 +85,7 @@ function scoreboard(ctx, G, s, lay) {
     return;
   }
   const th = hl.topH, colw = sc.colw, cx = W / 2, mf = UI.minf;
-  const g = ctx.createLinearGradient(0, 0, 0, hl.top + th + 24); g.addColorStop(0, 'rgba(6,14,26,0.9)'); g.addColorStop(1, 'rgba(6,14,26,0)');
+  const g = ctx.createLinearGradient(0, 0, 0, hl.top + th + 24); g.addColorStop(0, 'rgba(34,22,30,0.62)'); g.addColorStop(1, 'rgba(6,14,26,0)');
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, hl.top + th + 24);
   ctx.save(); ctx.translate(0, hl.top);
   for (const i of [0, 1]) {
@@ -245,7 +245,7 @@ export function renderHud(ctx, G, sim, view) {
   scoreboard(ctx, G, s, lay);
   // behind the thumb controls: a dark band at the bottom (portrait), two soft corner shades (landscape)
   if (!lay.land) {
-    const bg = ctx.createLinearGradient(0, hl.bgTop, 0, H); bg.addColorStop(0, 'rgba(6,14,26,0)'); bg.addColorStop(0.3, 'rgba(6,14,26,0.55)'); bg.addColorStop(1, 'rgba(6,14,26,0.82)');
+    const bg = ctx.createLinearGradient(0, hl.bgTop, 0, H); bg.addColorStop(0, 'rgba(34,22,30,0)'); bg.addColorStop(0.3, 'rgba(34,22,30,0.3)'); bg.addColorStop(1, 'rgba(34,22,30,0.5)');
     ctx.fillStyle = bg; ctx.fillRect(0, hl.bgTop, W, H - hl.bgTop);
   } else if (G.mode !== 'watch') {
     const sw = 380, y0 = hl.bgTop;

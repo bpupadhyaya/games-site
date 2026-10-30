@@ -107,3 +107,5 @@ export const ABOUT = [
   { title: 'What you get', body: '26 levels in 6 chapters with a target to match and a par to beat, Scissors and six Punch shapes, folds from x2 to x12 on four kinds of sheet, Studio and a Gallery to keep your cut-outs, and Watch & Learn that explains every cut. A Rules guide with text that grows to 300 percent. No timers, works offline.' },
   { title: 'Part of Arcforge', body: 'Paper Cutting belongs to the Arcforge collection of World Heritage Games.' },
 ];
+// Credits for the optional 3D layer (three.js, view3d); main.js adds them once the licence text has loaded.
+export const addAboutCredits = (body) => { if (!ABOUT.some((a) => a.title === 'Credits: 3D table')) ABOUT.push({ title: 'Credits: 3D table', body }); };

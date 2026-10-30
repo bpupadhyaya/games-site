@@ -3,6 +3,7 @@
 //   portrait    rival plate, message, boat board (as wide as the screen), throwing stick tray, your plate, button bar
 //   landscape   boat board next to a card with the plates, message, tray and buttons
 // The board is always drawn lengthwise; `flip` turns it half a turn so the human's own row is always the one nearest the thumb.
+import { v3 } from './v3.js';
 export const THINK_STEPS = [2, 5, 8, 10];
 export const TEXT_SCALES = [1, 1.5, 2, 2.5, 3];
 export const inRect = (r, x, y) => !!r && x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
@@ -16,7 +17,7 @@ export const host = { t: 0, r: 0, b: 0, l: 0, back: 0, px: 0.6, dpr: 2 };
 const cache = new Map();
 export function layoutFor(w, h, flip = false) {
   w = Math.round(w); h = Math.round(h);
-  const key = `${w}x${h}|${Math.round(host.t)},${Math.round(host.r)},${Math.round(host.b)},${Math.round(host.l)},${Math.round(host.back)}|${flip ? 1 : 0}`;
+  const key = `${w}x${h}|${Math.round(host.t)},${Math.round(host.r)},${Math.round(host.b)},${Math.round(host.l)},${Math.round(host.back)}|${flip ? 1 : 0}|${v3.on ? 1 : 0}`;
   let L = cache.get(key);
   if (!L) { L = build(w, h, { ...host }, flip); L.key = key; cache.set(key, L); if (cache.size > 40) cache.delete(cache.keys().next().value); }
   return L;
@@ -55,7 +56,24 @@ function build(w, h, ins, flip) {
     const pad = 12, backRes = ins.back ? 62 : 0;
     const top0 = Math.max(ins.t + 6, backRes ? ins.t + backRes : 0, ins.t + Math.round(30 / (ins.px || 0.6))), bottom = h - Math.max(ins.b, 10) - 6;
     const barY = bottom - BH, pw = U.w - 2 * pad;
-    const tray = clamp(U.w * 0.27, 120, 190), msgH = 60, ph = clamp(U.w * 0.2, 96, 140);
+    if (v3.on) {
+      // 3D on: the boat stands up the screen (the camera turns it a quarter turn), so its 11 cells use the whole height: the board is the
+      // tall element on the left, the throwing tray and the message sit beside it, slim plates above and below, buttons at the bottom
+      const ph = clamp(U.w * 0.11, 64, 84), G2 = 10, bandTop = top0 + ph + G2, bandBot = barY - G2 - ph - G2, bandH = Math.max(300, bandBot - bandTop);
+      const AR = (3 + 2 * MY) / (8 + 2 * MX), bw2 = Math.min(bandH * AR, pw * 0.62), bh2 = bw2 / AR;
+      L.plateTop = R(U.x0 + pad, top0, pw, ph);
+      board = { x: U.x0 + pad, y: bandTop + (bandH - bh2) / 2, w: bw2, h: bh2, cw: bh2 / (8 + 2 * MX), ch: bw2 / (3 + 2 * MY), flip, vertical: true, pt: () => ({ x: 0, y: 0 }), cellAt: () => null, rowOf: (sd) => ((sd === 0) !== flip ? 2 : 0), rect: R(U.x0 + pad, bandTop + (bandH - bh2) / 2, bw2, bh2) };
+      const cx2 = board.x + bw2 + G2 + 4, cw3 = U.x0 + pad + pw - cx2, trayH = clamp(cw3 * 0.95, 200, 380), msgH2 = clamp(bandH * 0.22, 120, 220);
+      const colH = trayH + G2 + msgH2, cy2 = bandTop + Math.max(0, (bandH - colH) / 2);
+      L.tray = R(cx2, cy2, cw3, trayH); L.msg = R(cx2, cy2 + trayH + G2, cw3, msgH2);
+      L.plateBot = R(U.x0 + pad, bandBot + G2, pw, ph);
+      const bw3 = Math.min(210, (pw - 2 * G) / 3), bx3 = U.x0 + (U.w - (2 * bw3 + G)) / 2;
+      L.BTN = btns(bx3, barY, bw3, false);
+      const aw3 = (pw - 3 * G) / 4;
+      L.BTN.auto = { exit: R(U.x0 + pad, barY, aw3, BH), pause: R(U.x0 + pad + aw3 + G, barY, aw3, BH), dec: R(U.x0 + pad + 2 * (aw3 + G), barY, aw3, BH), inc: R(U.x0 + pad + 3 * (aw3 + G), barY, aw3, BH) };
+      L.kind = 'portrait'; L.vertical = true;
+    } else {
+    const tray = clamp(U.w * 0.27, 120, 190), msgH = 60, ph = clamp(U.w * 0.15, 82, 104);
     const fixed = 2 * ph + msgH + tray + BH + 6 * G;
     const avail = Math.max(150, bottom - top0 - fixed);        // what is left for the board
     const fit = boardIn(U.x0 + pad, 0, pw, avail, flip);
@@ -72,6 +90,7 @@ function build(w, h, ins, flip) {
     const aw = (pw - 3 * G) / 4;
     L.BTN.auto = { exit: R(U.x0 + pad, barY, aw, BH), pause: R(U.x0 + pad + aw + G, barY, aw, BH), dec: R(U.x0 + pad + 2 * (aw + G), barY, aw, BH), inc: R(U.x0 + pad + 3 * (aw + G), barY, aw, BH) };
     L.kind = 'portrait';
+    }
   } else {
     const pad = 12, gap = 14, panelW = clamp(U.w * 0.27, 280, 420);
     const cardTop = ins.back ? Math.max(U.y0 + pad, L.backBox.y + L.backBox.h + 4) : U.y0 + pad, cardH = U.y1 - pad - cardTop;

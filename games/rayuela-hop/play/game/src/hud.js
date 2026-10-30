@@ -2,7 +2,7 @@
 // controls, the timing ring, big pop-ups (count-in, grade, toss result, foul), the Watch & Learn panel and the 2D fallback.
 // Everything follows the text-size setting through a gentler multiplier (PLAY_M).
 import { scr, hudFor, inRect } from './layout.js';
-import { FONT, DISPLAY, roundPath, drawButton, paintButton, wrapLines, panel } from './ui.js';
+import { FONT, DISPLAY, roundPath, drawButton, paintButton, wrapLines, panel, woodPlaque } from './ui.js';
 import { RING_DUR, TIMING, TEJO_R, AIM_RANGE, COUNT_BEATS } from './consts.js';
 import { getCourse } from './courses.js';
 import { reticle, FOUL_TEXT } from './sim.js';
@@ -44,8 +44,8 @@ function handIcon(ctx, cx, cy, s, col = '#fffaf0') {
 
 function pill(ctx, r, label, prog, N, score, col, active, m, who) {
   const { x, y, w, h } = r;
-  roundPath(ctx, x, y, w, h, 20); ctx.fillStyle = active ? 'rgba(10,24,40,0.9)' : 'rgba(10,24,40,0.66)'; ctx.fill();
-  ctx.lineWidth = active ? 4 : 2; ctx.strokeStyle = active ? col : 'rgba(255,246,228,0.35)'; ctx.stroke();
+  woodPlaque(ctx, x, y, w, h, 20, { glow: active ? col : null, rivets: false });
+  if (active) { roundPath(ctx, x - 2, y - 2, w + 4, h + 4, 22); ctx.lineWidth = 3; ctx.strokeStyle = col; ctx.stroke(); }
   ctx.save(); ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
   const pad = 14;
   fitText(ctx, label, x + pad, y + h * 0.36, w * 0.6, Math.round(21 * m), col, 700, 'left');
@@ -203,7 +203,7 @@ export function renderHud(ctx, G, S, view) {
   const lab = (i) => P[i].name.toUpperCase();
   pill(ctx, lay.pillL, practice ? (s.mode === 'lesson' ? 'LESSON' : 'PRACTICE') : lab(0), practice ? (s.mode === 'lesson' ? s.lesson.ok : P[0].done) : P[0].done, practice ? (s.mode === 'lesson' ? s.lesson.need : 0) : s.target, P[0].score, COL[0], s.cur === 0, m);
   if (P.length > 1 && !practice) pill(ctx, lay.pillR, lab(1), P[1].done, s.target, P[1].score, COL[1], s.cur === 1, m);
-  else if (practice) { const r = lay.pillR; roundPath(ctx, r.x, r.y, r.w, r.h, 20); ctx.fillStyle = 'rgba(10,24,40,0.66)'; ctx.fill(); fitText(ctx, s.mode === 'lesson' ? `Try ${Math.min(s.lesson.tries + 1, s.lesson.attempts)} / ${s.lesson.attempts}` : `Clean runs ${P[0].stats.clean}`, r.x + r.w / 2, r.y + r.h * 0.62, r.w - 24, Math.round(26 * m), '#ffe9a0'); }
+  else if (practice) { const r = lay.pillR; woodPlaque(ctx, r.x, r.y, r.w, r.h, 20, { rivets: false }); fitText(ctx, s.mode === 'lesson' ? `Try ${Math.min(s.lesson.tries + 1, s.lesson.attempts)} / ${s.lesson.attempts}` : `Clean runs ${P[0].stats.clean}`, r.x + r.w / 2, r.y + r.h * 0.62, r.w - 24, Math.round(26 * m), '#ffe9a0'); }
   statusLine(ctx, G, S, lay);
   popups(ctx, G, S, lay, tD);
   if (watch) { renderWatch(ctx, G, S, lay); return; }

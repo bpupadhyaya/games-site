@@ -14,6 +14,11 @@ export const HORSE_COATS = {
   pinto:    { body: '#8a4a22', points: '#2a1b14', mane: '#2a1b14', belly: 1.08, patches: '#efece4' },
   cremello: { body: '#e8dcc2', points: '#e0d2b4', mane: '#f4efe2', belly: 1.04 },
 };
+/** muzzle skin colour for a coat spec (soft dark brown on dark points, pink-grey on pale coats) */
+export function muzzleColor(cs) {
+  const c = new THREE.Color(cs.name === 'grey' || cs.name === 'cremello' || cs.name === 'palomino' ? '#4a3330' : cs.points);
+  return '#' + c.lerp(new THREE.Color('#2a1d1a'), 0.35).getHexString();
+}
 const SOCK_LEGS = ['LF', 'RF', 'LH', 'RH'];
 
 const lin = (hex) => new THREE.Color(hex);   // three converts hex input sRGB -> linear working space
@@ -54,9 +59,6 @@ export function paintCoat(geometry, cls, cs) {
       c.set('#2d2520');
       const leg = (z > 0 ? 'F' : 'H'); const key = (x > 0 ? 'L' : 'R') + leg;
       if (sockH[key] > 0.02) c.set('#a89880');
-    } else if (cls === 'muzzle') {
-      c.copy(cs.name === 'grey' || cs.name === 'cremello' || cs.name === 'palomino' ? pinkNose : points);
-      c.lerp(tmp.set('#2a1d1a'), 0.55);
     } else {
       c.copy(body);
       // low-frequency tone variation + fine mottling
@@ -108,6 +110,9 @@ export function paintCoat(geometry, cls, cs) {
       // nostril shadow
       { const dn = Math.hypot((ax - 0.045) * 1.2, (y - 1.76) * 1.1, (z - 1.7) * 1.4); c.multiplyScalar(1 - 0.5 * sm(0.05, 0.0, dn)); }
       if (cls === 'light') c.multiplyScalar(1.18);
+      // muzzle: one continuous gradient from the face colour into the muzzle colour (the muzzle mesh and the head mesh meet in a jagged seam,
+      // so the colour must be a function of position alone, never of which primitive the vertex belongs to)
+      { const mw = sm(1.55, 1.7, z) * sm(1.93, 1.82, y); if (mw > 0) { c.lerp(tmp.set(muzzleColor(cs)), mw); const lipLight = sm(1.74, 1.69, y) * 0.0; void lipLight; } }
     }
     out[i * 3] = c.r; out[i * 3 + 1] = c.g; out[i * 3 + 2] = c.b;
   }

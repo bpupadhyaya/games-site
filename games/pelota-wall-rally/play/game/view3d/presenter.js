@@ -105,7 +105,7 @@ export async function createPresenter({ kitCanvas, meta = { width: 720, height: 
     P.humans = []; P.actors = [];
     for (let i = 0; i < 4; i++) {
       const team = i < 2 ? 0 : 1;
-      const h = await loadHuman({ character: 'mannequin_m', kit: KITS[team][i & 1], skin: SKINS[i], hair: HAIRS[i], legs: 'shorts' });
+      const h = await loadHuman({ character: 'athlete_m', top: 'long', kit: KITS[team][i & 1], skin: SKINS[i], hair: HAIRS[i], legs: 'shorts' });
       h.groundClamp = 'auto'; h.footPlanting = true;
       h.play('ready_stance', { fade: 0 });
       h.setPosition(0, 0, 0);

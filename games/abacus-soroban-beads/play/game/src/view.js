@@ -5,6 +5,7 @@ import { setBrandTone, drawCredit, edgeStroke, drawMoreLine } from './brand.js';
 import { drawAbacus, drawFigure, posOf } from './art.js';
 import { abacusGeo } from './layout.js';
 import { digitsOf, valueOf } from './soroban.js';
+import { v3, isDesk } from './v3.js';
 import { DOCS } from './content.js';
 import { LESSONS, FLASH_LEVELS, SPRINT_LEVELS } from './lessons.js';
 import { SETTINGS, settingIndex } from './prefs.js';
@@ -16,11 +17,13 @@ const flashOf = (s, id) => (s.flash && s.flash.id === id ? Math.max(0, 1 - s.fla
 
 export function render(ctx, s, view, H) {
   const w = view.width, h = view.height, T = theme();
-  background(ctx, w, h, s.t);
-  metrics.max = 0; metrics.rect = null;
   const sc = s.scene;
+  v3.frame = null; v3.dx = 0;
+  if (!(v3.on && isDesk(sc))) background(ctx, w, h, s.t);     // the 3D desk is the backdrop of the title and play screens
+  else { const vg = ctx.createRadialGradient(w / 2, h * 0.42, Math.min(w, h) * 0.3, w / 2, h * 0.42, Math.max(w, h) * 0.78); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(8,3,5,0.66)'); ctx.fillStyle = vg; ctx.fillRect(0, 0, w, h); }
+  metrics.max = 0; metrics.rect = null;
   ctx.save();
-  if (s.shake > 0 && sc === 'play') ctx.translate(Math.sin(s.shake * 70) * 7 * s.shake, 0);
+  if (s.shake > 0 && sc === 'play') { v3.dx = Math.sin(s.shake * 70) * 7 * s.shake; ctx.translate(v3.dx, 0); }
   if (sc === 'title') drawTitle(ctx, s, w, h);
   else if (sc === 'play') drawPlay(ctx, s, w, h, H);
   else if (sc === 'lessons') drawLessons(ctx, s, w, h);
@@ -49,7 +52,7 @@ function drawTitle(ctx, s, w, h) {
   }
   const appear = smooth(clamp(s.sceneT * 2.2, 0, 1));
   ctx.save(); ctx.globalAlpha = appear; ctx.translate(0, (1 - appear) * 20);
-  drawAbacus(ctx, g, A, T, { t: s.t });
+  drawAbacus(ctx, g, A, T, { t: s.t, tilt: 1 });
   ctx.restore();
   const ty = hero.y + H0 - tb * 0.46;
   txt(ctx, 'ABACUS', hero.x + hero.w / 2, ty - tb * 0.1, { size: tb * 0.6, weight: 700, color: T.text, align: 'center', maxW: hero.w * 0.94, min: 24 });

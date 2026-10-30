@@ -16,15 +16,15 @@ const ss = (t) => t * t * (3 - 2 * t);
 const TAU = Math.PI * 2;
 const QS = (() => { try { return new URLSearchParams(globalThis.location.search); } catch { return new URLSearchParams(''); } })();
 const ICON = QS.has('icon');
-const FIG_X = -0.38;      // the person stands this far to the left of the launch line, so the camera sees the bundle past his shoulder
+const FIG_X = -0.62;      // the person stands this far to the left of the launch line, so the camera sees the bundle past his shoulder
 
 // who is who: a look per rival (Aino, Jussi, Helmi, Eero) and two for people sharing the phone
 const LOOKS = [
   { ch: 'athlete_f', skin: 'light', hair: 'blond', look: { top: '#c8473a', bottoms: '#6c7a58', hat: 'sunhat', hatColor: '#e9dcae', ribbon: '#c8473a', sleeves: null } },
-  { ch: 'athlete_m', skin: 'light', hair: 'ginger', look: { top: '#eef1f2', bottoms: '#4d6240', hat: 'none', sleeves: '#eef1f2' } },
+  { ch: 'athlete_m', skin: 'light', hair: 'ginger', look: { top: '#eef1f2', bottoms: '#4d6240', hat: 'none', sleeves: null, trousers: false } },
   { ch: 'athlete_f', skin: 'light', hair: 'brown', look: { top: '#efc84c', bottoms: '#355a7c', hat: 'none', sleeves: null } },
-  { ch: 'athlete_m', skin: 'light', hair: 'grey', look: { top: '#3c7e5c', bottoms: '#6b5a48', hat: 'none', sleeves: null } },
-  { ch: 'athlete_m', skin: 'tan', hair: 'brown', look: { top: '#2f6db0', bottoms: '#3d4958', hat: 'none', sleeves: null } },
+  { ch: 'athlete_m', skin: 'light', hair: 'grey', look: { top: '#3c7e5c', bottoms: '#6b5a48', hat: 'none', sleeves: null, trousers: false } },
+  { ch: 'athlete_m', skin: 'tan', hair: 'brown', look: { top: '#2f6db0', bottoms: '#3d4958', hat: 'none', sleeves: null, trousers: false } },
   { ch: 'athlete_f', skin: 'light', hair: 'black', look: { top: '#2f8f87', bottoms: '#4a5668', hat: 'none', sleeves: null } },
 ];
 
@@ -94,10 +94,9 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
   // ---- people ---------------------------------------------------------------------------------------------------------------------------------
   const people = {};          // 'athlete_m' / 'athlete_f' -> thrower
   let crowd = null;
-  const lod = quality === 'high' ? 0 : 1;
   async function build() {
     for (const ch of ['athlete_m', 'athlete_f']) {
-      const A = await loadThrower(V3, { character: ch, kit: { top: '#2f6db0', bottoms: '#3d4958', socks: '#f2f2f2' }, skin: 'light', hair: 'brown', lod });
+      const A = await loadThrower(V3, { character: ch, kit: { top: '#2f6db0', bottoms: '#3d4958', socks: '#f2f2f2' }, skin: 'light', hair: 'brown' });
       stage.add(A.h); stage.track(A.h);
       A.h.root.visible = false; A.look = -1; A.gear = null;
       people[ch] = A;
@@ -237,7 +236,7 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
     const yaw = Math.PI - psi;
     D.yaw += (yaw - D.yaw) * (dt > 0 ? 1 - Math.exp(-dt * 7) : 1);
     A.h.setFacing(D.yaw);
-    A.h.root.position.set(A.off.x, 0, A.off.z);
+    A.h.root.position.set(A.off.x + (play ? 0 : 0.24), 0, A.off.z);   // play: the person stands further left so the skittles dominate; the menu backdrop keeps him in view
     // progress p
     let p = D.p;
     if (act && !act.released && act.wind > 0) {

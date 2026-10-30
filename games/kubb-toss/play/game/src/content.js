@@ -29,6 +29,9 @@ export const ABOUT = [
     'Every kubb, the king and every baton is a solid wooden body in a small physics world. A baton spins end over end in the air, lands, skids and tumbles, and the kubbs it strikes topple, slide and knock into their neighbours. The same throw from the same position always gives the same result.',
     'The lawn, the camera and the view never move: only the wood does.',
   ] },
+  { title: '3D credits and licences', p: [
+    'The lawn, the stakes, the blocks, the king and the batons are drawn with the three.js library (MIT licence, three.js authors). Everything you see is made inside the game; there are no downloaded pictures.',
+  ] },
   { title: 'Made to be comfortable', p: [
     'Every text screen can be enlarged up to 300%. Aim steadiness has three settings. The Think button explains a throw and tests it with real simulated throws, Learn teaches the game in four short lessons (throwing, field kubbs, the baseline and the king), and Watch & Learn lets you watch two players with their reasons on screen.',
     'Menus, the rules, Learn and Watch & Learn are always free. Free to play with short ads; go ad-free once.',

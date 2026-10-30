@@ -31,7 +31,7 @@ export const lay = () => layoutFor(screen.w, screen.h);
 // Tap zone of the Arcforge lockup: at least 44 x 44 css px, grown sideways/downwards only (never up into the menu).
 export const creditHit = (r) => { const m = 44 / Math.max(host.px, 1e-6), w = Math.max(r.w, m), h = Math.max(r.h, m); return R(r.x + r.w / 2 - w / 2, r.y, w, h); };
 
-export const MENU_NEED = 730;   // height the title menu likes at 100 percent text and density 1.0
+export const MENU_NEED = 470;   // height the title menu likes at 100 percent text and density 1.0
 
 function build(w, h, ins) {
   const wide = h < w * 1.12;
@@ -91,7 +91,7 @@ function build(w, h, ins) {
     T.lock = R(T.cx - lockW / 2, footY, lockW, lockH);
     const menuBottom = footY - 10;
     const A = menuBottom - yE - 24;
-    let s = Math.min(380, A - 620 - 20);
+    let s = Math.min(560, U.w - 40, A - MENU_NEED - 10);
     if (s < 220) s = 0;
     T.board = s ? { x: Math.round(T.cx - s / 2), y: Math.round(yE + 4), side: s } : null;
     const menuTop = s ? yE + 4 + s + 26 : yE + 12;

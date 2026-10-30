@@ -19,9 +19,9 @@ const rgrad = (ctx, x, y, r0, r1, stops) => { const g = ctx.createRadialGradient
 // scene = { x, w, floorY, top }; z = 0 wide view of the whole throw, 1 close on the vase.
 export function cameraFor(scene, D, z) {
   const hAvail = Math.max(120, scene.floorY - scene.top);
-  const sWide = Math.min(scene.w / (D + 90), hAvail / 190), sFocus = Math.min((scene.w * 0.94) / 88, hAvail / 98);
+  const sWide = Math.min(scene.w / (D + 112), hAvail / 190), sFocus = Math.min((scene.w * 0.94) / 88, hAvail / 98);
   const e = smooth(z), s = Math.exp(lerp(Math.log(sWide), Math.log(Math.max(sWide, sFocus)), e));
-  const cxWide = (D - 22) / 2, cxFocus = D - 8;
+  const cxWide = (D - 34) / 2, cxFocus = D - 8;
   return { ox: scene.x + scene.w / 2, cx: lerp(cxWide, cxFocus, e), s, floorY: scene.floorY };
 }
 export const sx = (cam, x) => cam.ox + (x - cam.cx) * cam.s;

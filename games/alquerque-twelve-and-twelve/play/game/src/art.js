@@ -116,7 +116,14 @@ export function panel(ctx, th, x, y, w, h, o = {}) {
   g.addColorStop(0, th.panel[0]); g.addColorStop(1, th.panel[1]);
   ctx.fillStyle = g; rr(ctx, x, y, w, h, o.r ?? 26); ctx.fill();
   ctx.restore();
-  ctx.strokeStyle = th.stroke; ctx.lineWidth = 2; rr(ctx, x, y, w, h, o.r ?? 26); ctx.stroke();
+  // a brass edge (brighter at the top and foot) and a hairline groove inside it, like the HUD plaques
+  ctx.save();
+  const acc = th.accent.length === 7 ? th.accent : '#e8c46a', e = ctx.createLinearGradient(x, y, x, y + h), r0 = o.r ?? 26;
+  e.addColorStop(0, alpha(acc, 0.8)); e.addColorStop(0.5, alpha(acc, 0.35)); e.addColorStop(1, alpha(acc, 0.6));
+  ctx.strokeStyle = e; ctx.lineWidth = 2; rr(ctx, x, y, w, h, r0); ctx.stroke();
+  ctx.strokeStyle = 'rgba(0,0,0,0.45)'; ctx.lineWidth = 1.5; rr(ctx, x + 7, y + 7, w - 14, h - 14, Math.max(4, r0 - 7)); ctx.stroke();
+  ctx.strokeStyle = 'rgba(255,236,200,0.08)'; ctx.lineWidth = 1; rr(ctx, x + 8.5, y + 8.5, w - 17, h - 17, Math.max(4, r0 - 8)); ctx.stroke();
+  ctx.restore();
 }
 
 // Flat buttons: one solid fill, a hairline border, a darker underside strip when at rest. No gloss shape.
@@ -178,6 +185,25 @@ export function icon(ctx, name, x, y, s, color = '#fff') {
     ctx.beginPath(); ctx.arc(-r * 0.4, r * 0.25, r * 0.3, 0, Math.PI * 2); ctx.fill();
     ctx.beginPath(); ctx.arc(r * 0.4, r * 0.25, r * 0.3, 0, Math.PI * 2); ctx.fill();
     ctx.beginPath(); ctx.moveTo(-r * 0.4, -r * 0.7); ctx.lineTo(-r * 0.4, -r * 0.2); ctx.moveTo(r * 0.4, -r * 0.7); ctx.lineTo(r * 0.4, -r * 0.2); ctx.stroke();
+  } else if (name === 'book') { // an open book
+    ctx.beginPath(); ctx.moveTo(0, -r * 0.45); ctx.quadraticCurveTo(-r * 0.4, -r * 0.7, -r * 0.85, -r * 0.5); ctx.lineTo(-r * 0.85, r * 0.55); ctx.quadraticCurveTo(-r * 0.4, r * 0.35, 0, r * 0.6);
+    ctx.quadraticCurveTo(r * 0.4, r * 0.35, r * 0.85, r * 0.55); ctx.lineTo(r * 0.85, -r * 0.5); ctx.quadraticCurveTo(r * 0.4, -r * 0.7, 0, -r * 0.45); ctx.lineTo(0, r * 0.6); ctx.stroke();
+  } else if (name === 'eye') {
+    ctx.beginPath(); ctx.moveTo(-r * 0.9, 0); ctx.quadraticCurveTo(0, -r * 0.85, r * 0.9, 0); ctx.quadraticCurveTo(0, r * 0.85, -r * 0.9, 0); ctx.stroke();
+    ctx.beginPath(); ctx.arc(0, 0, r * 0.26, 0, Math.PI * 2); ctx.fill();
+  } else if (name === 'question') {
+    ctx.beginPath(); ctx.arc(0, -r * 0.3, r * 0.4, Math.PI * 1.05, Math.PI * 2.35); ctx.quadraticCurveTo(0, r * 0.05, 0, r * 0.25); ctx.stroke();
+    ctx.beginPath(); ctx.arc(0, r * 0.65, r * 0.1, 0, Math.PI * 2); ctx.fill();
+  } else if (name === 'scroll') { // a page of lines
+    rr(ctx, -r * 0.62, -r * 0.8, r * 1.24, r * 1.6, 4); ctx.stroke();
+    ctx.beginPath(); for (const yy of [-0.4, -0.05, 0.3]) { ctx.moveTo(-r * 0.32, r * yy); ctx.lineTo(r * 0.32, r * yy); } ctx.stroke();
+  } else if (name === 'info') {
+    ctx.beginPath(); ctx.arc(0, 0, r * 0.8, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, -r * 0.05); ctx.lineTo(0, r * 0.45); ctx.stroke();
+    ctx.beginPath(); ctx.arc(0, -r * 0.38, r * 0.09, 0, Math.PI * 2); ctx.fill();
+  } else if (name === 'gear') {
+    ctx.beginPath(); ctx.arc(0, 0, r * 0.45, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); for (let k = 0; k < 8; k++) { const a = (k / 8) * Math.PI * 2; ctx.moveTo(Math.cos(a) * r * 0.55, Math.sin(a) * r * 0.55); ctx.lineTo(Math.cos(a) * r * 0.85, Math.sin(a) * r * 0.85); } ctx.stroke();
   }
   ctx.restore();
 }

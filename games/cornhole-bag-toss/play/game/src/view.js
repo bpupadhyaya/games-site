@@ -3,7 +3,7 @@
 // estimated) and by render (real text widths), and gives the same rectangles to both.
 import { W, H, FR, TEXT_SCALES, COMPACT, TRAY, SCENE_Y0, MINI, PLAY_WIN, PULL_ZONE_Y0, playLayout, toScene } from './layout.js';
 import { FONT, NUM, roundPath, drawButton, paintButton, panel, wrapLines, textShadow, ease } from './ui.js';
-import { drawStill, drawBags, drawArc, drawLanding, drawParts, interpBags, fixedCam, setExtent, TAU, BAG_COL } from './scene.js';
+import { drawStill, drawBags, drawArc, drawLanding, drawParts, interpBags, fixedCam, setExtent, TAU, BAG_COL, v3, deviceRect, proj } from './scene.js';
 import { PROFILES } from './ai.js';
 import { STYLES, arcPoints, BOARD_W, BOARD_L, HOLE_V, HOLE_R, BAG_HALF, BOARD_Z0, COS_A } from './phys.js';
 import { pointsOf, bagIndex, turnOf, BAGS_EACH } from './engine.js';
@@ -354,8 +354,51 @@ function drawMini(ctx, S, bags, guide) {
   ctx.restore();
 }
 
-export function drawScene(ctx, S) {
-  const cam = S.cam, t = S.t;
+// ---- the follow camera --------------------------------------------------------------------------------------------------
+// The same pinhole as before, but zoomed and panned so the far board and the bag fill the play window (board ~85 percent of the width in
+// portrait). Both layers (2D drawing and the WebGL yard) read this one camera, so arcs, rings and bags always agree. The camera frames the
+// board plus whatever matters now (the bag in hand, the landing ring, the bag in flight) and eases between frames; while a bag is high
+// it widens, then closes in again as the bag drops onto the board. Pulling and taps do not use the camera at all.
+const REF = { F: 5400, Hc: 2.9, D0: 8.5, YH: -38, x: 0 };   // reference framing (a little higher eye than the old camera: the bag in hand sits below the board)
+const rp = (x, y, z) => proj(REF, x, y, z);
+const BOARD_PX = BOARD_W * REF.F / (REF.D0 + BOARD_Z0);
+export function followCam(S, view, flightBag) {
+  const vw = view.x1 - view.x0, vh = view.y1 - view.y0;
+  const top = [rp(0, 0.34, BOARD_Z0 + 1.2).y - 10], bot = [rp(0, 0.09, BOARD_Z0).y + 12];
+  let aimX = 0, itemX = 0, hasItem = false;
+  const take = (p, padT, padB) => { top.push(p.y - padT * p.s / 600); bot.push(p.y + padB * p.s / 600); };
+  const ov = S.overlay, plan = ov && (ov.plan || ov.hint);
+  if (S.handBag) { const b = S.handBag, p = rp(b.x, b.y, b.z); take(p, 50, 50); itemX = p.x - 360; hasItem = true; }
+  if (plan && !flightBag) { const p = rp(plan.aimX, 0, plan.aimZ); take(p, 20, 40); aimX = p.x - 360; }
+  if (flightBag) { const p = rp(flightBag.x, flightBag.y, flightBag.z); take(p, 80, 90); itemX = p.x - 360; hasItem = true; }
+  const y0 = Math.min(...top), y1 = Math.max(...bot);
+  const zW = (0.87 * vw) / BOARD_PX, zH = vh / Math.max(60, y1 - y0);
+  const Zt = Math.max(1, Math.min(zW, zH, 4));
+  const xs = hasItem && !S.handBag ? itemX : aimX;
+  const cxt = 360 + Math.max(-175, Math.min(175, xs)) * 0.8;
+  const cyt = (y0 + y1) / 2;
+  let st = S.camSt;
+  const tnow = S.t || 0;
+  if (!st || !(tnow - st.t >= 0) || tnow - st.t > 0.3 || st.vk !== view.key) st = S.camSt = { Z: Zt, cx: cxt, cy: cyt, t: tnow, vk: view.key, mv: 0 };
+  const dt = Math.min(0.1, tnow - st.t), k = 1 - Math.exp(-dt * (flightBag ? 9 : 6));
+  const pZ = st.Z, pcx = st.cx, pcy = st.cy;
+  st.Z += (Zt - st.Z) * k; st.cx += (cxt - st.cx) * k; st.cy += (cyt - st.cy) * k; st.t = tnow;
+  st.mv = Math.abs(st.Z - pZ) + Math.abs(st.cx - pcx) + Math.abs(st.cy - pcy) > 0.002 ? 1 : 0;
+  const Z = st.Z, vcx = (view.x0 + view.x1) / 2, vcy = (view.y0 + view.y1) / 2, sB = REF.F / (REF.D0 + BOARD_Z0);
+  const F = REF.F * Z;
+  return { F, Hc: REF.Hc, D0: REF.D0, YH: vcy + Z * (REF.YH - st.cy), x: (360 - vcx - Z * (360 - st.cx)) / (Z * sB), mv: st.mv };
+}
+function viewRectFor(lay) {
+  const s = lay.s, tx = lay.tx, ty = lay.ty;
+  let x0 = -tx / s, x1 = (FR.sw - tx) / s, y0, y1;
+  if (lay.land) { x0 = (lay.lp.w - tx) / s; x1 = (lay.rp.x - tx) / s; y0 = (8 - ty) / s; y1 = (H - 8 - ty) / s; }
+  else if (lay.clip) { y0 = (lay.clip.y - ty) / s; y1 = (lay.clip.y + lay.clip.h - ty) / s; }
+  else { y0 = SCENE_Y0 + 40; y1 = (lay.trayTop - ty) / s - 6; }
+  return { x0, x1, y0, y1, key: `${Math.round(x0)}|${Math.round(x1)}|${Math.round(y0)}|${Math.round(y1)}` };
+}
+
+export function drawScene(ctx, S, camIn) {
+  const cam = camIn || S.cam, t = S.t;
   drawStill(ctx, cam, t);
   const ov = S.overlay;
   if (ov) {
@@ -496,15 +539,19 @@ function drawSceneLayer(ctx, S, lay) {
   setExtent(-tx / s, -ty / s, (FR.sw - tx) / s, (H - ty) / s);
   ctx.save();
   if (lay.clip) { ctx.beginPath(); ctx.rect(0, lay.clip.y, FR.sw, lay.clip.h); ctx.clip(); }
+  v3.clip = lay.clip && ctx.getTransform ? deviceRect(ctx.getTransform(), 0, lay.clip.y, FR.sw, lay.clip.h) : null;
   ctx.translate(tx, ty); ctx.scale(s, s);
-  drawScene(ctx, S);
+  let fb = null;
+  if (S.ph === 'flight' && S.sim) fb = interpBags(S.sim, S.alpha).find((b) => b.id === S.thrownId && b.st === 'free' && !b.dead) || null;
+  drawScene(ctx, S, followCam(S, viewRectFor(lay), fb));
+  v3.clip = null;
   ctx.restore();
   const vg = ctx.createRadialGradient(FR.sw / 2, H * 0.5, Math.min(FR.sw, H) * 0.42, FR.sw / 2, H * 0.5, Math.max(FR.sw, H) * 0.7); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.34)');
   ctx.fillStyle = vg; ctx.fillRect(0, 0, FR.sw, H);
 }
 export function renderPlay(ctx, S) {
   const lay = computeLayout(S, ctx);
-  ctx.fillStyle = '#0b1408'; ctx.fillRect(0, 0, FR.sw, H);
+  ctx.fillStyle = '#0b1408'; if (v3.on) ctx.globalAlpha = 1 - v3.mix; ctx.fillRect(0, 0, FR.sw, H); ctx.globalAlpha = 1;
   drawSceneLayer(ctx, S, lay);
   const bags = interpBags(S.sim, S.alpha), mbags = bags.filter((b) => b.st !== 'free' || !b.dead);
   if (lay.land) {

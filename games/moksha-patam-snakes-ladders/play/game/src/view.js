@@ -10,6 +10,7 @@ import {
 import { COLORS, COLOR_NAMES, classicBoard } from './rules.js';
 import { ABOUT, HOWTO, RULES } from './content.js';
 import { layoutList, drawList } from './ui.js';
+import { v3 } from './v3.js';
 
 const clampN = (v, a, b) => Math.max(a, Math.min(b, v));
 
@@ -45,22 +46,25 @@ export function animPawn(state) {
 }
 
 // ---- board scene ------------------------------------------------------------------------------------------------------
+// Rings on the tilted 3D cloth: every point goes through v3.proj (canonical board point -> screen), circles become ellipses.
+const P3 = (x, y, h = 0) => v3.proj(x, y, h);
+function ringE(ctx, x, y, r, col, w) { const p = P3(x, y); ctx.save(); ctx.strokeStyle = col; ctx.lineWidth = w * p.s; ctx.beginPath(); ctx.ellipse(p.x, p.y, r * p.s, r * p.s * p.q, 0, 0, TAU); ctx.stroke(); ctx.restore(); }
 function drawHighlights(ctx, state) {
-  const t = state.t, pulse = 0.55 + 0.45 * Math.sin(t * 6);
-  const mark = (n, col, r = 26, w = 4) => { const p = squareXY(n); if (p) ring(ctx, p.x, p.y, r + 2 * pulse, col, w); };
+  const t = state.t, pulse = 0.55 + 0.45 * Math.sin(t * 6), live = v3.live;
+  const mark = (n, col, r = 26, w = 4) => { const p = squareXY(n); if (!p) return; if (live) ringE(ctx, p.x, p.y, r + 2 * pulse, col, w); else ring(ctx, p.x, p.y, r + 2 * pulse, col, w); };
   const g = state.g;
   const cur = g.players[g.turn];
-  if (state.reveal && state.reveal.faint) for (const n of state.reveal.faint) { const p = squareXY(n); if (p) { ctx.fillStyle = 'rgba(255,255,255,0.28)'; ctx.beginPath(); ctx.arc(p.x, p.y, 22, 0, TAU); ctx.fill(); } }
+  if (state.reveal && state.reveal.faint) for (const n of state.reveal.faint) { const p = squareXY(n); if (p) { ctx.fillStyle = 'rgba(255,255,255,0.28)'; ctx.beginPath(); if (live) { const q = P3(p.x, p.y); ctx.ellipse(q.x, q.y, 22 * q.s, 22 * q.s * q.q, 0, 0, TAU); } else ctx.arc(p.x, p.y, 22, 0, TAU); ctx.fill(); } }
   if (state.options && state.options.length && (state.phase === 'pick' || state.reveal)) {
     state.options.forEach((o, i) => {
       const chosen = state.reveal && state.reveal.chosen === i, best = state.hintDie === i && state.phase === 'pick';
       const col = chosen ? 'rgba(255,214,90,0.98)' : best ? 'rgba(120,255,170,0.95)' : 'rgba(255,255,255,0.8)';
       if (o.res.over) return;
       mark(o.res.land, col, chosen ? 29 : 25, chosen ? 5 : 3.5);
-      if (o.res.jump) { mark(o.res.to, col, 17, 2.5); const a = squareXY(o.res.land), b = squareXY(o.res.to); ctx.save(); ctx.setLineDash([6, 8]); ctx.lineDashOffset = -t * 30; ctx.strokeStyle = col; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); ctx.restore(); }
+      if (o.res.jump) { mark(o.res.to, col, 17, 2.5); const a = squareXY(o.res.land), b = squareXY(o.res.to); ctx.save(); ctx.setLineDash([6, 8]); ctx.lineDashOffset = -t * 30; ctx.strokeStyle = col; ctx.lineWidth = 2.5; ctx.beginPath(); if (live) { const pa = P3(a.x, a.y, 20), pb = P3(b.x, b.y, 20); ctx.moveTo(pa.x, pa.y); ctx.lineTo(pb.x, pb.y); } else { ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); } ctx.stroke(); ctx.restore(); }
     });
   }
-  if (state.thinkRing && cur) { const p = state.shown ? posXY(state.shown[g.turn], g.turn) : null; if (p) ring(ctx, p.x, p.y - 4, 34 + 6 * pulse, 'rgba(120,200,255,0.9)', 4); }
+  if (state.thinkRing && cur) { const p = state.shown ? posXY(state.shown[g.turn], g.turn) : null; if (p) { if (live) ringE(ctx, p.x, p.y - 4, 34 + 6 * pulse, 'rgba(120,200,255,0.9)', 4); else ring(ctx, p.x, p.y - 4, 34 + 6 * pulse, 'rgba(120,200,255,0.9)', 4); } }
 }
 
 function drawPawns(ctx, state) {
@@ -80,10 +84,12 @@ function drawPawns(ctx, state) {
     list.push({ x, y, lift, squash, glow, r, i, color: COLORS[p.color], z: y + (isMover ? 500 : 0) });
   });
   list.sort((a, b) => a.z - b.z);
+  if (v3.live) { for (const q of list) v3.pawns.push({ x: q.x, y: q.y, lift: q.lift, squash: q.squash, glow: q.glow, i: q.i }); return; }
   for (const q of list) drawPawn(ctx, q.x, q.y, q.color, q.r, { lift: q.lift, squash: q.squash, glow: q.glow });
 }
 
 function drawParticles(ctx, state, screen) {
+  if (v3.live && !screen) return drawParticles3(ctx, state);
   for (const q of state.parts) {
     if (!!q.scr !== !!screen) continue;
     const a = Math.max(0, 1 - q.t / q.max);
@@ -93,6 +99,17 @@ function drawParticles(ctx, state, screen) {
     ctx.restore();
   }
   if (!screen) for (const r of state.rings) { ctx.save(); ctx.globalAlpha = Math.max(0, 1 - r.t / 0.5); ctx.strokeStyle = r.c ?? 'rgba(255,240,200,0.9)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(r.x, r.y, 10 + r.t * (r.big ? 120 : 70), (10 + r.t * (r.big ? 120 : 70)) * 0.45, 0, 0, TAU); ctx.stroke(); ctx.restore(); }
+}
+
+function drawParticles3(ctx, state) {
+  for (const q of state.parts) {
+    if (q.scr) continue; const p = P3(q.x, q.y, 4), a = Math.max(0, 1 - q.t / q.max);
+    ctx.save(); ctx.globalAlpha = a; ctx.fillStyle = q.c;
+    if (q.kind === 'confetti') { ctx.translate(p.x, p.y); ctx.rotate(q.rot + q.t * q.spin); ctx.fillRect(-q.size * p.s, -q.size * p.s * 0.5, q.size * 2 * p.s, q.size * p.s); }
+    else { ctx.beginPath(); ctx.arc(p.x, p.y, q.size * p.s * (q.kind === 'dust' ? 1 + q.t * 2 : 1), 0, TAU); ctx.fill(); }
+    ctx.restore();
+  }
+  for (const r of state.rings) { const p = P3(r.x, r.y), rr = 10 + r.t * (r.big ? 120 : 70); ctx.save(); ctx.globalAlpha = Math.max(0, 1 - r.t / 0.5); ctx.strokeStyle = r.c ?? 'rgba(255,240,200,0.9)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(p.x, p.y, rr * p.s, rr * p.s * p.q, 0, 0, TAU); ctx.stroke(); ctx.restore(); }
 }
 
 // Dice: offsets from the table centre in design units (die edge 108), resolved against the live layout.
@@ -105,8 +122,13 @@ export function dieRects(state, L) {
   }
   return out;
 }
+function dieOut(ctx, x, y, size, v, o = {}) {
+  if (v3.live) v3.dice.push({ x, y, s: size, v, angle: o.angle || 0, lift: o.lift || 0, tumble: o.tumble || 0, glow: o.glow, ring: o.ring }); else drawDie(ctx, x, y, size, v, o);
+}
 function drawTable(ctx, state, L) {
   const T = L.table, g0 = state.g, n = g0.opts.dice === 'two' ? 2 : 1, k = dieK(L, n), ds = 108 * k;
+  if (v3.live) v3.tray = T;
+  else {
   panel(ctx, T, { top: 'rgba(36,50,92,0.85)', bot: 'rgba(20,28,60,0.9)', line: 'rgba(200,170,110,0.55)' });
   ctx.save(); roundPath(ctx, T.x + 6, T.y + 6, T.w - 12, T.h - 12, 18); ctx.clip();
   // woven cloth look: soft diagonal weave
@@ -115,6 +137,7 @@ function drawTable(ctx, state, L) {
   const gl = ctx.createRadialGradient(L.dieHome.x, T.y + T.h / 2, 10, L.dieHome.x, T.y + T.h / 2, Math.max(120, T.w / 2)); gl.addColorStop(0, 'rgba(255,225,160,0.14)'); gl.addColorStop(1, 'rgba(255,225,160,0)');
   ctx.fillStyle = gl; ctx.fillRect(T.x, T.y, T.w, T.h);
   ctx.restore();
+  }
   const g = state.g, cur = g.players[state.mover >= 0 ? state.mover : g.turn];
   const col = COLORS[cur.color];
   const small = (px) => Math.max(12, Math.round(px * Math.min(scaleOf(state), 1.4) * Math.max(0.8, k)));
@@ -127,7 +150,7 @@ function drawTable(ctx, state, L) {
       let lift = 0; const bs = [[0, 0.5, 150], [0.5, 0.77, 48], [0.77, 0.93, 16]];
       for (const [a0, b0, amp] of bs) if (u >= a0 && u < b0) lift = amp * Math.sin((u - a0) / (b0 - a0) * Math.PI);
       const face = u < 0.9 ? 1 + (Math.floor(state.t * 24 + i * 3) % 6) : d.value;
-      drawDie(ctx, x, y, ds, face, { angle: d.a0 + d.spin * (1 - e), lift: lift * k, scale: 1 + lift / 300 });
+      dieOut(ctx, x, y, ds, v3.live ? d.value : face, { angle: d.a0 + d.spin * (1 - e), lift: lift * k, scale: 1 + lift / 300, tumble: u < 0.93 ? 1 - e : 0 });
     });
   } else if (state.values.length) {
     const rects = dieRects(state, L);
@@ -139,7 +162,7 @@ function drawTable(ctx, state, L) {
       const used = state.phase === 'move' || state.phase === 'hold' || state.phase === 'banner';
       const dim = used && state.options && state.options.length > 1 && state.chosenDie !== undefined && state.chosenDie !== i;
       ctx.save(); if (dim) ctx.globalAlpha = 0.4;
-      drawDie(ctx, cx, cy - (pickable ? (4 + 4 * Math.sin(state.t * 5 + i)) * k : 0), ds, v, { angle: d ? d.aEnd : 0, glow: best ? 'rgba(120,255,170,0.9)' : chosen ? 'rgba(255,214,90,0.95)' : pickable ? 'rgba(255,255,255,0.6)' : null, ring: pickable ? col : null });
+      dieOut(ctx, cx, cy - (pickable ? (4 + 4 * Math.sin(state.t * 5 + i)) * k : 0), ds, v, { angle: d ? d.aEnd : 0, glow: best ? 'rgba(120,255,170,0.9)' : chosen ? 'rgba(255,214,90,0.95)' : pickable ? 'rgba(255,255,255,0.6)' : null, ring: pickable ? col : null });
       ctx.restore();
       if (pickable) { ctx.fillStyle = 'rgba(255,240,200,0.9)'; ctx.font = `400 ${small(18)}px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText('tap to use', cx, Math.min(T.y + T.h - 8, cy + 82 * k)); }
     });
@@ -152,7 +175,7 @@ function drawTable(ctx, state, L) {
     const myTurn = !cur.ai && !state.over && state.phase === 'idle' && state.scene === 'play';
     for (let i = 0; i < n; i++) {
       const o = dieOff(n, i), p = tableAt(L, n, o.x, o.y);
-      drawDie(ctx, p.x, p.y + (myTurn ? Math.sin(state.t * 3 + i) * 3 : 0), ds, state.restFace[i] ?? 1 + i * 2, { angle: i ? 0.2 : -0.15, glow: myTurn ? 'rgba(255,214,120,0.6)' : null });
+      dieOut(ctx, p.x, p.y + (myTurn ? Math.sin(state.t * 3 + i) * 3 : 0), ds, state.restFace[i] ?? 1 + i * 2, { angle: i ? 0.2 : -0.15, glow: myTurn ? 'rgba(255,214,120,0.6)' : null });
     }
     if (myTurn) { ctx.fillStyle = 'rgba(255,240,200,0.85)'; ctx.font = `italic 400 ${small(20)}px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText('tap or flick the dice', T.x + T.w / 2, T.y + T.h - 14); }
   }
@@ -220,15 +243,20 @@ function drawHeader(ctx, state, L, title) {
 }
 
 export function renderBoardScene(ctx, state, L, demo) {
-  drawBackdrop(ctx, L.w, L.h);
   const g = state.g, cur = g.players[state.mover >= 0 ? state.mover : g.turn], B = L.board;
-  ctx.save();
-  ctx.translate(B.x, B.y); ctx.scale(B.s, B.s); ctx.translate(-BOARD_X, -BOARD_Y);
-  drawBoard(ctx, g.board);
-  drawHighlights(ctx, state);
-  drawPawns(ctx, state);
-  drawParticles(ctx, state, false);
-  ctx.restore();
+  if (v3.live) {
+    v3.board = g.board; v3.boardRect = { x: B.x, y: B.y, w: B.size, h: B.size };
+    drawHighlights(ctx, state); drawPawns(ctx, state); drawParticles(ctx, state, false);
+  } else {
+    drawBackdrop(ctx, L.w, L.h);
+    ctx.save();
+    ctx.translate(B.x, B.y); ctx.scale(B.s, B.s); ctx.translate(-BOARD_X, -BOARD_Y);
+    drawBoard(ctx, g.board);
+    drawHighlights(ctx, state);
+    drawPawns(ctx, state);
+    drawParticles(ctx, state, false);
+    ctx.restore();
+  }
   drawParticles(ctx, state, true);
   drawChips(ctx, state, L);
   drawMessage(ctx, state, L);
@@ -279,6 +307,13 @@ function drawHero(ctx, state, w, h, dy = 0, tight = false) {
   ctx.restore();
   ctx.font = `italic 400 ${fitFont(ctx, 'Cloth Board  ·  a painted dice race', 30, w - 24, 400, 16)}px ${FONT}`; ctx.fillStyle = '#f2d89c'; ctx.fillText('Cloth Board  ·  a painted dice race', w / 2, GY);
   const k = Math.max(0.2, Math.min(0.8, (h - T0 - 14) / BOARD_SIZE, (w - 20) / BOARD_SIZE)), bx = w / 2 - BOARD_SIZE * k / 2, by = T0;
+  if (v3.live) {
+    // the 3D cloth takes the hero rectangle (device px of the kit canvas); the demo pawns stand on it
+    const m = ctx.getTransform(), S = BOARD_SIZE * k;
+    v3.titleRect = { x: m.e + bx * m.a, y: m.f + by * m.d, w: S * m.a, h: S * m.d }; v3.board = state.titleBoard;
+    [[22, 0], [47, 1], [64, 2], [9, 3]].forEach(([n, i]) => { const p = squareXY(n); v3.pawns.push({ x: p.x, y: p.y, lift: 4 + 4 * Math.sin(state.t * 3 + i), squash: 1, i }); });
+    ctx.restore(); return;
+  }
   ctx.save(); ctx.translate(bx, by); ctx.scale(k, k); ctx.translate(-BOARD_X, -BOARD_Y);
   drawBoard(ctx, state.titleBoard);
   const demoPawns = [[22, 0], [47, 1], [64, 2], [9, 3]];
@@ -480,7 +515,7 @@ export function render(ctx, state, L) {
     lay = { rows: [], total: pm + 100, G: { x: 0, w: L.w, top: 0, bottom: 100 }, side: 0 };   // lets the shared list drag-scroll move the page text
   }
   else {
-    drawBackdrop(ctx, L.w, L.h);
+    if (!(v3.live && sc === 'title')) drawBackdrop(ctx, L.w, L.h);
     if (sc === 'title' && L.titleSplit) { const H = L.titleHero; ctx.save(); ctx.translate(H.x, H.y); drawHero(ctx, state, H.w, H.h, heroDy(L)); ctx.restore(); }
     drawList(ctx, lay, state.ui.scroll);
     if (sc === 'title') bar(ctx, state, L, 'Menu');

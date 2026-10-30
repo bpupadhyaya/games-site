@@ -4,7 +4,8 @@
 // How a move is made: TAP a piece (its legal points glow), then TAP a glowing point. To drop a captured piece:
 // TAP it on your stand, then TAP an empty glowing point. A refused move visibly tries, shudders, comes back, and a
 // message says why.
-import { W, H, lockHit, layoutFor, sqAt, STAND_ORDER, inRect, TEXT_SCALES, THINK_STEPS } from './layout.js';
+import { W, H, lockHit, layoutFor, sqAt, geom, STAND_ORDER, inRect, TEXT_SCALES, THINK_STEPS } from './layout.js';
+import { v3 } from './v3.js';
 import { newGame, applyMove, legalMoves, result, inCheck, mFrom, mTo, mPromo, mDrop, isDrop, dropMove, mk, whyNotMove, whyNotDrop, describe, fromRows, make, unmake, NAME, HINT, hasLegalMove } from './rules.js';
 import { createThinker } from './engine.js';
 import { LESSONS } from './lessons.js';
@@ -243,7 +244,9 @@ export function createGame(env) {
     return !humanTurn() || state.result || state.anim || (state.scene === 'lesson' && state.lesson.done) || (state.scene === 'puzzle' && (state.pz.status !== 'play' || state.pz.busy));
   }
   function tapBoard(x, y) {
-    const pos = state.game, sq = sqAt(G(), x, y, flip());
+    const pos = state.game;
+    // with the 3D scene on, a tap is mapped through the tilted board (v3.toCanon) into the board's canonical units
+    let sq; if (v3.on && v3.toCanon && v3.frame) { const c = v3.toCanon(x, y); sq = sqAt(geom(pos.n), c.x, c.y, flip()); } else sq = sqAt(G(), x, y, flip());
     if (sq < 0) return;
     state.cursor = sq;
     if (blocked()) { if (state.thinking) say('The computer is thinking. Your turn is coming.', 3); return; }
@@ -446,8 +449,9 @@ export function createGame(env) {
     if (state.scene === 'play' || state.scene === 'lesson' || state.scene === 'puzzle') { if (!tapStandAt(x, y)) tapBoard(x, y); }
   }
   function cursorPoint() {
-    const g = G(), r = (state.cursor / g.n) | 0, c = state.cursor % g.n, rr = flip() ? g.n - 1 - r : r, cc = flip() ? g.n - 1 - c : c;
-    return { x: g.gx + (cc + 0.5) * g.cell, y: g.gy + (rr + 0.5) * g.cell };
+    const g = v3.on && v3.toScreen && v3.frame ? geom(state.game.n) : G(), r = (state.cursor / g.n) | 0, c = state.cursor % g.n, rr = flip() ? g.n - 1 - r : r, cc = flip() ? g.n - 1 - c : c;
+    const p = { x: g.gx + (cc + 0.5) * g.cell, y: g.gy + (rr + 0.5) * g.cell };
+    return g === G() || !(v3.on && v3.toScreen) ? p : v3.toScreen(p.x, p.y);
   }
   function handleKeys(keys) {
     const n = state.game.n, playing = state.scene === 'play' || state.scene === 'lesson' || state.scene === 'puzzle';
